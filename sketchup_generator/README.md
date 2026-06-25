@@ -41,7 +41,18 @@ Each tag carries `{rgb, alpha}` (alpha<1 = translucent sheeting).
 Metres. `x` = along length, `y` = across width, `z` = up. Frames sit at the length-grid
 positions; rafters run eave→ridge→eave at `roof.ridgePos`/`roof.peakHeight`.
 
-## Run
+## Run — DYNAMIC Ruby console (pure Ruby, no Python)
+`maimaar_skp.rb` is a self-contained generator: it reads the IF building-model JSON and
+builds the whole .skp + 8 snaps inside SketchUp, no Python step. In **Window ▸ Ruby Console**:
+```ruby
+MAIMAAR_MODEL = 'D:/maimaar-os/sketchup_generator/samples/sample_model.json'
+load 'D:/maimaar-os/sketchup_generator/maimaar_skp.rb'
+```
+(or `MaimaarSKP.generate('D:/path/to/building_model.json')`). Output → `out/<proposalNo>.skp`
++ 8 PNGs. All rules (tapered I, 200Z bypass + clips, real end-plates, M20/M24 bolts, cable
+bracing, trims, Type-R ribs, masonry, openings, multi-building/area) are ported into Ruby.
+
+## Run — Python pipeline (alternative)
 **One command (IF → .skp + 8 snaps), production entry point:**
 ```
 cd sketchup_generator && python generate_from_if.py <building_model.json>
