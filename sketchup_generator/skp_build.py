@@ -14,7 +14,7 @@ Default model = drawing_generator/sample_model.json
 import os, sys, json, argparse, math
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_MODEL = os.path.join(HERE, "..", "drawing_generator", "sample_model.json")
+DEFAULT_MODEL = os.path.join(HERE, "samples", "sample_model.json")
 
 # Canonical tags -> {rgb, alpha}. Matches Maimaar's house SketchUp convention (learned by
 # reading the real proposal models): PRIMARY rigid frame = RED, secondary purlins/girts a
@@ -43,9 +43,12 @@ TAGS = {
 I_FLANGE_W = 0.225        # flange width bf (real median 227)
 I_FLANGE_T = 0.016        # flange thickness tf
 I_WEB_T    = 0.008        # web thickness tw
+# Secondary Z = 200Z per the approval drawings: Z 200 x 60 x 20 x (1.5-2.0 mm) (CONNECTION_RULES.md)
 Z_DEPTH    = 0.20         # 200Z web depth
-Z_FLANGE   = 0.075        # Z flange width (~75 mm)
-Z_THICK    = 0.022        # plate thickness shown (real ~2 mm; exaggerated so the Z reads)
+Z_FLANGE   = 0.06         # Z flange width (60 mm, from "Z 200x60x20")
+Z_LIP      = 0.02         # Z lip (20 mm) - noted; zmember draws web+flanges
+Z_THICK    = 0.020        # plate thickness shown (real 1.5-2.0 mm; exaggerated so the Z reads)
+SAG_ROD_DIA = 0.012       # sag rods Ø12 mm between purlins/girts
 PURLIN_SPACING = 1.5      # m
 WALL_SURF = ("NSW", "FSW", "LEW", "REW")
 
@@ -279,6 +282,35 @@ def build_area(b, area, ox=0.0, oy=0.0):
                                      rot=90.0, tag="CLIP", note="girt-clip"))
             gz += PURLIN_SPACING
 
+    # --- EAVE STRUTS (200Z along both eaves) — tie the frames at the eave ---
+    for wy in (0.0, W):
+        prim.append(zmember("PURLIN", (x0, oy + wy, eave - 0.02), (xL, oy + wy, eave - 0.02), "eave-strut"))
+
+    # --- FLANGE BRACES (angle from the frame inner flange out to a purlin/girt) ---
+    SEC_BRACE = (0.05, 0.05)
+    for xg in xs:
+        xx = xg + ox
+        # roof: one brace each slope, from rafter underside to the next purlin up-slope
+        for ya in (ridge_y * 0.45, W - (W - ridge_y) * 0.45):
+            zin = Z_at(ya) - d_raf(ya) / 2.0
+            yb = ya + (1.2 if ya <= ridge_y else -1.2)
+            prim.append(seg("MS-FRAME", (xx, oy + ya, zin), (xx + 1.2, oy + yb, purlin_z(yb)),
+                            *SEC_BRACE, note="flange-brace"))
+        # walls: column inner flange to a girt
+        for wy, sgn in ((0.0, 1.0), (W, -1.0)):
+            zc = eave * 0.55
+            prim.append(seg("MS-FRAME", (xx, oy + wy + sgn * 0.0, zc),
+                            (xx + 1.2, oy + wy + sgn * GIRT_OFF, zc + 1.2), *SEC_BRACE, note="flange-brace"))
+
+    # --- SAG RODS (Ø12) mid-bay between purlin lines (roof) ---
+    if len(xs) > 1:
+        baymid = (xs[0] + xs[1]) / 2.0 + ox
+        ys = sorted(set([0.0, ridge_y * 0.5, ridge_y, (W + ridge_y) / 2.0, W]))
+        for i in range(len(ys) - 1):
+            ya, yb = ys[i], ys[i + 1]
+            prim.append(seg("GUTTER-DOWNPIPE", (baymid, oy + ya, purlin_z(ya)),
+                            (baymid, oy + yb, purlin_z(yb)), SAG_ROD_DIA, SAG_ROD_DIA, note="sag-rod"))
+
     # --- ENDWALL framing: intermediate endwall columns + endwall girts (LEW/REW) ---
     ew = r.get("endwallColPos") or {}
     for xend, ein, wall in ((x0, x0 + 0.10, "LEW"), (xL, xL - 0.10, "REW")):
@@ -347,15 +379,15 @@ def build_area(b, area, ox=0.0, oy=0.0):
     # --- representative bolts at base plates, knees and ridge ---
     for xg in xs:
         x = xg + ox
-        for wy in (0.0, W):
+        for wy in (0.0, W):   # 4 x M24 L/J anchor bolts per base (M24x625 J-bolt / M20x500)
             for dx, dy in ((-0.10, -0.16), (0.10, -0.16), (-0.10, 0.16), (0.10, 0.16)):
                 prim.append(seg("BOLT", (x + dx, oy + wy + dy, 0.0),
-                                (x + dx, oy + wy + dy, 0.05), 0.028, 0.028, note="anchor-bolt"))
+                                (x + dx, oy + wy + dy, 0.08), 0.040, 0.040, note="M24-anchor-bolt"))
         for by, bz in ((0.0, eave - d_knee * 0.30), (0.0, eave - d_knee * 0.60),
                        (W, eave - d_knee * 0.30), (W, eave - d_knee * 0.60),
-                       (ridge_y, peak - d_apex * 0.45)):
-            prim.append(seg("BOLT", (x - 0.14, oy + by, bz), (x + 0.14, oy + by, bz),
-                            0.026, 0.026, note="conn-bolt"))
+                       (ridge_y, peak - d_apex * 0.45)):   # M20 moment bolts at knee/ridge
+            prim.append(seg("BOLT", (x - 0.16, oy + by, bz), (x + 0.16, oy + by, bz),
+                            0.034, 0.034, note="M20-conn-bolt"))
 
     return prim, (L, W, eave, peak)
 

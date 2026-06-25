@@ -1,0 +1,1589 @@
+{
+ "inquiryId": 2729,
+ "proposalNo": "MSPL-26-042",
+ "customer": "HICO Foods (Pvt.) Ltd.",
+ "project": "Mill Building",
+ "generated": "24/06/2026",
+ "geometryUnits": "m",
+ "buildings": [
+  {
+   "buildingNo": 1,
+   "label": "B-01",
+   "areas": [
+    {
+     "areaNo": 1,
+     "label": "Area-01",
+     "usage": "",
+     "resolved": {
+      "frameType": "Clear Span",
+      "areaLabel": "Area-01",
+      "rigidFrameColumns": "",
+      "grids": {
+       "length": [
+        {
+         "id": "1",
+         "pos": 0,
+         "interior": false
+        },
+        {
+         "id": "2",
+         "pos": 7.25,
+         "interior": true
+        },
+        {
+         "id": "3",
+         "pos": 15.833,
+         "interior": true
+        },
+        {
+         "id": "4",
+         "pos": 24.417,
+         "interior": true
+        },
+        {
+         "id": "5",
+         "pos": 33,
+         "interior": true
+        },
+        {
+         "id": "6",
+         "pos": 41.583,
+         "interior": true
+        },
+        {
+         "id": "7",
+         "pos": 50.167,
+         "interior": true
+        },
+        {
+         "id": "8",
+         "pos": 58.75,
+         "interior": true
+        },
+        {
+         "id": "9",
+         "pos": 66,
+         "interior": false
+        }
+       ],
+       "width": [
+        {
+         "id": "A",
+         "pos": 0,
+         "interior": false
+        },
+        {
+         "id": "B",
+         "pos": 31,
+         "interior": false
+        }
+       ]
+      },
+      "endwallColPos": {
+       "LEW": [
+        0,
+        31
+       ],
+       "REW": [
+        0,
+        31
+       ]
+      },
+      "walls": {
+       "NSW": {
+        "runsAlong": "length",
+        "axisGrids": "length",
+        "atWidthGrid": "A",
+        "run": 66,
+        "cond": null
+       },
+       "FSW": {
+        "runsAlong": "length",
+        "axisGrids": "length",
+        "atWidthGrid": "B",
+        "run": 66,
+        "cond": null
+       },
+       "LEW": {
+        "runsAlong": "width",
+        "axisGrids": "width",
+        "atLengthGrid": "1",
+        "run": 31,
+        "cond": null
+       },
+       "REW": {
+        "runsAlong": "width",
+        "axisGrids": "width",
+        "atLengthGrid": "9",
+        "run": 31,
+        "cond": null
+       }
+      },
+      "columns": [
+       {
+        "grid": [
+         "1",
+         "A"
+        ],
+        "x": 0,
+        "y": 0,
+        "base": "Pinned",
+        "exterior": true,
+        "topZ": 7
+       },
+       {
+        "grid": [
+         "1",
+         "B"
+        ],
+        "x": 0,
+        "y": 31,
+        "base": "Pinned",
+        "exterior": true,
+        "topZ": 7
+       },
+       {
+        "grid": [
+         "2",
+         "A"
+        ],
+        "x": 7.25,
+        "y": 0,
+        "base": "Pinned",
+        "exterior": true,
+        "topZ": 7
+       },
+       {
+        "grid": [
+         "2",
+         "B"
+        ],
+        "x": 7.25,
+        "y": 31,
+        "base": "Pinned",
+        "exterior": true,
+        "topZ": 7
+       },
+       {
+        "grid": [
+         "3",
+         "A"
+        ],
+        "x": 15.83,
+        "y": 0,
+        "base": "Pinned",
+        "exterior": true,
+        "topZ": 7
+       },
+       {
+        "grid": [
+         "3",
+         "B"
+        ],
+        "x": 15.83,
+        "y": 31,
+        "base": "Pinned",
+        "exterior": true,
+        "topZ": 7
+       },
+       {
+        "grid": [
+         "4",
+         "A"
+        ],
+        "x": 24.42,
+        "y": 0,
+        "base": "Pinned",
+        "exterior": true,
+        "topZ": 7
+       },
+       {
+        "grid": [
+         "4",
+         "B"
+        ],
+        "x": 24.42,
+        "y": 31,
+        "base": "Pinned",
+        "exterior": true,
+        "topZ": 7
+       },
+       {
+        "grid": [
+         "5",
+         "A"
+        ],
+        "x": 33,
+        "y": 0,
+        "base": "Pinned",
+        "exterior": true,
+        "topZ": 7
+       },
+       {
+        "grid": [
+         "5",
+         "B"
+        ],
+        "x": 33,
+        "y": 31,
+        "base": "Pinned",
+        "exterior": true,
+        "topZ": 7
+       },
+       {
+        "grid": [
+         "6",
+         "A"
+        ],
+        "x": 41.58,
+        "y": 0,
+        "base": "Pinned",
+        "exterior": true,
+        "topZ": 7
+       },
+       {
+        "grid": [
+         "6",
+         "B"
+        ],
+        "x": 41.58,
+        "y": 31,
+        "base": "Pinned",
+        "exterior": true,
+        "topZ": 7
+       },
+       {
+        "grid": [
+         "7",
+         "A"
+        ],
+        "x": 50.17,
+        "y": 0,
+        "base": "Pinned",
+        "exterior": true,
+        "topZ": 7
+       },
+       {
+        "grid": [
+         "7",
+         "B"
+        ],
+        "x": 50.17,
+        "y": 31,
+        "base": "Pinned",
+        "exterior": true,
+        "topZ": 7
+       },
+       {
+        "grid": [
+         "8",
+         "A"
+        ],
+        "x": 58.75,
+        "y": 0,
+        "base": "Pinned",
+        "exterior": true,
+        "topZ": 7
+       },
+       {
+        "grid": [
+         "8",
+         "B"
+        ],
+        "x": 58.75,
+        "y": 31,
+        "base": "Pinned",
+        "exterior": true,
+        "topZ": 7
+       },
+       {
+        "grid": [
+         "9",
+         "A"
+        ],
+        "x": 66,
+        "y": 0,
+        "base": "Pinned",
+        "exterior": true,
+        "topZ": 7
+       },
+       {
+        "grid": [
+         "9",
+         "B"
+        ],
+        "x": 66,
+        "y": 31,
+        "base": "Pinned",
+        "exterior": true,
+        "topZ": 7
+       }
+      ],
+      "frames": [
+       {
+        "atGrid": "1",
+        "type": "Bearing"
+       },
+       {
+        "atGrid": "2",
+        "type": "interior"
+       },
+       {
+        "atGrid": "3",
+        "type": "interior"
+       },
+       {
+        "atGrid": "4",
+        "type": "interior"
+       },
+       {
+        "atGrid": "5",
+        "type": "interior"
+       },
+       {
+        "atGrid": "6",
+        "type": "interior"
+       },
+       {
+        "atGrid": "7",
+        "type": "interior"
+       },
+       {
+        "atGrid": "8",
+        "type": "interior"
+       },
+       {
+        "atGrid": "9",
+        "type": "Bearing"
+       }
+      ],
+      "nodes": [
+       {
+        "id": "1-A-base",
+        "x": 0,
+        "y": 0,
+        "z": 0
+       },
+       {
+        "id": "1-A-top",
+        "x": 0,
+        "y": 0,
+        "z": 7
+       },
+       {
+        "id": "1-B-base",
+        "x": 0,
+        "y": 31,
+        "z": 0
+       },
+       {
+        "id": "1-B-top",
+        "x": 0,
+        "y": 31,
+        "z": 7
+       },
+       {
+        "id": "2-A-base",
+        "x": 7.25,
+        "y": 0,
+        "z": 0
+       },
+       {
+        "id": "2-A-top",
+        "x": 7.25,
+        "y": 0,
+        "z": 7
+       },
+       {
+        "id": "2-B-base",
+        "x": 7.25,
+        "y": 31,
+        "z": 0
+       },
+       {
+        "id": "2-B-top",
+        "x": 7.25,
+        "y": 31,
+        "z": 7
+       },
+       {
+        "id": "3-A-base",
+        "x": 15.83,
+        "y": 0,
+        "z": 0
+       },
+       {
+        "id": "3-A-top",
+        "x": 15.83,
+        "y": 0,
+        "z": 7
+       },
+       {
+        "id": "3-B-base",
+        "x": 15.83,
+        "y": 31,
+        "z": 0
+       },
+       {
+        "id": "3-B-top",
+        "x": 15.83,
+        "y": 31,
+        "z": 7
+       },
+       {
+        "id": "4-A-base",
+        "x": 24.42,
+        "y": 0,
+        "z": 0
+       },
+       {
+        "id": "4-A-top",
+        "x": 24.42,
+        "y": 0,
+        "z": 7
+       },
+       {
+        "id": "4-B-base",
+        "x": 24.42,
+        "y": 31,
+        "z": 0
+       },
+       {
+        "id": "4-B-top",
+        "x": 24.42,
+        "y": 31,
+        "z": 7
+       },
+       {
+        "id": "5-A-base",
+        "x": 33,
+        "y": 0,
+        "z": 0
+       },
+       {
+        "id": "5-A-top",
+        "x": 33,
+        "y": 0,
+        "z": 7
+       },
+       {
+        "id": "5-B-base",
+        "x": 33,
+        "y": 31,
+        "z": 0
+       },
+       {
+        "id": "5-B-top",
+        "x": 33,
+        "y": 31,
+        "z": 7
+       },
+       {
+        "id": "6-A-base",
+        "x": 41.58,
+        "y": 0,
+        "z": 0
+       },
+       {
+        "id": "6-A-top",
+        "x": 41.58,
+        "y": 0,
+        "z": 7
+       },
+       {
+        "id": "6-B-base",
+        "x": 41.58,
+        "y": 31,
+        "z": 0
+       },
+       {
+        "id": "6-B-top",
+        "x": 41.58,
+        "y": 31,
+        "z": 7
+       },
+       {
+        "id": "7-A-base",
+        "x": 50.17,
+        "y": 0,
+        "z": 0
+       },
+       {
+        "id": "7-A-top",
+        "x": 50.17,
+        "y": 0,
+        "z": 7
+       },
+       {
+        "id": "7-B-base",
+        "x": 50.17,
+        "y": 31,
+        "z": 0
+       },
+       {
+        "id": "7-B-top",
+        "x": 50.17,
+        "y": 31,
+        "z": 7
+       },
+       {
+        "id": "8-A-base",
+        "x": 58.75,
+        "y": 0,
+        "z": 0
+       },
+       {
+        "id": "8-A-top",
+        "x": 58.75,
+        "y": 0,
+        "z": 7
+       },
+       {
+        "id": "8-B-base",
+        "x": 58.75,
+        "y": 31,
+        "z": 0
+       },
+       {
+        "id": "8-B-top",
+        "x": 58.75,
+        "y": 31,
+        "z": 7
+       },
+       {
+        "id": "9-A-base",
+        "x": 66,
+        "y": 0,
+        "z": 0
+       },
+       {
+        "id": "9-A-top",
+        "x": 66,
+        "y": 0,
+        "z": 7
+       },
+       {
+        "id": "9-B-base",
+        "x": 66,
+        "y": 31,
+        "z": 0
+       },
+       {
+        "id": "9-B-top",
+        "x": 66,
+        "y": 31,
+        "z": 7
+       }
+      ],
+      "supports": [
+       {
+        "grid": [
+         "1",
+         "A"
+        ],
+        "condition": "Pinned"
+       },
+       {
+        "grid": [
+         "1",
+         "B"
+        ],
+        "condition": "Pinned"
+       },
+       {
+        "grid": [
+         "2",
+         "A"
+        ],
+        "condition": "Pinned"
+       },
+       {
+        "grid": [
+         "2",
+         "B"
+        ],
+        "condition": "Pinned"
+       },
+       {
+        "grid": [
+         "3",
+         "A"
+        ],
+        "condition": "Pinned"
+       },
+       {
+        "grid": [
+         "3",
+         "B"
+        ],
+        "condition": "Pinned"
+       },
+       {
+        "grid": [
+         "4",
+         "A"
+        ],
+        "condition": "Pinned"
+       },
+       {
+        "grid": [
+         "4",
+         "B"
+        ],
+        "condition": "Pinned"
+       },
+       {
+        "grid": [
+         "5",
+         "A"
+        ],
+        "condition": "Pinned"
+       },
+       {
+        "grid": [
+         "5",
+         "B"
+        ],
+        "condition": "Pinned"
+       },
+       {
+        "grid": [
+         "6",
+         "A"
+        ],
+        "condition": "Pinned"
+       },
+       {
+        "grid": [
+         "6",
+         "B"
+        ],
+        "condition": "Pinned"
+       },
+       {
+        "grid": [
+         "7",
+         "A"
+        ],
+        "condition": "Pinned"
+       },
+       {
+        "grid": [
+         "7",
+         "B"
+        ],
+        "condition": "Pinned"
+       },
+       {
+        "grid": [
+         "8",
+         "A"
+        ],
+        "condition": "Pinned"
+       },
+       {
+        "grid": [
+         "8",
+         "B"
+        ],
+        "condition": "Pinned"
+       },
+       {
+        "grid": [
+         "9",
+         "A"
+        ],
+        "condition": "Pinned"
+       },
+       {
+        "grid": [
+         "9",
+         "B"
+        ],
+        "condition": "Pinned"
+       }
+      ],
+      "bracing": {
+       "bays": 8,
+       "segments": [
+        7.25,
+        8.5833,
+        8.5833,
+        8.5833,
+        8.5833,
+        8.5833,
+        8.5833,
+        7.25
+       ],
+       "braced": [
+        {
+         "bayIndex": 2,
+         "span": 8.5833,
+         "reason": "near-end"
+        },
+        {
+         "bayIndex": 4,
+         "span": 8.5833,
+         "reason": "interior"
+        },
+        {
+         "bayIndex": 7,
+         "span": 8.5833,
+         "reason": "near-end"
+        }
+       ],
+       "defaultType": "Diagonal · cable"
+      },
+      "wallBracing": {
+       "NSW": "",
+       "FSW": "",
+       "LEW": "",
+       "REW": "",
+       "exterior": "",
+       "interior": ""
+      },
+      "endwallBrace": {
+       "LEW": false,
+       "REW": false
+      },
+      "endwallBracePlan": {
+       "LEW": null,
+       "REW": null
+      },
+      "finish": {
+       "blockWallHeight": 0,
+       "blockWallScope": "",
+       "fflLevel": 0,
+       "tocLevel": 0
+      },
+      "roof": {
+       "slope": 0,
+       "eaveLow": 7,
+       "eaveHigh": 7,
+       "ridgePos": 15.5,
+       "peakHeight": 7,
+       "leftPitch": 0,
+       "rightPitch": 0
+      },
+      "loads": {
+       "windSpeed": 0,
+       "exposure": null,
+       "dead": 0,
+       "live": 0,
+       "frameLive": 0,
+       "collateral": 0,
+       "seismic": null
+      },
+      "metrics": {
+       "width": 31,
+       "length": 66,
+       "eaveHeight": 7,
+       "peakHeight": 7,
+       "rafterLength": 31,
+       "coveredAreaFt2": 22022.9394,
+       "bayCount": 8,
+       "spanCount": 1,
+       "spanWidths": [
+        31
+       ],
+       "maxSpan": 31
+      }
+     },
+     "placements": [],
+     "placementCoords": [],
+     "validation": []
+    }
+   ],
+   "layout": {
+    "areas": [
+     {
+      "na": 1,
+      "x": 0,
+      "y": 0,
+      "length": 66,
+      "width": 31,
+      "resolved": {
+       "frameType": "Clear Span",
+       "areaLabel": "Area-01",
+       "rigidFrameColumns": "",
+       "grids": {
+        "length": [
+         {
+          "id": "1",
+          "pos": 0,
+          "interior": false
+         },
+         {
+          "id": "2",
+          "pos": 7.25,
+          "interior": true
+         },
+         {
+          "id": "3",
+          "pos": 15.833,
+          "interior": true
+         },
+         {
+          "id": "4",
+          "pos": 24.417,
+          "interior": true
+         },
+         {
+          "id": "5",
+          "pos": 33,
+          "interior": true
+         },
+         {
+          "id": "6",
+          "pos": 41.583,
+          "interior": true
+         },
+         {
+          "id": "7",
+          "pos": 50.167,
+          "interior": true
+         },
+         {
+          "id": "8",
+          "pos": 58.75,
+          "interior": true
+         },
+         {
+          "id": "9",
+          "pos": 66,
+          "interior": false
+         }
+        ],
+        "width": [
+         {
+          "id": "A",
+          "pos": 0,
+          "interior": false
+         },
+         {
+          "id": "B",
+          "pos": 31,
+          "interior": false
+         }
+        ]
+       },
+       "endwallColPos": {
+        "LEW": [
+         0,
+         31
+        ],
+        "REW": [
+         0,
+         31
+        ]
+       },
+       "walls": {
+        "NSW": {
+         "runsAlong": "length",
+         "axisGrids": "length",
+         "atWidthGrid": "A",
+         "run": 66,
+         "cond": null
+        },
+        "FSW": {
+         "runsAlong": "length",
+         "axisGrids": "length",
+         "atWidthGrid": "B",
+         "run": 66,
+         "cond": null
+        },
+        "LEW": {
+         "runsAlong": "width",
+         "axisGrids": "width",
+         "atLengthGrid": "1",
+         "run": 31,
+         "cond": null
+        },
+        "REW": {
+         "runsAlong": "width",
+         "axisGrids": "width",
+         "atLengthGrid": "9",
+         "run": 31,
+         "cond": null
+        }
+       },
+       "columns": [
+        {
+         "grid": [
+          "1",
+          "A"
+         ],
+         "x": 0,
+         "y": 0,
+         "base": "Pinned",
+         "exterior": true,
+         "topZ": 7
+        },
+        {
+         "grid": [
+          "1",
+          "B"
+         ],
+         "x": 0,
+         "y": 31,
+         "base": "Pinned",
+         "exterior": true,
+         "topZ": 7
+        },
+        {
+         "grid": [
+          "2",
+          "A"
+         ],
+         "x": 7.25,
+         "y": 0,
+         "base": "Pinned",
+         "exterior": true,
+         "topZ": 7
+        },
+        {
+         "grid": [
+          "2",
+          "B"
+         ],
+         "x": 7.25,
+         "y": 31,
+         "base": "Pinned",
+         "exterior": true,
+         "topZ": 7
+        },
+        {
+         "grid": [
+          "3",
+          "A"
+         ],
+         "x": 15.83,
+         "y": 0,
+         "base": "Pinned",
+         "exterior": true,
+         "topZ": 7
+        },
+        {
+         "grid": [
+          "3",
+          "B"
+         ],
+         "x": 15.83,
+         "y": 31,
+         "base": "Pinned",
+         "exterior": true,
+         "topZ": 7
+        },
+        {
+         "grid": [
+          "4",
+          "A"
+         ],
+         "x": 24.42,
+         "y": 0,
+         "base": "Pinned",
+         "exterior": true,
+         "topZ": 7
+        },
+        {
+         "grid": [
+          "4",
+          "B"
+         ],
+         "x": 24.42,
+         "y": 31,
+         "base": "Pinned",
+         "exterior": true,
+         "topZ": 7
+        },
+        {
+         "grid": [
+          "5",
+          "A"
+         ],
+         "x": 33,
+         "y": 0,
+         "base": "Pinned",
+         "exterior": true,
+         "topZ": 7
+        },
+        {
+         "grid": [
+          "5",
+          "B"
+         ],
+         "x": 33,
+         "y": 31,
+         "base": "Pinned",
+         "exterior": true,
+         "topZ": 7
+        },
+        {
+         "grid": [
+          "6",
+          "A"
+         ],
+         "x": 41.58,
+         "y": 0,
+         "base": "Pinned",
+         "exterior": true,
+         "topZ": 7
+        },
+        {
+         "grid": [
+          "6",
+          "B"
+         ],
+         "x": 41.58,
+         "y": 31,
+         "base": "Pinned",
+         "exterior": true,
+         "topZ": 7
+        },
+        {
+         "grid": [
+          "7",
+          "A"
+         ],
+         "x": 50.17,
+         "y": 0,
+         "base": "Pinned",
+         "exterior": true,
+         "topZ": 7
+        },
+        {
+         "grid": [
+          "7",
+          "B"
+         ],
+         "x": 50.17,
+         "y": 31,
+         "base": "Pinned",
+         "exterior": true,
+         "topZ": 7
+        },
+        {
+         "grid": [
+          "8",
+          "A"
+         ],
+         "x": 58.75,
+         "y": 0,
+         "base": "Pinned",
+         "exterior": true,
+         "topZ": 7
+        },
+        {
+         "grid": [
+          "8",
+          "B"
+         ],
+         "x": 58.75,
+         "y": 31,
+         "base": "Pinned",
+         "exterior": true,
+         "topZ": 7
+        },
+        {
+         "grid": [
+          "9",
+          "A"
+         ],
+         "x": 66,
+         "y": 0,
+         "base": "Pinned",
+         "exterior": true,
+         "topZ": 7
+        },
+        {
+         "grid": [
+          "9",
+          "B"
+         ],
+         "x": 66,
+         "y": 31,
+         "base": "Pinned",
+         "exterior": true,
+         "topZ": 7
+        }
+       ],
+       "frames": [
+        {
+         "atGrid": "1",
+         "type": "Bearing"
+        },
+        {
+         "atGrid": "2",
+         "type": "interior"
+        },
+        {
+         "atGrid": "3",
+         "type": "interior"
+        },
+        {
+         "atGrid": "4",
+         "type": "interior"
+        },
+        {
+         "atGrid": "5",
+         "type": "interior"
+        },
+        {
+         "atGrid": "6",
+         "type": "interior"
+        },
+        {
+         "atGrid": "7",
+         "type": "interior"
+        },
+        {
+         "atGrid": "8",
+         "type": "interior"
+        },
+        {
+         "atGrid": "9",
+         "type": "Bearing"
+        }
+       ],
+       "nodes": [
+        {
+         "id": "1-A-base",
+         "x": 0,
+         "y": 0,
+         "z": 0
+        },
+        {
+         "id": "1-A-top",
+         "x": 0,
+         "y": 0,
+         "z": 7
+        },
+        {
+         "id": "1-B-base",
+         "x": 0,
+         "y": 31,
+         "z": 0
+        },
+        {
+         "id": "1-B-top",
+         "x": 0,
+         "y": 31,
+         "z": 7
+        },
+        {
+         "id": "2-A-base",
+         "x": 7.25,
+         "y": 0,
+         "z": 0
+        },
+        {
+         "id": "2-A-top",
+         "x": 7.25,
+         "y": 0,
+         "z": 7
+        },
+        {
+         "id": "2-B-base",
+         "x": 7.25,
+         "y": 31,
+         "z": 0
+        },
+        {
+         "id": "2-B-top",
+         "x": 7.25,
+         "y": 31,
+         "z": 7
+        },
+        {
+         "id": "3-A-base",
+         "x": 15.83,
+         "y": 0,
+         "z": 0
+        },
+        {
+         "id": "3-A-top",
+         "x": 15.83,
+         "y": 0,
+         "z": 7
+        },
+        {
+         "id": "3-B-base",
+         "x": 15.83,
+         "y": 31,
+         "z": 0
+        },
+        {
+         "id": "3-B-top",
+         "x": 15.83,
+         "y": 31,
+         "z": 7
+        },
+        {
+         "id": "4-A-base",
+         "x": 24.42,
+         "y": 0,
+         "z": 0
+        },
+        {
+         "id": "4-A-top",
+         "x": 24.42,
+         "y": 0,
+         "z": 7
+        },
+        {
+         "id": "4-B-base",
+         "x": 24.42,
+         "y": 31,
+         "z": 0
+        },
+        {
+         "id": "4-B-top",
+         "x": 24.42,
+         "y": 31,
+         "z": 7
+        },
+        {
+         "id": "5-A-base",
+         "x": 33,
+         "y": 0,
+         "z": 0
+        },
+        {
+         "id": "5-A-top",
+         "x": 33,
+         "y": 0,
+         "z": 7
+        },
+        {
+         "id": "5-B-base",
+         "x": 33,
+         "y": 31,
+         "z": 0
+        },
+        {
+         "id": "5-B-top",
+         "x": 33,
+         "y": 31,
+         "z": 7
+        },
+        {
+         "id": "6-A-base",
+         "x": 41.58,
+         "y": 0,
+         "z": 0
+        },
+        {
+         "id": "6-A-top",
+         "x": 41.58,
+         "y": 0,
+         "z": 7
+        },
+        {
+         "id": "6-B-base",
+         "x": 41.58,
+         "y": 31,
+         "z": 0
+        },
+        {
+         "id": "6-B-top",
+         "x": 41.58,
+         "y": 31,
+         "z": 7
+        },
+        {
+         "id": "7-A-base",
+         "x": 50.17,
+         "y": 0,
+         "z": 0
+        },
+        {
+         "id": "7-A-top",
+         "x": 50.17,
+         "y": 0,
+         "z": 7
+        },
+        {
+         "id": "7-B-base",
+         "x": 50.17,
+         "y": 31,
+         "z": 0
+        },
+        {
+         "id": "7-B-top",
+         "x": 50.17,
+         "y": 31,
+         "z": 7
+        },
+        {
+         "id": "8-A-base",
+         "x": 58.75,
+         "y": 0,
+         "z": 0
+        },
+        {
+         "id": "8-A-top",
+         "x": 58.75,
+         "y": 0,
+         "z": 7
+        },
+        {
+         "id": "8-B-base",
+         "x": 58.75,
+         "y": 31,
+         "z": 0
+        },
+        {
+         "id": "8-B-top",
+         "x": 58.75,
+         "y": 31,
+         "z": 7
+        },
+        {
+         "id": "9-A-base",
+         "x": 66,
+         "y": 0,
+         "z": 0
+        },
+        {
+         "id": "9-A-top",
+         "x": 66,
+         "y": 0,
+         "z": 7
+        },
+        {
+         "id": "9-B-base",
+         "x": 66,
+         "y": 31,
+         "z": 0
+        },
+        {
+         "id": "9-B-top",
+         "x": 66,
+         "y": 31,
+         "z": 7
+        }
+       ],
+       "supports": [
+        {
+         "grid": [
+          "1",
+          "A"
+         ],
+         "condition": "Pinned"
+        },
+        {
+         "grid": [
+          "1",
+          "B"
+         ],
+         "condition": "Pinned"
+        },
+        {
+         "grid": [
+          "2",
+          "A"
+         ],
+         "condition": "Pinned"
+        },
+        {
+         "grid": [
+          "2",
+          "B"
+         ],
+         "condition": "Pinned"
+        },
+        {
+         "grid": [
+          "3",
+          "A"
+         ],
+         "condition": "Pinned"
+        },
+        {
+         "grid": [
+          "3",
+          "B"
+         ],
+         "condition": "Pinned"
+        },
+        {
+         "grid": [
+          "4",
+          "A"
+         ],
+         "condition": "Pinned"
+        },
+        {
+         "grid": [
+          "4",
+          "B"
+         ],
+         "condition": "Pinned"
+        },
+        {
+         "grid": [
+          "5",
+          "A"
+         ],
+         "condition": "Pinned"
+        },
+        {
+         "grid": [
+          "5",
+          "B"
+         ],
+         "condition": "Pinned"
+        },
+        {
+         "grid": [
+          "6",
+          "A"
+         ],
+         "condition": "Pinned"
+        },
+        {
+         "grid": [
+          "6",
+          "B"
+         ],
+         "condition": "Pinned"
+        },
+        {
+         "grid": [
+          "7",
+          "A"
+         ],
+         "condition": "Pinned"
+        },
+        {
+         "grid": [
+          "7",
+          "B"
+         ],
+         "condition": "Pinned"
+        },
+        {
+         "grid": [
+          "8",
+          "A"
+         ],
+         "condition": "Pinned"
+        },
+        {
+         "grid": [
+          "8",
+          "B"
+         ],
+         "condition": "Pinned"
+        },
+        {
+         "grid": [
+          "9",
+          "A"
+         ],
+         "condition": "Pinned"
+        },
+        {
+         "grid": [
+          "9",
+          "B"
+         ],
+         "condition": "Pinned"
+        }
+       ],
+       "bracing": {
+        "bays": 8,
+        "segments": [
+         7.25,
+         8.5833,
+         8.5833,
+         8.5833,
+         8.5833,
+         8.5833,
+         8.5833,
+         7.25
+        ],
+        "braced": [
+         {
+          "bayIndex": 2,
+          "span": 8.5833,
+          "reason": "near-end"
+         },
+         {
+          "bayIndex": 4,
+          "span": 8.5833,
+          "reason": "interior"
+         },
+         {
+          "bayIndex": 7,
+          "span": 8.5833,
+          "reason": "near-end"
+         }
+        ],
+        "defaultType": "Diagonal · cable"
+       },
+       "wallBracing": {
+        "NSW": "",
+        "FSW": "",
+        "LEW": "",
+        "REW": "",
+        "exterior": "",
+        "interior": ""
+       },
+       "endwallBrace": {
+        "LEW": false,
+        "REW": false
+       },
+       "endwallBracePlan": {
+        "LEW": null,
+        "REW": null
+       },
+       "finish": {
+        "blockWallHeight": 0,
+        "blockWallScope": "",
+        "fflLevel": 0,
+        "tocLevel": 0
+       },
+       "roof": {
+        "slope": 0,
+        "eaveLow": 7,
+        "eaveHigh": 7,
+        "ridgePos": 15.5,
+        "peakHeight": 7,
+        "leftPitch": 0,
+        "rightPitch": 0
+       },
+       "loads": {
+        "windSpeed": 0,
+        "exposure": null,
+        "dead": 0,
+        "live": 0,
+        "frameLive": 0,
+        "collateral": 0,
+        "seismic": null
+       },
+       "metrics": {
+        "width": 31,
+        "length": 66,
+        "eaveHeight": 7,
+        "peakHeight": 7,
+        "rafterLength": 31,
+        "coveredAreaFt2": 22022.9394,
+        "bayCount": 8,
+        "spanCount": 1,
+        "spanWidths": [
+         31
+        ],
+        "maxSpan": 31
+       }
+      },
+      "sharedNo": null,
+      "sharedWall": null
+     }
+    ],
+    "totalLength": 66,
+    "totalWidth": 31
+   }
+  }
+ ]
+}
