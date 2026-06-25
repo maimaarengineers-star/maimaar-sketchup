@@ -23,7 +23,7 @@ DEFAULT_MODEL = os.path.join(HERE, "..", "drawing_generator", "sample_model.json
 TAGS = {
     "MS-FRAME":        {"rgb": [206, 32, 32],   "alpha": 1.0},   # PRIMARY frame (tapered) - RED
     "PLATE":           {"rgb": [120, 124, 130], "alpha": 1.0},   # connection / end / base plates
-    "CLIP":            {"rgb": [90, 94, 102],   "alpha": 1.0},   # purlin/girt clips (bypass connection)
+    "CLIP":            {"rgb": [165, 170, 178], "alpha": 1.0},   # purlin/girt clips (galv., visible)
     "PURLIN":          {"rgb": [222, 180, 44],  "alpha": 1.0},   # purlins + girts (secondary) - yellow
     "SHEETING":        {"rgb": [198, 203, 209], "alpha": 0.32},  # WALL sheeting - translucent
     "ROOF-SHEET":      {"rgb": [188, 196, 206], "alpha": 0.30},  # ROOF sheeting - translucent
@@ -221,22 +221,26 @@ def build_area(b, area, ox=0.0, oy=0.0):
                  (x + bpw / 2, oy + yc + bpd / 2, 0.0), (x - bpw / 2, oy + yc + bpd / 2, 0.0)],
                 bpt, "base-plate"))
 
-        # --- REAL bolted END-PLATES (perpendicular to member) at the knees & ridge ---
-        epw = I_FLANGE_W + 0.05
-        # left knee: plate perpendicular to the rafter at the eave corner
+        # --- KNEE & RIDGE moment connections (as-built): a bolted END-PLATE that
+        #     PROJECTS beyond the section (visible rim) + haunch GUSSET stiffeners that
+        #     project past the flanges, so the connection reads from any view. ---
         def _unit(a, b):
             v = (b[0] - a[0], b[1] - a[1], b[2] - a[2])
             n = math.sqrt(sum(c * c for c in v)) or 1.0
             return (v[0] / n, v[1] / n, v[2] / n)
-        knL = (x, oy + 0, eave); axL = _unit(knL, apexL)
-        prim.append(endplate("PLATE", (knL[0] + axL[0] * 0.07, knL[1] + axL[1] * 0.07, knL[2] + axL[2] * 0.07),
-                             axL, epw, d_knee, tp, "knee-endplate"))
-        knR = (x, oy + W, eave); axR = _unit(knR, apexL)
-        prim.append(endplate("PLATE", (knR[0] + axR[0] * 0.07, knR[1] + axR[1] * 0.07, knR[2] + axR[2] * 0.07),
-                             axR, epw, d_knee, tp, "knee-endplate"))
-        # ridge: plate perpendicular to the (left) rafter at the apex
-        prim.append(endplate("PLATE", (apexL[0] - axL[0] * 0.07, apexL[1] - axL[1] * 0.07, apexL[2] - axL[2] * 0.07),
-                             axL, epw, d_apex, tp, "ridge-endplate"))
+        epw = I_FLANGE_W + 0.12         # end-plate projects ~60 mm past each flange
+        fw2 = I_FLANGE_W / 2.0 + 0.012  # just outside the flange face (for gussets)
+        for wy, inn in ((0.0, 1.0), (W, -1.0)):
+            corner = (x, oy + wy, eave); ax = _unit(corner, apexL)
+            c = (corner[0] + ax[0] * 0.04, corner[1] + ax[1] * 0.04, corner[2] + ax[2] * 0.04)
+            prim.append(endplate("PLATE", c, ax, epw, d_knee + 0.12, 0.020, "knee-endplate"))
+            gl = d_knee * 1.10          # haunch gusset (triangle) on both flange faces
+            for sx in (-fw2, fw2):
+                prim.append(plate("PLATE", [(x + sx, oy + wy, eave), (x + sx, oy + wy, eave - gl),
+                                            (x + sx, oy + wy + inn * gl, eave)], 0.012, "knee-gusset"))
+        axr = _unit((x, oy + 0, eave), apexL)
+        cr = (apexL[0] - axr[0] * 0.04, apexL[1] - axr[1] * 0.04, apexL[2] - axr[2] * 0.04)
+        prim.append(endplate("PLATE", cr, axr, epw, d_apex + 0.12, 0.020, "ridge-endplate"))
 
     x0, xL = xs[0] + ox, xs[-1] + ox
 
@@ -253,11 +257,11 @@ def build_area(b, area, ox=0.0, oy=0.0):
         pz = purlin_z(y)
         prim.append(zmember("PURLIN", (x0, oy + y, pz), (xL, oy + y, pz), "purlin"))
         zc = Z_at(y) + d_raf(y) / 2.0   # rafter top flange level
-        for xg in xs:                   # clip at every frame crossing
+        for xg in xs:                   # purlin CLEAT/clip standing on the rafter at every frame
             xx = xg + ox
-            prim.append(plate("CLIP", [(xx, oy + y - 0.05, zc - 0.02), (xx, oy + y + 0.05, zc - 0.02),
-                                       (xx, oy + y + 0.05, pz + 0.04), (xx, oy + y - 0.05, pz + 0.04)],
-                              0.006, "purlin-clip"))
+            prim.append(plate("CLIP", [(xx, oy + y - 0.07, zc - 0.01), (xx, oy + y + 0.07, zc - 0.01),
+                                       (xx, oy + y + 0.07, pz + 0.05), (xx, oy + y - 0.07, pz + 0.05)],
+                              0.014, "purlin-clip"))
 
     # --- GIRTS: continuous, BYPASS the columns (proud outboard), with CLIPS at frames ---
     for wall_y, sgn in ((0.0, -1.0), (W, 1.0)):
@@ -267,9 +271,9 @@ def build_area(b, area, ox=0.0, oy=0.0):
             prim.append(zmember("PURLIN", (x0, oy + gy, gz), (xL, oy + gy, gz), "girt"))
             for xg in xs:
                 xx = xg + ox
-                prim.append(plate("CLIP", [(xx, oy + wall_y, gz - 0.05), (xx, oy + gy, gz - 0.05),
-                                           (xx, oy + gy, gz + 0.05), (xx, oy + wall_y, gz + 0.05)],
-                                  0.006, "girt-clip"))
+                prim.append(plate("CLIP", [(xx, oy + wall_y, gz - 0.07), (xx, oy + gy, gz - 0.07),
+                                           (xx, oy + gy, gz + 0.07), (xx, oy + wall_y, gz + 0.07)],
+                                  0.014, "girt-clip"))
             gz += PURLIN_SPACING
 
     # --- ENDWALL framing: intermediate endwall columns + endwall girts (LEW/REW) ---
@@ -365,12 +369,18 @@ def build(model):
             prims += p
             bb[0] = max(bb[0], ox + dims[0]); bb[1] = max(bb[1], oy + dims[1])
             bb[2] = max(bb[2], dims[3])
+    # knee point of the first frame (for the close-up connection-detail scene)
+    a0 = model["buildings"][0]["areas"][0]["resolved"]
+    eave0 = float(a0["metrics"]["eaveHeight"])
+    xs0 = [float(g["pos"]) for g in a0["grids"]["length"]] or [0.0]
+    knee = [xs0[1] if len(xs0) > 1 else xs0[0], 0.0, eave0]
     return {
         "meta": {"proposalNo": model.get("proposalNo"), "customer": model.get("customer"),
-                 "project": model.get("project"), "units": "m", "bbox": bb},
+                 "project": model.get("project"), "units": "m", "bbox": bb,
+                 "detail_target": knee},
         "tags": TAGS,
         "style": "Architectural Design Style",
-        "scenes": ["ISO-FL", "ISO-FR", "ISO-BL", "ISO-BR", "FRONT", "SIDE", "BACK", "TOP"],
+        "scenes": ["ISO-FL", "ISO-FR", "ISO-BL", "ISO-BR", "FRONT", "SIDE", "TOP", "KNEE-DETAIL"],
         "primitives": prims,
     }
 

@@ -90,7 +90,23 @@ Manuals are >100MB so the Read tool can't open them directly; render pages with 
 built-up I (flanges + tapering web) for primary, Z for purlins/girts (see `skp_build.py`
 I_FLANGE_*/I_WEB_T, Z_DEPTH/Z_FLANGE/Z_THICK).
 
-## Status (25-Jun-2026) — v5 COMPLETE (IF-ready)
+## Connection rules (wired, parametric — scale to any building)
+Coded in `skp_build.py` build_area; every connection gets genuine, VISIBLE detailing:
+- **Knee (column↔rafter):** bolted END-PLATE perpendicular to the rafter that PROJECTS
+  ~60 mm past the section (so the rim reads) + a haunch GUSSET triangle on each flange
+  face + a column of bolt heads. (Earlier plates were sized = web depth and sat *inside*
+  the red I-section, so they were invisible — now they project.)
+- **Ridge (rafter↔rafter):** projecting bolted end-plate + bolts at the apex.
+- **Base:** 320×490×22 base plate + 4 anchor bolts per column.
+- **Purlin cleats / girt clips:** a galvanised clip (light grey) standing on the rafter
+  top flange / column face at EVERY frame crossing, with the bypassing Z resting on it.
+- A **KNEE-DETAIL** close-up scene is exported so the connection detailing is showcased
+  (camera zooms to the first knee instead of zoom-extents).
+Connection sizes come from the parts DB (`../sketchup_study/parts_database.json`).
+For even higher fidelity, `../sketchup_study/extract_components.rb` can pull the REAL
+plate/clip/bolt component geometry out of existing models for direct reuse (future).
+
+## Status (25-Jun-2026) — v6 COMPLETE (visible as-built connections, IF-ready)
 One command turns an IF model into a `.skp` + 8 snaps. Components produced:
 - RED built-up **tapered I-section** primary frame (web depth scales with span)
 - **Z-section** purlins + girts (yellow) that **BYPASS** the frame (continuous, proud) with

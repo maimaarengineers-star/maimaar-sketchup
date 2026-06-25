@@ -161,7 +161,7 @@ module MaimaarSkpBuild
     'SIDE'   => [-1, 0, 0],     'TOP'    => [0, 0, -1]
   }
 
-  def self.add_scenes(model, scene_names, bbox)
+  def self.add_scenes(model, scene_names, bbox, detail = nil)
     view = model.active_view
     cx = bbox[0] / 2.0; cy = bbox[1] / 2.0; cz = bbox[2] / 2.0
     target = p(cx, cy, cz)
@@ -169,15 +169,20 @@ module MaimaarSkpBuild
     dist = (diag * 1.8)
     pages = []
     scene_names.each do |name|
-      d = DIRS[name] || [-1, -1, -0.6]
-      eye = Geom::Point3d.new((cx - d[0] * dist).m, (cy - d[1] * dist).m, (cz - d[2] * dist).m)
-      up = name == 'TOP' ? Y_AXIS : Z_AXIS
-      cam = Sketchup::Camera.new(eye, target, up)
-      view.camera = cam
-      view.zoom_extents
-      view.zoom(0.85)   # small margin around the model
-      pg = model.pages.add(name)
-      pages << pg
+      if name == 'KNEE-DETAIL' && detail
+        # close-up on a knee connection so plates/clips/bolts read clearly
+        tgt = p(detail[0], detail[1], detail[2])
+        eye = Geom::Point3d.new((detail[0] - 4.0).m, (detail[1] - 5.0).m, (detail[2] + 2.0).m)
+        view.camera = Sketchup::Camera.new(eye, tgt, Z_AXIS)
+      else
+        d = DIRS[name] || [-1, -1, -0.6]
+        eye = Geom::Point3d.new((cx - d[0] * dist).m, (cy - d[1] * dist).m, (cz - d[2] * dist).m)
+        up = name == 'TOP' ? Y_AXIS : Z_AXIS
+        view.camera = Sketchup::Camera.new(eye, target, up)
+        view.zoom_extents
+        view.zoom(0.85)   # small margin around the model
+      end
+      pages << model.pages.add(name)
     end
     pages
   end
@@ -247,7 +252,7 @@ module MaimaarSkpBuild
     model.commit_operation
 
     bbox = spec['meta']['bbox']
-    pages = add_scenes(model, spec['scenes'], bbox)
+    pages = add_scenes(model, spec['scenes'], bbox, spec['meta']['detail_target'])
 
     base = (spec['meta']['proposalNo'] || 'model').gsub(/[^\w\-]/, '_')
     skp = File.join(out_dir, "#{base}.skp")
