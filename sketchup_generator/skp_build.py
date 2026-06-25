@@ -23,8 +23,8 @@ DEFAULT_MODEL = os.path.join(HERE, "samples", "sample_model.json")
 TAGS = {
     "MS-FRAME":        {"rgb": [206, 32, 32],   "alpha": 1.0},   # PRIMARY frame (tapered) - RED
     "PLATE":           {"rgb": [120, 124, 130], "alpha": 1.0},   # connection / end / base plates
-    "CLIP":            {"rgb": [165, 170, 178], "alpha": 1.0},   # purlin/girt clips (galv., visible)
-    "PURLIN":          {"rgb": [222, 180, 44],  "alpha": 1.0},   # purlins + girts (secondary) - yellow
+    "CLIP":            {"rgb": [150, 156, 164], "alpha": 1.0},   # purlin/girt clips (galv.)
+    "PURLIN":          {"rgb": [178, 184, 190], "alpha": 1.0},   # purlins + girts - galvanised silver
     "SHEETING":        {"rgb": [198, 203, 209], "alpha": 0.32},  # WALL sheeting - translucent
     "ROOF-SHEET":      {"rgb": [188, 196, 206], "alpha": 0.30},  # ROOF sheeting - translucent
     "SKYLIGHT":        {"rgb": [225, 238, 248], "alpha": 0.18},  # roof skylight - more translucent
