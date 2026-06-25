@@ -30,9 +30,28 @@ module MaimaarSkpBuild
     model.layers[name] || model.layers.add(name)
   end
 
-  # orthonormal frame for an arbitrary axis a->b
+  # add a face; if the polygon is non-planar/degenerate, fan-triangulate. Never raises.
+  def self.safe_add_face(e, pts)
+    begin
+      f = e.add_face(pts)
+      return f if f
+    rescue
+    end
+    first = nil
+    (1..pts.length - 2).each do |i|
+      begin
+        ff = e.add_face([pts[0], pts[i], pts[i + 1]]); first ||= ff
+      rescue
+      end
+    end
+    first
+  end
+
+  # orthonormal frame for an arbitrary axis a->b (robust to zero-length)
   def self.basis(a, b)
-    dir = (b - a); dir.normalize!
+    dir = (b - a)
+    dir = Z_AXIS.clone if dir.length == 0
+    dir.normalize!
     up = dir.parallel?(Z_AXIS) ? Y_AXIS : Z_AXIS
     right = dir.cross(up); right.normalize!
     up2 = right.cross(dir); up2.normalize!
@@ -57,7 +76,7 @@ module MaimaarSkpBuild
     quads = [[a00, a10, a11, a01], [b00, b01, b11, b10],
              [a00, b00, b10, a10], [a10, b10, b11, a11],
              [a11, b11, b01, a01], [a01, b01, b00, a00]]
-    quads.each { |q| f = g.add_face(q); f.material = mat if f }
+    quads.each { |q| f = safe_add_face(g, q); f.material = mat if f }
     grp.layer = layer
     grp.material = mat
     grp
@@ -100,15 +119,25 @@ module MaimaarSkpBuild
   def self.face(ents, poly, mat, layer)
     pts = poly.map { |c| p(c[0], c[1], c[2]) }
     grp = ents.add_group
-    f = grp.entities.add_face(pts)
-    unless f
-      grp.erase!
-      return nil
+    made = false
+    begin
+      made = !grp.entities.add_face(pts).nil?
+    rescue
+      made = false
     end
-    f.material = mat
-    f.back_material = mat
-    grp.layer = layer
-    grp.material = mat
+    unless made   # non-planar polygon -> fan-triangulate (triangles are always planar)
+      (1..pts.length - 2).each do |i|
+        begin
+          grp.entities.add_face([pts[0], pts[i], pts[i + 1]]); made = true
+        rescue
+        end
+      end
+    end
+    if !made
+      grp.erase!; return nil
+    end
+    grp.entities.grep(Sketchup::Face).each { |ff| ff.material = mat; ff.back_material = mat }
+    grp.layer = layer; grp.material = mat
     grp
   end
 
@@ -116,12 +145,12 @@ module MaimaarSkpBuild
   def self.plate(ents, poly, thick, mat, layer)
     pts = poly.map { |c| p(c[0], c[1], c[2]) }
     grp = ents.add_group
-    f = grp.entities.add_face(pts)
-    unless f
+    f = safe_add_face(grp.entities, pts)
+    if f.nil?
       grp.erase!
       return nil
     end
-    f.pushpull(thick.m, false)
+    begin; f.pushpull(thick.m, false); rescue; end
     grp.entities.grep(Sketchup::Face).each { |ff| ff.material = mat; ff.back_material = mat }
     grp.layer = layer
     grp.material = mat
@@ -130,7 +159,9 @@ module MaimaarSkpBuild
 
   # bolted end-plate: a w x d plate centred at c, normal = axis, extruded by `thick`.
   def self.endplate(ents, c, axis, w, d, thick, mat, layer)
-    dir = Geom::Vector3d.new(axis[0], axis[1], axis[2]); dir.normalize!
+    dir = Geom::Vector3d.new(axis[0], axis[1], axis[2])
+    dir = Z_AXIS.clone if dir.length == 0
+    dir.normalize!
     up = dir.parallel?(Z_AXIS) ? Y_AXIS : Z_AXIS
     r = dir.cross(up); r.normalize!
     u = r.cross(dir); u.normalize!
@@ -143,11 +174,11 @@ module MaimaarSkpBuild
                         cc.z + sr * r.z * (w / 2.0).m + su * u.z * (d / 2.0).m)
     end
     grp = ents.add_group
-    f = grp.entities.add_face([corner.call(-1, -1), corner.call(1, -1), corner.call(1, 1), corner.call(-1, 1)])
-    unless f
+    f = safe_add_face(grp.entities, [corner.call(-1, -1), corner.call(1, -1), corner.call(1, 1), corner.call(-1, 1)])
+    if f.nil?
       grp.erase!; return nil
     end
-    f.pushpull(thick.m, false)
+    begin; f.pushpull(thick.m, false); rescue; end
     grp.entities.grep(Sketchup::Face).each { |ff| ff.material = mat; ff.back_material = mat }
     grp.layer = layer; grp.material = mat
     grp

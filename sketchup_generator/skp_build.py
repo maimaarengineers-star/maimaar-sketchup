@@ -360,18 +360,31 @@ def build_area(b, area, ox=0.0, oy=0.0):
     return prim, (L, W, eave, peak)
 
 
+BUILDING_GAP = 12.0   # m clear gap between separate buildings on the site (multi-building)
+
+
 def build(model):
     prims = []
     bb = [0, 0, 0]
+    site_y = 0.0          # running site offset so multiple buildings sit side-by-side
     for b in model["buildings"]:
         layout = {la["na"]: la for la in b.get("layout", {}).get("areas", [])}
+        blay = b.get("layout", {})
+        b_width = float(blay.get("totalWidth") or 0)
+        base_oy = site_y
+        bmax_w = 0.0
         for area in b["areas"]:
             la = layout.get(area["areaNo"], {})
-            ox, oy = float(la.get("x", 0)), float(la.get("y", 0))
+            ox = float(la.get("x", 0))
+            oy = base_oy + float(la.get("y", 0))
             p, dims = build_area(b, area, ox, oy)
             prims += p
             bb[0] = max(bb[0], ox + dims[0]); bb[1] = max(bb[1], oy + dims[1])
             bb[2] = max(bb[2], dims[3])
+            bmax_w = max(bmax_w, float(la.get("y", 0)) + dims[1])
+        # advance the site offset past this building's actual footprint + a clear gap
+        # (bmax_w / b_width are relative to this building's base; take the larger)
+        site_y += max(b_width, bmax_w) + BUILDING_GAP
     # knee point of the first frame (for the close-up connection-detail scene)
     a0 = model["buildings"][0]["areas"][0]["resolved"]
     eave0 = float(a0["metrics"]["eaveHeight"])
