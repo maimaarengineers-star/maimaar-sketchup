@@ -24,7 +24,7 @@ module MaimaarSKP
   # --- canonical tags: [r,g,b,alpha] -------------------------------------------------
   TAGS = {
     'MS-FRAME'        => [206, 32, 32, 1.0],   'PLATE' => [120, 124, 130, 1.0],
-    'CLIP'            => [165, 170, 178, 1.0],  'PURLIN' => [222, 180, 44, 1.0],
+    'CLIP'            => [150, 156, 164, 1.0],  'PURLIN' => [178, 184, 190, 1.0],  # galvanised silver
     'SHEETING'        => [198, 203, 209, 0.32], 'ROOF-SHEET' => [188, 196, 206, 0.30],
     'SKYLIGHT'        => [225, 238, 248, 0.18], 'GUTTER-DOWNPIPE' => [150, 156, 162, 1.0],
     'BRACE-CABLE'     => [60, 63, 70, 1.0],     'TRIM' => [180, 186, 192, 1.0],
@@ -199,13 +199,20 @@ module MaimaarSKP
       un = lambda { |a, b| v = [b[0] - a[0], b[1] - a[1], b[2] - a[2]]; n = Math.sqrt(v.reduce(0) { |s, c| s + c * c }); n = 1.0 if n == 0; v.map { |c| c / n } }
       fw2 = IFW / 2.0 + 0.012
       [[0.0, 1.0], [w, -1.0]].each do |wy, inn|
-        corner = [x, oy + wy, eave]; realcomp('endplate', [corner[0], corner[1], corner[2] - dk * 0.35], 0.0, 'PLATE')
+        corner = [x, oy + wy, eave]; ax = un.call(corner, apex)
+        # CONNECTION PLATE at the knee: clear projecting bolted end-plate (always visible)...
+        endplate(ents, [corner[0] + ax[0] * 0.04, corner[1] + ax[1] * 0.04, corner[2] + ax[2] * 0.04], ax, IFW + 0.14, dk + 0.14, 0.022, 'PLATE')
+        # ...+ the REAL extracted end-plate component (bolt holes) + haunch gusset
+        realcomp('endplate', [corner[0], corner[1], corner[2] - dk * 0.35], 0.0, 'PLATE')
         gl = dk * 1.1
         [-fw2, fw2].each { |sx| plate(ents, [[x + sx, oy + wy, eave], [x + sx, oy + wy, eave - gl], [x + sx, oy + wy + inn * gl, eave]], 0.012, 'PLATE') }
-        [0.30, 0.60].each { |t| seg(ents, pt(x - 0.16, oy + wy, eave - dk * t), pt(x + 0.16, oy + wy, eave - dk * t), 0.034, 0.034, 'BOLT') }
+        [0.20, 0.42, 0.64, 0.86].each { |t| seg(ents, pt(x - 0.17, oy + wy, eave - dk * t), pt(x + 0.17, oy + wy, eave - dk * t), 0.034, 0.034, 'BOLT') }
       end
+      # RIDGE connection plate: clear projecting end-plate + real component + bolts
+      axr = un.call([x, oy + 0, eave], apex)
+      endplate(ents, [apex[0] - axr[0] * 0.04, apex[1] - axr[1] * 0.04, apex[2] - axr[2] * 0.04], axr, IFW + 0.14, da + 0.14, 0.022, 'PLATE')
       realcomp('endplate', [x, oy + ridge, peak - da * 0.35], 0.0, 'PLATE')
-      seg(ents, pt(x - 0.16, oy + ridge, peak - da * 0.45), pt(x + 0.16, oy + ridge, peak - da * 0.45), 0.034, 0.034, 'BOLT')
+      [0.25, 0.55, 0.85].each { |t| seg(ents, pt(x - 0.17, oy + ridge, peak - da * t), pt(x + 0.17, oy + ridge, peak - da * t), 0.034, 0.034, 'BOLT') }
     end
 
     # purlins (bypass) + clips
@@ -318,9 +325,9 @@ module MaimaarSKP
   # ---- scenes + export --------------------------------------------------------------
   DIRS = { 'ISO-FL' => [-1, -1, -0.6], 'ISO-FR' => [1, -1, -0.6], 'ISO-BL' => [-1, 1, -0.6], 'ISO-BR' => [1, 1, -0.6],
            'FRONT' => [0, -1, 0], 'SIDE' => [-1, 0, 0], 'TOP' => [0, 0, -1] }
-  SCENES = %w[ISO-FL ISO-FR ISO-BL ISO-BR FRONT SIDE TOP KNEE-DETAIL]
+  SCENES = %w[ISO-FL ISO-FR ISO-BL ISO-BR FRONT SIDE TOP KNEE-DETAIL BASE-DETAIL]
 
-  def self.scenes(bbox, knee)
+  def self.scenes(bbox, knee, base)
     v = @model.active_view
     cx = bbox[0] / 2.0; cy = bbox[1] / 2.0; cz = bbox[2] / 2.0; tgt = pt(cx, cy, cz)
     dist = Math.sqrt(bbox[0]**2 + bbox[1]**2 + bbox[2]**2) * 1.8
@@ -328,6 +335,8 @@ module MaimaarSKP
     SCENES.each do |nm|
       if nm == 'KNEE-DETAIL' && knee
         v.camera = Sketchup::Camera.new(Geom::Point3d.new((knee[0] - 4).m, (knee[1] - 5).m, (knee[2] + 2).m), pt(*knee), Z_AXIS)
+      elsif nm == 'BASE-DETAIL' && base
+        v.camera = Sketchup::Camera.new(Geom::Point3d.new((base[0] - 2.5).m, (base[1] - 3.0).m, (base[2] + 1.6).m), pt(base[0], base[1], base[2] + 0.4), Z_AXIS)
       else
         d = DIRS[nm] || [-1, -1, -0.6]
         v.camera = Sketchup::Camera.new(Geom::Point3d.new((cx - d[0] * dist).m, (cy - d[1] * dist).m, (cz - d[2] * dist).m), tgt, nm == 'TOP' ? Y_AXIS : Z_AXIS)
@@ -362,7 +371,8 @@ module MaimaarSKP
       site_y += [bw, maxw].max + BGAP
     end
     @model.commit_operation
-    pages = scenes(bb, knee)
+    base = knee ? [knee[0], knee[1], 0.0] : nil
+    pages = scenes(bb, knee, base)
     base = (model['proposalNo'] || 'model').to_s.gsub(/[^\w\-]/, '_')
     skp = File.join(out, "#{base}.skp"); @model.save(skp)
     v = @model.active_view
