@@ -29,6 +29,8 @@ TAGS = {
     "ROOF-SHEET":      {"rgb": [188, 196, 206], "alpha": 0.30},  # ROOF sheeting - translucent
     "SKYLIGHT":        {"rgb": [225, 238, 248], "alpha": 0.18},  # roof skylight - more translucent
     "GUTTER-DOWNPIPE": {"rgb": [150, 156, 162],  "alpha": 1.0},   # gutters + downpipes (galv.)
+    "BRACE-CABLE":     {"rgb": [60, 63, 70],    "alpha": 1.0},   # roof/wall cable X-bracing (Ø12)
+    "TRIM":            {"rgb": [180, 186, 192],  "alpha": 1.0},   # eave/gable/corner angles 80x80
     "BOLT":            {"rgb": [40, 42, 46],    "alpha": 1.0},   # bolt heads at connections
     "DOOR":            {"rgb": [70, 72, 78],    "alpha": 1.0},   # opaque dark door leaf
     "WINDOW":          {"rgb": [150, 190, 215], "alpha": 0.45},  # glazed
@@ -285,6 +287,36 @@ def build_area(b, area, ox=0.0, oy=0.0):
     # --- EAVE STRUTS (200Z along both eaves) — tie the frames at the eave ---
     for wy in (0.0, W):
         prim.append(zmember("PURLIN", (x0, oy + wy, eave - 0.02), (xL, oy + wy, eave - 0.02), "eave-strut"))
+
+    # --- CABLE X-BRACING (Ø12) in the braced bays (from the IF bracing.braced list) ---
+    CAB = (SAG_ROD_DIA, SAG_ROD_DIA)
+    braced = (r.get("bracing") or {}).get("braced") or []
+    xsb = [g + ox for g in xs]
+    for b in braced:
+        i = int(b.get("bayIndex", -1))
+        if i < 0 or i + 1 >= len(xsb):
+            continue
+        xa, xb = xsb[i], xsb[i + 1]
+        # sidewall X on both sidewalls
+        for wy in (0.0, W):
+            prim.append(seg("BRACE-CABLE", (xa, oy + wy, 0.2), (xb, oy + wy, eave - 0.2), *CAB, note="wall-brace"))
+            prim.append(seg("BRACE-CABLE", (xb, oy + wy, 0.2), (xa, oy + wy, eave - 0.2), *CAB, note="wall-brace"))
+        # roof X on each slope (eave corner -> opposite apex)
+        prim.append(seg("BRACE-CABLE", (xa, oy + 0, eave), (xb, oy + ridge_y, peak), *CAB, note="roof-brace"))
+        prim.append(seg("BRACE-CABLE", (xb, oy + 0, eave), (xa, oy + ridge_y, peak), *CAB, note="roof-brace"))
+        prim.append(seg("BRACE-CABLE", (xa, oy + W, eave), (xb, oy + ridge_y, peak), *CAB, note="roof-brace"))
+        prim.append(seg("BRACE-CABLE", (xb, oy + W, eave), (xa, oy + ridge_y, peak), *CAB, note="roof-brace"))
+
+    # --- EDGE TRIMS (cold-formed angles 80x80): eave, gable rake, corners ---
+    TR = (0.08, 0.08)
+    for wy in (0.0, W):                                   # eave trim
+        prim.append(seg("TRIM", (x0, oy + wy, eave + 0.05), (xL, oy + wy, eave + 0.05), *TR, note="eave-angle"))
+    for xe in (x0, xL):                                   # gable rake trim (both slopes)
+        prim.append(seg("TRIM", (xe, oy + 0, eave), (xe, oy + ridge_y, peak), *TR, note="gable-angle"))
+        prim.append(seg("TRIM", (xe, oy + ridge_y, peak), (xe, oy + W, eave), *TR, note="gable-angle"))
+    for cx in (x0, xL):                                   # corner trims (vertical)
+        for wy in (0.0, W):
+            prim.append(seg("TRIM", (cx, oy + wy, 0), (cx, oy + wy, eave), *TR, note="corner-angle"))
 
     # --- FLANGE BRACES (angle from the frame inner flange out to a purlin/girt) ---
     SEC_BRACE = (0.05, 0.05)
