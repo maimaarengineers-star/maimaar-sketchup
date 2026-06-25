@@ -25,10 +25,10 @@ module MaimaarSKP
   TAGS = {
     'MS-FRAME'        => [206, 32, 32, 1.0],   'PLATE' => [120, 124, 130, 1.0],
     'CLIP'            => [150, 156, 164, 1.0],  'PURLIN' => [178, 184, 190, 1.0],  # galvanised silver
-    'SHEETING'        => [198, 203, 209, 0.32], 'ROOF-SHEET' => [188, 196, 206, 0.30],
-    'SKYLIGHT'        => [225, 238, 248, 0.18], 'GUTTER-DOWNPIPE' => [150, 156, 162, 1.0],
+    'SHEETING'        => [214, 219, 225, 0.50], 'ROOF-SHEET' => [212, 217, 223, 1.0],  # opaque light metal roof
+    'SKYLIGHT'        => [225, 238, 248, 0.22], 'GUTTER-DOWNPIPE' => [150, 156, 162, 1.0],
     'BRACE-CABLE'     => [60, 63, 70, 1.0],     'TRIM' => [180, 186, 192, 1.0],
-    'SHEET-RIB'       => [120, 128, 136, 1.0],  'BOLT' => [40, 42, 46, 1.0],
+    'SHEET-RIB'       => [150, 158, 166, 1.0],  'BOLT' => [40, 42, 46, 1.0],
     'WINDOW'          => [150, 190, 215, 0.45], 'DOOR' => [70, 72, 78, 1.0],
     'BRICK-MASONRY'   => [150, 95, 62, 1.0],
   }
@@ -53,6 +53,8 @@ module MaimaarSKP
     ro = model.rendering_options
     ro['BackgroundColor'] = Sketchup::Color.new(255, 255, 255) rescue nil
     ro['DrawHorizon'] = false rescue nil
+    ro['EdgeColorMode'] = 1 rescue nil          # colour edges BY LAYER (rib lines grey, not harsh black)
+    ro['DisplayColorByLayer'] = true rescue nil
     model.shadow_info['DisplayShadows'] = true rescue nil
   end
 
@@ -276,8 +278,8 @@ module MaimaarSKP
       face(ents, [[xe, oy + 0, bwh], [xe, oy + w, bwh], [xe, oy + w, eave], [xe, oy + ridge, peak], [xe, oy + 0, eave]], 'SHEETING')
     end
 
-    # Type-R rib lines
-    rib = 0.30; rs = []; xr = x0 + rib
+    # Type-R rib lines (coarser pitch so they read as ribs, not a black mass)
+    rib = 0.60; rs = []; xr = x0 + rib
     while xr < xl
       rs << [[xr, oy + 0, rtop.call(0) + 0.01], [xr, oy + ridge, rtop.call(ridge) + 0.01]]
       rs << [[xr, oy + ridge, rtop.call(ridge) + 0.01], [xr, oy + w, rtop.call(w) + 0.01]]
