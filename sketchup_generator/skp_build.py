@@ -31,6 +31,7 @@ TAGS = {
     "GUTTER-DOWNPIPE": {"rgb": [150, 156, 162],  "alpha": 1.0},   # gutters + downpipes (galv.)
     "BRACE-CABLE":     {"rgb": [60, 63, 70],    "alpha": 1.0},   # roof/wall cable X-bracing (Ø12)
     "TRIM":            {"rgb": [180, 186, 192],  "alpha": 1.0},   # eave/gable/corner angles 80x80
+    "SHEET-RIB":       {"rgb": [120, 128, 136],  "alpha": 1.0},   # Type-R high-rib lines on sheeting
     "BOLT":            {"rgb": [40, 42, 46],    "alpha": 1.0},   # bolt heads at connections
     "DOOR":            {"rgb": [70, 72, 78],    "alpha": 1.0},   # opaque dark door leaf
     "WINDOW":          {"rgb": [150, 190, 215], "alpha": 0.45},  # glazed
@@ -84,6 +85,11 @@ def seg(tag, a, b, w, h, wB=None, hB=None, note=""):
 
 def face(tag, poly, note=""):
     return {"kind": "face", "tag": tag, "poly": [list(p) for p in poly], "note": note}
+
+
+def edges(tag, segs, note=""):
+    """Cheap rib/edge lines (no faces): list of [[x,y,z],[x,y,z]] segments."""
+    return {"kind": "edges", "tag": tag, "segs": [[list(a), list(b)] for a, b in segs], "note": note}
 
 
 def plate(tag, poly, thick, note=""):
@@ -382,6 +388,30 @@ def build_area(b, area, ox=0.0, oy=0.0):
         prim.append(face("SHEETING", [(xe, oy + 0, bwh), (xe, oy + W, bwh),
                                       (xe, oy + W, eave), (xe, oy + ridge_y, peak),
                                       (xe, oy + 0, eave)], nm))
+
+    # --- Type-R HIGH-RIB lines on the sheeting (cheap edges; ribs run down-slope / vertical) ---
+    RIB = 0.30                                    # rib pitch (~300 mm)
+    rsegs = []
+    xr = x0 + RIB
+    while xr < xL:
+        rsegs.append([(xr, oy + 0, roof_top(0) + 0.01), (xr, oy + ridge_y, roof_top(ridge_y) + 0.01)])   # L slope
+        rsegs.append([(xr, oy + ridge_y, roof_top(ridge_y) + 0.01), (xr, oy + W, roof_top(W) + 0.01)])   # R slope
+        xr += RIB
+    if rsegs:
+        prim.append(edges("SHEET-RIB", rsegs, "roof-ribs"))
+    wsegs = []
+    xr = x0 + RIB
+    while xr < xL:                                # vertical ribs on both sidewalls
+        wsegs.append([(xr, oy + 0 - 0.01, bwh), (xr, oy + 0 - 0.01, eave)])
+        wsegs.append([(xr, oy + W + 0.01, bwh), (xr, oy + W + 0.01, eave)])
+        xr += RIB
+    yr = RIB
+    while yr < W:                                 # vertical ribs on both end walls
+        wsegs.append([(x0 - 0.01, oy + yr, bwh), (x0 - 0.01, oy + yr, eave)])
+        wsegs.append([(xL + 0.01, oy + yr, bwh), (xL + 0.01, oy + yr, eave)])
+        yr += RIB
+    if wsegs:
+        prim.append(edges("SHEET-RIB", wsegs, "wall-ribs"))
 
     # openings (doors/windows) + roof skylights
     opn, roof_sky = _openings(area, ox, oy, L, W, eave, r["grids"])

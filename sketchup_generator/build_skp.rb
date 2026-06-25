@@ -309,6 +309,10 @@ module MaimaarSkpBuild
         endplate(ents, pr['c'], pr['n'], pr['w'], pr['d'], pr['thick'], mat, layer)
       elsif pr['kind'] == 'realcomp'
         realcomp(model, pr['comp'], pr['at'], pr['rot'] || 0, layer)
+      elsif pr['kind'] == 'edges'
+        eg = ents.add_group
+        pr['segs'].each { |s| begin; eg.entities.add_line(p(*s[0]), p(*s[1])); rescue; end }
+        eg.layer = layer
       else
         face(ents, pr['poly'], mat, layer)
       end
