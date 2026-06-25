@@ -11,7 +11,7 @@ Tag standard + colours come from the SketchUp study (sketchup_study/SKETCHUP_STU
 Run:  python skp_build.py [model.json] [-o skp_build.json]
 Default model = drawing_generator/sample_model.json
 """
-import os, sys, json, argparse
+import os, sys, json, argparse, math
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_MODEL = os.path.join(HERE, "..", "drawing_generator", "sample_model.json")
@@ -22,7 +22,8 @@ DEFAULT_MODEL = os.path.join(HERE, "..", "drawing_generator", "sample_model.json
 # base band opaque brown. alpha 1.0 = opaque, lower = see-through.
 TAGS = {
     "MS-FRAME":        {"rgb": [206, 32, 32],   "alpha": 1.0},   # PRIMARY frame (tapered) - RED
-    "PLATE":           {"rgb": [120, 124, 130], "alpha": 1.0},   # connection plates (base/haunch/ridge)
+    "PLATE":           {"rgb": [120, 124, 130], "alpha": 1.0},   # connection / end / base plates
+    "CLIP":            {"rgb": [90, 94, 102],   "alpha": 1.0},   # purlin/girt clips (bypass connection)
     "PURLIN":          {"rgb": [222, 180, 44],  "alpha": 1.0},   # purlins + girts (secondary) - yellow
     "SHEETING":        {"rgb": [198, 203, 209], "alpha": 0.32},  # WALL sheeting - translucent
     "ROOF-SHEET":      {"rgb": [188, 196, 206], "alpha": 0.30},  # ROOF sheeting - translucent
@@ -81,8 +82,16 @@ def face(tag, poly, note=""):
 
 def plate(tag, poly, thick, note=""):
     """A flat steel plate: polygon extruded by `thick` (m) along its normal. Used for
-    base plates, knee haunch gussets and the ridge plate (genuine PEB connections)."""
+    base plates and clips (in an axis-aligned plane)."""
     return {"kind": "plate", "tag": tag, "poly": [list(p) for p in poly], "thick": thick, "note": note}
+
+
+def endplate(tag, center, axis, w, d, thick, note=""):
+    """A bolted END-PLATE perpendicular to a member axis: a w x d plate (w along flange,
+    d along member depth) centred at `center`, normal = `axis`, extruded by `thick`.
+    Used for the knee (column-rafter) and ridge (rafter-rafter) moment connections."""
+    return {"kind": "endplate", "tag": tag, "c": list(center), "n": list(axis),
+            "w": w, "d": d, "thick": thick, "note": note}
 
 
 def _openings(area, ox, oy, L, W, eave, grids):
@@ -173,41 +182,63 @@ def build_area(b, area, ox=0.0, oy=0.0):
             return eave
         return eave + (peak - eave) * (y / ridge_y if y <= ridge_y else (W - y) / (W - ridge_y))
 
+    def d_raf(y):
+        """rafter web depth at width y (tapers knee->apex->knee)."""
+        if ridge_y <= 0 or ridge_y >= W:
+            return d_knee
+        f = (y / ridge_y) if y <= ridge_y else ((W - y) / (W - ridge_y))
+        f = max(0.0, min(1.0, f))
+        return d_knee + (d_apex - d_knee) * f
+
+    GAP = 0.015
+
+    def purlin_z(y):
+        """purlin centreline — sits PROUD on the rafter top flange (bypass)."""
+        return Z_at(y) + d_raf(y) / 2.0 + Z_DEPTH / 2.0 + GAP
+
+    def roof_top(y):
+        """roof sheeting underside — sits on the purlins."""
+        return purlin_z(y) + Z_DEPTH / 2.0 + GAP
+
+    tp = 0.014                          # end-plate thickness (real ~12-16 mm)
+    GIRT_OFF = 0.12                     # girts sit proud outboard of the columns (bypass)
+
     # rigid frames: built-up TAPERED I-section columns + rafters (primary, red)
     for x0 in xs:
         x = x0 + ox
-        # columns: I web depth d_base at base -> d_knee at eave
         prim.append(imember("MS-FRAME", (x, oy + 0, 0), (x, oy + 0, eave), d_base, d_knee, "column"))
         prim.append(imember("MS-FRAME", (x, oy + W, 0), (x, oy + W, eave), d_base, d_knee, "column"))
-        # rafters: I web depth d_knee at eave -> d_apex at ridge (each slope)
-        apex = (x, oy + ridge_y, peak)
-        prim.append(imember("MS-FRAME", (x, oy + 0, eave), apex, d_knee, d_apex, "rafter"))
-        prim.append(imember("MS-FRAME", apex, (x, oy + W, eave), d_apex, d_knee, "rafter"))
+        apexL = (x, oy + ridge_y, peak)
+        prim.append(imember("MS-FRAME", (x, oy + 0, eave), apexL, d_knee, d_apex, "rafter"))
+        prim.append(imember("MS-FRAME", apexL, (x, oy + W, eave), d_apex, d_knee, "rafter"))
 
-        # --- genuine connection plates (rule from PD/AutoCAD section module) ---
-        tp = 0.014                      # end-plate / gusset thickness (real ~12-16mm)
-        bpw, bpd, bpt = 0.32, 0.49, 0.022   # base plate ~320 x 490 x 22 (from parts DB)
-        # base plates at both column feet (horizontal plate, anchor-bolt footprint)
+        # --- base plates (320x490x22 from parts DB) ---
+        bpw, bpd, bpt = 0.32, 0.49, 0.022
         for yc in (0.0, W):
             prim.append(plate("PLATE",
                 [(x - bpw / 2, oy + yc - bpd / 2, 0.0), (x + bpw / 2, oy + yc - bpd / 2, 0.0),
                  (x + bpw / 2, oy + yc + bpd / 2, 0.0), (x - bpw / 2, oy + yc + bpd / 2, 0.0)],
                 bpt, "base-plate"))
-        # knee haunch gusset (triangular, in the frame plane) at each eave corner
-        g = d_knee * 1.25
-        prim.append(plate("PLATE", [(x, oy + 0, eave), (x, oy + 0, eave - g),
-                                    (x, oy + g, eave)], tp, "knee-gusset"))
-        prim.append(plate("PLATE", [(x, oy + W, eave), (x, oy + W, eave - g),
-                                    (x, oy + W - g, eave)], tp, "knee-gusset"))
-        # ridge connection plate (vertical, at the apex between rafter ends)
-        prim.append(plate("PLATE", [(x, oy + ridge_y - 0.18, peak - d_apex),
-                                    (x, oy + ridge_y + 0.18, peak - d_apex),
-                                    (x, oy + ridge_y + 0.18, peak),
-                                    (x, oy + ridge_y - 0.18, peak)], tp, "ridge-plate"))
+
+        # --- REAL bolted END-PLATES (perpendicular to member) at the knees & ridge ---
+        epw = I_FLANGE_W + 0.05
+        # left knee: plate perpendicular to the rafter at the eave corner
+        def _unit(a, b):
+            v = (b[0] - a[0], b[1] - a[1], b[2] - a[2])
+            n = math.sqrt(sum(c * c for c in v)) or 1.0
+            return (v[0] / n, v[1] / n, v[2] / n)
+        knL = (x, oy + 0, eave); axL = _unit(knL, apexL)
+        prim.append(endplate("PLATE", (knL[0] + axL[0] * 0.07, knL[1] + axL[1] * 0.07, knL[2] + axL[2] * 0.07),
+                             axL, epw, d_knee, tp, "knee-endplate"))
+        knR = (x, oy + W, eave); axR = _unit(knR, apexL)
+        prim.append(endplate("PLATE", (knR[0] + axR[0] * 0.07, knR[1] + axR[1] * 0.07, knR[2] + axR[2] * 0.07),
+                             axR, epw, d_knee, tp, "knee-endplate"))
+        # ridge: plate perpendicular to the (left) rafter at the apex
+        prim.append(endplate("PLATE", (apexL[0] - axL[0] * 0.07, apexL[1] - axL[1] * 0.07, apexL[2] - axL[2] * 0.07),
+                             axL, epw, d_apex, tp, "ridge-endplate"))
 
     x0, xL = xs[0] + ox, xs[-1] + ox
 
-    # purlins on each slope
     def slope_ys(start, end):
         ys, y = [], start
         step = PURLIN_SPACING if end > start else -PURLIN_SPACING
@@ -215,22 +246,36 @@ def build_area(b, area, ox=0.0, oy=0.0):
             ys.append(y); y += step
         ys.append(end)
         return ys
+
+    # --- PURLINS: continuous, BYPASS the frame (proud on rafter top), with CLIPS at frames ---
     for y in slope_ys(0.0, ridge_y) + slope_ys(W, ridge_y):
-        z = Z_at(y)
-        prim.append(zmember("PURLIN", (x0, oy + y, z + 0.12), (xL, oy + y, z + 0.12), "purlin"))
+        pz = purlin_z(y)
+        prim.append(zmember("PURLIN", (x0, oy + y, pz), (xL, oy + y, pz), "purlin"))
+        zc = Z_at(y) + d_raf(y) / 2.0   # rafter top flange level
+        for xg in xs:                   # clip at every frame crossing
+            xx = xg + ox
+            prim.append(plate("CLIP", [(xx, oy + y - 0.05, zc - 0.02), (xx, oy + y + 0.05, zc - 0.02),
+                                       (xx, oy + y + 0.05, pz + 0.04), (xx, oy + y - 0.05, pz + 0.04)],
+                              0.006, "purlin-clip"))
 
-    # wall girts on NSW/FSW
-    gz = PURLIN_SPACING
-    while gz < eave:
-        prim.append(zmember("PURLIN", (x0, oy + 0, gz), (xL, oy + 0, gz), "girt"))
-        prim.append(zmember("PURLIN", (x0, oy + W, gz), (xL, oy + W, gz), "girt"))
-        gz += PURLIN_SPACING
+    # --- GIRTS: continuous, BYPASS the columns (proud outboard), with CLIPS at frames ---
+    for wall_y, sgn in ((0.0, -1.0), (W, 1.0)):
+        gy = wall_y + sgn * GIRT_OFF
+        gz = PURLIN_SPACING
+        while gz < eave:
+            prim.append(zmember("PURLIN", (x0, oy + gy, gz), (xL, oy + gy, gz), "girt"))
+            for xg in xs:
+                xx = xg + ox
+                prim.append(plate("CLIP", [(xx, oy + wall_y, gz - 0.05), (xx, oy + gy, gz - 0.05),
+                                           (xx, oy + gy, gz + 0.05), (xx, oy + wall_y, gz + 0.05)],
+                                  0.006, "girt-clip"))
+            gz += PURLIN_SPACING
 
-    # opaque cladding faces
-    prim.append(face("ROOF-SHEET", [(x0, oy + 0, eave), (xL, oy + 0, eave),
-                                    (xL, oy + ridge_y, peak), (x0, oy + ridge_y, peak)], "roof-L"))
-    prim.append(face("ROOF-SHEET", [(x0, oy + ridge_y, peak), (xL, oy + ridge_y, peak),
-                                    (xL, oy + W, eave), (x0, oy + W, eave)], "roof-R"))
+    # roof sheeting — sits on the purlins (lifted off the rafter line)
+    prim.append(face("ROOF-SHEET", [(x0, oy + 0, roof_top(0)), (xL, oy + 0, roof_top(0)),
+                                    (xL, oy + ridge_y, roof_top(ridge_y)), (x0, oy + ridge_y, roof_top(ridge_y))], "roof-L"))
+    prim.append(face("ROOF-SHEET", [(x0, oy + ridge_y, roof_top(ridge_y)), (xL, oy + ridge_y, roof_top(ridge_y)),
+                                    (xL, oy + W, roof_top(W)), (x0, oy + W, roof_top(W))], "roof-R"))
     prim.append(face("SHEETING", [(x0, oy + 0, 0), (xL, oy + 0, 0),
                                   (xL, oy + 0, eave), (x0, oy + 0, eave)], "NSW"))
     prim.append(face("SHEETING", [(x0, oy + W, 0), (xL, oy + W, 0),

@@ -1,0 +1,350 @@
+{
+  "title": "CRANE GRATING",
+  "path": "E:\\Maimaar Steel Pvt Ltd\\Proposals\\2022\\113-22-MSPL_Top Engineering _ Crane Beams\\Rev-00\\3Ds\\CRANE GRATING.skp",
+  "bbox": {
+    "w": 63331.0,
+    "d": 40000.0,
+    "h": 7766.0
+  },
+  "units": 2,
+  "layers": [
+    "Layer0",
+    "GRATING",
+    "CRANE BRACKET",
+    "CRANE BEAM ",
+    "GRATING BEAM",
+    "L CLIP",
+    "Tag1",
+    "UA-JAMISON-6IN-TRENCHGRATE",
+    "UA-TERRAIN-6IN-TRENCHGRATE"
+  ],
+  "scenes": [
+
+  ],
+  "tags": {
+    "Layer0": {
+      "count": 11,
+      "bbox": {
+        "w": 750.0,
+        "d": 40000.0,
+        "h": 7766.0
+      }
+    },
+    "CRANE BRACKET": {
+      "count": 6,
+      "bbox": {
+        "w": 462.7,
+        "d": 40000.0,
+        "h": 500.0
+      }
+    },
+    "GRATING BEAM": {
+      "count": 1,
+      "bbox": {
+        "w": 150.0,
+        "d": 39800.0,
+        "h": 200.0
+      }
+    },
+    "L CLIP": {
+      "count": 6,
+      "bbox": {
+        "w": 221.6,
+        "d": 40000.0,
+        "h": 108.0
+      }
+    },
+    "CRANE BEAM ": {
+      "count": 2,
+      "bbox": {
+        "w": 200.0,
+        "d": 40000.0,
+        "h": 461.2
+      }
+    },
+    "Tag1": {
+      "count": 46,
+      "bbox": {
+        "w": 937.0,
+        "d": 40000.0,
+        "h": 7000.0
+      }
+    },
+    "GRATING": {
+      "count": 1,
+      "bbox": {
+        "w": 926.3,
+        "d": 39609.2,
+        "h": 21.6
+      }
+    }
+  },
+  "definitions": [
+    {
+      "name": "Component#1",
+      "instances": 2548,
+      "dims": {
+        "w": 1194.0,
+        "d": 3.0,
+        "h": 20.0
+      },
+      "section": [
+        3.0,
+        20.0
+      ],
+      "length": 1194.0
+    },
+    {
+      "name": "Component#2",
+      "instances": 988,
+      "dims": {
+        "w": 994.0,
+        "d": 3.0,
+        "h": 20.0
+      },
+      "section": [
+        3.0,
+        20.0
+      ],
+      "length": 994.0
+    },
+    {
+      "name": "Group#5",
+      "instances": 52,
+      "dims": {
+        "w": 1200.0,
+        "d": 1000.0,
+        "h": 28.0
+      },
+      "section": [
+        28.0,
+        1000.0
+      ],
+      "length": 1200.0
+    },
+    {
+      "name": "Mesh Grating ",
+      "instances": 52,
+      "dims": {
+        "w": 1200.0,
+        "d": 1000.0,
+        "h": 28.0
+      },
+      "section": [
+        28.0,
+        1000.0
+      ],
+      "length": 1200.0
+    },
+    {
+      "name": "Group#12",
+      "instances": 35,
+      "dims": {
+        "w": 849.0,
+        "d": 100.0,
+        "h": 150.0
+      },
+      "section": [
+        100.0,
+        150.0
+      ],
+      "length": 849.0
+    },
+    {
+      "name": "Group#2",
+      "instances": 6,
+      "dims": {
+        "w": 462.7,
+        "d": 200.0,
+        "h": 500.0
+      },
+      "section": [
+        200.0,
+        462.7
+      ],
+      "length": 500.0
+    },
+    {
+      "name": "Group#6",
+      "instances": 6,
+      "dims": {
+        "w": 221.6,
+        "d": 200.0,
+        "h": 108.0
+      },
+      "section": [
+        108.0,
+        200.0
+      ],
+      "length": 221.6
+    },
+    {
+      "name": "Group#14",
+      "instances": 6,
+      "dims": {
+        "w": 750.0,
+        "d": 200.0,
+        "h": 7000.0
+      },
+      "section": [
+        200.0,
+        750.0
+      ],
+      "length": 7000.0
+    },
+    {
+      "name": "Group#13",
+      "instances": 5,
+      "dims": {
+        "w": 750.0,
+        "d": 200.0,
+        "h": 7766.0
+      },
+      "section": [
+        200.0,
+        750.0
+      ],
+      "length": 7766.0
+    },
+    {
+      "name": "Group#4",
+      "instances": 1,
+      "dims": {
+        "w": 150.0,
+        "d": 39800.0,
+        "h": 200.0
+      },
+      "section": [
+        150.0,
+        200.0
+      ],
+      "length": 39800.0
+    },
+    {
+      "name": "Group#1",
+      "instances": 1,
+      "dims": {
+        "w": 750.0,
+        "d": 200.0,
+        "h": 7766.0
+      },
+      "section": [
+        200.0,
+        750.0
+      ],
+      "length": 7766.0
+    },
+    {
+      "name": "Group#3",
+      "instances": 1,
+      "dims": {
+        "w": 200.0,
+        "d": 40000.0,
+        "h": 361.2
+      },
+      "section": [
+        200.0,
+        361.2
+      ],
+      "length": 40000.0
+    },
+    {
+      "name": "Group#11",
+      "instances": 1,
+      "dims": {
+        "w": 75.0,
+        "d": 40000.0,
+        "h": 100.0
+      },
+      "section": [
+        75.0,
+        100.0
+      ],
+      "length": 40000.0
+    },
+    {
+      "name": "Group#7",
+      "instances": 1,
+      "dims": {
+        "w": 926.3,
+        "d": 39609.2,
+        "h": 21.6
+      },
+      "section": [
+        21.6,
+        926.3
+      ],
+      "length": 39609.2
+    },
+    {
+      "name": "Jamison Trench Grate",
+      "instances": 0,
+      "dims": {
+        "w": 927.0,
+        "d": 304.8,
+        "h": 50.8
+      },
+      "section": [
+        50.8,
+        304.8
+      ],
+      "length": 927.0
+    },
+    {
+      "name": "UA-Sketchup-Jamison-6in-Trench",
+      "instances": 0,
+      "dims": {
+        "w": 927.0,
+        "d": 304.8,
+        "h": 50.8
+      },
+      "section": [
+        50.8,
+        304.8
+      ],
+      "length": 927.0
+    },
+    {
+      "name": "Terrain Trench Grate",
+      "instances": 0,
+      "dims": {
+        "w": 457.2,
+        "d": 152.4,
+        "h": 19.0
+      },
+      "section": [
+        19.0,
+        152.4
+      ],
+      "length": 457.2
+    },
+    {
+      "name": "UA-Sketchup-Terrain-6in-Trench",
+      "instances": 0,
+      "dims": {
+        "w": 457.2,
+        "d": 152.4,
+        "h": 19.0
+      },
+      "section": [
+        19.0,
+        152.4
+      ],
+      "length": 457.2
+    },
+    {
+      "name": "Laura",
+      "instances": 0,
+      "dims": {
+        "w": 613.0,
+        "d": 0.0,
+        "h": 1702.4
+      },
+      "section": [
+        0.0,
+        613.0
+      ],
+      "length": 1702.4
+    }
+  ]
+}

@@ -128,6 +128,31 @@ module MaimaarSkpBuild
     grp
   end
 
+  # bolted end-plate: a w x d plate centred at c, normal = axis, extruded by `thick`.
+  def self.endplate(ents, c, axis, w, d, thick, mat, layer)
+    dir = Geom::Vector3d.new(axis[0], axis[1], axis[2]); dir.normalize!
+    up = dir.parallel?(Z_AXIS) ? Y_AXIS : Z_AXIS
+    r = dir.cross(up); r.normalize!
+    u = r.cross(dir); u.normalize!
+    cc = Geom::Point3d.new(c[0].m - dir.x * (thick / 2.0).m,
+                           c[1].m - dir.y * (thick / 2.0).m,
+                           c[2].m - dir.z * (thick / 2.0).m)
+    corner = lambda do |sr, su|
+      Geom::Point3d.new(cc.x + sr * r.x * (w / 2.0).m + su * u.x * (d / 2.0).m,
+                        cc.y + sr * r.y * (w / 2.0).m + su * u.y * (d / 2.0).m,
+                        cc.z + sr * r.z * (w / 2.0).m + su * u.z * (d / 2.0).m)
+    end
+    grp = ents.add_group
+    f = grp.entities.add_face([corner.call(-1, -1), corner.call(1, -1), corner.call(1, 1), corner.call(-1, 1)])
+    unless f
+      grp.erase!; return nil
+    end
+    f.pushpull(thick.m, false)
+    grp.entities.grep(Sketchup::Face).each { |ff| ff.material = mat; ff.back_material = mat }
+    grp.layer = layer; grp.material = mat
+    grp
+  end
+
   # camera direction unit vectors per scene name (looking AT the model)
   DIRS = {
     'ISO-FL' => [-1, -1, -0.6], 'ISO-FR' => [1, -1, -0.6],
@@ -212,6 +237,8 @@ module MaimaarSkpBuild
         end
       elsif pr['kind'] == 'plate'
         plate(ents, pr['poly'], pr['thick'], mat, layer)
+      elsif pr['kind'] == 'endplate'
+        endplate(ents, pr['c'], pr['n'], pr['w'], pr['d'], pr['thick'], mat, layer)
       else
         face(ents, pr['poly'], mat, layer)
       end

@@ -1,0 +1,845 @@
+{
+  "title": "3D",
+  "path": "E:\\Maimaar Steel Pvt Ltd\\Proposals\\2022\\177-22-MSPL_Asim Maqsood_Sports Promoter\\Rev-00\\3D drawing\\football\\3D\\3D.skp",
+  "bbox": {
+    "w": 430026.4,
+    "d": 1441152.5,
+    "h": 2538.4
+  },
+  "units": 2,
+  "layers": [
+    "Layer0",
+    "BRICK WALL ",
+    "TUBE",
+    "WIRE MESH",
+    "Location Terrain",
+    "Location Snapshot"
+  ],
+  "scenes": [
+    "Scene 1",
+    "Scene 2",
+    "Scene 3"
+  ],
+  "tags": {
+    "TUBE": {
+      "count": 4,
+      "bbox": {
+        "w": 12192.0,
+        "d": 24386.0,
+        "h": 2538.4
+      }
+    },
+    "BRICK WALL ": {
+      "count": 1,
+      "bbox": {
+        "w": 12192.0,
+        "d": 24384.0,
+        "h": 609.6
+      }
+    },
+    "WIRE MESH": {
+      "count": 16,
+      "bbox": {
+        "w": 12116.2,
+        "d": 24310.6,
+        "h": 1829.2
+      }
+    },
+    "Location Terrain": {
+      "count": 2,
+      "bbox": {
+        "w": 430026.4,
+        "d": 338315.8,
+        "h": 0.0
+      }
+    },
+    "Location Snapshot": {
+      "count": 1,
+      "bbox": {
+        "w": 389498.0,
+        "d": 334881.2,
+        "h": 0.0
+      }
+    },
+    "Layer0": {
+      "count": 10,
+      "bbox": {
+        "w": 12192.0,
+        "d": 24384.0,
+        "h": 0.0
+      }
+    }
+  },
+  "definitions": [
+    {
+      "name": "Group#92",
+      "instances": 2900,
+      "dims": {
+        "w": 619.9,
+        "d": 18.1,
+        "h": 103.0
+      },
+      "section": [
+        18.1,
+        103.0
+      ],
+      "length": 619.9
+    },
+    {
+      "name": "Group#7",
+      "instances": 19,
+      "dims": {
+        "w": 300.0,
+        "d": 300.0,
+        "h": 2438.4
+      },
+      "section": [
+        300.0,
+        300.0
+      ],
+      "length": 2438.4
+    },
+    {
+      "name": "Group#9",
+      "instances": 18,
+      "dims": {
+        "w": 3082.6,
+        "d": 25.5,
+        "h": 2343.0
+      },
+      "section": [
+        25.5,
+        2343.0
+      ],
+      "length": 3082.6
+    },
+    {
+      "name": "Group#10",
+      "instances": 2,
+      "dims": {
+        "w": 11994.0,
+        "d": 25.5,
+        "h": 1828.8
+      },
+      "section": [
+        25.5,
+        1828.8
+      ],
+      "length": 11994.0
+    },
+    {
+      "name": "Group#29",
+      "instances": 2,
+      "dims": {
+        "w": 3082.6,
+        "d": 25.5,
+        "h": 2343.0
+      },
+      "section": [
+        25.5,
+        2343.0
+      ],
+      "length": 3082.6
+    },
+    {
+      "name": "Group#2",
+      "instances": 1,
+      "dims": {
+        "w": 148.5,
+        "d": 24386.0,
+        "h": 99.0
+      },
+      "section": [
+        99.0,
+        148.5
+      ],
+      "length": 24386.0
+    },
+    {
+      "name": "Group#5",
+      "instances": 1,
+      "dims": {
+        "w": 300.0,
+        "d": 303.0,
+        "h": 2438.4
+      },
+      "section": [
+        300.0,
+        303.0
+      ],
+      "length": 2438.4
+    },
+    {
+      "name": "Group#8",
+      "instances": 1,
+      "dims": {
+        "w": 99.0,
+        "d": 24185.0,
+        "h": 100.0
+      },
+      "section": [
+        99.0,
+        100.0
+      ],
+      "length": 24185.0
+    },
+    {
+      "name": "Group#6",
+      "instances": 1,
+      "dims": {
+        "w": 12091.0,
+        "d": 100.0,
+        "h": 100.0
+      },
+      "section": [
+        100.0,
+        100.0
+      ],
+      "length": 12091.0
+    },
+    {
+      "name": "Group#4",
+      "instances": 1,
+      "dims": {
+        "w": 12043.5,
+        "d": 100.0,
+        "h": 100.0
+      },
+      "section": [
+        100.0,
+        100.0
+      ],
+      "length": 12043.5
+    },
+    {
+      "name": "Google Earth Terrain",
+      "instances": 1,
+      "dims": {
+        "w": 391926.5,
+        "d": 336969.2,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        336969.2
+      ],
+      "length": 391926.5
+    },
+    {
+      "name": "Group#3",
+      "instances": 1,
+      "dims": {
+        "w": 12192.0,
+        "d": 24384.0,
+        "h": 609.6
+      },
+      "section": [
+        609.6,
+        12192.0
+      ],
+      "length": 24384.0
+    },
+    {
+      "name": "Group#1",
+      "instances": 1,
+      "dims": {
+        "w": 12192.0,
+        "d": 24386.0,
+        "h": 2537.4
+      },
+      "section": [
+        2537.4,
+        12192.0
+      ],
+      "length": 24386.0
+    },
+    {
+      "name": "Google Earth Snapshot",
+      "instances": 1,
+      "dims": {
+        "w": 389498.0,
+        "d": 334881.2,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        334881.2
+      ],
+      "length": 389498.0
+    },
+    {
+      "name": "GOOGLE EARTH TERRAIN#1",
+      "instances": 1,
+      "dims": {
+        "w": 389498.0,
+        "d": 334881.2,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        334881.2
+      ],
+      "length": 389498.0
+    },
+    {
+      "name": "L",
+      "instances": 0,
+      "dims": {
+        "w": 4747.6,
+        "d": 6000.0,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        4747.6
+      ],
+      "length": 6000.0
+    },
+    {
+      "name": "A",
+      "instances": 0,
+      "dims": {
+        "w": 6532.1,
+        "d": 6000.0,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        6000.0
+      ],
+      "length": 6532.1
+    },
+    {
+      "name": "DS",
+      "instances": 0,
+      "dims": {
+        "w": 11615.3,
+        "d": 6204.6,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        6204.6
+      ],
+      "length": 11615.3
+    },
+    {
+      "name": "H",
+      "instances": 0,
+      "dims": {
+        "w": 5742.2,
+        "d": 6000.0,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        5742.2
+      ],
+      "length": 6000.0
+    },
+    {
+      "name": "T",
+      "instances": 0,
+      "dims": {
+        "w": 5635.7,
+        "d": 6000.0,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        5635.7
+      ],
+      "length": 6000.0
+    },
+    {
+      "name": "SUN",
+      "instances": 0,
+      "dims": {
+        "w": 12739.4,
+        "d": 4136.4,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        4136.4
+      ],
+      "length": 12739.4
+    },
+    {
+      "name": "DER",
+      "instances": 0,
+      "dims": {
+        "w": 12316.5,
+        "d": 4000.0,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        4000.0
+      ],
+      "length": 12316.5
+    },
+    {
+      "name": "LAN",
+      "instances": 0,
+      "dims": {
+        "w": 11907.2,
+        "d": 4000.0,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        4000.0
+      ],
+      "length": 11907.2
+    },
+    {
+      "name": "D",
+      "instances": 0,
+      "dims": {
+        "w": 3680.8,
+        "d": 4000.0,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        3680.8
+      ],
+      "length": 4000.0
+    },
+    {
+      "name": "A#1",
+      "instances": 0,
+      "dims": {
+        "w": 4354.7,
+        "d": 4000.0,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        4000.0
+      ],
+      "length": 4354.7
+    },
+    {
+      "name": "FC",
+      "instances": 0,
+      "dims": {
+        "w": 7467.9,
+        "d": 4136.4,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        4136.4
+      ],
+      "length": 7467.9
+    },
+    {
+      "name": "Roof-Longside-short",
+      "instances": 0,
+      "dims": {
+        "w": 38772.5,
+        "d": 600.0,
+        "h": 7378.2
+      },
+      "section": [
+        600.0,
+        7378.2
+      ],
+      "length": 38772.5
+    },
+    {
+      "name": "E",
+      "instances": 0,
+      "dims": {
+        "w": 5058.7,
+        "d": 6000.0,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        5058.7
+      ],
+      "length": 6000.0
+    },
+    {
+      "name": "AY",
+      "instances": 0,
+      "dims": {
+        "w": 13043.7,
+        "d": 6000.0,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        6000.0
+      ],
+      "length": 13043.7
+    },
+    {
+      "name": "Sunderland 0 Lei",
+      "instances": 0,
+      "dims": {
+        "w": 10509.9,
+        "d": 2674.6,
+        "h": 50.0
+      },
+      "section": [
+        50.0,
+        2674.6
+      ],
+      "length": 10509.9
+    },
+    {
+      "name": "CAMP NOU#1",
+      "instances": 0,
+      "dims": {
+        "w": 75056.3,
+        "d": 9993.0,
+        "h": 5000.0
+      },
+      "section": [
+        5000.0,
+        9993.0
+      ],
+      "length": 75056.3
+    },
+    {
+      "name": "CAMP NOU#2",
+      "instances": 0,
+      "dims": {
+        "w": 7505.6,
+        "d": 999.3,
+        "h": 500.0
+      },
+      "section": [
+        500.0,
+        999.3
+      ],
+      "length": 7505.6
+    },
+    {
+      "name": "Component#1",
+      "instances": 0,
+      "dims": {
+        "w": 3256.5,
+        "d": 322.0,
+        "h": 3286.0
+      },
+      "section": [
+        322.0,
+        3256.5
+      ],
+      "length": 3286.0
+    },
+    {
+      "name": "Sumele",
+      "instances": 0,
+      "dims": {
+        "w": 594.0,
+        "d": 0.0,
+        "h": 1649.7
+      },
+      "section": [
+        0.0,
+        594.0
+      ],
+      "length": 1649.7
+    },
+    {
+      "name": "' W",
+      "instances": 0,
+      "dims": {
+        "w": 13166.4,
+        "d": 6000.0,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        6000.0
+      ],
+      "length": 13166.4
+    },
+    {
+      "name": "HA#1",
+      "instances": 0,
+      "dims": {
+        "w": 12904.5,
+        "d": 6000.0,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        6000.0
+      ],
+      "length": 12904.5
+    },
+    {
+      "name": "Roof-Big-North",
+      "instances": 0,
+      "dims": {
+        "w": 650.0,
+        "d": 60587.1,
+        "h": 15513.5
+      },
+      "section": [
+        650.0,
+        15513.5
+      ],
+      "length": 60587.1
+    },
+    {
+      "name": "BARCELONA   8 BA",
+      "instances": 0,
+      "dims": {
+        "w": 10509.9,
+        "d": 2674.6,
+        "h": 50.0
+      },
+      "section": [
+        50.0,
+        2674.6
+      ],
+      "length": 10509.9
+    },
+    {
+      "name": "Roof-Short",
+      "instances": 0,
+      "dims": {
+        "w": 600.0,
+        "d": 38772.5,
+        "h": 7378.2
+      },
+      "section": [
+        600.0,
+        7378.2
+      ],
+      "length": 38772.5
+    },
+    {
+      "name": "Roof-Big",
+      "instances": 0,
+      "dims": {
+        "w": 63775.8,
+        "d": 650.0,
+        "h": 15513.5
+      },
+      "section": [
+        650.0,
+        15513.5
+      ],
+      "length": 63775.8
+    },
+    {
+      "name": "FOOTBALL CLUB",
+      "instances": 0,
+      "dims": {
+        "w": 2413.0,
+        "d": 251.6,
+        "h": 25.0
+      },
+      "section": [
+        25.0,
+        251.6
+      ],
+      "length": 2413.0
+    },
+    {
+      "name": "FOOTBALL CLUB#1",
+      "instances": 0,
+      "dims": {
+        "w": 9500.0,
+        "d": 990.4,
+        "h": 100.0
+      },
+      "section": [
+        100.0,
+        990.4
+      ],
+      "length": 9500.0
+    },
+    {
+      "name": "FOOTBALL",
+      "instances": 0,
+      "dims": {
+        "w": 8890.6,
+        "d": 1286.9,
+        "h": 500.0
+      },
+      "section": [
+        500.0,
+        1286.9
+      ],
+      "length": 8890.6
+    },
+    {
+      "name": "FOOTBALL CLUB#2",
+      "instances": 0,
+      "dims": {
+        "w": 12353.2,
+        "d": 1030.5,
+        "h": 500.0
+      },
+      "section": [
+        500.0,
+        1030.5
+      ],
+      "length": 12353.2
+    },
+    {
+      "name": "Stadium of Light - Sunderland AFC",
+      "instances": 0,
+      "dims": {
+        "w": 544357.2,
+        "d": 874619.2,
+        "h": 43381.6
+      },
+      "section": [
+        43381.6,
+        544357.2
+      ],
+      "length": 874619.2
+    },
+    {
+      "name": "CAMP NOU",
+      "instances": 0,
+      "dims": {
+        "w": 7505.6,
+        "d": 999.3,
+        "h": 500.0
+      },
+      "section": [
+        500.0,
+        999.3
+      ],
+      "length": 7505.6
+    },
+    {
+      "name": "F",
+      "instances": 0,
+      "dims": {
+        "w": 7197.2,
+        "d": 9549.3,
+        "h": 500.0
+      },
+      "section": [
+        500.0,
+        7197.2
+      ],
+      "length": 9549.3
+    },
+    {
+      "name": "C",
+      "instances": 0,
+      "dims": {
+        "w": 8598.6,
+        "d": 9985.9,
+        "h": 500.0
+      },
+      "section": [
+        500.0,
+        8598.6
+      ],
+      "length": 9985.9
+    },
+    {
+      "name": "B",
+      "instances": 0,
+      "dims": {
+        "w": 8591.5,
+        "d": 9549.3,
+        "h": 500.0
+      },
+      "section": [
+        500.0,
+        8591.5
+      ],
+      "length": 9549.3
+    },
+    {
+      "name": "A#2",
+      "instances": 0,
+      "dims": {
+        "w": 10140.8,
+        "d": 9767.6,
+        "h": 500.0
+      },
+      "section": [
+        500.0,
+        9767.6
+      ],
+      "length": 10140.8
+    },
+    {
+      "name": "R",
+      "instances": 0,
+      "dims": {
+        "w": 9500.0,
+        "d": 9549.3,
+        "h": 500.0
+      },
+      "section": [
+        500.0,
+        9500.0
+      ],
+      "length": 9549.3
+    },
+    {
+      "name": "C#1",
+      "instances": 0,
+      "dims": {
+        "w": 8598.6,
+        "d": 9985.9,
+        "h": 500.0
+      },
+      "section": [
+        500.0,
+        8598.6
+      ],
+      "length": 9985.9
+    },
+    {
+      "name": "BARCELONA",
+      "instances": 0,
+      "dims": {
+        "w": 87739.4,
+        "d": 9985.9,
+        "h": 500.0
+      },
+      "section": [
+        500.0,
+        9985.9
+      ],
+      "length": 87739.4
+    },
+    {
+      "name": "BARCELONA#1",
+      "instances": 0,
+      "dims": {
+        "w": 87739.4,
+        "d": 9985.9,
+        "h": 500.0
+      },
+      "section": [
+        500.0,
+        9985.9
+      ],
+      "length": 87739.4
+    },
+    {
+      "name": "FC Barcelona",
+      "instances": 0,
+      "dims": {
+        "w": 3194.2,
+        "d": 1323.0,
+        "h": 3286.0
+      },
+      "section": [
+        1323.0,
+        3194.2
+      ],
+      "length": 3286.0
+    }
+  ]
+}

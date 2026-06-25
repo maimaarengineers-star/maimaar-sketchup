@@ -81,11 +81,15 @@ Manuals are >100MB so the Read tool can't open them directly; render pages with 
 built-up I (flanges + tapering web) for primary, Z for purlins/girts (see `skp_build.py`
 I_FLANGE_*/I_WEB_T, Z_DEPTH/Z_FLANGE/Z_THICK).
 
-## Status (25-Jun-2026) — v3 PROVEN (real sections)
+## Status (25-Jun-2026) — v4 PROVEN (bypass secondaries + clips + end-plates)
 - IF model → `.skp` + 8 scene snaps, fully automated.
-- RED built-up **tapered I-section** primary frame; **Z-section** purlins + girts (yellow);
-  TRANSLUCENT sheeting (roof/wall/skylight); genuine **connection plates** (base + knee
-  haunch + ridge); doors/windows from IF placements. Validated on real_4734 + MSPL-26-042.
+- RED built-up **tapered I-section** primary frame; **Z-section** purlins + girts (yellow)
+  that **BYPASS the frame** (continuous, proud on rafter top / outboard of columns) with
+  **CLIPS** at every frame crossing; **real bolted END-PLATES** perpendicular to the members
+  at both knees + the ridge; calibrated **base plates** (320×490×22); TRANSLUCENT sheeting
+  (roof on purlins, wall, skylight); doors/windows from IF placements. All sections
+  calibrated to `../sketchup_study/parts_database.json` (271 real models).
+  Validated on real_4734 + MSPL-26-042.
 ## Next (fine-tuning toward proposal quality)
 - Masonry/brick base band on walls from `finish.blockWallHeight` (tag exists, wire it in).
 - Bolt circles on plates; splice plates mid-rafter; stiffeners (the section module also
