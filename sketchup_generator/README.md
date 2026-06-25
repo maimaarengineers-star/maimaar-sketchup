@@ -42,10 +42,19 @@ Metres. `x` = along length, `y` = across width, `z` = up. Frames sit at the leng
 positions; rafters run eave→ridge→eave at `roof.ridgePos`/`roof.peakHeight`.
 
 ## Run
-**Spec (headless):**
+**One command (IF → .skp + 8 snaps), production entry point:**
 ```
-cd sketchup_generator && python skp_build.py [model.json]      # -> skp_build.json
-python preview_3d.py                                            # -> preview_3d.png (check)
+cd sketchup_generator && python generate_from_if.py <building_model.json>
+```
+This builds the spec, writes the one-shot bootstrap, launches SketchUp 2021 on the bundled
+`seed_template.skp`, waits, and returns the `.skp` + 8 PNG paths (JSON on the last line).
+The IF web app produces `<building_model.json>` via services/drawingData (same JSON the 2D
+drawing_generator uses) — a web route just shells out to this script.
+
+**Spec only (headless check, no SketchUp):**
+```
+python skp_build.py [model.json]      # -> skp_build.json
+python preview_3d.py                  # -> preview_3d.png
 ```
 **Model + snaps (needs SketchUp 2021):** open SketchUp and in the Ruby Console:
 ```
@@ -81,20 +90,24 @@ Manuals are >100MB so the Read tool can't open them directly; render pages with 
 built-up I (flanges + tapering web) for primary, Z for purlins/girts (see `skp_build.py`
 I_FLANGE_*/I_WEB_T, Z_DEPTH/Z_FLANGE/Z_THICK).
 
-## Status (25-Jun-2026) — v4 PROVEN (bypass secondaries + clips + end-plates)
-- IF model → `.skp` + 8 scene snaps, fully automated.
-- RED built-up **tapered I-section** primary frame; **Z-section** purlins + girts (yellow)
-  that **BYPASS the frame** (continuous, proud on rafter top / outboard of columns) with
-  **CLIPS** at every frame crossing; **real bolted END-PLATES** perpendicular to the members
-  at both knees + the ridge; calibrated **base plates** (320×490×22); TRANSLUCENT sheeting
-  (roof on purlins, wall, skylight); doors/windows from IF placements. All sections
-  calibrated to `../sketchup_study/parts_database.json` (271 real models).
-  Validated on real_4734 + MSPL-26-042.
-## Next (fine-tuning toward proposal quality)
-- Masonry/brick base band on walls from `finish.blockWallHeight` (tag exists, wire it in).
-- Bolt circles on plates; splice plates mid-rafter; stiffeners (the section module also
-  emits these) for closer detail shots.
-- Gutters/downpipes, roof monitor/ridge vent, mezzanine, crane — per IF features.
+## Status (25-Jun-2026) — v5 COMPLETE (IF-ready)
+One command turns an IF model into a `.skp` + 8 snaps. Components produced:
+- RED built-up **tapered I-section** primary frame (web depth scales with span)
+- **Z-section** purlins + girts (yellow) that **BYPASS** the frame (continuous, proud) with
+  **CLIPS** at every crossing
+- **ENDWALL framing** — intermediate endwall columns (from `endwallColPos`) + endwall girts
+- real bolted **END-PLATES** at knees + ridge, calibrated **base plates** (320×490×22),
+  representative **bolts** at base/knee/ridge
+- **eave gutters** + corner **downpipes**
+- **masonry base band** from `finish.blockWallHeight`; **doors/windows/skylights** from IF
+  placements; TRANSLUCENT sheeting (roof on purlins / wall / skylight)
+All sections calibrated to `../sketchup_study/parts_database.json` (271 real models).
+Validated on MSPL-26-042 (HICO) + real_4734.
+## Next (optional refinements)
+- Roof monitor / ridge vent, mezzanine deck, crane runway — per IF `components` (wire like
+  the others when those fields are populated).
+- Multi-span interior columns (currently single-ridge gable); crane brackets.
+- Web route: call `generate_from_if.py` from the server on an inquiry and return the files.
 - Multi-area / multi-building tiling (uses building `layout` offsets; scaffolded).
 - Camera framing per scene (match Maimaar's standard 6–8 view angles) + the house style.
 - Web route: write `skp_build.json` for an inquiry, trigger the headless SketchUp run,

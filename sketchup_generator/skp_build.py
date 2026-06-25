@@ -28,7 +28,8 @@ TAGS = {
     "SHEETING":        {"rgb": [198, 203, 209], "alpha": 0.32},  # WALL sheeting - translucent
     "ROOF-SHEET":      {"rgb": [188, 196, 206], "alpha": 0.30},  # ROOF sheeting - translucent
     "SKYLIGHT":        {"rgb": [225, 238, 248], "alpha": 0.18},  # roof skylight - more translucent
-    "GUTTER-DOWNPIPE": {"rgb": [170, 68, 0],    "alpha": 1.0},
+    "GUTTER-DOWNPIPE": {"rgb": [150, 156, 162],  "alpha": 1.0},   # gutters + downpipes (galv.)
+    "BOLT":            {"rgb": [40, 42, 46],    "alpha": 1.0},   # bolt heads at connections
     "DOOR":            {"rgb": [70, 72, 78],    "alpha": 1.0},   # opaque dark door leaf
     "WINDOW":          {"rgb": [150, 190, 215], "alpha": 0.45},  # glazed
     "BRICK-MASONRY":   {"rgb": [150, 95, 62],   "alpha": 1.0},   # base masonry/brick band
@@ -271,19 +272,45 @@ def build_area(b, area, ox=0.0, oy=0.0):
                                   0.006, "girt-clip"))
             gz += PURLIN_SPACING
 
+    # --- ENDWALL framing: intermediate endwall columns + endwall girts (LEW/REW) ---
+    ew = r.get("endwallColPos") or {}
+    for xend, ein, wall in ((x0, x0 + 0.10, "LEW"), (xL, xL - 0.10, "REW")):
+        for yc in (ew.get(wall) or [0.0, W]):
+            yc = float(yc)
+            if yc <= 0.10 or yc >= W - 0.10:
+                continue  # corners are the main end-frame columns already
+            prim.append(imember("MS-FRAME", (xend, oy + yc, 0), (xend, oy + yc, Z_at(yc)),
+                                 d_base, max(d_base, d_raf(yc) * 0.6), "endwall-col"))
+            prim.append(plate("PLATE", [(xend - 0.16, oy + yc - 0.20, 0), (xend + 0.16, oy + yc - 0.20, 0),
+                                        (xend + 0.16, oy + yc + 0.20, 0), (xend - 0.16, oy + yc + 0.20, 0)],
+                              0.022, "endwall-base-plate"))
+        # endwall girts: horizontal Z across the width (along y) at z intervals
+        gz = PURLIN_SPACING
+        while gz < eave:
+            prim.append(zmember("PURLIN", (ein, oy + 0, gz), (ein, oy + W, gz), "endwall-girt"))
+            gz += PURLIN_SPACING
+
     # roof sheeting — sits on the purlins (lifted off the rafter line)
     prim.append(face("ROOF-SHEET", [(x0, oy + 0, roof_top(0)), (xL, oy + 0, roof_top(0)),
                                     (xL, oy + ridge_y, roof_top(ridge_y)), (x0, oy + ridge_y, roof_top(ridge_y))], "roof-L"))
     prim.append(face("ROOF-SHEET", [(x0, oy + ridge_y, roof_top(ridge_y)), (xL, oy + ridge_y, roof_top(ridge_y)),
                                     (xL, oy + W, roof_top(W)), (x0, oy + W, roof_top(W))], "roof-R"))
-    prim.append(face("SHEETING", [(x0, oy + 0, 0), (xL, oy + 0, 0),
-                                  (xL, oy + 0, eave), (x0, oy + 0, eave)], "NSW"))
-    prim.append(face("SHEETING", [(x0, oy + W, 0), (xL, oy + W, 0),
-                                  (xL, oy + W, eave), (x0, oy + W, eave)], "FSW"))
-    for x, nm in ((x0, "LEW"), (xL, "REW")):
-        prim.append(face("SHEETING", [(x, oy + 0, 0), (x, oy + W, 0),
-                                      (x, oy + W, eave), (x, oy + ridge_y, peak),
-                                      (x, oy + 0, eave)], nm))
+    # wall cladding — with a masonry base band if the IF gives finish.blockWallHeight
+    bwh = float((r.get("finish") or {}).get("blockWallHeight") or 0)
+    bwh = min(bwh, eave - 0.3) if bwh > 0.1 else 0.0
+    for wy, nm in ((0.0, "NSW"), (W, "FSW")):
+        if bwh:
+            prim.append(face("BRICK-MASONRY", [(x0, oy + wy, 0), (xL, oy + wy, 0),
+                                               (xL, oy + wy, bwh), (x0, oy + wy, bwh)], nm + "-brick"))
+        prim.append(face("SHEETING", [(x0, oy + wy, bwh), (xL, oy + wy, bwh),
+                                      (xL, oy + wy, eave), (x0, oy + wy, eave)], nm))
+    for xe, nm in ((x0, "LEW"), (xL, "REW")):
+        if bwh:
+            prim.append(face("BRICK-MASONRY", [(xe, oy + 0, 0), (xe, oy + W, 0),
+                                               (xe, oy + W, bwh), (xe, oy + 0, bwh)], nm + "-brick"))
+        prim.append(face("SHEETING", [(xe, oy + 0, bwh), (xe, oy + W, bwh),
+                                      (xe, oy + W, eave), (xe, oy + ridge_y, peak),
+                                      (xe, oy + 0, eave)], nm))
 
     # openings (doors/windows) + roof skylights
     opn, roof_sky = _openings(area, ox, oy, L, W, eave, r["grids"])
@@ -300,6 +327,28 @@ def build_area(b, area, ox=0.0, oy=0.0):
                                           (x0 + sx + w, oy + yA, Z_at(yA) + 0.12),
                                           (x0 + sx + w, oy + ridge_y - 0.3, peak + 0.12),
                                           (x0 + sx, oy + ridge_y - 0.3, peak + 0.12)], "skylight"))
+
+    # --- eave gutters (both eaves) + corner downpipes ---
+    for wy, sgn in ((0.0, -1.0), (W, 1.0)):
+        prim.append(seg("GUTTER-DOWNPIPE", (x0, oy + wy + sgn * 0.10, eave + 0.02),
+                        (xL, oy + wy + sgn * 0.10, eave + 0.02), 0.18, 0.12, note="eave-gutter"))
+    for cx in (x0, xL):
+        for wy, sgn in ((0.0, -1.0), (W, 1.0)):
+            prim.append(seg("GUTTER-DOWNPIPE", (cx, oy + wy + sgn * 0.16, 0),
+                            (cx, oy + wy + sgn * 0.16, eave), 0.10, 0.10, note="downpipe"))
+
+    # --- representative bolts at base plates, knees and ridge ---
+    for xg in xs:
+        x = xg + ox
+        for wy in (0.0, W):
+            for dx, dy in ((-0.10, -0.16), (0.10, -0.16), (-0.10, 0.16), (0.10, 0.16)):
+                prim.append(seg("BOLT", (x + dx, oy + wy + dy, 0.0),
+                                (x + dx, oy + wy + dy, 0.05), 0.028, 0.028, note="anchor-bolt"))
+        for by, bz in ((0.0, eave - d_knee * 0.30), (0.0, eave - d_knee * 0.60),
+                       (W, eave - d_knee * 0.30), (W, eave - d_knee * 0.60),
+                       (ridge_y, peak - d_apex * 0.45)):
+            prim.append(seg("BOLT", (x - 0.14, oy + by, bz), (x + 0.14, oy + by, bz),
+                            0.026, 0.026, note="conn-bolt"))
 
     return prim, (L, W, eave, peak)
 

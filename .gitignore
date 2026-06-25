@@ -11,3 +11,5 @@ sketchup_study/geom_out/batch.log
 **/__pycache__/
 *.pyc
 *.skb
+*.skp
+!sketchup_generator/seed_template.skp   # keep the bundled seed for the orchestrator
