@@ -87,6 +87,12 @@ def plate(tag, poly, thick, note=""):
     return {"kind": "plate", "tag": tag, "poly": [list(p) for p in poly], "thick": thick, "note": note}
 
 
+def realcomp(comp, at, rot=0.0, tag="PLATE", note=""):
+    """Place a REAL component (extracted from existing Maimaar models, in sketchup_generator/
+    parts/<comp>.skp) centred at `at`, rotated `rot` deg about Z. Mirrors actual geometry."""
+    return {"kind": "realcomp", "comp": comp, "at": list(at), "rot": rot, "tag": tag, "note": note}
+
+
 def endplate(tag, center, axis, w, d, thick, note=""):
     """A bolted END-PLATE perpendicular to a member axis: a w x d plate (w along flange,
     d along member depth) centred at `center`, normal = `axis`, extruded by `thick`.
@@ -231,16 +237,16 @@ def build_area(b, area, ox=0.0, oy=0.0):
         epw = I_FLANGE_W + 0.12         # end-plate projects ~60 mm past each flange
         fw2 = I_FLANGE_W / 2.0 + 0.012  # just outside the flange face (for gussets)
         for wy, inn in ((0.0, 1.0), (W, -1.0)):
-            corner = (x, oy + wy, eave); ax = _unit(corner, apexL)
-            c = (corner[0] + ax[0] * 0.04, corner[1] + ax[1] * 0.04, corner[2] + ax[2] * 0.04)
-            prim.append(endplate("PLATE", c, ax, epw, d_knee + 0.12, 0.020, "knee-endplate"))
+            corner = (x, oy + wy, eave)
+            # REAL end-plate component from an existing model, at the knee joint
+            prim.append(realcomp("endplate", (corner[0], corner[1], corner[2] - d_knee * 0.35),
+                                 rot=0.0, tag="PLATE", note="knee-endplate"))
             gl = d_knee * 1.10          # haunch gusset (triangle) on both flange faces
             for sx in (-fw2, fw2):
                 prim.append(plate("PLATE", [(x + sx, oy + wy, eave), (x + sx, oy + wy, eave - gl),
                                             (x + sx, oy + wy + inn * gl, eave)], 0.012, "knee-gusset"))
-        axr = _unit((x, oy + 0, eave), apexL)
-        cr = (apexL[0] - axr[0] * 0.04, apexL[1] - axr[1] * 0.04, apexL[2] - axr[2] * 0.04)
-        prim.append(endplate("PLATE", cr, axr, epw, d_apex + 0.12, 0.020, "ridge-endplate"))
+        prim.append(realcomp("endplate", (x, oy + ridge_y, peak - d_apex * 0.35),
+                             rot=0.0, tag="PLATE", note="ridge-endplate"))
 
     x0, xL = xs[0] + ox, xs[-1] + ox
 
@@ -257,11 +263,9 @@ def build_area(b, area, ox=0.0, oy=0.0):
         pz = purlin_z(y)
         prim.append(zmember("PURLIN", (x0, oy + y, pz), (xL, oy + y, pz), "purlin"))
         zc = Z_at(y) + d_raf(y) / 2.0   # rafter top flange level
-        for xg in xs:                   # purlin CLEAT/clip standing on the rafter at every frame
+        for xg in xs:                   # REAL purlin cleat at every frame crossing
             xx = xg + ox
-            prim.append(plate("CLIP", [(xx, oy + y - 0.07, zc - 0.01), (xx, oy + y + 0.07, zc - 0.01),
-                                       (xx, oy + y + 0.07, pz + 0.05), (xx, oy + y - 0.07, pz + 0.05)],
-                              0.014, "purlin-clip"))
+            prim.append(realcomp("clip", (xx, oy + y, (zc + pz) / 2.0), rot=0.0, tag="CLIP", note="purlin-clip"))
 
     # --- GIRTS: continuous, BYPASS the columns (proud outboard), with CLIPS at frames ---
     for wall_y, sgn in ((0.0, -1.0), (W, 1.0)):
@@ -271,9 +275,8 @@ def build_area(b, area, ox=0.0, oy=0.0):
             prim.append(zmember("PURLIN", (x0, oy + gy, gz), (xL, oy + gy, gz), "girt"))
             for xg in xs:
                 xx = xg + ox
-                prim.append(plate("CLIP", [(xx, oy + wall_y, gz - 0.07), (xx, oy + gy, gz - 0.07),
-                                           (xx, oy + gy, gz + 0.07), (xx, oy + wall_y, gz + 0.07)],
-                                  0.014, "girt-clip"))
+                prim.append(realcomp("clip_small", (xx, oy + (wall_y + gy) / 2.0, gz),
+                                     rot=90.0, tag="CLIP", note="girt-clip"))
             gz += PURLIN_SPACING
 
     # --- ENDWALL framing: intermediate endwall columns + endwall girts (LEW/REW) ---

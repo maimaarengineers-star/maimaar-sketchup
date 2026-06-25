@@ -153,6 +153,38 @@ module MaimaarSkpBuild
     grp
   end
 
+  # --- REAL components: load <comp>.skp from parts/ (cached) and place an instance
+  #     CENTRED at `at`, rotated `rot` deg about Z. Mirrors actual Maimaar geometry. ---
+  @comp_cache = {}
+  def self.parts_dir
+    File.join(File.dirname(__FILE__), 'parts')
+  end
+
+  def self.load_comp(model, comp)
+    return @comp_cache[comp] if @comp_cache.key?(comp)
+    path = File.join(parts_dir, "#{comp}.skp")
+    d = nil
+    begin
+      d = model.definitions.load(path) if File.exist?(path)
+    rescue
+      d = nil
+    end
+    @comp_cache[comp] = d
+    d
+  end
+
+  def self.realcomp(model, comp, at, rot, layer)
+    d = load_comp(model, comp)
+    return nil unless d
+    c = d.bounds.center
+    t = Geom::Transformation.translation(Geom::Vector3d.new(at[0].m, at[1].m, at[2].m)) *
+        Geom::Transformation.rotation(ORIGIN, Z_AXIS, rot.degrees) *
+        Geom::Transformation.translation(Geom::Point3d.new(0, 0, 0) - c)
+    inst = model.entities.add_instance(d, t)
+    inst.layer = layer
+    inst
+  end
+
   # camera direction unit vectors per scene name (looking AT the model)
   DIRS = {
     'ISO-FL' => [-1, -1, -0.6], 'ISO-FR' => [1, -1, -0.6],
@@ -244,6 +276,8 @@ module MaimaarSkpBuild
         plate(ents, pr['poly'], pr['thick'], mat, layer)
       elsif pr['kind'] == 'endplate'
         endplate(ents, pr['c'], pr['n'], pr['w'], pr['d'], pr['thick'], mat, layer)
+      elsif pr['kind'] == 'realcomp'
+        realcomp(model, pr['comp'], pr['at'], pr['rot'] || 0, layer)
       else
         face(ents, pr['poly'], mat, layer)
       end

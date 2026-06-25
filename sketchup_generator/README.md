@@ -103,8 +103,16 @@ Coded in `skp_build.py` build_area; every connection gets genuine, VISIBLE detai
 - A **KNEE-DETAIL** close-up scene is exported so the connection detailing is showcased
   (camera zooms to the first knee instead of zoom-extents).
 Connection sizes come from the parts DB (`../sketchup_study/parts_database.json`).
-For even higher fidelity, `../sketchup_study/extract_components.rb` can pull the REAL
-plate/clip/bolt component geometry out of existing models for direct reuse (future).
+
+### REAL components (wired)
+The knee/ridge **end-plates** and purlin/girt **clips** are now placed as the ACTUAL
+component geometry extracted from existing Maimaar models (with real bolt holes), via the
+`realcomp` primitive: `build_skp.rb` loads `parts/<comp>.skp` (cached) and places an
+instance centred at the target, rotated about Z. Curated parts live in `parts/`
+(`endplate.skp`, `clip.skp`, `clip_small.skp`, `bolt.skp`), extracted by
+`../sketchup_study/extract_components.rb` into `../sketchup_study/components_lib/`
+(46 real parts: I-members, Z purlins, clips, plates, bolts). Swap in other parts by
+dropping a `.skp` in `parts/` and naming it in `realcomp(...)`.
 
 ## Status (25-Jun-2026) — v6 COMPLETE (visible as-built connections, IF-ready)
 One command turns an IF model into a `.skp` + 8 snaps. Components produced:

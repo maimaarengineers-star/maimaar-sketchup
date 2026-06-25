@@ -1,0 +1,508 @@
+[
+  {
+    "cls": "purlinZ",
+    "dims": [
+      149.7,
+      200.0,
+      60502.0
+    ],
+    "inst": 40,
+    "file": "purlinZ__150x200x60502__188-26-MSPL_1.skp",
+    "src": "188-26-MSPL"
+  },
+  {
+    "cls": "purlinZ",
+    "dims": [
+      100.0,
+      203.3,
+      19642.0
+    ],
+    "inst": 18,
+    "file": "purlinZ__100x203x19642__188-26-MSPL_2.skp",
+    "src": "188-26-MSPL"
+  },
+  {
+    "cls": "frame_I",
+    "dims": [
+      300.0,
+      1450.5,
+      7560.0
+    ],
+    "inst": 7,
+    "file": "frame_I__300x1451x7560__188-26-MSPL_1.skp",
+    "src": "188-26-MSPL"
+  },
+  {
+    "cls": "frame_I",
+    "dims": [
+      300.0,
+      1295.1,
+      7505.5
+    ],
+    "inst": 7,
+    "file": "frame_I__300x1295x7506__188-26-MSPL_2.skp",
+    "src": "188-26-MSPL"
+  },
+  {
+    "cls": "frame_I",
+    "dims": [
+      300.0,
+      700.0,
+      7620.0
+    ],
+    "inst": 7,
+    "file": "frame_I__300x700x7620__188-26-MSPL_3.skp",
+    "src": "188-26-MSPL"
+  },
+  {
+    "cls": "purlinZ",
+    "dims": [
+      60.0,
+      200.0,
+      4622.1
+    ],
+    "inst": 4,
+    "file": "purlinZ__60x200x4622__188-26-MSPL_3.skp",
+    "src": "188-26-MSPL"
+  },
+  {
+    "cls": "plate",
+    "dims": [
+      0.0,
+      594.0,
+      1649.7
+    ],
+    "inst": 0,
+    "file": "plate__0x594x1650__188-26-MSPL_1.skp",
+    "src": "188-26-MSPL"
+  },
+  {
+    "cls": "bolt",
+    "dims": [
+      2.1,
+      8.9,
+      39.9
+    ],
+    "inst": 46080,
+    "file": "bolt__2x9x40__008-26-MSPL_1.skp",
+    "src": "008-26-MSPL"
+  },
+  {
+    "cls": "plate",
+    "dims": [
+      26.4,
+      98.5,
+      191.5
+    ],
+    "inst": 2304,
+    "file": "plate__26x99x192__008-26-MSPL_1.skp",
+    "src": "008-26-MSPL"
+  },
+  {
+    "cls": "bolt",
+    "dims": [
+      12.0,
+      12.0,
+      24.0
+    ],
+    "inst": 720,
+    "file": "bolt__12x12x24__008-26-MSPL_2.skp",
+    "src": "008-26-MSPL"
+  },
+  {
+    "cls": "plate",
+    "dims": [
+      9.5,
+      263.9,
+      613.2
+    ],
+    "inst": 513,
+    "file": "plate__10x264x613__008-26-MSPL_2.skp",
+    "src": "008-26-MSPL"
+  },
+  {
+    "cls": "bolt",
+    "dims": [
+      1.0,
+      57.6,
+      122.7
+    ],
+    "inst": 513,
+    "file": "bolt__1x58x123__008-26-MSPL_3.skp",
+    "src": "008-26-MSPL"
+  },
+  {
+    "cls": "plate",
+    "dims": [
+      10.5,
+      263.9,
+      681.8
+    ],
+    "inst": 513,
+    "file": "plate__11x264x682__008-26-MSPL_3.skp",
+    "src": "008-26-MSPL"
+  },
+  {
+    "cls": "plate",
+    "dims": [
+      20.0,
+      20.0,
+      430.0
+    ],
+    "inst": 384,
+    "file": "plate__20x20x430__008-26-MSPL_4.skp",
+    "src": "008-26-MSPL"
+  },
+  {
+    "cls": "plate",
+    "dims": [
+      2.5,
+      2.5,
+      1217.3
+    ],
+    "inst": 350,
+    "file": "plate__3x3x1217__008-26-MSPL_5.skp",
+    "src": "008-26-MSPL"
+  },
+  {
+    "cls": "plate",
+    "dims": [
+      28.4,
+      100.0,
+      100.0
+    ],
+    "inst": 288,
+    "file": "plate__28x100x100__008-26-MSPL_6.skp",
+    "src": "008-26-MSPL"
+  },
+  {
+    "cls": "clip",
+    "dims": [
+      10.0,
+      213.0,
+      288.0
+    ],
+    "inst": 192,
+    "file": "clip__10x213x288__008-26-MSPL_1.skp",
+    "src": "008-26-MSPL"
+  },
+  {
+    "cls": "plate",
+    "dims": [
+      30.0,
+      50.0,
+      460.2
+    ],
+    "inst": 192,
+    "file": "plate__30x50x460__008-26-MSPL_7.skp",
+    "src": "008-26-MSPL"
+  },
+  {
+    "cls": "plate",
+    "dims": [
+      30.0,
+      49.3,
+      204.7
+    ],
+    "inst": 192,
+    "file": "plate__30x49x205__008-26-MSPL_8.skp",
+    "src": "008-26-MSPL"
+  },
+  {
+    "cls": "clip",
+    "dims": [
+      0.0,
+      50.0,
+      220.0
+    ],
+    "inst": 96,
+    "file": "clip__0x50x220__008-26-MSPL_2.skp",
+    "src": "008-26-MSPL"
+  },
+  {
+    "cls": "clip",
+    "dims": [
+      7.0,
+      210.0,
+      240.0
+    ],
+    "inst": 96,
+    "file": "clip__7x210x240__008-26-MSPL_3.skp",
+    "src": "008-26-MSPL"
+  },
+  {
+    "cls": "clip",
+    "dims": [
+      10.0,
+      144.0,
+      169.8
+    ],
+    "inst": 96,
+    "file": "clip__10x144x170__008-26-MSPL_4.skp",
+    "src": "008-26-MSPL"
+  },
+  {
+    "cls": "clip",
+    "dims": [
+      5.1,
+      52.1,
+      147.0
+    ],
+    "inst": 96,
+    "file": "clip__5x52x147__008-26-MSPL_5.skp",
+    "src": "008-26-MSPL"
+  },
+  {
+    "cls": "clip",
+    "dims": [
+      8.7,
+      20.0,
+      360.0
+    ],
+    "inst": 96,
+    "file": "clip__9x20x360__008-26-MSPL_6.skp",
+    "src": "008-26-MSPL"
+  },
+  {
+    "cls": "frame_I",
+    "dims": [
+      200.0,
+      515.8,
+      5093.1
+    ],
+    "inst": 32,
+    "file": "frame_I__200x516x5093__008-26-MSPL_1.skp",
+    "src": "008-26-MSPL"
+  },
+  {
+    "cls": "purlinZ",
+    "dims": [
+      132.6,
+      202.0,
+      45720.0
+    ],
+    "inst": 22,
+    "file": "purlinZ__133x202x45720__008-26-MSPL_1.skp",
+    "src": "008-26-MSPL"
+  },
+  {
+    "cls": "purlinZ",
+    "dims": [
+      132.6,
+      202.0,
+      45320.0
+    ],
+    "inst": 19,
+    "file": "purlinZ__133x202x45320__008-26-MSPL_2.skp",
+    "src": "008-26-MSPL"
+  },
+  {
+    "cls": "purlinZ",
+    "dims": [
+      151.8,
+      211.8,
+      56951.6
+    ],
+    "inst": 17,
+    "file": "purlinZ__152x212x56952__008-26-MSPL_3.skp",
+    "src": "008-26-MSPL"
+  },
+  {
+    "cls": "frame_I",
+    "dims": [
+      200.0,
+      515.8,
+      5080.0
+    ],
+    "inst": 12,
+    "file": "frame_I__200x516x5080__008-26-MSPL_2.skp",
+    "src": "008-26-MSPL"
+  },
+  {
+    "cls": "frame_I",
+    "dims": [
+      200.0,
+      515.8,
+      5080.0
+    ],
+    "inst": 12,
+    "file": "frame_I__200x516x5080__008-26-MSPL_3.skp",
+    "src": "008-26-MSPL"
+  },
+  {
+    "cls": "purlinZ",
+    "dims": [
+      151.8,
+      211.8,
+      60774.1
+    ],
+    "inst": 16,
+    "file": "purlinZ__152x212x60774__169-26-MSPL_Option-02__1.skp",
+    "src": "169-26-MSPL_Option-02_"
+  },
+  {
+    "cls": "frame_I",
+    "dims": [
+      300.0,
+      845.5,
+      7506.4
+    ],
+    "inst": 15,
+    "file": "frame_I__300x846x7506__169-26-MSPL_Option-02__1.skp",
+    "src": "169-26-MSPL_Option-02_"
+  },
+  {
+    "cls": "frame_I",
+    "dims": [
+      300.0,
+      845.5,
+      7506.4
+    ],
+    "inst": 15,
+    "file": "frame_I__300x846x7506__169-26-MSPL_Option-02__2.skp",
+    "src": "169-26-MSPL_Option-02_"
+  },
+  {
+    "cls": "frame_I",
+    "dims": [
+      300.0,
+      845.5,
+      7506.4
+    ],
+    "inst": 15,
+    "file": "frame_I__300x846x7506__169-26-MSPL_Option-02__3.skp",
+    "src": "169-26-MSPL_Option-02_"
+  },
+  {
+    "cls": "purlinZ",
+    "dims": [
+      141.2,
+      200.0,
+      48658.9
+    ],
+    "inst": 13,
+    "file": "purlinZ__141x200x48659__169-26-MSPL_Option-02__2.skp",
+    "src": "169-26-MSPL_Option-02_"
+  },
+  {
+    "cls": "purlinZ",
+    "dims": [
+      141.2,
+      200.0,
+      76800.4
+    ],
+    "inst": 7,
+    "file": "purlinZ__141x200x76800__169-26-MSPL_Option-02__3.skp",
+    "src": "169-26-MSPL_Option-02_"
+  },
+  {
+    "cls": "plate",
+    "dims": [
+      0.0,
+      594.0,
+      1649.7
+    ],
+    "inst": 0,
+    "file": "plate__0x594x1650__169-26-MSPL_Option-02__1.skp",
+    "src": "169-26-MSPL_Option-02_"
+  },
+  {
+    "cls": "clip",
+    "dims": [
+      2.5,
+      2.5,
+      260.0
+    ],
+    "inst": 0,
+    "file": "clip__3x3x260__169-26-MSPL_Option-02__1.skp",
+    "src": "169-26-MSPL_Option-02_"
+  },
+  {
+    "cls": "clip",
+    "dims": [
+      2.5,
+      60.4,
+      63.5
+    ],
+    "inst": 0,
+    "file": "clip__3x60x64__169-26-MSPL_Option-02__2.skp",
+    "src": "169-26-MSPL_Option-02_"
+  },
+  {
+    "cls": "purlinZ",
+    "dims": [
+      141.2,
+      200.0,
+      66240.0
+    ],
+    "inst": 105,
+    "file": "purlinZ__141x200x66240__042-26-MSPL_1.skp",
+    "src": "042-26-MSPL"
+  },
+  {
+    "cls": "purlinZ",
+    "dims": [
+      151.8,
+      211.8,
+      60774.1
+    ],
+    "inst": 40,
+    "file": "purlinZ__152x212x60774__042-26-MSPL_2.skp",
+    "src": "042-26-MSPL"
+  },
+  {
+    "cls": "purlinZ",
+    "dims": [
+      141.2,
+      200.0,
+      30580.0
+    ],
+    "inst": 35,
+    "file": "purlinZ__141x200x30580__042-26-MSPL_3.skp",
+    "src": "042-26-MSPL"
+  },
+  {
+    "cls": "frame_I",
+    "dims": [
+      400.0,
+      918.4,
+      7895.0
+    ],
+    "inst": 14,
+    "file": "frame_I__400x918x7895__042-26-MSPL_1.skp",
+    "src": "042-26-MSPL"
+  },
+  {
+    "cls": "frame_I",
+    "dims": [
+      400.0,
+      1244.7,
+      7921.2
+    ],
+    "inst": 14,
+    "file": "frame_I__400x1245x7921__042-26-MSPL_2.skp",
+    "src": "042-26-MSPL"
+  },
+  {
+    "cls": "frame_I",
+    "dims": [
+      400.0,
+      1007.7,
+      10133.7
+    ],
+    "inst": 13,
+    "file": "frame_I__400x1008x10134__042-26-MSPL_3.skp",
+    "src": "042-26-MSPL"
+  },
+  {
+    "cls": "plate",
+    "dims": [
+      0.0,
+      594.0,
+      1649.7
+    ],
+    "inst": 0,
+    "file": "plate__0x594x1650__042-26-MSPL_1.skp",
+    "src": "042-26-MSPL"
+  }
+]

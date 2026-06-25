@@ -13,3 +13,5 @@ sketchup_study/geom_out/batch.log
 *.skb
 *.skp
 !sketchup_generator/seed_template.skp   # keep the bundled seed for the orchestrator
+!sketchup_generator/parts/*.skp          # real components placed by the generator
+!sketchup_study/components_lib/*.skp     # the extracted real-parts library
