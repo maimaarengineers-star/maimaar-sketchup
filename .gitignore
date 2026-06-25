@@ -2,6 +2,7 @@
 # (Portal has its own repo; proposals/DXF/data are not for this repo).
 /*
 !.gitignore
+!MAIMAAR_OS_SYSTEM_MAP.md
 !sketchup_study/
 !sketchup_generator/
 
