@@ -1,0 +1,360 @@
+{
+  "title": "015-26-MSPL ( Building - 01 )",
+  "path": "E:\\Maimaar Steel Pvt Ltd\\Proposals\\2026\\015-26-MSPL_Umer Shehzad_PEB Building For Shops_Faisalabad\\Rev-00\\3D Views\\Building -01\\015-26-MSPL ( Building - 01 ).skp",
+  "bbox": {
+    "w": 15428.7,
+    "d": 33375.0,
+    "h": 6167.2
+  },
+  "units": 2,
+  "layers": [
+    "Layer0",
+    "sheeting",
+    "purlin",
+    "MS",
+    "BRICK WALL",
+    "Gutter and Pipes",
+    "RCC COLUMN"
+  ],
+  "scenes": [
+    "Scene 1",
+    "Scene 2",
+    "Scene 3",
+    "Scene 4",
+    "Scene 5",
+    "Scene 6",
+    "Scene 7"
+  ],
+  "tags": {
+    "Gutter and Pipes": {
+      "count": 1,
+      "bbox": {
+        "w": 138.7,
+        "d": 33375.0,
+        "h": 5049.2
+      }
+    },
+    "purlin": {
+      "count": 12,
+      "bbox": {
+        "w": 15250.0,
+        "d": 33326.0,
+        "h": 1255.9
+      }
+    },
+    "BRICK WALL": {
+      "count": 1,
+      "bbox": {
+        "w": 15240.0,
+        "d": 33325.0,
+        "h": 4876.8
+      }
+    },
+    "RCC COLUMN": {
+      "count": 14,
+      "bbox": {
+        "w": 15240.0,
+        "d": 33325.0,
+        "h": 4876.8
+      }
+    },
+    "MS": {
+      "count": 20,
+      "bbox": {
+        "w": 15240.0,
+        "d": 33326.0,
+        "h": 1062.0
+      }
+    },
+    "sheeting": {
+      "count": 1,
+      "bbox": {
+        "w": 15290.0,
+        "d": 33375.0,
+        "h": 1290.4
+      }
+    }
+  },
+  "definitions": [
+    {
+      "name": "Group#34",
+      "instances": 11,
+      "dims": {
+        "w": 141.2,
+        "d": 33326.0,
+        "h": 200.0
+      },
+      "section": [
+        141.2,
+        200.0
+      ],
+      "length": 33326.0
+    },
+    {
+      "name": "Group#12",
+      "instances": 8,
+      "dims": {
+        "w": 350.0,
+        "d": 350.0,
+        "h": 4876.8
+      },
+      "section": [
+        350.0,
+        350.0
+      ],
+      "length": 4876.8
+    },
+    {
+      "name": "Group#8",
+      "instances": 6,
+      "dims": {
+        "w": 211.8,
+        "d": 151.8,
+        "h": 60774.1
+      },
+      "section": [
+        151.8,
+        211.8
+      ],
+      "length": 60774.1
+    },
+    {
+      "name": "Group#28",
+      "instances": 6,
+      "dims": {
+        "w": 350.0,
+        "d": 350.0,
+        "h": 4876.8
+      },
+      "section": [
+        350.0,
+        350.0
+      ],
+      "length": 4876.8
+    },
+    {
+      "name": "Group#32",
+      "instances": 6,
+      "dims": {
+        "w": 7635.8,
+        "d": 200.0,
+        "h": 681.0
+      },
+      "section": [
+        200.0,
+        681.0
+      ],
+      "length": 7635.8
+    },
+    {
+      "name": "Group#35",
+      "instances": 4,
+      "dims": {
+        "w": 7620.0,
+        "d": 200.0,
+        "h": 697.7
+      },
+      "section": [
+        200.0,
+        697.7
+      ],
+      "length": 7620.0
+    },
+    {
+      "name": "Group#11",
+      "instances": 4,
+      "dims": {
+        "w": 449.6,
+        "d": 250.0,
+        "h": 544.5
+      },
+      "section": [
+        250.0,
+        449.6
+      ],
+      "length": 544.5
+    },
+    {
+      "name": "Group#10",
+      "instances": 2,
+      "dims": {
+        "w": 250.1,
+        "d": 250.4,
+        "h": 369.7
+      },
+      "section": [
+        250.1,
+        250.4
+      ],
+      "length": 369.7
+    },
+    {
+      "name": "Group#41",
+      "instances": 2,
+      "dims": {
+        "w": 7620.0,
+        "d": 200.0,
+        "h": 697.7
+      },
+      "section": [
+        200.0,
+        697.7
+      ],
+      "length": 7620.0
+    },
+    {
+      "name": "Group#40",
+      "instances": 2,
+      "dims": {
+        "w": 250.0,
+        "d": 250.0,
+        "h": 744.5
+      },
+      "section": [
+        250.0,
+        250.0
+      ],
+      "length": 744.5
+    },
+    {
+      "name": "Group#27",
+      "instances": 1,
+      "dims": {
+        "w": 15240.0,
+        "d": 33325.0,
+        "h": 4876.8
+      },
+      "section": [
+        4876.8,
+        15240.0
+      ],
+      "length": 33325.0
+    },
+    {
+      "name": "Group#6",
+      "instances": 1,
+      "dims": {
+        "w": 285.4,
+        "d": 13865.3,
+        "h": 285.4
+      },
+      "section": [
+        285.4,
+        285.4
+      ],
+      "length": 13865.3
+    },
+    {
+      "name": "Group#44",
+      "instances": 1,
+      "dims": {
+        "w": 15290.0,
+        "d": 33375.0,
+        "h": 1290.4
+      },
+      "section": [
+        1290.4,
+        15290.0
+      ],
+      "length": 33375.0
+    },
+    {
+      "name": "Group#3",
+      "instances": 1,
+      "dims": {
+        "w": 141.2,
+        "d": 32825.0,
+        "h": 200.0
+      },
+      "section": [
+        141.2,
+        200.0
+      ],
+      "length": 32825.0
+    },
+    {
+      "name": "Group#2",
+      "instances": 1,
+      "dims": {
+        "w": 74.6,
+        "d": 16665.6,
+        "h": 3881.3
+      },
+      "section": [
+        74.6,
+        3881.3
+      ],
+      "length": 16665.6
+    },
+    {
+      "name": "Sumele",
+      "instances": 0,
+      "dims": {
+        "w": 594.0,
+        "d": 0.0,
+        "h": 1649.7
+      },
+      "section": [
+        0.0,
+        594.0
+      ],
+      "length": 1649.7
+    },
+    {
+      "name": "Group#59",
+      "instances": 0,
+      "dims": {
+        "w": 13317.0,
+        "d": 203.3,
+        "h": 4537.3
+      },
+      "section": [
+        203.3,
+        4537.3
+      ],
+      "length": 13317.0
+    },
+    {
+      "name": "Group#19",
+      "instances": 0,
+      "dims": {
+        "w": 4777.3,
+        "d": 50.8,
+        "h": 4957.6
+      },
+      "section": [
+        50.8,
+        4777.3
+      ],
+      "length": 4957.6
+    },
+    {
+      "name": "Group#58",
+      "instances": 0,
+      "dims": {
+        "w": 10842.4,
+        "d": 127.0,
+        "h": 203.2
+      },
+      "section": [
+        127.0,
+        203.2
+      ],
+      "length": 10842.4
+    },
+    {
+      "name": "12 x 10 - Classic Split Sliding Door",
+      "instances": 0,
+      "dims": {
+        "w": 13317.0,
+        "d": 203.3,
+        "h": 4537.3
+      },
+      "section": [
+        203.3,
+        4537.3
+      ],
+      "length": 13317.0
+    }
+  ]
+}

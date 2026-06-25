@@ -1,0 +1,388 @@
+{
+  "title": "039-25-MSPL",
+  "path": "E:\\Maimaar Steel Pvt Ltd\\Proposals\\2025\\039-25-MSPL_GM Rice Mills_Jhang\\REV-00\\3D'S\\039-25-MSPL.skp",
+  "bbox": {
+    "w": 18706.6,
+    "d": 36671.4,
+    "h": 8107.3
+  },
+  "units": 2,
+  "layers": [
+    "Layer0",
+    "sheeting",
+    "PURLIN",
+    "MS",
+    "BRICK WALL",
+    "Gutter and Pipes",
+    "TEXT"
+  ],
+  "scenes": [
+    "Scene 1",
+    "Scene 2",
+    "Scene 3",
+    "Scene 4",
+    "Scene 5",
+    "Scene 6",
+    "Scene 7"
+  ],
+  "tags": {
+    "BRICK WALL": {
+      "count": 1,
+      "bbox": {
+        "w": 18288.0,
+        "d": 36576.0,
+        "h": 2438.4
+      }
+    },
+    "MS": {
+      "count": 40,
+      "bbox": {
+        "w": 17900.4,
+        "d": 36576.0,
+        "h": 7882.1
+      }
+    },
+    "PURLIN": {
+      "count": 30,
+      "bbox": {
+        "w": 18288.0,
+        "d": 36576.0,
+        "h": 5635.0
+      }
+    },
+    "Gutter and Pipes": {
+      "count": 2,
+      "bbox": {
+        "w": 18706.6,
+        "d": 36616.0,
+        "h": 6955.9
+      }
+    },
+    "TEXT": {
+      "count": 1,
+      "bbox": {
+        "w": 7806.4,
+        "d": 55.4,
+        "h": 1349.5
+      }
+    },
+    "sheeting": {
+      "count": 1,
+      "bbox": {
+        "w": 18328.0,
+        "d": 36616.0,
+        "h": 5668.9
+      }
+    }
+  },
+  "definitions": [
+    {
+      "name": "Group#4",
+      "instances": 27,
+      "dims": {
+        "w": 132.6,
+        "d": 36576.0,
+        "h": 202.0
+      },
+      "section": [
+        132.6,
+        202.0
+      ],
+      "length": 36576.0
+    },
+    {
+      "name": "Group#37",
+      "instances": 12,
+      "dims": {
+        "w": 211.8,
+        "d": 151.8,
+        "h": 56951.6
+      },
+      "section": [
+        151.8,
+        211.8
+      ],
+      "length": 56951.6
+    },
+    {
+      "name": "Group#9",
+      "instances": 8,
+      "dims": {
+        "w": 4482.8,
+        "d": 200.0,
+        "h": 732.1
+      },
+      "section": [
+        200.0,
+        732.1
+      ],
+      "length": 4482.8
+    },
+    {
+      "name": "Group#23",
+      "instances": 4,
+      "dims": {
+        "w": 4505.4,
+        "d": 200.0,
+        "h": 538.3
+      },
+      "section": [
+        200.0,
+        538.3
+      ],
+      "length": 4505.4
+    },
+    {
+      "name": "Group#11",
+      "instances": 4,
+      "dims": {
+        "w": 4505.4,
+        "d": 200.0,
+        "h": 538.3
+      },
+      "section": [
+        200.0,
+        538.3
+      ],
+      "length": 4505.4
+    },
+    {
+      "name": "Group#5",
+      "instances": 4,
+      "dims": {
+        "w": 500.0,
+        "d": 200.0,
+        "h": 6505.6
+      },
+      "section": [
+        200.0,
+        500.0
+      ],
+      "length": 6505.6
+    },
+    {
+      "name": "Group#6",
+      "instances": 4,
+      "dims": {
+        "w": 500.0,
+        "d": 200.0,
+        "h": 6505.6
+      },
+      "section": [
+        200.0,
+        500.0
+      ],
+      "length": 6505.6
+    },
+    {
+      "name": "Group#8",
+      "instances": 4,
+      "dims": {
+        "w": 300.0,
+        "d": 200.0,
+        "h": 6705.6
+      },
+      "section": [
+        200.0,
+        300.0
+      ],
+      "length": 6705.6
+    },
+    {
+      "name": "Group#21",
+      "instances": 4,
+      "dims": {
+        "w": 4473.2,
+        "d": 200.0,
+        "h": 522.9
+      },
+      "section": [
+        200.0,
+        522.9
+      ],
+      "length": 4473.2
+    },
+    {
+      "name": "Group#22",
+      "instances": 2,
+      "dims": {
+        "w": 4505.4,
+        "d": 200.0,
+        "h": 538.3
+      },
+      "section": [
+        200.0,
+        538.3
+      ],
+      "length": 4505.4
+    },
+    {
+      "name": "Group#39",
+      "instances": 2,
+      "dims": {
+        "w": 285.4,
+        "d": 31972.7,
+        "h": 285.4
+      },
+      "section": [
+        285.4,
+        285.4
+      ],
+      "length": 31972.7
+    },
+    {
+      "name": "Group#14",
+      "instances": 2,
+      "dims": {
+        "w": 101.9,
+        "d": 18284.0,
+        "h": 2365.5
+      },
+      "section": [
+        101.9,
+        2365.5
+      ],
+      "length": 18284.0
+    },
+    {
+      "name": "Group#15",
+      "instances": 2,
+      "dims": {
+        "w": 204.0,
+        "d": 1769.0,
+        "h": 57.0
+      },
+      "section": [
+        57.0,
+        204.0
+      ],
+      "length": 1769.0
+    },
+    {
+      "name": "Group#2",
+      "instances": 2,
+      "dims": {
+        "w": 300.0,
+        "d": 201.0,
+        "h": 7272.3
+      },
+      "section": [
+        201.0,
+        300.0
+      ],
+      "length": 7272.3
+    },
+    {
+      "name": "Group#19",
+      "instances": 2,
+      "dims": {
+        "w": 300.0,
+        "d": 201.0,
+        "h": 7272.3
+      },
+      "section": [
+        201.0,
+        300.0
+      ],
+      "length": 7272.3
+    },
+    {
+      "name": "Group#17",
+      "instances": 2,
+      "dims": {
+        "w": 4504.8,
+        "d": 200.0,
+        "h": 538.3
+      },
+      "section": [
+        200.0,
+        538.3
+      ],
+      "length": 4504.8
+    },
+    {
+      "name": "Group#3",
+      "instances": 1,
+      "dims": {
+        "w": 18328.0,
+        "d": 36616.0,
+        "h": 5668.9
+      },
+      "section": [
+        5668.9,
+        18328.0
+      ],
+      "length": 36616.0
+    },
+    {
+      "name": "Group#12",
+      "instances": 1,
+      "dims": {
+        "w": 132.6,
+        "d": 36576.0,
+        "h": 202.0
+      },
+      "section": [
+        132.6,
+        202.0
+      ],
+      "length": 36576.0
+    },
+    {
+      "name": "Group#1",
+      "instances": 1,
+      "dims": {
+        "w": 18288.0,
+        "d": 36576.0,
+        "h": 2438.4
+      },
+      "section": [
+        2438.4,
+        18288.0
+      ],
+      "length": 36576.0
+    },
+    {
+      "name": "GM RICE MILLS(12",
+      "instances": 1,
+      "dims": {
+        "w": 4231.1,
+        "d": 731.4,
+        "h": 30.0
+      },
+      "section": [
+        30.0,
+        731.4
+      ],
+      "length": 4231.1
+    },
+    {
+      "name": "Sumele",
+      "instances": 0,
+      "dims": {
+        "w": 594.0,
+        "d": 0.0,
+        "h": 1649.7
+      },
+      "section": [
+        0.0,
+        594.0
+      ],
+      "length": 1649.7
+    },
+    {
+      "name": "GM RICE MILLS",
+      "instances": 0,
+      "dims": {
+        "w": 2512.3,
+        "d": 245.7,
+        "h": 30.0
+      },
+      "section": [
+        30.0,
+        245.7
+      ],
+      "length": 2512.3
+    }
+  ]
+}

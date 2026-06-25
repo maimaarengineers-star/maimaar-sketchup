@@ -1,0 +1,1549 @@
+{
+  "title": "Gym 2020",
+  "path": "E:\\Maimaar Steel Pvt Ltd\\Proposals\\2023\\153-23-MSPL_Junaid_Gym_Sialkot\\Rev-00\\3d drawings\\Rev-01\\Gym 2020.skp",
+  "bbox": {
+    "w": 42874.6,
+    "d": 46031.8,
+    "h": 9526.9
+  },
+  "units": 2,
+  "layers": [
+    "Layer0",
+    "ms",
+    "eXISTING",
+    "bRICKWALLS",
+    "PuRLINS",
+    "sheeting",
+    "Valley Gutter",
+    "down spouts",
+    "NEW MS",
+    "front mirror",
+    "facia",
+    "Taggg"
+  ],
+  "scenes": [
+    "Scene 1",
+    "Scene 2",
+    "Scene 11",
+    "Scene 3",
+    "Scene 4",
+    "Scene 5",
+    "Scene 6",
+    "Scene 7",
+    "Scene 8"
+  ],
+  "tags": {
+    "ms": {
+      "count": 13,
+      "bbox": {
+        "w": 16945.3,
+        "d": 33389.1,
+        "h": 9078.7
+      }
+    },
+    "eXISTING": {
+      "count": 3,
+      "bbox": {
+        "w": 42874.6,
+        "d": 45697.7,
+        "h": 7620.0
+      }
+    },
+    "PuRLINS": {
+      "count": 24,
+      "bbox": {
+        "w": 17328.8,
+        "d": 33556.2,
+        "h": 5035.1
+      }
+    },
+    "bRICKWALLS": {
+      "count": 5,
+      "bbox": {
+        "w": 14700.1,
+        "d": 6032.6,
+        "h": 8637.2
+      }
+    },
+    "Layer0": {
+      "count": 1,
+      "bbox": {
+        "w": 16932.2,
+        "d": 23435.2,
+        "h": 0.0
+      }
+    },
+    "sheeting": {
+      "count": 1,
+      "bbox": {
+        "w": 17243.2,
+        "d": 36935.7,
+        "h": 9312.0
+      }
+    },
+    "down spouts": {
+      "count": 3,
+      "bbox": {
+        "w": 138.5,
+        "d": 12375.0,
+        "h": 7295.4
+      }
+    },
+    "Valley Gutter": {
+      "count": 1,
+      "bbox": {
+        "w": 423.2,
+        "d": 24681.0,
+        "h": 234.3
+      }
+    },
+    "front mirror": {
+      "count": 2,
+      "bbox": {
+        "w": 14341.5,
+        "d": 2217.9,
+        "h": 8734.5
+      }
+    },
+    "NEW MS": {
+      "count": 4,
+      "bbox": {
+        "w": 16144.8,
+        "d": 1730.5,
+        "h": 2048.6
+      }
+    },
+    "facia": {
+      "count": 1,
+      "bbox": {
+        "w": 17684.0,
+        "d": 1720.4,
+        "h": 2365.2
+      }
+    },
+    "Taggg": {
+      "count": 3,
+      "bbox": {
+        "w": 5628.5,
+        "d": 1011.3,
+        "h": 1290.0
+      }
+    }
+  },
+  "definitions": [
+    {
+      "name": "Group#77",
+      "instances": 7,
+      "dims": {
+        "w": 75.0,
+        "d": 300.0,
+        "h": 75.0
+      },
+      "section": [
+        75.0,
+        75.0
+      ],
+      "length": 300.0
+    },
+    {
+      "name": "Group#68",
+      "instances": 7,
+      "dims": {
+        "w": 3000.0,
+        "d": 152.6,
+        "h": 202.0
+      },
+      "section": [
+        152.6,
+        202.0
+      ],
+      "length": 3000.0
+    },
+    {
+      "name": "Group#99",
+      "instances": 4,
+      "dims": {
+        "w": 500.0,
+        "d": 500.0,
+        "h": 39.8
+      },
+      "section": [
+        39.8,
+        500.0
+      ],
+      "length": 500.0
+    },
+    {
+      "name": "Group#98",
+      "instances": 4,
+      "dims": {
+        "w": 625.0,
+        "d": 625.0,
+        "h": 39.8
+      },
+      "section": [
+        39.8,
+        625.0
+      ],
+      "length": 625.0
+    },
+    {
+      "name": "Group#100",
+      "instances": 4,
+      "dims": {
+        "w": 375.0,
+        "d": 375.0,
+        "h": 101.8
+      },
+      "section": [
+        101.8,
+        375.0
+      ],
+      "length": 375.0
+    },
+    {
+      "name": "Group#55",
+      "instances": 3,
+      "dims": {
+        "w": 148.4,
+        "d": 135.0,
+        "h": 555.9
+      },
+      "section": [
+        135.0,
+        148.4
+      ],
+      "length": 555.9
+    },
+    {
+      "name": "Group#97",
+      "instances": 2,
+      "dims": {
+        "w": 500.0,
+        "d": 500.4,
+        "h": 895.1
+      },
+      "section": [
+        500.0,
+        500.4
+      ],
+      "length": 895.1
+    },
+    {
+      "name": "Group#78",
+      "instances": 2,
+      "dims": {
+        "w": 132.0,
+        "d": 60.0,
+        "h": 7295.4
+      },
+      "section": [
+        60.0,
+        132.0
+      ],
+      "length": 7295.4
+    },
+    {
+      "name": "Group#18",
+      "instances": 1,
+      "dims": {
+        "w": 262.1,
+        "d": 171.2,
+        "h": 8734.5
+      },
+      "section": [
+        171.2,
+        262.1
+      ],
+      "length": 8734.5
+    },
+    {
+      "name": "Group#8",
+      "instances": 1,
+      "dims": {
+        "w": 162.5,
+        "d": 162.5,
+        "h": 8029.9
+      },
+      "section": [
+        162.5,
+        162.5
+      ],
+      "length": 8029.9
+    },
+    {
+      "name": "Group#19",
+      "instances": 1,
+      "dims": {
+        "w": 350.0,
+        "d": 125.0,
+        "h": 8613.3
+      },
+      "section": [
+        125.0,
+        350.0
+      ],
+      "length": 8613.3
+    },
+    {
+      "name": "Group#20",
+      "instances": 1,
+      "dims": {
+        "w": 350.0,
+        "d": 125.0,
+        "h": 6965.2
+      },
+      "section": [
+        125.0,
+        350.0
+      ],
+      "length": 6965.2
+    },
+    {
+      "name": "Group#21",
+      "instances": 1,
+      "dims": {
+        "w": 5486.2,
+        "d": 799.4,
+        "h": 125.0
+      },
+      "section": [
+        125.0,
+        799.4
+      ],
+      "length": 5486.2
+    },
+    {
+      "name": "Group#22",
+      "instances": 1,
+      "dims": {
+        "w": 5486.2,
+        "d": 125.0,
+        "h": 799.4
+      },
+      "section": [
+        125.0,
+        799.4
+      ],
+      "length": 5486.2
+    },
+    {
+      "name": "Group#23",
+      "instances": 1,
+      "dims": {
+        "w": 5486.2,
+        "d": 125.0,
+        "h": 899.4
+      },
+      "section": [
+        125.0,
+        899.4
+      ],
+      "length": 5486.2
+    },
+    {
+      "name": "Group#24",
+      "instances": 1,
+      "dims": {
+        "w": 350.0,
+        "d": 125.0,
+        "h": 8586.3
+      },
+      "section": [
+        125.0,
+        350.0
+      ],
+      "length": 8586.3
+    },
+    {
+      "name": "Group#3",
+      "instances": 1,
+      "dims": {
+        "w": 350.0,
+        "d": 125.0,
+        "h": 6965.2
+      },
+      "section": [
+        125.0,
+        350.0
+      ],
+      "length": 6965.2
+    },
+    {
+      "name": "Group#25",
+      "instances": 1,
+      "dims": {
+        "w": 5396.5,
+        "d": 125.0,
+        "h": 890.4
+      },
+      "section": [
+        125.0,
+        890.4
+      ],
+      "length": 5396.5
+    },
+    {
+      "name": "Group#26",
+      "instances": 1,
+      "dims": {
+        "w": 5396.5,
+        "d": 125.0,
+        "h": 790.4
+      },
+      "section": [
+        125.0,
+        790.4
+      ],
+      "length": 5396.5
+    },
+    {
+      "name": "Group#27",
+      "instances": 1,
+      "dims": {
+        "w": 5396.5,
+        "d": 125.0,
+        "h": 790.4
+      },
+      "section": [
+        125.0,
+        790.4
+      ],
+      "length": 5396.5
+    },
+    {
+      "name": "Group#33",
+      "instances": 1,
+      "dims": {
+        "w": 348.3,
+        "d": 125.0,
+        "h": 3835.0
+      },
+      "section": [
+        125.0,
+        348.3
+      ],
+      "length": 3835.0
+    },
+    {
+      "name": "Group#29",
+      "instances": 1,
+      "dims": {
+        "w": 348.3,
+        "d": 2275.7,
+        "h": 125.0
+      },
+      "section": [
+        125.0,
+        348.3
+      ],
+      "length": 2275.7
+    },
+    {
+      "name": "Group#34",
+      "instances": 1,
+      "dims": {
+        "w": 5306.8,
+        "d": 125.0,
+        "h": 781.4
+      },
+      "section": [
+        125.0,
+        781.4
+      ],
+      "length": 5306.8
+    },
+    {
+      "name": "Group#35",
+      "instances": 1,
+      "dims": {
+        "w": 5306.8,
+        "d": 125.0,
+        "h": 781.4
+      },
+      "section": [
+        125.0,
+        781.4
+      ],
+      "length": 5306.8
+    },
+    {
+      "name": "Group#32",
+      "instances": 1,
+      "dims": {
+        "w": 15973.7,
+        "d": 9724.6,
+        "h": 457.2
+      },
+      "section": [
+        457.2,
+        9724.6
+      ],
+      "length": 15973.7
+    },
+    {
+      "name": "Group#31",
+      "instances": 1,
+      "dims": {
+        "w": 15549.1,
+        "d": 9024.0,
+        "h": 457.2
+      },
+      "section": [
+        457.2,
+        9024.0
+      ],
+      "length": 15549.1
+    },
+    {
+      "name": "Group#2",
+      "instances": 1,
+      "dims": {
+        "w": 5306.8,
+        "d": 125.0,
+        "h": 881.4
+      },
+      "section": [
+        125.0,
+        881.4
+      ],
+      "length": 5306.8
+    },
+    {
+      "name": "Group#37",
+      "instances": 1,
+      "dims": {
+        "w": 67.3,
+        "d": 111.5,
+        "h": 351.0
+      },
+      "section": [
+        67.3,
+        111.5
+      ],
+      "length": 351.0
+    },
+    {
+      "name": "Group#42",
+      "instances": 1,
+      "dims": {
+        "w": 5101.3,
+        "d": 2950.8,
+        "h": 829.3
+      },
+      "section": [
+        829.3,
+        2950.8
+      ],
+      "length": 5101.3
+    },
+    {
+      "name": "Group#43",
+      "instances": 1,
+      "dims": {
+        "w": 162.5,
+        "d": 162.6,
+        "h": 7305.1
+      },
+      "section": [
+        162.5,
+        162.6
+      ],
+      "length": 7305.1
+    },
+    {
+      "name": "Group#47",
+      "instances": 1,
+      "dims": {
+        "w": 2118.7,
+        "d": 44216.4,
+        "h": 7620.0
+      },
+      "section": [
+        2118.7,
+        7620.0
+      ],
+      "length": 44216.4
+    },
+    {
+      "name": "Group#40",
+      "instances": 1,
+      "dims": {
+        "w": 5101.3,
+        "d": 2950.8,
+        "h": 829.3
+      },
+      "section": [
+        829.3,
+        2950.8
+      ],
+      "length": 5101.3
+    },
+    {
+      "name": "Group#41",
+      "instances": 1,
+      "dims": {
+        "w": 5101.3,
+        "d": 2950.8,
+        "h": 823.3
+      },
+      "section": [
+        823.3,
+        2950.8
+      ],
+      "length": 5101.3
+    },
+    {
+      "name": "Group#7",
+      "instances": 1,
+      "dims": {
+        "w": 262.1,
+        "d": 171.2,
+        "h": 7088.9
+      },
+      "section": [
+        171.2,
+        262.1
+      ],
+      "length": 7088.9
+    },
+    {
+      "name": "Group#70",
+      "instances": 1,
+      "dims": {
+        "w": 99.6,
+        "d": 5435.2,
+        "h": 4038.6
+      },
+      "section": [
+        99.6,
+        4038.6
+      ],
+      "length": 5435.2
+    },
+    {
+      "name": "Group#75",
+      "instances": 1,
+      "dims": {
+        "w": 250.5,
+        "d": 200.0,
+        "h": 1973.6
+      },
+      "section": [
+        200.0,
+        250.5
+      ],
+      "length": 1973.6
+    },
+    {
+      "name": "Group#76",
+      "instances": 1,
+      "dims": {
+        "w": 75.0,
+        "d": 367.8,
+        "h": 75.0
+      },
+      "section": [
+        75.0,
+        75.0
+      ],
+      "length": 367.8
+    },
+    {
+      "name": "Group#15",
+      "instances": 1,
+      "dims": {
+        "w": 5575.9,
+        "d": 125.0,
+        "h": 908.3
+      },
+      "section": [
+        125.0,
+        908.3
+      ],
+      "length": 5575.9
+    },
+    {
+      "name": "Group#80",
+      "instances": 1,
+      "dims": {
+        "w": 75.0,
+        "d": 306.5,
+        "h": 75.0
+      },
+      "section": [
+        75.0,
+        75.0
+      ],
+      "length": 306.5
+    },
+    {
+      "name": "Group#83",
+      "instances": 1,
+      "dims": {
+        "w": 75.0,
+        "d": 269.9,
+        "h": 75.0
+      },
+      "section": [
+        75.0,
+        75.0
+      ],
+      "length": 269.9
+    },
+    {
+      "name": "Group#84",
+      "instances": 1,
+      "dims": {
+        "w": 75.0,
+        "d": 314.4,
+        "h": 75.0
+      },
+      "section": [
+        75.0,
+        75.0
+      ],
+      "length": 314.4
+    },
+    {
+      "name": "Group#86",
+      "instances": 1,
+      "dims": {
+        "w": 75.0,
+        "d": 318.0,
+        "h": 75.0
+      },
+      "section": [
+        75.0,
+        75.0
+      ],
+      "length": 318.0
+    },
+    {
+      "name": "Group#88",
+      "instances": 1,
+      "dims": {
+        "w": 75.0,
+        "d": 300.0,
+        "h": 75.0
+      },
+      "section": [
+        75.0,
+        75.0
+      ],
+      "length": 300.0
+    },
+    {
+      "name": "Group#89",
+      "instances": 1,
+      "dims": {
+        "w": 268.3,
+        "d": 200.0,
+        "h": 1460.3
+      },
+      "section": [
+        200.0,
+        268.3
+      ],
+      "length": 1460.3
+    },
+    {
+      "name": "Group#90",
+      "instances": 1,
+      "dims": {
+        "w": 282.5,
+        "d": 200.0,
+        "h": 939.4
+      },
+      "section": [
+        200.0,
+        282.5
+      ],
+      "length": 939.4
+    },
+    {
+      "name": "Group#91",
+      "instances": 1,
+      "dims": {
+        "w": 250.5,
+        "d": 200.0,
+        "h": 407.5
+      },
+      "section": [
+        200.0,
+        250.5
+      ],
+      "length": 407.5
+    },
+    {
+      "name": "Group#92",
+      "instances": 1,
+      "dims": {
+        "w": 75.0,
+        "d": 114.6,
+        "h": 75.0
+      },
+      "section": [
+        75.0,
+        75.0
+      ],
+      "length": 114.6
+    },
+    {
+      "name": "Group#93",
+      "instances": 1,
+      "dims": {
+        "w": 75.0,
+        "d": 348.1,
+        "h": 75.0
+      },
+      "section": [
+        75.0,
+        75.0
+      ],
+      "length": 348.1
+    },
+    {
+      "name": "Group#14",
+      "instances": 1,
+      "dims": {
+        "w": 5575.9,
+        "d": 200.0,
+        "h": 808.3
+      },
+      "section": [
+        200.0,
+        808.3
+      ],
+      "length": 5575.9
+    },
+    {
+      "name": "Group#5",
+      "instances": 1,
+      "dims": {
+        "w": 5575.9,
+        "d": 200.0,
+        "h": 808.3
+      },
+      "section": [
+        200.0,
+        808.3
+      ],
+      "length": 5575.9
+    },
+    {
+      "name": "Group#13",
+      "instances": 1,
+      "dims": {
+        "w": 350.0,
+        "d": 125.0,
+        "h": 6965.2
+      },
+      "section": [
+        125.0,
+        350.0
+      ],
+      "length": 6965.2
+    },
+    {
+      "name": "GYM",
+      "instances": 1,
+      "dims": {
+        "w": 633.9,
+        "d": 250.6,
+        "h": 25.0
+      },
+      "section": [
+        25.0,
+        250.6
+      ],
+      "length": 633.9
+    },
+    {
+      "name": "Group#6",
+      "instances": 1,
+      "dims": {
+        "w": 16945.3,
+        "d": 1630.8,
+        "h": 9010.7
+      },
+      "section": [
+        1630.8,
+        9010.7
+      ],
+      "length": 16945.3
+    },
+    {
+      "name": "Group#16",
+      "instances": 1,
+      "dims": {
+        "w": 16727.8,
+        "d": 125.0,
+        "h": 8990.2
+      },
+      "section": [
+        125.0,
+        8990.2
+      ],
+      "length": 16727.8
+    },
+    {
+      "name": "Group#17",
+      "instances": 1,
+      "dims": {
+        "w": 162.5,
+        "d": 162.5,
+        "h": 7458.6
+      },
+      "section": [
+        162.5,
+        162.5
+      ],
+      "length": 7458.6
+    },
+    {
+      "name": "Group#4",
+      "instances": 1,
+      "dims": {
+        "w": 16458.7,
+        "d": 125.0,
+        "h": 8963.3
+      },
+      "section": [
+        125.0,
+        8963.3
+      ],
+      "length": 16458.7
+    },
+    {
+      "name": "Group#28",
+      "instances": 1,
+      "dims": {
+        "w": 16189.5,
+        "d": 125.0,
+        "h": 8936.3
+      },
+      "section": [
+        125.0,
+        8936.3
+      ],
+      "length": 16189.5
+    },
+    {
+      "name": "Group#1",
+      "instances": 1,
+      "dims": {
+        "w": 291.6,
+        "d": 238.7,
+        "h": 3896.9
+      },
+      "section": [
+        238.7,
+        291.6
+      ],
+      "length": 3896.9
+    },
+    {
+      "name": "Group#30",
+      "instances": 1,
+      "dims": {
+        "w": 15973.7,
+        "d": 9980.8,
+        "h": 4724.4
+      },
+      "section": [
+        4724.4,
+        9980.8
+      ],
+      "length": 15973.7
+    },
+    {
+      "name": "Group#36",
+      "instances": 1,
+      "dims": {
+        "w": 15920.4,
+        "d": 125.0,
+        "h": 4185.0
+      },
+      "section": [
+        125.0,
+        4185.0
+      ],
+      "length": 15920.4
+    },
+    {
+      "name": "Group#38",
+      "instances": 1,
+      "dims": {
+        "w": 414.2,
+        "d": 307.5,
+        "h": 351.0
+      },
+      "section": [
+        307.5,
+        351.0
+      ],
+      "length": 414.2
+    },
+    {
+      "name": "Group#39",
+      "instances": 1,
+      "dims": {
+        "w": 15180.9,
+        "d": 8634.5,
+        "h": 1981.0
+      },
+      "section": [
+        1981.0,
+        8634.5
+      ],
+      "length": 15180.9
+    },
+    {
+      "name": "Group#44",
+      "instances": 1,
+      "dims": {
+        "w": 162.5,
+        "d": 162.5,
+        "h": 7517.5
+      },
+      "section": [
+        162.5,
+        162.5
+      ],
+      "length": 7517.5
+    },
+    {
+      "name": "Group#46",
+      "instances": 1,
+      "dims": {
+        "w": 18824.5,
+        "d": 44216.4,
+        "h": 7620.0
+      },
+      "section": [
+        7620.0,
+        18824.5
+      ],
+      "length": 44216.4
+    },
+    {
+      "name": "Group#49",
+      "instances": 1,
+      "dims": {
+        "w": 9274.6,
+        "d": 24654.4,
+        "h": 4267.2
+      },
+      "section": [
+        4267.2,
+        9274.6
+      ],
+      "length": 24654.4
+    },
+    {
+      "name": "Group#50",
+      "instances": 1,
+      "dims": {
+        "w": 148.4,
+        "d": 202.0,
+        "h": 978.2
+      },
+      "section": [
+        148.4,
+        202.0
+      ],
+      "length": 978.2
+    },
+    {
+      "name": "Group#51",
+      "instances": 1,
+      "dims": {
+        "w": 148.4,
+        "d": 202.0,
+        "h": 956.6
+      },
+      "section": [
+        148.4,
+        202.0
+      ],
+      "length": 956.6
+    },
+    {
+      "name": "Group#52",
+      "instances": 1,
+      "dims": {
+        "w": 148.4,
+        "d": 202.0,
+        "h": 934.9
+      },
+      "section": [
+        148.4,
+        202.0
+      ],
+      "length": 934.9
+    },
+    {
+      "name": "Group#53",
+      "instances": 1,
+      "dims": {
+        "w": 148.4,
+        "d": 202.0,
+        "h": 913.9
+      },
+      "section": [
+        148.4,
+        202.0
+      ],
+      "length": 913.9
+    },
+    {
+      "name": "Group#54",
+      "instances": 1,
+      "dims": {
+        "w": 148.4,
+        "d": 202.0,
+        "h": 892.0
+      },
+      "section": [
+        148.4,
+        202.0
+      ],
+      "length": 892.0
+    },
+    {
+      "name": "Group#12",
+      "instances": 1,
+      "dims": {
+        "w": 352.6,
+        "d": 125.0,
+        "h": 8640.2
+      },
+      "section": [
+        125.0,
+        352.6
+      ],
+      "length": 8640.2
+    },
+    {
+      "name": "Group#56",
+      "instances": 1,
+      "dims": {
+        "w": 148.4,
+        "d": 202.0,
+        "h": 849.4
+      },
+      "section": [
+        148.4,
+        202.0
+      ],
+      "length": 849.4
+    },
+    {
+      "name": "Group#57",
+      "instances": 1,
+      "dims": {
+        "w": 148.4,
+        "d": 202.0,
+        "h": 828.0
+      },
+      "section": [
+        148.4,
+        202.0
+      ],
+      "length": 828.0
+    },
+    {
+      "name": "Group#58",
+      "instances": 1,
+      "dims": {
+        "w": 148.4,
+        "d": 202.0,
+        "h": 806.5
+      },
+      "section": [
+        148.4,
+        202.0
+      ],
+      "length": 806.5
+    },
+    {
+      "name": "Group#59",
+      "instances": 1,
+      "dims": {
+        "w": 148.4,
+        "d": 202.0,
+        "h": 785.0
+      },
+      "section": [
+        148.4,
+        202.0
+      ],
+      "length": 785.0
+    },
+    {
+      "name": "Group#60",
+      "instances": 1,
+      "dims": {
+        "w": 148.4,
+        "d": 202.0,
+        "h": 774.7
+      },
+      "section": [
+        148.4,
+        202.0
+      ],
+      "length": 774.7
+    },
+    {
+      "name": "Group#61",
+      "instances": 1,
+      "dims": {
+        "w": 148.4,
+        "d": 202.0,
+        "h": 998.9
+      },
+      "section": [
+        148.4,
+        202.0
+      ],
+      "length": 998.9
+    },
+    {
+      "name": "Group#48",
+      "instances": 1,
+      "dims": {
+        "w": 227.7,
+        "d": 5551.7,
+        "h": 7290.2
+      },
+      "section": [
+        227.7,
+        5551.7
+      ],
+      "length": 7290.2
+    },
+    {
+      "name": "Group#62",
+      "instances": 1,
+      "dims": {
+        "w": 7046.0,
+        "d": 228.6,
+        "h": 8637.2
+      },
+      "section": [
+        228.6,
+        7046.0
+      ],
+      "length": 8637.2
+    },
+    {
+      "name": "Group#63",
+      "instances": 1,
+      "dims": {
+        "w": 7026.1,
+        "d": 228.6,
+        "h": 8034.3
+      },
+      "section": [
+        228.6,
+        7026.1
+      ],
+      "length": 8034.3
+    },
+    {
+      "name": "Group#45",
+      "instances": 1,
+      "dims": {
+        "w": 16932.2,
+        "d": 23435.2,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        16932.2
+      ],
+      "length": 23435.2
+    },
+    {
+      "name": "Group#64",
+      "instances": 1,
+      "dims": {
+        "w": 227.7,
+        "d": 5551.7,
+        "h": 8637.2
+      },
+      "section": [
+        227.7,
+        5551.7
+      ],
+      "length": 8637.2
+    },
+    {
+      "name": "Group#65",
+      "instances": 1,
+      "dims": {
+        "w": 227.7,
+        "d": 5551.7,
+        "h": 8034.3
+      },
+      "section": [
+        227.7,
+        5551.7
+      ],
+      "length": 8034.3
+    },
+    {
+      "name": "Group#66",
+      "instances": 1,
+      "dims": {
+        "w": 3000.0,
+        "d": 152.6,
+        "h": 202.0
+      },
+      "section": [
+        152.6,
+        202.0
+      ],
+      "length": 3000.0
+    },
+    {
+      "name": "Group#69",
+      "instances": 1,
+      "dims": {
+        "w": 3000.0,
+        "d": 152.6,
+        "h": 202.0
+      },
+      "section": [
+        152.6,
+        202.0
+      ],
+      "length": 3000.0
+    },
+    {
+      "name": "Group#67",
+      "instances": 1,
+      "dims": {
+        "w": 17505.8,
+        "d": 36632.7,
+        "h": 9312.0
+      },
+      "section": [
+        9312.0,
+        17505.8
+      ],
+      "length": 36632.7
+    },
+    {
+      "name": "Group#11",
+      "instances": 1,
+      "dims": {
+        "w": 5657.1,
+        "d": 643.2,
+        "h": 816.4
+      },
+      "section": [
+        643.2,
+        816.4
+      ],
+      "length": 5657.1
+    },
+    {
+      "name": "Group#79",
+      "instances": 1,
+      "dims": {
+        "w": 132.0,
+        "d": 60.0,
+        "h": 7295.4
+      },
+      "section": [
+        60.0,
+        132.0
+      ],
+      "length": 7295.4
+    },
+    {
+      "name": "Group#10",
+      "instances": 1,
+      "dims": {
+        "w": 5657.1,
+        "d": 643.2,
+        "h": 816.4
+      },
+      "section": [
+        643.2,
+        816.4
+      ],
+      "length": 5657.1
+    },
+    {
+      "name": "Group#72",
+      "instances": 1,
+      "dims": {
+        "w": 522.2,
+        "d": 24681.0,
+        "h": 188.3
+      },
+      "section": [
+        188.3,
+        522.2
+      ],
+      "length": 24681.0
+    },
+    {
+      "name": "Group#81",
+      "instances": 1,
+      "dims": {
+        "w": 80.0,
+        "d": 325.0,
+        "h": 2048.6
+      },
+      "section": [
+        80.0,
+        325.0
+      ],
+      "length": 2048.6
+    },
+    {
+      "name": "Group#82",
+      "instances": 1,
+      "dims": {
+        "w": 80.0,
+        "d": 325.0,
+        "h": 1958.2
+      },
+      "section": [
+        80.0,
+        325.0
+      ],
+      "length": 1958.2
+    },
+    {
+      "name": "Group#85",
+      "instances": 1,
+      "dims": {
+        "w": 80.0,
+        "d": 343.0,
+        "h": 1967.6
+      },
+      "section": [
+        80.0,
+        343.0
+      ],
+      "length": 1967.6
+    },
+    {
+      "name": "Group#87",
+      "instances": 1,
+      "dims": {
+        "w": 80.0,
+        "d": 325.0,
+        "h": 1956.2
+      },
+      "section": [
+        80.0,
+        325.0
+      ],
+      "length": 1956.2
+    },
+    {
+      "name": "Group#94",
+      "instances": 1,
+      "dims": {
+        "w": 148.4,
+        "d": 202.0,
+        "h": 870.9
+      },
+      "section": [
+        148.4,
+        202.0
+      ],
+      "length": 870.9
+    },
+    {
+      "name": "Group#95",
+      "instances": 1,
+      "dims": {
+        "w": 17736.2,
+        "d": 175.2,
+        "h": 2365.2
+      },
+      "section": [
+        175.2,
+        2365.2
+      ],
+      "length": 17736.2
+    },
+    {
+      "name": "Group#73",
+      "instances": 1,
+      "dims": {
+        "w": 7062.2,
+        "d": 977.2,
+        "h": 8734.5
+      },
+      "section": [
+        977.2,
+        7062.2
+      ],
+      "length": 8734.5
+    },
+    {
+      "name": "Group#96",
+      "instances": 1,
+      "dims": {
+        "w": 7127.6,
+        "d": 847.7,
+        "h": 8734.5
+      },
+      "section": [
+        847.7,
+        7127.6
+      ],
+      "length": 8734.5
+    },
+    {
+      "name": "Group#9",
+      "instances": 1,
+      "dims": {
+        "w": 5657.1,
+        "d": 643.2,
+        "h": 791.5
+      },
+      "section": [
+        643.2,
+        791.5
+      ],
+      "length": 5657.1
+    },
+    {
+      "name": "Sumele",
+      "instances": 0,
+      "dims": {
+        "w": 594.0,
+        "d": 0.0,
+        "h": 1649.7
+      },
+      "section": [
+        0.0,
+        594.0
+      ],
+      "length": 1649.7
+    },
+    {
+      "name": "Junaid gym",
+      "instances": 0,
+      "dims": {
+        "w": 4333.2,
+        "d": 647.0,
+        "h": 250.0
+      },
+      "section": [
+        250.0,
+        647.0
+      ],
+      "length": 4333.2
+    }
+  ]
+}

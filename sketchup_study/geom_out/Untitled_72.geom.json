@@ -1,0 +1,330 @@
+{
+  "title": "Untitled",
+  "path": "E:\\Maimaar Steel Pvt Ltd\\Proposals\\2021\\109-21-MSPL_Madrassa Bait Ul Noor\\Rev-00\\3D Views\\Untitled.skp",
+  "bbox": {
+    "w": 66896.0,
+    "d": 78582.2,
+    "h": 14076.6
+  },
+  "units": 2,
+  "layers": [
+    "Layer0",
+    "Purlins",
+    "sHEETING",
+    "Solar Panels",
+    "Dimensions"
+  ],
+  "scenes": [
+    "Scene 1"
+  ],
+  "tags": {
+    "Layer0": {
+      "count": 14,
+      "bbox": {
+        "w": 66896.0,
+        "d": 67612.0,
+        "h": 13811.9
+      }
+    },
+    "Purlins": {
+      "count": 23,
+      "bbox": {
+        "w": 12194.2,
+        "d": 24384.0,
+        "h": 4394.8
+      }
+    },
+    "sHEETING": {
+      "count": 7,
+      "bbox": {
+        "w": 12545.2,
+        "d": 24404.0,
+        "h": 13534.3
+      }
+    },
+    "Solar Panels": {
+      "count": 102,
+      "bbox": {
+        "w": 20088.9,
+        "d": 45649.7,
+        "h": 1362.7
+      }
+    },
+    "Dimensions": {
+      "count": 6,
+      "bbox": {
+        "w": 15621.1,
+        "d": 26386.1,
+        "h": 0.0
+      }
+    }
+  },
+  "definitions": [
+    {
+      "name": "sun_power305_single_crystalline",
+      "instances": 100,
+      "dims": {
+        "w": 1559.3,
+        "d": 1046.0,
+        "h": 46.0
+      },
+      "section": [
+        46.0,
+        1046.0
+      ],
+      "length": 1559.3
+    },
+    {
+      "name": "Group#9",
+      "instances": 23,
+      "dims": {
+        "w": 138.7,
+        "d": 24384.0,
+        "h": 201.5
+      },
+      "section": [
+        138.7,
+        201.5
+      ],
+      "length": 24384.0
+    },
+    {
+      "name": "Group#5",
+      "instances": 5,
+      "dims": {
+        "w": 6122.9,
+        "d": 100.0,
+        "h": 959.6
+      },
+      "section": [
+        100.0,
+        959.6
+      ],
+      "length": 6122.9
+    },
+    {
+      "name": "Group#6",
+      "instances": 5,
+      "dims": {
+        "w": 6096.0,
+        "d": 100.0,
+        "h": 908.1
+      },
+      "section": [
+        100.0,
+        908.1
+      ],
+      "length": 6096.0
+    },
+    {
+      "name": "Group#3",
+      "instances": 5,
+      "dims": {
+        "w": 300.0,
+        "d": 100.0,
+        "h": 2590.8
+      },
+      "section": [
+        100.0,
+        300.0
+      ],
+      "length": 2590.8
+    },
+    {
+      "name": "Group#7",
+      "instances": 5,
+      "dims": {
+        "w": 12192.0,
+        "d": 100.0,
+        "h": 4210.0
+      },
+      "section": [
+        100.0,
+        4210.0
+      ],
+      "length": 12192.0
+    },
+    {
+      "name": "Group#4",
+      "instances": 5,
+      "dims": {
+        "w": 400.0,
+        "d": 100.0,
+        "h": 3810.0
+      },
+      "section": [
+        100.0,
+        400.0
+      ],
+      "length": 3810.0
+    },
+    {
+      "name": "Group#8",
+      "instances": 2,
+      "dims": {
+        "w": 200.0,
+        "d": 100.0,
+        "h": 3310.8
+      },
+      "section": [
+        100.0,
+        200.0
+      ],
+      "length": 3310.8
+    },
+    {
+      "name": "Group#2",
+      "instances": 1,
+      "dims": {
+        "w": 12192.0,
+        "d": 24384.0,
+        "h": 457.2
+      },
+      "section": [
+        457.2,
+        12192.0
+      ],
+      "length": 24384.0
+    },
+    {
+      "name": "Laura",
+      "instances": 1,
+      "dims": {
+        "w": 613.0,
+        "d": 0.0,
+        "h": 1702.4
+      },
+      "section": [
+        0.0,
+        613.0
+      ],
+      "length": 1702.4
+    },
+    {
+      "name": "Group#1",
+      "instances": 1,
+      "dims": {
+        "w": 12192.0,
+        "d": 24384.0,
+        "h": 9601.2
+      },
+      "section": [
+        9601.2,
+        12192.0
+      ],
+      "length": 24384.0
+    },
+    {
+      "name": "Group#10",
+      "instances": 1,
+      "dims": {
+        "w": 12212.0,
+        "d": 24404.0,
+        "h": 4433.0
+      },
+      "section": [
+        4433.0,
+        12212.0
+      ],
+      "length": 24404.0
+    },
+    {
+      "name": "Group#11",
+      "instances": 1,
+      "dims": {
+        "w": 235.4,
+        "d": 24404.0,
+        "h": 235.4
+      },
+      "section": [
+        235.4,
+        235.4
+      ],
+      "length": 24404.0
+    },
+    {
+      "name": "Group#12",
+      "instances": 1,
+      "dims": {
+        "w": 284.0,
+        "d": 101.6,
+        "h": 12013.3
+      },
+      "section": [
+        101.6,
+        284.0
+      ],
+      "length": 12013.3
+    },
+    {
+      "name": "Group#13",
+      "instances": 1,
+      "dims": {
+        "w": 284.0,
+        "d": 101.6,
+        "h": 11948.7
+      },
+      "section": [
+        101.6,
+        284.0
+      ],
+      "length": 11948.7
+    },
+    {
+      "name": "Group#14",
+      "instances": 1,
+      "dims": {
+        "w": 284.0,
+        "d": 101.6,
+        "h": 11868.0
+      },
+      "section": [
+        101.6,
+        284.0
+      ],
+      "length": 11868.0
+    },
+    {
+      "name": "Group#15",
+      "instances": 1,
+      "dims": {
+        "w": 284.0,
+        "d": 101.6,
+        "h": 11908.9
+      },
+      "section": [
+        101.6,
+        284.0
+      ],
+      "length": 11908.9
+    },
+    {
+      "name": "Group#16",
+      "instances": 1,
+      "dims": {
+        "w": 284.0,
+        "d": 101.6,
+        "h": 11697.2
+      },
+      "section": [
+        101.6,
+        284.0
+      ],
+      "length": 11697.2
+    },
+    {
+      "name": "solar panel sunpower_305_single_crystalline",
+      "instances": 0,
+      "dims": {
+        "w": 998.6,
+        "d": 1559.3,
+        "h": 400.9
+      },
+      "section": [
+        400.9,
+        998.6
+      ],
+      "length": 1559.3
+    }
+  ]
+}

@@ -1,0 +1,479 @@
+{
+  "title": "225-25-MSPL",
+  "path": "E:\\Maimaar Steel Pvt Ltd\\Proposals\\2025\\225-25-MSPL_Nishat Mills Ltd._Thermal Oil Heater Shed-NDF Unit-35\\Rev-00\\3D Views\\225-25-MSPL.skp",
+  "bbox": {
+    "w": 30621.8,
+    "d": 79050.0,
+    "h": 26743.8
+  },
+  "units": 2,
+  "layers": [
+    "Layer0",
+    "BRICK WALL",
+    "SHEETING",
+    "PURLIN",
+    "MS",
+    "DOOR",
+    "Gutter and Pipes"
+  ],
+  "scenes": [
+    "Scene 1",
+    "Scene 2",
+    "Scene 3",
+    "Scene 4",
+    "Scene 5",
+    "Scene 6",
+    "Scene 7",
+    "Scene 8"
+  ],
+  "tags": {
+    "MS": {
+      "count": 13,
+      "bbox": {
+        "w": 30200.0,
+        "d": 79000.0,
+        "h": 26537.1
+      }
+    },
+    "PURLIN": {
+      "count": 68,
+      "bbox": {
+        "w": 30200.0,
+        "d": 79000.0,
+        "h": 23710.2
+      }
+    },
+    "SHEETING": {
+      "count": 1,
+      "bbox": {
+        "w": 30250.0,
+        "d": 79050.0,
+        "h": 23743.8
+      }
+    },
+    "DOOR": {
+      "count": 2,
+      "bbox": {
+        "w": 324.1,
+        "d": 28250.5,
+        "h": 6207.6
+      }
+    },
+    "Gutter and Pipes": {
+      "count": 2,
+      "bbox": {
+        "w": 30595.1,
+        "d": 79050.0,
+        "h": 24521.7
+      }
+    }
+  },
+  "definitions": [
+    {
+      "name": "Group#20",
+      "instances": 60,
+      "dims": {
+        "w": 149.7,
+        "d": 79000.0,
+        "h": 202.0
+      },
+      "section": [
+        149.7,
+        202.0
+      ],
+      "length": 79000.0
+    },
+    {
+      "name": "Group#141",
+      "instances": 22,
+      "dims": {
+        "w": 211.8,
+        "d": 151.8,
+        "h": 95520.1
+      },
+      "section": [
+        151.8,
+        211.8
+      ],
+      "length": 95520.1
+    },
+    {
+      "name": "Group#9",
+      "instances": 10,
+      "dims": {
+        "w": 29742.0,
+        "d": 600.0,
+        "h": 26537.1
+      },
+      "section": [
+        600.0,
+        26537.1
+      ],
+      "length": 29742.0
+    },
+    {
+      "name": "Group#2",
+      "instances": 10,
+      "dims": {
+        "w": 1050.0,
+        "d": 600.0,
+        "h": 24000.0
+      },
+      "section": [
+        600.0,
+        1050.0
+      ],
+      "length": 24000.0
+    },
+    {
+      "name": "Group#3",
+      "instances": 10,
+      "dims": {
+        "w": 7522.6,
+        "d": 600.0,
+        "h": 1793.5
+      },
+      "section": [
+        600.0,
+        1793.5
+      ],
+      "length": 7522.6
+    },
+    {
+      "name": "Group#4",
+      "instances": 10,
+      "dims": {
+        "w": 7435.5,
+        "d": 600.0,
+        "h": 1614.8
+      },
+      "section": [
+        600.0,
+        1614.8
+      ],
+      "length": 7435.5
+    },
+    {
+      "name": "Group#5",
+      "instances": 10,
+      "dims": {
+        "w": 1050.0,
+        "d": 600.0,
+        "h": 24000.0
+      },
+      "section": [
+        600.0,
+        1050.0
+      ],
+      "length": 24000.0
+    },
+    {
+      "name": "Group#13",
+      "instances": 10,
+      "dims": {
+        "w": 7435.5,
+        "d": 600.0,
+        "h": 1614.8
+      },
+      "section": [
+        600.0,
+        1614.8
+      ],
+      "length": 7435.5
+    },
+    {
+      "name": "Group#12",
+      "instances": 10,
+      "dims": {
+        "w": 7522.6,
+        "d": 600.0,
+        "h": 1793.5
+      },
+      "section": [
+        600.0,
+        1793.5
+      ],
+      "length": 7522.6
+    },
+    {
+      "name": "Group#18",
+      "instances": 6,
+      "dims": {
+        "w": 149.7,
+        "d": 79000.0,
+        "h": 202.0
+      },
+      "section": [
+        149.7,
+        202.0
+      ],
+      "length": 79000.0
+    },
+    {
+      "name": "Group#14",
+      "instances": 4,
+      "dims": {
+        "w": 7435.5,
+        "d": 600.0,
+        "h": 1614.8
+      },
+      "section": [
+        600.0,
+        1614.8
+      ],
+      "length": 7435.5
+    },
+    {
+      "name": "Group#16",
+      "instances": 4,
+      "dims": {
+        "w": 7522.6,
+        "d": 600.0,
+        "h": 1543.5
+      },
+      "section": [
+        600.0,
+        1543.5
+      ],
+      "length": 7522.6
+    },
+    {
+      "name": "Group#6",
+      "instances": 2,
+      "dims": {
+        "w": 800.0,
+        "d": 600.0,
+        "h": 24931.8
+      },
+      "section": [
+        600.0,
+        800.0
+      ],
+      "length": 24931.8
+    },
+    {
+      "name": "Group#15",
+      "instances": 2,
+      "dims": {
+        "w": 800.0,
+        "d": 600.0,
+        "h": 24250.0
+      },
+      "section": [
+        600.0,
+        800.0
+      ],
+      "length": 24250.0
+    },
+    {
+      "name": "Group#7",
+      "instances": 2,
+      "dims": {
+        "w": 800.0,
+        "d": 600.0,
+        "h": 24931.8
+      },
+      "section": [
+        600.0,
+        800.0
+      ],
+      "length": 24931.8
+    },
+    {
+      "name": "Group#11",
+      "instances": 2,
+      "dims": {
+        "w": 800.0,
+        "d": 600.0,
+        "h": 24250.0
+      },
+      "section": [
+        600.0,
+        800.0
+      ],
+      "length": 24250.0
+    },
+    {
+      "name": "Group#59",
+      "instances": 2,
+      "dims": {
+        "w": 17548.4,
+        "d": 206.5,
+        "h": 6075.5
+      },
+      "section": [
+        206.5,
+        6075.5
+      ],
+      "length": 17548.4
+    },
+    {
+      "name": "Group#140",
+      "instances": 2,
+      "dims": {
+        "w": 285.9,
+        "d": 69025.6,
+        "h": 285.4
+      },
+      "section": [
+        285.4,
+        285.9
+      ],
+      "length": 69025.6
+    },
+    {
+      "name": "Group#32",
+      "instances": 2,
+      "dims": {
+        "w": 3947.7,
+        "d": 50.8,
+        "h": 5183.0
+      },
+      "section": [
+        50.8,
+        3947.7
+      ],
+      "length": 5183.0
+    },
+    {
+      "name": "Group#137",
+      "instances": 2,
+      "dims": {
+        "w": 92.7,
+        "d": 39473.1,
+        "h": 8339.0
+      },
+      "section": [
+        92.7,
+        8339.0
+      ],
+      "length": 39473.1
+    },
+    {
+      "name": "12 x 10 - Classic Split Sliding Door",
+      "instances": 2,
+      "dims": {
+        "w": 17548.4,
+        "d": 206.5,
+        "h": 6075.5
+      },
+      "section": [
+        206.5,
+        6075.5
+      ],
+      "length": 17548.4
+    },
+    {
+      "name": "Group#33",
+      "instances": 2,
+      "dims": {
+        "w": 3980.3,
+        "d": 50.8,
+        "h": 5125.4
+      },
+      "section": [
+        50.8,
+        3980.3
+      ],
+      "length": 5125.4
+    },
+    {
+      "name": "Group#8",
+      "instances": 2,
+      "dims": {
+        "w": 800.0,
+        "d": 600.0,
+        "h": 25657.1
+      },
+      "section": [
+        600.0,
+        800.0
+      ],
+      "length": 25657.1
+    },
+    {
+      "name": "Group#58",
+      "instances": 2,
+      "dims": {
+        "w": 14287.6,
+        "d": 127.0,
+        "h": 203.2
+      },
+      "section": [
+        127.0,
+        203.2
+      ],
+      "length": 14287.6
+    },
+    {
+      "name": "Group#19",
+      "instances": 1,
+      "dims": {
+        "w": 30250.0,
+        "d": 79050.0,
+        "h": 23743.8
+      },
+      "section": [
+        23743.8,
+        30250.0
+      ],
+      "length": 79050.0
+    },
+    {
+      "name": "Group#1",
+      "instances": 1,
+      "dims": {
+        "w": 30200.0,
+        "d": 79000.0,
+        "h": 3000.0
+      },
+      "section": [
+        3000.0,
+        30200.0
+      ],
+      "length": 79000.0
+    },
+    {
+      "name": "Group#10",
+      "instances": 1,
+      "dims": {
+        "w": 29742.0,
+        "d": 800.0,
+        "h": 26537.1
+      },
+      "section": [
+        800.0,
+        26537.1
+      ],
+      "length": 29742.0
+    },
+    {
+      "name": "Group#17",
+      "instances": 1,
+      "dims": {
+        "w": 29742.0,
+        "d": 800.0,
+        "h": 26537.1
+      },
+      "section": [
+        800.0,
+        26537.1
+      ],
+      "length": 29742.0
+    },
+    {
+      "name": "Sumele",
+      "instances": 0,
+      "dims": {
+        "w": 594.0,
+        "d": 0.0,
+        "h": 1649.7
+      },
+      "section": [
+        0.0,
+        594.0
+      ],
+      "length": 1649.7
+    }
+  ]
+}

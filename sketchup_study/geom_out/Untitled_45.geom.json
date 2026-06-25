@@ -1,0 +1,224 @@
+{
+  "title": "Untitled",
+  "path": "E:\\Maimaar Steel Pvt Ltd\\Proposals\\2023\\039-23-MSPL_NBC Pepsi_Support for Sandwich Panels\\Rev-01\\3D Views\\Option No. 02\\Untitled.skp",
+  "bbox": {
+    "w": 14757.5,
+    "d": 133752.3,
+    "h": 6706.3
+  },
+  "units": 2,
+  "layers": [
+    "Layer0"
+  ],
+  "scenes": [
+
+  ],
+  "tags": {
+    "Layer0": {
+      "count": 61,
+      "bbox": {
+        "w": 14840.2,
+        "d": 133752.3,
+        "h": 6706.3
+      }
+    }
+  },
+  "definitions": [
+    {
+      "name": "Group#12",
+      "instances": 76,
+      "dims": {
+        "w": 28.0,
+        "d": 20.0,
+        "h": 20.0
+      },
+      "section": [
+        20.0,
+        20.0
+      ],
+      "length": 28.0
+    },
+    {
+      "name": "Group#6",
+      "instances": 19,
+      "dims": {
+        "w": 28.0,
+        "d": 20.0,
+        "h": 20.0
+      },
+      "section": [
+        20.0,
+        20.0
+      ],
+      "length": 28.0
+    },
+    {
+      "name": "Group#13",
+      "instances": 18,
+      "dims": {
+        "w": 300.0,
+        "d": 100.0,
+        "h": 300.0
+      },
+      "section": [
+        100.0,
+        300.0
+      ],
+      "length": 300.0
+    },
+    {
+      "name": "Group#2",
+      "instances": 11,
+      "dims": {
+        "w": 300.0,
+        "d": 150.0,
+        "h": 3657.6
+      },
+      "section": [
+        150.0,
+        300.0
+      ],
+      "length": 3657.6
+    },
+    {
+      "name": "Group#3",
+      "instances": 10,
+      "dims": {
+        "w": 125.0,
+        "d": 7058.0,
+        "h": 300.0
+      },
+      "section": [
+        125.0,
+        300.0
+      ],
+      "length": 7058.0
+    },
+    {
+      "name": "Group#8",
+      "instances": 7,
+      "dims": {
+        "w": 92.5,
+        "d": 98.0,
+        "h": 34.0
+      },
+      "section": [
+        34.0,
+        92.5
+      ],
+      "length": 98.0
+    },
+    {
+      "name": "Group#7",
+      "instances": 7,
+      "dims": {
+        "w": 34.0,
+        "d": 20.0,
+        "h": 20.0
+      },
+      "section": [
+        20.0,
+        20.0
+      ],
+      "length": 34.0
+    },
+    {
+      "name": "Group#9",
+      "instances": 7,
+      "dims": {
+        "w": 34.0,
+        "d": 20.0,
+        "h": 20.0
+      },
+      "section": [
+        20.0,
+        20.0
+      ],
+      "length": 34.0
+    },
+    {
+      "name": "Group#10",
+      "instances": 7,
+      "dims": {
+        "w": 34.0,
+        "d": 20.0,
+        "h": 20.0
+      },
+      "section": [
+        20.0,
+        20.0
+      ],
+      "length": 34.0
+    },
+    {
+      "name": "Group#11",
+      "instances": 7,
+      "dims": {
+        "w": 34.0,
+        "d": 20.0,
+        "h": 20.0
+      },
+      "section": [
+        20.0,
+        20.0
+      ],
+      "length": 34.0
+    },
+    {
+      "name": "Laura",
+      "instances": 1,
+      "dims": {
+        "w": 613.0,
+        "d": 0.0,
+        "h": 1702.4
+      },
+      "section": [
+        0.0,
+        613.0
+      ],
+      "length": 1702.4
+    },
+    {
+      "name": "Group#5",
+      "instances": 1,
+      "dims": {
+        "w": 300.0,
+        "d": 100.0,
+        "h": 300.0
+      },
+      "section": [
+        100.0,
+        300.0
+      ],
+      "length": 300.0
+    },
+    {
+      "name": "Group#1",
+      "instances": 1,
+      "dims": {
+        "w": 528.6,
+        "d": 72537.2,
+        "h": 3048.0
+      },
+      "section": [
+        528.6,
+        3048.0
+      ],
+      "length": 72537.2
+    },
+    {
+      "name": "Group#4",
+      "instances": 1,
+      "dims": {
+        "w": 125.0,
+        "d": 72787.2,
+        "h": 63.0
+      },
+      "section": [
+        63.0,
+        125.0
+      ],
+      "length": 72787.2
+    }
+  ]
+}

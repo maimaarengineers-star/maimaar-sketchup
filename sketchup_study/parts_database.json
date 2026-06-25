@@ -1,0 +1,225 @@
+{
+  "models_analysed": 271,
+  "categories": {
+    "other": {
+      "defs": 2179,
+      "instances": 76668,
+      "small_mm": {
+        "min": 0.0,
+        "med": 123.2,
+        "max": 257005.6,
+        "n": 2179
+      },
+      "mid_mm": {
+        "min": 15.3,
+        "med": 381.0,
+        "max": 281292.3,
+        "n": 2179
+      },
+      "length_mm": {
+        "min": 42.0,
+        "med": 4368.8,
+        "max": 495314.2,
+        "n": 2179
+      }
+    },
+    "accessory": {
+      "defs": 4626,
+      "instances": 123550,
+      "small_mm": {
+        "min": 0.0,
+        "med": 609.6,
+        "max": 2538.4,
+        "n": 4626
+      },
+      "mid_mm": {
+        "min": 2.5,
+        "med": 685.5,
+        "max": 3433.0,
+        "n": 4626
+      },
+      "length_mm": {
+        "min": 500.0,
+        "med": 867.9,
+        "max": 3494.1,
+        "n": 4626
+      }
+    },
+    "primary_frame_I": {
+      "defs": 1152,
+      "instances": 11035,
+      "small_mm": {
+        "min": 150.0,
+        "med": 227.0,
+        "max": 500.0,
+        "n": 1152
+      },
+      "mid_mm": {
+        "min": 300.0,
+        "med": 600.0,
+        "max": 1499.2,
+        "n": 1152
+      },
+      "length_mm": {
+        "min": 3005.1,
+        "med": 6248.4,
+        "max": 300000.0,
+        "n": 1152
+      }
+    },
+    "connection_plate": {
+      "defs": 230,
+      "instances": 18011,
+      "small_mm": {
+        "min": 0.0,
+        "med": 25.0,
+        "max": 30.9,
+        "n": 230
+      },
+      "mid_mm": {
+        "min": 120.3,
+        "med": 302.4,
+        "max": 1298.4,
+        "n": 230
+      },
+      "length_mm": {
+        "min": 120.3,
+        "med": 938.2,
+        "max": 2576.3,
+        "n": 230
+      }
+    },
+    "sheeting_panel": {
+      "defs": 189,
+      "instances": 2204,
+      "small_mm": {
+        "min": 0.0,
+        "med": 0.0,
+        "max": 5.0,
+        "n": 189
+      },
+      "mid_mm": {
+        "min": 100.0,
+        "med": 1171.7,
+        "max": 138009.6,
+        "n": 189
+      },
+      "length_mm": {
+        "min": 369.9,
+        "med": 1905.0,
+        "max": 464566.0,
+        "n": 189
+      }
+    },
+    "purlin_girt_Z": {
+      "defs": 678,
+      "instances": 12440,
+      "small_mm": {
+        "min": 40.0,
+        "med": 142.6,
+        "max": 163.3,
+        "n": 678
+      },
+      "mid_mm": {
+        "min": 140.0,
+        "med": 201.5,
+        "max": 316.7,
+        "n": 678
+      },
+      "length_mm": {
+        "min": 3048.0,
+        "med": 12556.0,
+        "max": 300000.0,
+        "n": 678
+      }
+    },
+    "bolt_fastener": {
+      "defs": 749,
+      "instances": 84591,
+      "small_mm": {
+        "min": 0.0,
+        "med": 4.9,
+        "max": 28.8,
+        "n": 749
+      },
+      "mid_mm": {
+        "min": 0.2,
+        "med": 13.8,
+        "max": 59.1,
+        "n": 749
+      },
+      "length_mm": {
+        "min": 0.4,
+        "med": 27.1,
+        "max": 139.7,
+        "n": 749
+      }
+    },
+    "clip_bracket": {
+      "defs": 125,
+      "instances": 4396,
+      "small_mm": {
+        "min": 0.0,
+        "med": 3.0,
+        "max": 14.0,
+        "n": 125
+      },
+      "mid_mm": {
+        "min": 2.5,
+        "med": 133.4,
+        "max": 312.0,
+        "n": 125
+      },
+      "length_mm": {
+        "min": 60.0,
+        "med": 244.7,
+        "max": 426.8,
+        "n": 125
+      }
+    },
+    "base_plate": {
+      "defs": 48,
+      "instances": 495,
+      "small_mm": {
+        "min": 5.0,
+        "med": 22.0,
+        "max": 31.8,
+        "n": 48
+      },
+      "mid_mm": {
+        "min": 296.0,
+        "med": 321.1,
+        "max": 700.0,
+        "n": 48
+      },
+      "length_mm": {
+        "min": 296.0,
+        "med": 492.5,
+        "max": 780.0,
+        "n": 48
+      }
+    },
+    "rod_brace_pipe": {
+      "defs": 19,
+      "instances": 390,
+      "small_mm": {
+        "min": 7.9,
+        "med": 25.0,
+        "max": 44.4,
+        "n": 19
+      },
+      "mid_mm": {
+        "min": 8.5,
+        "med": 28.6,
+        "max": 44.4,
+        "n": 19
+      },
+      "length_mm": {
+        "min": 2729.2,
+        "med": 6019.8,
+        "max": 61064.5,
+        "n": 19
+      }
+    }
+  }
+}

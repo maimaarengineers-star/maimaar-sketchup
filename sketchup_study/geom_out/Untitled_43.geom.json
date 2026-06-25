@@ -1,0 +1,227 @@
+{
+  "title": "Untitled",
+  "path": "E:\\Maimaar Steel Pvt Ltd\\Proposals\\2022\\145-22-MSPL_Nishat Bhikki_Replacement of Roof Sheeting\\Rev- 00\\3D\\Untitled.skp",
+  "bbox": {
+    "w": 38420.0,
+    "d": 12395.0,
+    "h": 11150.0
+  },
+  "units": 2,
+  "layers": [
+    "Layer0"
+  ],
+  "scenes": [
+    "Scene 1",
+    "Scene 2",
+    "Scene 3",
+    "Scene 4"
+  ],
+  "tags": {
+    "Layer0": {
+      "count": 1018,
+      "bbox": {
+        "w": 38420.0,
+        "d": 12395.0,
+        "h": 11150.0
+      }
+    }
+  },
+  "definitions": [
+    {
+      "name": "Group#10",
+      "instances": 1,
+      "dims": {
+        "w": 460.0,
+        "d": 230.0,
+        "h": 11150.0
+      },
+      "section": [
+        230.0,
+        460.0
+      ],
+      "length": 11150.0
+    },
+    {
+      "name": "Group#2",
+      "instances": 1,
+      "dims": {
+        "w": 230.0,
+        "d": 230.0,
+        "h": 9000.0
+      },
+      "section": [
+        230.0,
+        230.0
+      ],
+      "length": 9000.0
+    },
+    {
+      "name": "Group#3",
+      "instances": 1,
+      "dims": {
+        "w": 230.0,
+        "d": 230.0,
+        "h": 9000.0
+      },
+      "section": [
+        230.0,
+        230.0
+      ],
+      "length": 9000.0
+    },
+    {
+      "name": "Group#5",
+      "instances": 1,
+      "dims": {
+        "w": 460.0,
+        "d": 230.0,
+        "h": 9000.0
+      },
+      "section": [
+        230.0,
+        460.0
+      ],
+      "length": 9000.0
+    },
+    {
+      "name": "Group#6",
+      "instances": 1,
+      "dims": {
+        "w": 460.0,
+        "d": 230.0,
+        "h": 9000.0
+      },
+      "section": [
+        230.0,
+        460.0
+      ],
+      "length": 9000.0
+    },
+    {
+      "name": "Group#7",
+      "instances": 1,
+      "dims": {
+        "w": 460.0,
+        "d": 230.0,
+        "h": 9000.0
+      },
+      "section": [
+        230.0,
+        460.0
+      ],
+      "length": 9000.0
+    },
+    {
+      "name": "Group#8",
+      "instances": 1,
+      "dims": {
+        "w": 460.0,
+        "d": 230.0,
+        "h": 9000.0
+      },
+      "section": [
+        230.0,
+        460.0
+      ],
+      "length": 9000.0
+    },
+    {
+      "name": "Group#15",
+      "instances": 1,
+      "dims": {
+        "w": 4880.5,
+        "d": 0.0,
+        "h": 4280.0
+      },
+      "section": [
+        0.0,
+        4280.0
+      ],
+      "length": 4880.5
+    },
+    {
+      "name": "Group#11",
+      "instances": 1,
+      "dims": {
+        "w": 460.0,
+        "d": 230.0,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        230.0
+      ],
+      "length": 460.0
+    },
+    {
+      "name": "Group#12",
+      "instances": 1,
+      "dims": {
+        "w": 460.0,
+        "d": 230.0,
+        "h": 9000.0
+      },
+      "section": [
+        230.0,
+        460.0
+      ],
+      "length": 9000.0
+    },
+    {
+      "name": "Group#13",
+      "instances": 1,
+      "dims": {
+        "w": 460.0,
+        "d": 230.0,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        230.0
+      ],
+      "length": 460.0
+    },
+    {
+      "name": "Group#14",
+      "instances": 1,
+      "dims": {
+        "w": 460.0,
+        "d": 230.0,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        230.0
+      ],
+      "length": 460.0
+    },
+    {
+      "name": "Group#1",
+      "instances": 1,
+      "dims": {
+        "w": 275.0,
+        "d": 275.0,
+        "h": 9000.0
+      },
+      "section": [
+        275.0,
+        275.0
+      ],
+      "length": 9000.0
+    },
+    {
+      "name": "Laura",
+      "instances": 0,
+      "dims": {
+        "w": 613.0,
+        "d": 0.0,
+        "h": 1702.4
+      },
+      "section": [
+        0.0,
+        613.0
+      ],
+      "length": 1702.4
+    }
+  ]
+}

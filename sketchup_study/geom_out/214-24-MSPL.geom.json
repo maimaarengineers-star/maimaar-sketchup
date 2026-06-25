@@ -1,0 +1,360 @@
+{
+  "title": "214-24-MSPL",
+  "path": "E:\\Maimaar Steel Pvt Ltd\\Proposals\\2024\\214-24-MSPL_Al Moiz Industries (Safina Sugar Mills)_Power House Shed_Lalian\\Rev-02\\3D'S\\214-24-MSPL.skp",
+  "bbox": {
+    "w": 24499.5,
+    "d": 40976.6,
+    "h": 19173.3
+  },
+  "units": 2,
+  "layers": [
+    "Layer0",
+    "BRICK WALL",
+    "R.C.C COLUMN",
+    "SHEETING",
+    "GIRT, PURLIN",
+    "RAFTER",
+    "EXISTING BUILDING"
+  ],
+  "scenes": [
+    "Scene 1",
+    "Scene 2",
+    "Scene 3",
+    "Scene 4",
+    "Scene 5",
+    "Scene 6",
+    "Scene 7"
+  ],
+  "tags": {
+    "R.C.C COLUMN": {
+      "count": 8,
+      "bbox": {
+        "w": 6562.0,
+        "d": 12914.4,
+        "h": 18069.5
+      }
+    },
+    "BRICK WALL": {
+      "count": 4,
+      "bbox": {
+        "w": 6209.6,
+        "d": 12609.6,
+        "h": 14250.0
+      }
+    },
+    "RAFTER": {
+      "count": 3,
+      "bbox": {
+        "w": 6000.0,
+        "d": 10857.2,
+        "h": 900.0
+      }
+    },
+    "GIRT, PURLIN": {
+      "count": 34,
+      "bbox": {
+        "w": 6424.1,
+        "d": 12609.6,
+        "h": 14196.3
+      }
+    },
+    "SHEETING": {
+      "count": 1,
+      "bbox": {
+        "w": 6040.0,
+        "d": 12673.1,
+        "h": 14230.2
+      }
+    },
+    "EXISTING BUILDING": {
+      "count": 1,
+      "bbox": {
+        "w": 24499.5,
+        "d": 28347.0,
+        "h": 19009.3
+      }
+    }
+  },
+  "definitions": [
+    {
+      "name": "Group#16",
+      "instances": 9,
+      "dims": {
+        "w": 142.6,
+        "d": 5390.4,
+        "h": 202.0
+      },
+      "section": [
+        142.6,
+        202.0
+      ],
+      "length": 5390.4
+    },
+    {
+      "name": "Group#15",
+      "instances": 9,
+      "dims": {
+        "w": 142.6,
+        "d": 11390.4,
+        "h": 202.0
+      },
+      "section": [
+        142.6,
+        202.0
+      ],
+      "length": 11390.4
+    },
+    {
+      "name": "Group#18",
+      "instances": 9,
+      "dims": {
+        "w": 142.6,
+        "d": 11085.6,
+        "h": 202.0
+      },
+      "section": [
+        142.6,
+        202.0
+      ],
+      "length": 11085.6
+    },
+    {
+      "name": "Group#13",
+      "instances": 5,
+      "dims": {
+        "w": 142.6,
+        "d": 12609.6,
+        "h": 202.0
+      },
+      "section": [
+        142.6,
+        202.0
+      ],
+      "length": 12609.6
+    },
+    {
+      "name": "Group#8",
+      "instances": 3,
+      "dims": {
+        "w": 6000.0,
+        "d": 200.0,
+        "h": 900.0
+      },
+      "section": [
+        200.0,
+        900.0
+      ],
+      "length": 6000.0
+    },
+    {
+      "name": "Group#10",
+      "instances": 2,
+      "dims": {
+        "w": 304.8,
+        "d": 304.8,
+        "h": 17500.0
+      },
+      "section": [
+        304.8,
+        304.8
+      ],
+      "length": 17500.0
+    },
+    {
+      "name": "Group#1",
+      "instances": 2,
+      "dims": {
+        "w": 6209.6,
+        "d": 12609.6,
+        "h": 350.0
+      },
+      "section": [
+        350.0,
+        6209.6
+      ],
+      "length": 12609.6
+    },
+    {
+      "name": "Group#7",
+      "instances": 1,
+      "dims": {
+        "w": 304.8,
+        "d": 914.4,
+        "h": 18069.5
+      },
+      "section": [
+        304.8,
+        914.4
+      ],
+      "length": 18069.5
+    },
+    {
+      "name": "Group#9",
+      "instances": 1,
+      "dims": {
+        "w": 304.8,
+        "d": 304.8,
+        "h": 18069.5
+      },
+      "section": [
+        304.8,
+        304.8
+      ],
+      "length": 18069.5
+    },
+    {
+      "name": "Group#6",
+      "instances": 1,
+      "dims": {
+        "w": 6209.6,
+        "d": 12609.6,
+        "h": 350.0
+      },
+      "section": [
+        350.0,
+        6209.6
+      ],
+      "length": 12609.6
+    },
+    {
+      "name": "Group#19",
+      "instances": 1,
+      "dims": {
+        "w": 6379.2,
+        "d": 50.0,
+        "h": 200.0
+      },
+      "section": [
+        50.0,
+        200.0
+      ],
+      "length": 6379.2
+    },
+    {
+      "name": "Group#5",
+      "instances": 1,
+      "dims": {
+        "w": 6000.0,
+        "d": 12457.2,
+        "h": 4400.0
+      },
+      "section": [
+        4400.0,
+        6000.0
+      ],
+      "length": 12457.2
+    },
+    {
+      "name": "Group#12",
+      "instances": 1,
+      "dims": {
+        "w": 142.6,
+        "d": 11085.6,
+        "h": 202.0
+      },
+      "section": [
+        142.6,
+        202.0
+      ],
+      "length": 11085.6
+    },
+    {
+      "name": "Group#4",
+      "instances": 1,
+      "dims": {
+        "w": 304.8,
+        "d": 914.4,
+        "h": 17500.0
+      },
+      "section": [
+        304.8,
+        914.4
+      ],
+      "length": 17500.0
+    },
+    {
+      "name": "Group#3",
+      "instances": 1,
+      "dims": {
+        "w": 304.8,
+        "d": 304.8,
+        "h": 18069.5
+      },
+      "section": [
+        304.8,
+        304.8
+      ],
+      "length": 18069.5
+    },
+    {
+      "name": "Group#2",
+      "instances": 1,
+      "dims": {
+        "w": 304.8,
+        "d": 914.4,
+        "h": 18069.5
+      },
+      "section": [
+        304.8,
+        914.4
+      ],
+      "length": 18069.5
+    },
+    {
+      "name": "Group#17",
+      "instances": 1,
+      "dims": {
+        "w": 6040.0,
+        "d": 12673.1,
+        "h": 14230.2
+      },
+      "section": [
+        6040.0,
+        12673.1
+      ],
+      "length": 14230.2
+    },
+    {
+      "name": "Group#14",
+      "instances": 1,
+      "dims": {
+        "w": 24499.5,
+        "d": 28347.0,
+        "h": 19009.3
+      },
+      "section": [
+        19009.3,
+        24499.5
+      ],
+      "length": 28347.0
+    },
+    {
+      "name": "Group#11",
+      "instances": 1,
+      "dims": {
+        "w": 304.8,
+        "d": 914.4,
+        "h": 17500.0
+      },
+      "section": [
+        304.8,
+        914.4
+      ],
+      "length": 17500.0
+    },
+    {
+      "name": "Sumele",
+      "instances": 0,
+      "dims": {
+        "w": 594.0,
+        "d": 0.0,
+        "h": 1649.7
+      },
+      "section": [
+        0.0,
+        594.0
+      ],
+      "length": 1649.7
+    }
+  ]
+}

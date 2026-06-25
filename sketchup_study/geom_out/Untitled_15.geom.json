@@ -1,0 +1,168 @@
+{
+  "title": "Untitled",
+  "path": "E:\\Maimaar Steel Pvt Ltd\\Proposals\\2019\\120-19-MSPL_Ali Corporation\\Rev-00\\3D Views\\Untitled.skp",
+  "bbox": {
+    "w": 24576.6,
+    "d": 28606.8,
+    "h": 7543.8
+  },
+  "units": 0,
+  "layers": [
+    "Layer0"
+  ],
+  "scenes": [
+
+  ],
+  "tags": {
+    "Layer0": {
+      "count": 1038,
+      "bbox": {
+        "w": 24576.6,
+        "d": 28606.8,
+        "h": 7543.8
+      }
+    }
+  },
+  "definitions": [
+    {
+      "name": "Group#3",
+      "instances": 26,
+      "dims": {
+        "w": 153.7,
+        "d": 21336.0,
+        "h": 201.5
+      },
+      "section": [
+        153.7,
+        201.5
+      ],
+      "length": 21336.0
+    },
+    {
+      "name": "Group#1",
+      "instances": 8,
+      "dims": {
+        "w": 6250.0,
+        "d": 304.8,
+        "h": 922.8
+      },
+      "section": [
+        304.8,
+        922.8
+      ],
+      "length": 6250.0
+    },
+    {
+      "name": "Group#2",
+      "instances": 4,
+      "dims": {
+        "w": 5892.4,
+        "d": 304.8,
+        "h": 762.0
+      },
+      "section": [
+        304.8,
+        762.0
+      ],
+      "length": 5892.4
+    },
+    {
+      "name": "Group#6",
+      "instances": 4,
+      "dims": {
+        "w": 5892.4,
+        "d": 304.8,
+        "h": 762.0
+      },
+      "section": [
+        304.8,
+        762.0
+      ],
+      "length": 5892.4
+    },
+    {
+      "name": "Frame",
+      "instances": 4,
+      "dims": {
+        "w": 23984.0,
+        "d": 304.8,
+        "h": 7315.2
+      },
+      "section": [
+        304.8,
+        7315.2
+      ],
+      "length": 23984.0
+    },
+    {
+      "name": "Group#4",
+      "instances": 2,
+      "dims": {
+        "w": 200.0,
+        "d": 21336.0,
+        "h": 2438.4
+      },
+      "section": [
+        200.0,
+        2438.4
+      ],
+      "length": 21336.0
+    },
+    {
+      "name": "Group#8",
+      "instances": 1,
+      "dims": {
+        "w": 152.4,
+        "d": 21386.8,
+        "h": 200.0
+      },
+      "section": [
+        152.4,
+        200.0
+      ],
+      "length": 21386.8
+    },
+    {
+      "name": "Group#7",
+      "instances": 1,
+      "dims": {
+        "w": 227.0,
+        "d": 304.8,
+        "h": 6705.6
+      },
+      "section": [
+        227.0,
+        304.8
+      ],
+      "length": 6705.6
+    },
+    {
+      "name": "Group#5",
+      "instances": 1,
+      "dims": {
+        "w": 24384.0,
+        "d": 7166.0,
+        "h": 4572.0
+      },
+      "section": [
+        4572.0,
+        7166.0
+      ],
+      "length": 24384.0
+    },
+    {
+      "name": "Chris",
+      "instances": 0,
+      "dims": {
+        "w": 579.2,
+        "d": 0.0,
+        "h": 1765.2
+      },
+      "section": [
+        0.0,
+        579.2
+      ],
+      "length": 1765.2
+    }
+  ]
+}

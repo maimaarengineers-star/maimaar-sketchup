@@ -1,0 +1,895 @@
+{
+  "title": "167",
+  "path": "E:\\Maimaar Steel Pvt Ltd\\Proposals\\2023\\167-23-MSPL_Kaizan Paints_Extension of Existing PEB Building\\Rev-04\\3D\\Option 01\\167.skp",
+  "bbox": {
+    "w": 37242.0,
+    "d": 93912.8,
+    "h": 7462.2
+  },
+  "units": 2,
+  "layers": [
+    "Layer0",
+    "Sheeting",
+    "MS",
+    "Gutter",
+    "Door",
+    "Brick Wall",
+    "Purlins and Girts",
+    "Header Pipe",
+    "Canopy",
+    "EAVE GUTTER",
+    "area ",
+    "Tag1",
+    "Platform"
+  ],
+  "scenes": [
+    "Scene 1",
+    "Scene 2",
+    "Scene 3",
+    "Scene 4",
+    "Scene 8",
+    "Scene 6",
+    "Scene 7",
+    "Scene 9"
+  ],
+  "tags": {
+    "MS": {
+      "count": 138,
+      "bbox": {
+        "w": 27432.0,
+        "d": 93468.8,
+        "h": 7066.8
+      }
+    },
+    "Purlins and Girts": {
+      "count": 48,
+      "bbox": {
+        "w": 37202.0,
+        "d": 93872.8,
+        "h": 7266.1
+      }
+    },
+    "area ": {
+      "count": 1,
+      "bbox": {
+        "w": 27836.0,
+        "d": 93872.8,
+        "h": 0.0
+      }
+    },
+    "Layer0": {
+      "count": 15,
+      "bbox": {
+        "w": 23282.0,
+        "d": 93670.8,
+        "h": 7285.6
+      }
+    },
+    "Sheeting": {
+      "count": 2,
+      "bbox": {
+        "w": 37242.0,
+        "d": 93912.8,
+        "h": 7285.6
+      }
+    },
+    "EAVE GUTTER": {
+      "count": 13,
+      "bbox": {
+        "w": 131.1,
+        "d": 93048.2,
+        "h": 6402.9
+      }
+    },
+    "Gutter": {
+      "count": 1,
+      "bbox": {
+        "w": 185.4,
+        "d": 93912.8,
+        "h": 195.7
+      }
+    },
+    "Platform": {
+      "count": 213,
+      "bbox": {
+        "w": 255.8,
+        "d": 93345.2,
+        "h": 7.5
+      }
+    },
+    "Tag1": {
+      "count": 2,
+      "bbox": {
+        "w": 255.8,
+        "d": 93341.5,
+        "h": 176.6
+      }
+    }
+  },
+  "definitions": [
+    {
+      "name": "Group#90",
+      "instances": 6816,
+      "dims": {
+        "w": 1000.0,
+        "d": 5.0,
+        "h": 25.0
+      },
+      "section": [
+        5.0,
+        25.0
+      ],
+      "length": 1000.0
+    },
+    {
+      "name": "Group#91",
+      "instances": 213,
+      "dims": {
+        "w": 0.0,
+        "d": 5.0,
+        "h": 25.0
+      },
+      "section": [
+        0.0,
+        5.0
+      ],
+      "length": 25.0
+    },
+    {
+      "name": "Group#6",
+      "instances": 211,
+      "dims": {
+        "w": 1000.0,
+        "d": 609.6,
+        "h": 25.0
+      },
+      "section": [
+        25.0,
+        609.6
+      ],
+      "length": 1000.0
+    },
+    {
+      "name": "Group#11",
+      "instances": 28,
+      "dims": {
+        "w": 4570.3,
+        "d": 200.0,
+        "h": 528.5
+      },
+      "section": [
+        200.0,
+        528.5
+      ],
+      "length": 4570.3
+    },
+    {
+      "name": "Group#10",
+      "instances": 28,
+      "dims": {
+        "w": 4570.3,
+        "d": 200.0,
+        "h": 533.4
+      },
+      "section": [
+        200.0,
+        533.4
+      ],
+      "length": 4570.3
+    },
+    {
+      "name": "Group#34",
+      "instances": 15,
+      "dims": {
+        "w": 145.2,
+        "d": 93468.8,
+        "h": 202.0
+      },
+      "section": [
+        145.2,
+        202.0
+      ],
+      "length": 93468.8
+    },
+    {
+      "name": "Group#12",
+      "instances": 14,
+      "dims": {
+        "w": 300.0,
+        "d": 200.0,
+        "h": 6538.2
+      },
+      "section": [
+        200.0,
+        300.0
+      ],
+      "length": 6538.2
+    },
+    {
+      "name": "Group#1",
+      "instances": 14,
+      "dims": {
+        "w": 300.0,
+        "d": 200.0,
+        "h": 6538.2
+      },
+      "section": [
+        200.0,
+        300.0
+      ],
+      "length": 6538.2
+    },
+    {
+      "name": "Group#44",
+      "instances": 13,
+      "dims": {
+        "w": 4683.0,
+        "d": 200.0,
+        "h": 513.6
+      },
+      "section": [
+        200.0,
+        513.6
+      ],
+      "length": 4683.0
+    },
+    {
+      "name": "Group#22",
+      "instances": 13,
+      "dims": {
+        "w": 100.0,
+        "d": 131.1,
+        "h": 4143.6
+      },
+      "section": [
+        100.0,
+        131.1
+      ],
+      "length": 4143.6
+    },
+    {
+      "name": "Group#36",
+      "instances": 12,
+      "dims": {
+        "w": 145.2,
+        "d": 93468.8,
+        "h": 202.0
+      },
+      "section": [
+        145.2,
+        202.0
+      ],
+      "length": 93468.8
+    },
+    {
+      "name": "Group#31",
+      "instances": 11,
+      "dims": {
+        "w": 400.0,
+        "d": 200.0,
+        "h": 6423.2
+      },
+      "section": [
+        200.0,
+        400.0
+      ],
+      "length": 6423.2
+    },
+    {
+      "name": "Group#14",
+      "instances": 11,
+      "dims": {
+        "w": 4575.3,
+        "d": 200.0,
+        "h": 673.6
+      },
+      "section": [
+        200.0,
+        673.6
+      ],
+      "length": 4575.3
+    },
+    {
+      "name": "Group#33",
+      "instances": 11,
+      "dims": {
+        "w": 450.0,
+        "d": 200.0,
+        "h": 5946.0
+      },
+      "section": [
+        200.0,
+        450.0
+      ],
+      "length": 5946.0
+    },
+    {
+      "name": "Group#45",
+      "instances": 11,
+      "dims": {
+        "w": 9366.0,
+        "d": 200.0,
+        "h": 6823.2
+      },
+      "section": [
+        200.0,
+        6823.2
+      ],
+      "length": 9366.0
+    },
+    {
+      "name": "Group#30",
+      "instances": 11,
+      "dims": {
+        "w": 400.0,
+        "d": 200.0,
+        "h": 6423.2
+      },
+      "section": [
+        200.0,
+        400.0
+      ],
+      "length": 6423.2
+    },
+    {
+      "name": "Group#21",
+      "instances": 11,
+      "dims": {
+        "w": 4575.3,
+        "d": 200.0,
+        "h": 673.6
+      },
+      "section": [
+        200.0,
+        673.6
+      ],
+      "length": 4575.3
+    },
+    {
+      "name": "Group#18",
+      "instances": 11,
+      "dims": {
+        "w": 450.0,
+        "d": 200.0,
+        "h": 5946.0
+      },
+      "section": [
+        200.0,
+        450.0
+      ],
+      "length": 5946.0
+    },
+    {
+      "name": "Group#5",
+      "instances": 11,
+      "dims": {
+        "w": 4683.0,
+        "d": 200.0,
+        "h": 506.5
+      },
+      "section": [
+        200.0,
+        506.5
+      ],
+      "length": 4683.0
+    },
+    {
+      "name": "Group#39",
+      "instances": 8,
+      "dims": {
+        "w": 145.2,
+        "d": 27836.0,
+        "h": 202.0
+      },
+      "section": [
+        145.2,
+        202.0
+      ],
+      "length": 27836.0
+    },
+    {
+      "name": "Group#38",
+      "instances": 4,
+      "dims": {
+        "w": 300.0,
+        "d": 200.0,
+        "h": 6096.0
+      },
+      "section": [
+        200.0,
+        300.0
+      ],
+      "length": 6096.0
+    },
+    {
+      "name": "Group#47",
+      "instances": 2,
+      "dims": {
+        "w": 9366.0,
+        "d": 200.0,
+        "h": 6823.2
+      },
+      "section": [
+        200.0,
+        6823.2
+      ],
+      "length": 9366.0
+    },
+    {
+      "name": "Group#49",
+      "instances": 2,
+      "dims": {
+        "w": 300.0,
+        "d": 200.0,
+        "h": 6523.2
+      },
+      "section": [
+        200.0,
+        300.0
+      ],
+      "length": 6523.2
+    },
+    {
+      "name": "Group#48",
+      "instances": 2,
+      "dims": {
+        "w": 4683.0,
+        "d": 200.0,
+        "h": 506.5
+      },
+      "section": [
+        200.0,
+        506.5
+      ],
+      "length": 4683.0
+    },
+    {
+      "name": "Group#15",
+      "instances": 2,
+      "dims": {
+        "w": 145.2,
+        "d": 93468.8,
+        "h": 202.0
+      },
+      "section": [
+        145.2,
+        202.0
+      ],
+      "length": 93468.8
+    },
+    {
+      "name": "Group#8",
+      "instances": 2,
+      "dims": {
+        "w": 145.2,
+        "d": 27836.0,
+        "h": 202.0
+      },
+      "section": [
+        145.2,
+        202.0
+      ],
+      "length": 27836.0
+    },
+    {
+      "name": "Group#7",
+      "instances": 2,
+      "dims": {
+        "w": 4575.3,
+        "d": 200.0,
+        "h": 523.6
+      },
+      "section": [
+        200.0,
+        523.6
+      ],
+      "length": 4575.3
+    },
+    {
+      "name": "Group#50",
+      "instances": 2,
+      "dims": {
+        "w": 300.0,
+        "d": 200.0,
+        "h": 6523.2
+      },
+      "section": [
+        200.0,
+        300.0
+      ],
+      "length": 6523.2
+    },
+    {
+      "name": "Group#9",
+      "instances": 2,
+      "dims": {
+        "w": 4575.3,
+        "d": 200.0,
+        "h": 523.6
+      },
+      "section": [
+        200.0,
+        523.6
+      ],
+      "length": 4575.3
+    },
+    {
+      "name": "Group#19",
+      "instances": 1,
+      "dims": {
+        "w": 145.2,
+        "d": 93468.8,
+        "h": 202.0
+      },
+      "section": [
+        145.2,
+        202.0
+      ],
+      "length": 93468.8
+    },
+    {
+      "name": "Group#20",
+      "instances": 1,
+      "dims": {
+        "w": 145.2,
+        "d": 93468.8,
+        "h": 202.0
+      },
+      "section": [
+        145.2,
+        202.0
+      ],
+      "length": 93468.8
+    },
+    {
+      "name": "Group#92",
+      "instances": 1,
+      "dims": {
+        "w": 1000.0,
+        "d": 609.6,
+        "h": 25.0
+      },
+      "section": [
+        25.0,
+        609.6
+      ],
+      "length": 1000.0
+    },
+    {
+      "name": "Group#13",
+      "instances": 1,
+      "dims": {
+        "w": 255.8,
+        "d": 93341.5,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        255.8
+      ],
+      "length": 93341.5
+    },
+    {
+      "name": "Group#26",
+      "instances": 1,
+      "dims": {
+        "w": 145.2,
+        "d": 93468.8,
+        "h": 202.0
+      },
+      "section": [
+        145.2,
+        202.0
+      ],
+      "length": 93468.8
+    },
+    {
+      "name": "Group#27",
+      "instances": 1,
+      "dims": {
+        "w": 145.2,
+        "d": 93468.8,
+        "h": 202.0
+      },
+      "section": [
+        145.2,
+        202.0
+      ],
+      "length": 93468.8
+    },
+    {
+      "name": "Group#28",
+      "instances": 1,
+      "dims": {
+        "w": 145.2,
+        "d": 93468.8,
+        "h": 202.0
+      },
+      "section": [
+        145.2,
+        202.0
+      ],
+      "length": 93468.8
+    },
+    {
+      "name": "Group#29",
+      "instances": 1,
+      "dims": {
+        "w": 145.2,
+        "d": 93468.8,
+        "h": 202.0
+      },
+      "section": [
+        145.2,
+        202.0
+      ],
+      "length": 93468.8
+    },
+    {
+      "name": "Group#3",
+      "instances": 1,
+      "dims": {
+        "w": 255.8,
+        "d": 93341.5,
+        "h": 176.6
+      },
+      "section": [
+        176.6,
+        255.8
+      ],
+      "length": 93341.5
+    },
+    {
+      "name": "Group#17",
+      "instances": 1,
+      "dims": {
+        "w": 145.2,
+        "d": 93468.8,
+        "h": 202.0
+      },
+      "section": [
+        145.2,
+        202.0
+      ],
+      "length": 93468.8
+    },
+    {
+      "name": "Group#2",
+      "instances": 1,
+      "dims": {
+        "w": 27836.0,
+        "d": 93872.8,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        27836.0
+      ],
+      "length": 93872.8
+    },
+    {
+      "name": "Group#16",
+      "instances": 1,
+      "dims": {
+        "w": 145.2,
+        "d": 93468.8,
+        "h": 202.0
+      },
+      "section": [
+        145.2,
+        202.0
+      ],
+      "length": 93468.8
+    },
+    {
+      "name": "Group#43",
+      "instances": 1,
+      "dims": {
+        "w": 9344.0,
+        "d": 93468.8,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        9344.0
+      ],
+      "length": 93468.8
+    },
+    {
+      "name": "Group#23",
+      "instances": 1,
+      "dims": {
+        "w": 9181.1,
+        "d": 93508.8,
+        "h": 938.9
+      },
+      "section": [
+        938.9,
+        9181.1
+      ],
+      "length": 93508.8
+    },
+    {
+      "name": "Group#4",
+      "instances": 1,
+      "dims": {
+        "w": 1000.0,
+        "d": 609.6,
+        "h": 25.0
+      },
+      "section": [
+        25.0,
+        609.6
+      ],
+      "length": 1000.0
+    },
+    {
+      "name": "Group#40",
+      "instances": 1,
+      "dims": {
+        "w": 27876.0,
+        "d": 93912.8,
+        "h": 7285.6
+      },
+      "section": [
+        7285.6,
+        27876.0
+      ],
+      "length": 93912.8
+    },
+    {
+      "name": "Group#25",
+      "instances": 1,
+      "dims": {
+        "w": 145.2,
+        "d": 93468.8,
+        "h": 202.0
+      },
+      "section": [
+        145.2,
+        202.0
+      ],
+      "length": 93468.8
+    },
+    {
+      "name": "Group#76",
+      "instances": 1,
+      "dims": {
+        "w": 185.4,
+        "d": 45143.9,
+        "h": 235.4
+      },
+      "section": [
+        185.4,
+        235.4
+      ],
+      "length": 45143.9
+    },
+    {
+      "name": "12 x 10 - Classic Split Sliding Door",
+      "instances": 0,
+      "dims": {
+        "w": 8774.2,
+        "d": 127.0,
+        "h": 3337.5
+      },
+      "section": [
+        127.0,
+        3337.5
+      ],
+      "length": 8774.2
+    },
+    {
+      "name": "Laura",
+      "instances": 0,
+      "dims": {
+        "w": 613.0,
+        "d": 0.0,
+        "h": 1702.4
+      },
+      "section": [
+        0.0,
+        613.0
+      ],
+      "length": 1702.4
+    },
+    {
+      "name": "Component#3",
+      "instances": 0,
+      "dims": {
+        "w": 47.4,
+        "d": 0.0,
+        "h": 47.4
+      },
+      "section": [
+        0.0,
+        47.4
+      ],
+      "length": 47.4
+    },
+    {
+      "name": "Elbow Connector PVC",
+      "instances": 0,
+      "dims": {
+        "w": 530.2,
+        "d": 41.2,
+        "h": 71.9
+      },
+      "section": [
+        41.2,
+        71.9
+      ],
+      "length": 530.2
+    },
+    {
+      "name": "Group#51",
+      "instances": 0,
+      "dims": {
+        "w": 8774.2,
+        "d": 127.0,
+        "h": 3337.5
+      },
+      "section": [
+        127.0,
+        3337.5
+      ],
+      "length": 8774.2
+    },
+    {
+      "name": "1\" PVC 90 Degree Elbow Fitting Connector",
+      "instances": 0,
+      "dims": {
+        "w": 530.2,
+        "d": 41.2,
+        "h": 71.9
+      },
+      "section": [
+        41.2,
+        71.9
+      ],
+      "length": 530.2
+    },
+    {
+      "name": "Group#52",
+      "instances": 0,
+      "dims": {
+        "w": 1828.8,
+        "d": 50.8,
+        "h": 3048.0
+      },
+      "section": [
+        50.8,
+        1828.8
+      ],
+      "length": 3048.0
+    },
+    {
+      "name": "Group#46",
+      "instances": 0,
+      "dims": {
+        "w": 7143.8,
+        "d": 127.0,
+        "h": 203.2
+      },
+      "section": [
+        127.0,
+        203.2
+      ],
+      "length": 7143.8
+    },
+    {
+      "name": "Group#70",
+      "instances": 0,
+      "dims": {
+        "w": 115.0,
+        "d": 115.0,
+        "h": 115.1
+      },
+      "section": [
+        115.0,
+        115.0
+      ],
+      "length": 115.1
+    }
+  ]
+}

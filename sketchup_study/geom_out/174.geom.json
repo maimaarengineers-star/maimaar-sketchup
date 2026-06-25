@@ -1,0 +1,321 @@
+{
+  "title": "174",
+  "path": "E:\\Maimaar Steel Pvt Ltd\\Proposals\\2023\\174-23-MSPL_Zarayi Services HBL\\Rev-00\\3D drawings\\Option-01_No Drop Down Sheeting From Eave\\174.skp",
+  "bbox": {
+    "w": 22350.4,
+    "d": 16883.4,
+    "h": 7599.0
+  },
+  "units": 2,
+  "layers": [
+    "Layer0",
+    "Sheeting",
+    "MS",
+    "Gutter",
+    "Door",
+    "Brick Wall",
+    "Purlins and Girts",
+    "Header Pipe",
+    "Canopy",
+    "EAVE GUTTER",
+    "area ",
+    "Tag1"
+  ],
+  "scenes": [
+    "Scene 1",
+    "Scene 2",
+    "Scene 3",
+    "Scene 4",
+    "Scene 8",
+    "Scene 6",
+    "Scene 7"
+  ],
+  "tags": {
+    "Layer0": {
+      "count": 1,
+      "bbox": {
+        "w": 22250.4,
+        "d": 16459.2,
+        "h": 0.0
+      }
+    },
+    "MS": {
+      "count": 5,
+      "bbox": {
+        "w": 22250.4,
+        "d": 16459.4,
+        "h": 7349.0
+      }
+    },
+    "Purlins and Girts": {
+      "count": 14,
+      "bbox": {
+        "w": 22250.4,
+        "d": 16863.5,
+        "h": 1537.3
+      }
+    },
+    "Sheeting": {
+      "count": 1,
+      "bbox": {
+        "w": 22350.4,
+        "d": 16883.4,
+        "h": 1648.5
+      }
+    }
+  },
+  "definitions": [
+    {
+      "name": "Group#3",
+      "instances": 8,
+      "dims": {
+        "w": 200.0,
+        "d": 8229.6,
+        "h": 1253.0
+      },
+      "section": [
+        200.0,
+        1253.0
+      ],
+      "length": 8229.6
+    },
+    {
+      "name": "Group#2",
+      "instances": 8,
+      "dims": {
+        "w": 200.0,
+        "d": 430.0,
+        "h": 6096.0
+      },
+      "section": [
+        200.0,
+        430.0
+      ],
+      "length": 6096.0
+    },
+    {
+      "name": "Group#7",
+      "instances": 7,
+      "dims": {
+        "w": 52730.4,
+        "d": 145.2,
+        "h": 202.0
+      },
+      "section": [
+        145.2,
+        202.0
+      ],
+      "length": 52730.4
+    },
+    {
+      "name": "Group#6",
+      "instances": 5,
+      "dims": {
+        "w": 52730.4,
+        "d": 145.2,
+        "h": 202.0
+      },
+      "section": [
+        145.2,
+        202.0
+      ],
+      "length": 52730.4
+    },
+    {
+      "name": "Group#8",
+      "instances": 3,
+      "dims": {
+        "w": 200.0,
+        "d": 16459.2,
+        "h": 7349.0
+      },
+      "section": [
+        200.0,
+        7349.0
+      ],
+      "length": 16459.2
+    },
+    {
+      "name": "Group#5",
+      "instances": 2,
+      "dims": {
+        "w": 52730.4,
+        "d": 145.2,
+        "h": 202.0
+      },
+      "section": [
+        145.2,
+        202.0
+      ],
+      "length": 52730.4
+    },
+    {
+      "name": "Group#4",
+      "instances": 1,
+      "dims": {
+        "w": 200.0,
+        "d": 16459.2,
+        "h": 7349.0
+      },
+      "section": [
+        200.0,
+        7349.0
+      ],
+      "length": 16459.2
+    },
+    {
+      "name": "Group#1",
+      "instances": 1,
+      "dims": {
+        "w": 22250.4,
+        "d": 16459.2,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        16459.2
+      ],
+      "length": 22250.4
+    },
+    {
+      "name": "Group#9",
+      "instances": 1,
+      "dims": {
+        "w": 52948.9,
+        "d": 16883.4,
+        "h": 1648.5
+      },
+      "section": [
+        1648.5,
+        16883.4
+      ],
+      "length": 52948.9
+    },
+    {
+      "name": "12 x 10 - Classic Split Sliding Door",
+      "instances": 0,
+      "dims": {
+        "w": 8774.2,
+        "d": 127.0,
+        "h": 3337.5
+      },
+      "section": [
+        127.0,
+        3337.5
+      ],
+      "length": 8774.2
+    },
+    {
+      "name": "Elbow Connector PVC",
+      "instances": 0,
+      "dims": {
+        "w": 530.2,
+        "d": 41.2,
+        "h": 71.9
+      },
+      "section": [
+        41.2,
+        71.9
+      ],
+      "length": 530.2
+    },
+    {
+      "name": "Group#51",
+      "instances": 0,
+      "dims": {
+        "w": 8774.2,
+        "d": 127.0,
+        "h": 3337.5
+      },
+      "section": [
+        127.0,
+        3337.5
+      ],
+      "length": 8774.2
+    },
+    {
+      "name": "1\" PVC 90 Degree Elbow Fitting Connector",
+      "instances": 0,
+      "dims": {
+        "w": 530.2,
+        "d": 41.2,
+        "h": 71.9
+      },
+      "section": [
+        41.2,
+        71.9
+      ],
+      "length": 530.2
+    },
+    {
+      "name": "Group#52",
+      "instances": 0,
+      "dims": {
+        "w": 1828.8,
+        "d": 50.8,
+        "h": 3048.0
+      },
+      "section": [
+        50.8,
+        1828.8
+      ],
+      "length": 3048.0
+    },
+    {
+      "name": "Group#46",
+      "instances": 0,
+      "dims": {
+        "w": 7143.8,
+        "d": 127.0,
+        "h": 203.2
+      },
+      "section": [
+        127.0,
+        203.2
+      ],
+      "length": 7143.8
+    },
+    {
+      "name": "Component#3",
+      "instances": 0,
+      "dims": {
+        "w": 47.4,
+        "d": 0.0,
+        "h": 47.4
+      },
+      "section": [
+        0.0,
+        47.4
+      ],
+      "length": 47.4
+    },
+    {
+      "name": "Laura",
+      "instances": 0,
+      "dims": {
+        "w": 613.0,
+        "d": 0.0,
+        "h": 1702.4
+      },
+      "section": [
+        0.0,
+        613.0
+      ],
+      "length": 1702.4
+    },
+    {
+      "name": "Group#70",
+      "instances": 0,
+      "dims": {
+        "w": 115.0,
+        "d": 115.0,
+        "h": 115.1
+      },
+      "section": [
+        115.0,
+        115.0
+      ],
+      "length": 115.1
+    }
+  ]
+}

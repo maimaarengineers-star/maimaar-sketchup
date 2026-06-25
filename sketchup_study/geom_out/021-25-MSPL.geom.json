@@ -1,0 +1,225 @@
+{
+  "title": "021-25-MSPL",
+  "path": "E:\\Maimaar Steel Pvt Ltd\\Proposals\\2025\\021-25-MSPL_Interloop Limited_Extension of PD Sampling Building at Hoisery Division-3_Lahore\\Rev-00\\3D\\021-25-MSPL.skp",
+  "bbox": {
+    "w": 15986.3,
+    "d": 177824.4,
+    "h": 6045.7
+  },
+  "units": 2,
+  "layers": [
+    "Layer0",
+    "SHEETING ",
+    "PURLIN",
+    "MS",
+    "Gutters"
+  ],
+  "scenes": [
+    "Scene 1",
+    "Scene 2",
+    "Scene 3",
+    "Scene 4",
+    "Scene 5",
+    "Scene 6",
+    "Scene 7",
+    "Scene 8"
+  ],
+  "tags": {
+    "Layer0": {
+      "count": 93,
+      "bbox": {
+        "w": 15590.0,
+        "d": 177784.0,
+        "h": 4500.0
+      }
+    },
+    "MS": {
+      "count": 78,
+      "bbox": {
+        "w": 15590.0,
+        "d": 177635.0,
+        "h": 1179.5
+      }
+    },
+    "PURLIN": {
+      "count": 12,
+      "bbox": {
+        "w": 15431.2,
+        "d": 177635.0,
+        "h": 950.4
+      }
+    },
+    "SHEETING ": {
+      "count": 1,
+      "bbox": {
+        "w": 15630.0,
+        "d": 177824.0,
+        "h": 1545.7
+      }
+    },
+    "Gutters": {
+      "count": 2,
+      "bbox": {
+        "w": 15986.3,
+        "d": 177824.4,
+        "h": 5119.8
+      }
+    }
+  },
+  "definitions": [
+    {
+      "name": "Group#8",
+      "instances": 85,
+      "dims": {
+        "w": 600.0,
+        "d": 600.0,
+        "h": 4500.0
+      },
+      "section": [
+        600.0,
+        600.0
+      ],
+      "length": 4500.0
+    },
+    {
+      "name": "Group#57",
+      "instances": 78,
+      "dims": {
+        "w": 100.0,
+        "d": 152.1,
+        "h": 16777.6
+      },
+      "section": [
+        100.0,
+        152.1
+      ],
+      "length": 16777.6
+    },
+    {
+      "name": "Group#7",
+      "instances": 78,
+      "dims": {
+        "w": 7795.0,
+        "d": 152.0,
+        "h": 1179.5
+      },
+      "section": [
+        152.0,
+        1179.5
+      ],
+      "length": 7795.0
+    },
+    {
+      "name": "Group#6",
+      "instances": 12,
+      "dims": {
+        "w": 145.2,
+        "d": 177635.0,
+        "h": 202.0
+      },
+      "section": [
+        145.2,
+        202.0
+      ],
+      "length": 177635.0
+    },
+    {
+      "name": "Group#49",
+      "instances": 2,
+      "dims": {
+        "w": 137839.8,
+        "d": 185.4,
+        "h": 235.4
+      },
+      "section": [
+        185.4,
+        235.4
+      ],
+      "length": 137839.8
+    },
+    {
+      "name": "Group#3",
+      "instances": 2,
+      "dims": {
+        "w": 14390.0,
+        "d": 450.0,
+        "h": 450.0
+      },
+      "section": [
+        450.0,
+        450.0
+      ],
+      "length": 14390.0
+    },
+    {
+      "name": "Group#48",
+      "instances": 2,
+      "dims": {
+        "w": 178.1,
+        "d": 177824.0,
+        "h": 4233.5
+      },
+      "section": [
+        178.1,
+        4233.5
+      ],
+      "length": 177824.0
+    },
+    {
+      "name": "Group#1",
+      "instances": 1,
+      "dims": {
+        "w": 15590.0,
+        "d": 177784.0,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        15590.0
+      ],
+      "length": 177784.0
+    },
+    {
+      "name": "Group#5",
+      "instances": 1,
+      "dims": {
+        "w": 15630.0,
+        "d": 177824.0,
+        "h": 1545.7
+      },
+      "section": [
+        1545.7,
+        15630.0
+      ],
+      "length": 177824.0
+    },
+    {
+      "name": "Group#2",
+      "instances": 1,
+      "dims": {
+        "w": 600.0,
+        "d": 600.0,
+        "h": 4500.0
+      },
+      "section": [
+        600.0,
+        600.0
+      ],
+      "length": 4500.0
+    },
+    {
+      "name": "Sumele",
+      "instances": 0,
+      "dims": {
+        "w": 594.0,
+        "d": 0.0,
+        "h": 1649.7
+      },
+      "section": [
+        0.0,
+        594.0
+      ],
+      "length": 1649.7
+    }
+  ]
+}

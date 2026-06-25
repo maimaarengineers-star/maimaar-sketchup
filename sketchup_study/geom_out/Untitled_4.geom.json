@@ -1,0 +1,84 @@
+{
+  "title": "Untitled",
+  "path": "E:\\Maimaar Steel Pvt Ltd\\Proposals\\2019\\004-19-MSPL_Usman Sahab_23k Gulberg\\Rev-03\\3D Views\\Untitled.skp",
+  "bbox": {
+    "w": 13600.3,
+    "d": 19105.0,
+    "h": 3191.0
+  },
+  "units": 2,
+  "layers": [
+    "Layer0"
+  ],
+  "scenes": [
+
+  ],
+  "tags": {
+    "Layer0": {
+      "count": 545,
+      "bbox": {
+        "w": 13600.3,
+        "d": 19105.0,
+        "h": 3191.0
+      }
+    }
+  },
+  "definitions": [
+    {
+      "name": "Group#1",
+      "instances": 2,
+      "dims": {
+        "w": 1570.0,
+        "d": 150.0,
+        "h": 247.0
+      },
+      "section": [
+        150.0,
+        247.0
+      ],
+      "length": 1570.0
+    },
+    {
+      "name": "Group#2",
+      "instances": 1,
+      "dims": {
+        "w": 120.4,
+        "d": 5715.0,
+        "h": 198.8
+      },
+      "section": [
+        120.4,
+        198.8
+      ],
+      "length": 5715.0
+    },
+    {
+      "name": "Group#3",
+      "instances": 1,
+      "dims": {
+        "w": 120.4,
+        "d": 5784.0,
+        "h": 198.8
+      },
+      "section": [
+        120.4,
+        198.8
+      ],
+      "length": 5784.0
+    },
+    {
+      "name": "Chris",
+      "instances": 0,
+      "dims": {
+        "w": 579.2,
+        "d": 0.0,
+        "h": 1765.2
+      },
+      "section": [
+        0.0,
+        579.2
+      ],
+      "length": 1765.2
+    }
+  ]
+}

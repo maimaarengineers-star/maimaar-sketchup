@@ -1,0 +1,2411 @@
+{
+  "title": "Bullehshah",
+  "path": "E:\\Maimaar Steel Pvt Ltd\\Proposals\\2022\\189-22-MSPL_Bullehshah Packaging Pvt Ltd_Kasur\\Rev-00\\3D Drawings\\Bullehshah.skp",
+  "bbox": {
+    "w": 59550.0,
+    "d": 22660.3,
+    "h": 16942.1
+  },
+  "units": 2,
+  "layers": [
+    "Layer0",
+    "Frame",
+    "Area",
+    "CRANE BEAM ",
+    "L CLIP",
+    "Crane",
+    "Brick Wall",
+    "PURLINS",
+    "gIRTS",
+    "Sheet",
+    "Brackets",
+    "Gutter"
+  ],
+  "scenes": [
+    "Scene 1",
+    "Scene 2",
+    "Scene 3",
+    "Scene 4",
+    "Scene 5",
+    "Scene 6",
+    "Scene 7",
+    "Scene 8",
+    "Scene 9",
+    "Scene 10",
+    "Scene 11"
+  ],
+  "tags": {
+    "Brick Wall": {
+      "count": 9,
+      "bbox": {
+        "w": 59500.0,
+        "d": 22400.0,
+        "h": 4000.0
+      }
+    },
+    "Frame": {
+      "count": 1,
+      "bbox": {
+        "w": 59500.0,
+        "d": 22000.0,
+        "h": 16700.0
+      }
+    },
+    "CRANE BEAM ": {
+      "count": 4,
+      "bbox": {
+        "w": 59500.0,
+        "d": 19155.3,
+        "h": 550.1
+      }
+    },
+    "L CLIP": {
+      "count": 20,
+      "bbox": {
+        "w": 59500.4,
+        "d": 21000.0,
+        "h": 138.1
+      }
+    },
+    "Crane": {
+      "count": 1,
+      "bbox": {
+        "w": 3129.5,
+        "d": 20016.4,
+        "h": 3845.4
+      }
+    },
+    "PURLINS": {
+      "count": 16,
+      "bbox": {
+        "w": 59500.0,
+        "d": 22017.6,
+        "h": 2125.7
+      }
+    },
+    "gIRTS": {
+      "count": 33,
+      "bbox": {
+        "w": 59500.0,
+        "d": 22401.5,
+        "h": 11838.0
+      }
+    },
+    "Sheet": {
+      "count": 1,
+      "bbox": {
+        "w": 59550.0,
+        "d": 22474.9,
+        "h": 12942.1
+      }
+    },
+    "Brackets": {
+      "count": 1,
+      "bbox": {
+        "w": 59500.0,
+        "d": 20999.6,
+        "h": 801.0
+      }
+    },
+    "Gutter": {
+      "count": 1,
+      "bbox": {
+        "w": 59550.0,
+        "d": 185.4,
+        "h": 14899.0
+      }
+    },
+    "Area": {
+      "count": 1,
+      "bbox": {
+        "w": 59100.0,
+        "d": 22000.0,
+        "h": 0.0
+      }
+    }
+  },
+  "definitions": [
+    {
+      "name": "Chain part",
+      "instances": 128,
+      "dims": {
+        "w": 63.6,
+        "d": 38.1,
+        "h": 12.7
+      },
+      "section": [
+        12.7,
+        38.1
+      ],
+      "length": 63.6
+    },
+    {
+      "name": "Two chain parts",
+      "instances": 64,
+      "dims": {
+        "w": 101.5,
+        "d": 38.1,
+        "h": 38.1
+      },
+      "section": [
+        38.1,
+        38.1
+      ],
+      "length": 101.5
+    },
+    {
+      "name": "Group#45",
+      "instances": 16,
+      "dims": {
+        "w": 21008.0,
+        "d": 138.0,
+        "h": 201.5
+      },
+      "section": [
+        138.0,
+        201.5
+      ],
+      "length": 21008.0
+    },
+    {
+      "name": "Group#19",
+      "instances": 15,
+      "dims": {
+        "w": 59500.0,
+        "d": 138.0,
+        "h": 201.5
+      },
+      "section": [
+        138.0,
+        201.5
+      ],
+      "length": 59500.0
+    },
+    {
+      "name": "Group#55",
+      "instances": 15,
+      "dims": {
+        "w": 59500.0,
+        "d": 138.0,
+        "h": 201.5
+      },
+      "section": [
+        138.0,
+        201.5
+      ],
+      "length": 59500.0
+    },
+    {
+      "name": "Group#57",
+      "instances": 10,
+      "dims": {
+        "w": 100.0,
+        "d": 131.1,
+        "h": 14663.7
+      },
+      "section": [
+        100.0,
+        131.1
+      ],
+      "length": 14663.7
+    },
+    {
+      "name": "Group#3",
+      "instances": 8,
+      "dims": {
+        "w": 500.0,
+        "d": 800.0,
+        "h": 13975.0
+      },
+      "section": [
+        500.0,
+        800.0
+      ],
+      "length": 13975.0
+    },
+    {
+      "name": "Group#6",
+      "instances": 8,
+      "dims": {
+        "w": 500.0,
+        "d": 7244.4,
+        "h": 1441.7
+      },
+      "section": [
+        500.0,
+        1441.7
+      ],
+      "length": 7244.4
+    },
+    {
+      "name": "Group#15",
+      "instances": 8,
+      "dims": {
+        "w": 488.1,
+        "d": 200.0,
+        "h": 500.2
+      },
+      "section": [
+        200.0,
+        488.1
+      ],
+      "length": 500.2
+    },
+    {
+      "name": "Group#2",
+      "instances": 8,
+      "dims": {
+        "w": 500.0,
+        "d": 800.0,
+        "h": 15900.0
+      },
+      "section": [
+        500.0,
+        800.0
+      ],
+      "length": 15900.0
+    },
+    {
+      "name": "Group#18",
+      "instances": 8,
+      "dims": {
+        "w": 195.7,
+        "d": 200.0,
+        "h": 108.0
+      },
+      "section": [
+        108.0,
+        195.7
+      ],
+      "length": 200.0
+    },
+    {
+      "name": "Group#5",
+      "instances": 8,
+      "dims": {
+        "w": 500.0,
+        "d": 7244.4,
+        "h": 1139.7
+      },
+      "section": [
+        500.0,
+        1139.7
+      ],
+      "length": 7244.4
+    },
+    {
+      "name": "Group#4",
+      "instances": 8,
+      "dims": {
+        "w": 500.0,
+        "d": 7200.0,
+        "h": 1139.7
+      },
+      "section": [
+        500.0,
+        1139.7
+      ],
+      "length": 7200.0
+    },
+    {
+      "name": "Group#41",
+      "instances": 8,
+      "dims": {
+        "w": 477.4,
+        "d": 200.0,
+        "h": 500.2
+      },
+      "section": [
+        200.0,
+        477.4
+      ],
+      "length": 500.2
+    },
+    {
+      "name": "Group#21",
+      "instances": 8,
+      "dims": {
+        "w": 223.5,
+        "d": 200.0,
+        "h": 108.0
+      },
+      "section": [
+        108.0,
+        200.0
+      ],
+      "length": 223.5
+    },
+    {
+      "name": "Group#29",
+      "instances": 7,
+      "dims": {
+        "w": 500.0,
+        "d": 21600.0,
+        "h": 16700.0
+      },
+      "section": [
+        500.0,
+        16700.0
+      ],
+      "length": 21600.0
+    },
+    {
+      "name": "Component",
+      "instances": 4,
+      "dims": {
+        "w": 1211.5,
+        "d": 38.1,
+        "h": 38.1
+      },
+      "section": [
+        38.1,
+        38.1
+      ],
+      "length": 1211.5
+    },
+    {
+      "name": "Group#219",
+      "instances": 4,
+      "dims": {
+        "w": 215.9,
+        "d": 409.6,
+        "h": 409.6
+      },
+      "section": [
+        215.9,
+        409.6
+      ],
+      "length": 409.6
+    },
+    {
+      "name": "Group#16",
+      "instances": 3,
+      "dims": {
+        "w": 462.3,
+        "d": 200.0,
+        "h": 500.4
+      },
+      "section": [
+        200.0,
+        462.3
+      ],
+      "length": 500.4
+    },
+    {
+      "name": "Group#23",
+      "instances": 2,
+      "dims": {
+        "w": 463.7,
+        "d": 200.0,
+        "h": 108.0
+      },
+      "section": [
+        108.0,
+        200.0
+      ],
+      "length": 463.7
+    },
+    {
+      "name": "Group#22",
+      "instances": 2,
+      "dims": {
+        "w": 494.4,
+        "d": 200.0,
+        "h": 108.0
+      },
+      "section": [
+        108.0,
+        200.0
+      ],
+      "length": 494.4
+    },
+    {
+      "name": "Group#17",
+      "instances": 2,
+      "dims": {
+        "w": 200.0,
+        "d": 59500.0,
+        "h": 361.2
+      },
+      "section": [
+        200.0,
+        361.2
+      ],
+      "length": 59500.0
+    },
+    {
+      "name": "Group#8",
+      "instances": 2,
+      "dims": {
+        "w": 500.0,
+        "d": 500.0,
+        "h": 16200.0
+      },
+      "section": [
+        500.0,
+        500.0
+      ],
+      "length": 16200.0
+    },
+    {
+      "name": "Group#9",
+      "instances": 2,
+      "dims": {
+        "w": 500.5,
+        "d": 500.0,
+        "h": 14756.3
+      },
+      "section": [
+        500.0,
+        500.5
+      ],
+      "length": 14756.3
+    },
+    {
+      "name": "Group#10",
+      "instances": 2,
+      "dims": {
+        "w": 500.0,
+        "d": 7378.1,
+        "h": 1141.7
+      },
+      "section": [
+        500.0,
+        1141.7
+      ],
+      "length": 7378.1
+    },
+    {
+      "name": "Group#39",
+      "instances": 2,
+      "dims": {
+        "w": 5986.5,
+        "d": 34.9,
+        "h": 34.9
+      },
+      "section": [
+        34.9,
+        34.9
+      ],
+      "length": 5986.5
+    },
+    {
+      "name": "Group#12",
+      "instances": 2,
+      "dims": {
+        "w": 500.0,
+        "d": 7333.3,
+        "h": 1122.5
+      },
+      "section": [
+        500.0,
+        1122.5
+      ],
+      "length": 7333.3
+    },
+    {
+      "name": "Group#42",
+      "instances": 2,
+      "dims": {
+        "w": 500.0,
+        "d": 500.0,
+        "h": 14275.0
+      },
+      "section": [
+        500.0,
+        500.0
+      ],
+      "length": 14275.0
+    },
+    {
+      "name": "Group#43",
+      "instances": 2,
+      "dims": {
+        "w": 500.3,
+        "d": 500.0,
+        "h": 15259.7
+      },
+      "section": [
+        500.0,
+        500.3
+      ],
+      "length": 15259.7
+    },
+    {
+      "name": "Group#44",
+      "instances": 2,
+      "dims": {
+        "w": 500.0,
+        "d": 500.0,
+        "h": 15780.1
+      },
+      "section": [
+        500.0,
+        500.0
+      ],
+      "length": 15780.1
+    },
+    {
+      "name": "Group#113",
+      "instances": 2,
+      "dims": {
+        "w": 95.3,
+        "d": 154.0,
+        "h": 177.9
+      },
+      "section": [
+        95.3,
+        154.0
+      ],
+      "length": 177.9
+    },
+    {
+      "name": "Group#109",
+      "instances": 2,
+      "dims": {
+        "w": 139.7,
+        "d": 38.1,
+        "h": 1211.5
+      },
+      "section": [
+        38.1,
+        139.7
+      ],
+      "length": 1211.5
+    },
+    {
+      "name": "Group#13",
+      "instances": 2,
+      "dims": {
+        "w": 500.0,
+        "d": 22000.0,
+        "h": 16700.0
+      },
+      "section": [
+        500.0,
+        16700.0
+      ],
+      "length": 22000.0
+    },
+    {
+      "name": "Group#11",
+      "instances": 2,
+      "dims": {
+        "w": 500.0,
+        "d": 7375.4,
+        "h": 1152.8
+      },
+      "section": [
+        500.0,
+        1152.8
+      ],
+      "length": 7375.4
+    },
+    {
+      "name": "Group#50",
+      "instances": 2,
+      "dims": {
+        "w": 59500.0,
+        "d": 138.0,
+        "h": 201.5
+      },
+      "section": [
+        138.0,
+        201.5
+      ],
+      "length": 59500.0
+    },
+    {
+      "name": "Group#35",
+      "instances": 1,
+      "dims": {
+        "w": 57.2,
+        "d": 1365.4,
+        "h": 57.2
+      },
+      "section": [
+        57.2,
+        57.2
+      ],
+      "length": 1365.4
+    },
+    {
+      "name": "Group#36",
+      "instances": 1,
+      "dims": {
+        "w": 57.2,
+        "d": 1365.4,
+        "h": 57.2
+      },
+      "section": [
+        57.2,
+        57.2
+      ],
+      "length": 1365.4
+    },
+    {
+      "name": "Group#37",
+      "instances": 1,
+      "dims": {
+        "w": 57.2,
+        "d": 1365.4,
+        "h": 57.2
+      },
+      "section": [
+        57.2,
+        57.2
+      ],
+      "length": 1365.4
+    },
+    {
+      "name": "Group#33",
+      "instances": 1,
+      "dims": {
+        "w": 57.2,
+        "d": 1365.4,
+        "h": 57.2
+      },
+      "section": [
+        57.2,
+        57.2
+      ],
+      "length": 1365.4
+    },
+    {
+      "name": "Group#238",
+      "instances": 1,
+      "dims": {
+        "w": 3129.5,
+        "d": 7340.4,
+        "h": 3845.4
+      },
+      "section": [
+        3129.5,
+        3845.4
+      ],
+      "length": 7340.4
+    },
+    {
+      "name": "Group#32",
+      "instances": 1,
+      "dims": {
+        "w": 462.3,
+        "d": 200.0,
+        "h": 500.4
+      },
+      "section": [
+        200.0,
+        462.3
+      ],
+      "length": 500.4
+    },
+    {
+      "name": "Group#237",
+      "instances": 1,
+      "dims": {
+        "w": 7340.4,
+        "d": 3129.5,
+        "h": 865.5
+      },
+      "section": [
+        865.5,
+        3129.5
+      ],
+      "length": 7340.4
+    },
+    {
+      "name": "Group#234",
+      "instances": 1,
+      "dims": {
+        "w": 490.5,
+        "d": 298.4,
+        "h": 3068.3
+      },
+      "section": [
+        298.4,
+        490.5
+      ],
+      "length": 3068.3
+    },
+    {
+      "name": "Group#56",
+      "instances": 1,
+      "dims": {
+        "w": 59550.0,
+        "d": 185.4,
+        "h": 235.4
+      },
+      "section": [
+        185.4,
+        235.4
+      ],
+      "length": 59550.0
+    },
+    {
+      "name": "Group#233",
+      "instances": 1,
+      "dims": {
+        "w": 7496.2,
+        "d": 479.4,
+        "h": 787.4
+      },
+      "section": [
+        479.4,
+        787.4
+      ],
+      "length": 7496.2
+    },
+    {
+      "name": "Group#232",
+      "instances": 1,
+      "dims": {
+        "w": 7202.5,
+        "d": 2938.5,
+        "h": 409.6
+      },
+      "section": [
+        409.6,
+        2938.5
+      ],
+      "length": 7202.5
+    },
+    {
+      "name": "Group#231",
+      "instances": 1,
+      "dims": {
+        "w": 5986.5,
+        "d": 2978.1,
+        "h": 762.0
+      },
+      "section": [
+        762.0,
+        2978.1
+      ],
+      "length": 5986.5
+    },
+    {
+      "name": "Group#114",
+      "instances": 1,
+      "dims": {
+        "w": 221.4,
+        "d": 221.4,
+        "h": 582.1
+      },
+      "section": [
+        221.4,
+        221.4
+      ],
+      "length": 582.1
+    },
+    {
+      "name": "Group#51",
+      "instances": 1,
+      "dims": {
+        "w": 59500.0,
+        "d": 22400.0,
+        "h": 4000.0
+      },
+      "section": [
+        4000.0,
+        22400.0
+      ],
+      "length": 59500.0
+    },
+    {
+      "name": "Group#25",
+      "instances": 1,
+      "dims": {
+        "w": 75.0,
+        "d": 59500.0,
+        "h": 100.0
+      },
+      "section": [
+        75.0,
+        100.0
+      ],
+      "length": 59500.0
+    },
+    {
+      "name": "Group#48",
+      "instances": 1,
+      "dims": {
+        "w": 27864.2,
+        "d": 200.0,
+        "h": 4000.0
+      },
+      "section": [
+        200.0,
+        4000.0
+      ],
+      "length": 27864.2
+    },
+    {
+      "name": "Group#49",
+      "instances": 1,
+      "dims": {
+        "w": 25635.8,
+        "d": 200.0,
+        "h": 4000.0
+      },
+      "section": [
+        200.0,
+        4000.0
+      ],
+      "length": 25635.8
+    },
+    {
+      "name": "Group#24",
+      "instances": 1,
+      "dims": {
+        "w": 75.0,
+        "d": 59500.0,
+        "h": 100.0
+      },
+      "section": [
+        75.0,
+        100.0
+      ],
+      "length": 59500.0
+    },
+    {
+      "name": "Group#14",
+      "instances": 1,
+      "dims": {
+        "w": 59500.0,
+        "d": 22000.0,
+        "h": 16700.0
+      },
+      "section": [
+        16700.0,
+        22000.0
+      ],
+      "length": 59500.0
+    },
+    {
+      "name": "Group#1",
+      "instances": 1,
+      "dims": {
+        "w": 59500.0,
+        "d": 138.0,
+        "h": 201.5
+      },
+      "section": [
+        138.0,
+        201.5
+      ],
+      "length": 59500.0
+    },
+    {
+      "name": "Group#111",
+      "instances": 1,
+      "dims": {
+        "w": 207.6,
+        "d": 509.5,
+        "h": 96.1
+      },
+      "section": [
+        96.1,
+        207.6
+      ],
+      "length": 509.5
+    },
+    {
+      "name": "Group#20",
+      "instances": 1,
+      "dims": {
+        "w": 59550.0,
+        "d": 22474.9,
+        "h": 12942.1
+      },
+      "section": [
+        12942.1,
+        22474.9
+      ],
+      "length": 59550.0
+    },
+    {
+      "name": "Group#46",
+      "instances": 1,
+      "dims": {
+        "w": 59500.0,
+        "d": 20999.6,
+        "h": 801.0
+      },
+      "section": [
+        801.0,
+        20999.6
+      ],
+      "length": 59500.0
+    },
+    {
+      "name": "Group#47",
+      "instances": 1,
+      "dims": {
+        "w": 59550.0,
+        "d": 185.4,
+        "h": 14899.0
+      },
+      "section": [
+        185.4,
+        14899.0
+      ],
+      "length": 59550.0
+    },
+    {
+      "name": "Group#40",
+      "instances": 1,
+      "dims": {
+        "w": 221.4,
+        "d": 221.4,
+        "h": 582.1
+      },
+      "section": [
+        221.4,
+        221.4
+      ],
+      "length": 582.1
+    },
+    {
+      "name": "Group#110",
+      "instances": 1,
+      "dims": {
+        "w": 490.5,
+        "d": 298.4,
+        "h": 163.5
+      },
+      "section": [
+        163.5,
+        298.4
+      ],
+      "length": 490.5
+    },
+    {
+      "name": "Group#38",
+      "instances": 1,
+      "dims": {
+        "w": 882.7,
+        "d": 227.2,
+        "h": 479.4
+      },
+      "section": [
+        227.2,
+        479.4
+      ],
+      "length": 882.7
+    },
+    {
+      "name": "Group#34",
+      "instances": 1,
+      "dims": {
+        "w": 5630.2,
+        "d": 2890.2,
+        "h": 736.6
+      },
+      "section": [
+        736.6,
+        2890.2
+      ],
+      "length": 5630.2
+    },
+    {
+      "name": "Group#7",
+      "instances": 1,
+      "dims": {
+        "w": 500.0,
+        "d": 21600.0,
+        "h": 16700.0
+      },
+      "section": [
+        500.0,
+        16700.0
+      ],
+      "length": 21600.0
+    },
+    {
+      "name": "Group#31",
+      "instances": 0,
+      "dims": {
+        "w": 2115.9,
+        "d": 422.9,
+        "h": 2766.4
+      },
+      "section": [
+        422.9,
+        2115.9
+      ],
+      "length": 2766.4
+    },
+    {
+      "name": "Группа#2",
+      "instances": 0,
+      "dims": {
+        "w": 15206.4,
+        "d": 2810.6,
+        "h": 5140.8
+      },
+      "section": [
+        2810.6,
+        5140.8
+      ],
+      "length": 15206.4
+    },
+    {
+      "name": "Группа#3",
+      "instances": 0,
+      "dims": {
+        "w": 15206.4,
+        "d": 2810.6,
+        "h": 6464.8
+      },
+      "section": [
+        2810.6,
+        6464.8
+      ],
+      "length": 15206.4
+    },
+    {
+      "name": "Group#30",
+      "instances": 0,
+      "dims": {
+        "w": 2369.0,
+        "d": 2201.6,
+        "h": 2766.4
+      },
+      "section": [
+        2201.6,
+        2369.0
+      ],
+      "length": 2766.4
+    },
+    {
+      "name": "Group#121",
+      "instances": 0,
+      "dims": {
+        "w": 2115.9,
+        "d": 422.9,
+        "h": 2766.4
+      },
+      "section": [
+        422.9,
+        2115.9
+      ],
+      "length": 2766.4
+    },
+    {
+      "name": "Группа#1",
+      "instances": 0,
+      "dims": {
+        "w": 15206.4,
+        "d": 2810.6,
+        "h": 5140.8
+      },
+      "section": [
+        2810.6,
+        5140.8
+      ],
+      "length": 15206.4
+    },
+    {
+      "name": "Group#83",
+      "instances": 0,
+      "dims": {
+        "w": 3043.1,
+        "d": 1029.8,
+        "h": 7177.0
+      },
+      "section": [
+        1029.8,
+        3043.1
+      ],
+      "length": 7177.0
+    },
+    {
+      "name": "Group#106",
+      "instances": 0,
+      "dims": {
+        "w": 2115.9,
+        "d": 2201.6,
+        "h": 2766.4
+      },
+      "section": [
+        2115.9,
+        2201.6
+      ],
+      "length": 2766.4
+    },
+    {
+      "name": "Группа#4",
+      "instances": 0,
+      "dims": {
+        "w": 47879.0,
+        "d": 836.4,
+        "h": 1649.8
+      },
+      "section": [
+        836.4,
+        1649.8
+      ],
+      "length": 47879.0
+    },
+    {
+      "name": "Группа#5",
+      "instances": 0,
+      "dims": {
+        "w": 47879.0,
+        "d": 422.2,
+        "h": 1649.8
+      },
+      "section": [
+        422.2,
+        1649.8
+      ],
+      "length": 47879.0
+    },
+    {
+      "name": "assembley-half",
+      "instances": 0,
+      "dims": {
+        "w": 3041.0,
+        "d": 1265.6,
+        "h": 926.6
+      },
+      "section": [
+        926.6,
+        1265.6
+      ],
+      "length": 3041.0
+    },
+    {
+      "name": "wheel",
+      "instances": 0,
+      "dims": {
+        "w": 870.0,
+        "d": 432.4,
+        "h": 870.0
+      },
+      "section": [
+        432.4,
+        870.0
+      ],
+      "length": 870.0
+    },
+    {
+      "name": "Group#472",
+      "instances": 0,
+      "dims": {
+        "w": 77.5,
+        "d": 36.8,
+        "h": 143.1
+      },
+      "section": [
+        36.8,
+        77.5
+      ],
+      "length": 143.1
+    },
+    {
+      "name": "Group#471",
+      "instances": 0,
+      "dims": {
+        "w": 705.4,
+        "d": 528.3,
+        "h": 4554.3
+      },
+      "section": [
+        528.3,
+        705.4
+      ],
+      "length": 4554.3
+    },
+    {
+      "name": "Group#469",
+      "instances": 0,
+      "dims": {
+        "w": 1661.7,
+        "d": 76.7,
+        "h": 1167.0
+      },
+      "section": [
+        76.7,
+        1167.0
+      ],
+      "length": 1661.7
+    },
+    {
+      "name": "hydralic arm_side holder",
+      "instances": 0,
+      "dims": {
+        "w": 695.6,
+        "d": 842.4,
+        "h": 2326.0
+      },
+      "section": [
+        695.6,
+        842.4
+      ],
+      "length": 2326.0
+    },
+    {
+      "name": "Group#485",
+      "instances": 0,
+      "dims": {
+        "w": 692.7,
+        "d": 788.9,
+        "h": 270.2
+      },
+      "section": [
+        270.2,
+        692.7
+      ],
+      "length": 788.9
+    },
+    {
+      "name": "latter_side",
+      "instances": 0,
+      "dims": {
+        "w": 80.9,
+        "d": 179.3,
+        "h": 613.1
+      },
+      "section": [
+        80.9,
+        179.3
+      ],
+      "length": 613.1
+    },
+    {
+      "name": "Group#484",
+      "instances": 0,
+      "dims": {
+        "w": 2279.0,
+        "d": 497.1,
+        "h": 125.0
+      },
+      "section": [
+        125.0,
+        497.1
+      ],
+      "length": 2279.0
+    },
+    {
+      "name": "Group#482",
+      "instances": 0,
+      "dims": {
+        "w": 1187.6,
+        "d": 67.9,
+        "h": 1976.1
+      },
+      "section": [
+        67.9,
+        1187.6
+      ],
+      "length": 1976.1
+    },
+    {
+      "name": "Group#483",
+      "instances": 0,
+      "dims": {
+        "w": 821.7,
+        "d": 4952.4,
+        "h": 855.3
+      },
+      "section": [
+        821.7,
+        855.3
+      ],
+      "length": 4952.4
+    },
+    {
+      "name": "wire_wheel_roller_2_33k",
+      "instances": 0,
+      "dims": {
+        "w": 746.3,
+        "d": 673.1,
+        "h": 599.8
+      },
+      "section": [
+        599.8,
+        673.1
+      ],
+      "length": 746.3
+    },
+    {
+      "name": "Group#473",
+      "instances": 0,
+      "dims": {
+        "w": 228.5,
+        "d": 81.1,
+        "h": 2030.9
+      },
+      "section": [
+        81.1,
+        228.5
+      ],
+      "length": 2030.9
+    },
+    {
+      "name": "arm_ring_connector",
+      "instances": 0,
+      "dims": {
+        "w": 456.7,
+        "d": 118.5,
+        "h": 524.4
+      },
+      "section": [
+        118.5,
+        456.7
+      ],
+      "length": 524.4
+    },
+    {
+      "name": "Group#474",
+      "instances": 0,
+      "dims": {
+        "w": 1842.6,
+        "d": 1469.0,
+        "h": 1241.0
+      },
+      "section": [
+        1241.0,
+        1469.0
+      ],
+      "length": 1842.6
+    },
+    {
+      "name": "wire_wheel_single_cabel_40k",
+      "instances": 0,
+      "dims": {
+        "w": 413.6,
+        "d": 85.6,
+        "h": 413.6
+      },
+      "section": [
+        85.6,
+        413.6
+      ],
+      "length": 413.6
+    },
+    {
+      "name": "Group#475",
+      "instances": 0,
+      "dims": {
+        "w": 836.1,
+        "d": 849.1,
+        "h": 342.0
+      },
+      "section": [
+        342.0,
+        836.1
+      ],
+      "length": 849.1
+    },
+    {
+      "name": "Group#476",
+      "instances": 0,
+      "dims": {
+        "w": 3293.8,
+        "d": 697.3,
+        "h": 375.9
+      },
+      "section": [
+        375.9,
+        697.3
+      ],
+      "length": 3293.8
+    },
+    {
+      "name": "model name sign",
+      "instances": 0,
+      "dims": {
+        "w": 512.6,
+        "d": 0.0,
+        "h": 262.0
+      },
+      "section": [
+        0.0,
+        262.0
+      ],
+      "length": 512.6
+    },
+    {
+      "name": "arm_ring_connector_2",
+      "instances": 0,
+      "dims": {
+        "w": 192.4,
+        "d": 755.8,
+        "h": 309.7
+      },
+      "section": [
+        192.4,
+        309.7
+      ],
+      "length": 755.8
+    },
+    {
+      "name": "electric_cabel",
+      "instances": 0,
+      "dims": {
+        "w": 287.0,
+        "d": 13.0,
+        "h": 1179.3
+      },
+      "section": [
+        13.0,
+        287.0
+      ],
+      "length": 1179.3
+    },
+    {
+      "name": "latter_step",
+      "instances": 0,
+      "dims": {
+        "w": 44.2,
+        "d": 42.0,
+        "h": 428.5
+      },
+      "section": [
+        42.0,
+        44.2
+      ],
+      "length": 428.5
+    },
+    {
+      "name": "Group#478",
+      "instances": 0,
+      "dims": {
+        "w": 571.0,
+        "d": 518.6,
+        "h": 830.9
+      },
+      "section": [
+        518.6,
+        571.0
+      ],
+      "length": 830.9
+    },
+    {
+      "name": "Group#477",
+      "instances": 0,
+      "dims": {
+        "w": 93.1,
+        "d": 377.2,
+        "h": 233.1
+      },
+      "section": [
+        93.1,
+        233.1
+      ],
+      "length": 377.2
+    },
+    {
+      "name": "Group#480",
+      "instances": 0,
+      "dims": {
+        "w": 1030.1,
+        "d": 1344.3,
+        "h": 34.7
+      },
+      "section": [
+        34.7,
+        1030.1
+      ],
+      "length": 1344.3
+    },
+    {
+      "name": "Group#479",
+      "instances": 0,
+      "dims": {
+        "w": 49.0,
+        "d": 38.4,
+        "h": 19.4
+      },
+      "section": [
+        19.4,
+        38.4
+      ],
+      "length": 49.0
+    },
+    {
+      "name": "Group#481",
+      "instances": 0,
+      "dims": {
+        "w": 343.1,
+        "d": 389.4,
+        "h": 215.8
+      },
+      "section": [
+        215.8,
+        343.1
+      ],
+      "length": 389.4
+    },
+    {
+      "name": "Group#26",
+      "instances": 0,
+      "dims": {
+        "w": 24.9,
+        "d": 24.9,
+        "h": 24.9
+      },
+      "section": [
+        24.9,
+        24.9
+      ],
+      "length": 24.9
+    },
+    {
+      "name": "Component#3",
+      "instances": 0,
+      "dims": {
+        "w": 47.4,
+        "d": 0.0,
+        "h": 47.4
+      },
+      "section": [
+        0.0,
+        47.4
+      ],
+      "length": 47.4
+    },
+    {
+      "name": "Group#464",
+      "instances": 0,
+      "dims": {
+        "w": 63.6,
+        "d": 63.6,
+        "h": 456.7
+      },
+      "section": [
+        63.6,
+        63.6
+      ],
+      "length": 456.7
+    },
+    {
+      "name": "assembly-side",
+      "instances": 0,
+      "dims": {
+        "w": 3091.0,
+        "d": 1265.6,
+        "h": 1071.6
+      },
+      "section": [
+        1071.6,
+        1265.6
+      ],
+      "length": 3091.0
+    },
+    {
+      "name": "Group#115",
+      "instances": 0,
+      "dims": {
+        "w": 886.7,
+        "d": 7116.9,
+        "h": 621.0
+      },
+      "section": [
+        621.0,
+        886.7
+      ],
+      "length": 7116.9
+    },
+    {
+      "name": "Group#104",
+      "instances": 0,
+      "dims": {
+        "w": 20836.7,
+        "d": 1511.4,
+        "h": 994.8
+      },
+      "section": [
+        994.8,
+        1511.4
+      ],
+      "length": 20836.7
+    },
+    {
+      "name": "Group#119",
+      "instances": 0,
+      "dims": {
+        "w": 3043.1,
+        "d": 1681.5,
+        "h": 7177.0
+      },
+      "section": [
+        1681.5,
+        3043.1
+      ],
+      "length": 7177.0
+    },
+    {
+      "name": "Group#120",
+      "instances": 0,
+      "dims": {
+        "w": 3598.8,
+        "d": 3982.7,
+        "h": 12003.2
+      },
+      "section": [
+        3598.8,
+        3982.7
+      ],
+      "length": 12003.2
+    },
+    {
+      "name": "Group#105",
+      "instances": 0,
+      "dims": {
+        "w": 731.0,
+        "d": 7116.9,
+        "h": 621.0
+      },
+      "section": [
+        621.0,
+        731.0
+      ],
+      "length": 7116.9
+    },
+    {
+      "name": "Group#117",
+      "instances": 0,
+      "dims": {
+        "w": 3598.8,
+        "d": 3982.7,
+        "h": 12061.7
+      },
+      "section": [
+        3598.8,
+        3982.7
+      ],
+      "length": 12061.7
+    },
+    {
+      "name": "Group#27",
+      "instances": 0,
+      "dims": {
+        "w": 3808.5,
+        "d": 4704.3,
+        "h": 12061.7
+      },
+      "section": [
+        3808.5,
+        4704.3
+      ],
+      "length": 12061.7
+    },
+    {
+      "name": "Group#28",
+      "instances": 0,
+      "dims": {
+        "w": 3603.0,
+        "d": 4704.3,
+        "h": 12003.2
+      },
+      "section": [
+        3603.0,
+        4704.3
+      ],
+      "length": 12003.2
+    },
+    {
+      "name": "Group#468",
+      "instances": 0,
+      "dims": {
+        "w": 3210.3,
+        "d": 555.0,
+        "h": 2132.3
+      },
+      "section": [
+        555.0,
+        2132.3
+      ],
+      "length": 3210.3
+    },
+    {
+      "name": "Group#467",
+      "instances": 0,
+      "dims": {
+        "w": 1865.7,
+        "d": 1682.7,
+        "h": 1499.6
+      },
+      "section": [
+        1499.6,
+        1682.7
+      ],
+      "length": 1865.7
+    },
+    {
+      "name": "latter_holder",
+      "instances": 0,
+      "dims": {
+        "w": 190.9,
+        "d": 146.2,
+        "h": 111.5
+      },
+      "section": [
+        111.5,
+        146.2
+      ],
+      "length": 190.9
+    },
+    {
+      "name": "Group#465",
+      "instances": 0,
+      "dims": {
+        "w": 104.5,
+        "d": 99.4,
+        "h": 721.8
+      },
+      "section": [
+        99.4,
+        104.5
+      ],
+      "length": 721.8
+    },
+    {
+      "name": "gantry_arm_end ring",
+      "instances": 0,
+      "dims": {
+        "w": 821.7,
+        "d": 639.8,
+        "h": 42.3
+      },
+      "section": [
+        42.3,
+        639.8
+      ],
+      "length": 821.7
+    },
+    {
+      "name": "arms attacement side",
+      "instances": 0,
+      "dims": {
+        "w": 803.2,
+        "d": 87.7,
+        "h": 645.6
+      },
+      "section": [
+        87.7,
+        645.6
+      ],
+      "length": 803.2
+    },
+    {
+      "name": "Group#466",
+      "instances": 0,
+      "dims": {
+        "w": 77.5,
+        "d": 36.8,
+        "h": 143.1
+      },
+      "section": [
+        36.8,
+        77.5
+      ],
+      "length": 143.1
+    },
+    {
+      "name": "Group#470",
+      "instances": 0,
+      "dims": {
+        "w": 695.6,
+        "d": 782.3,
+        "h": 2384.5
+      },
+      "section": [
+        695.6,
+        782.3
+      ],
+      "length": 2384.5
+    },
+    {
+      "name": "boom_attacment_side",
+      "instances": 0,
+      "dims": {
+        "w": 929.1,
+        "d": 392.8,
+        "h": 1017.9
+      },
+      "section": [
+        392.8,
+        929.1
+      ],
+      "length": 1017.9
+    },
+    {
+      "name": "Группа#6",
+      "instances": 0,
+      "dims": {
+        "w": 13548.6,
+        "d": 0.0,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        0.0
+      ],
+      "length": 13548.6
+    },
+    {
+      "name": "sbl_1100_super_gantry_jack_working",
+      "instances": 0,
+      "dims": {
+        "w": 3658.8,
+        "d": 3955.6,
+        "h": 9027.9
+      },
+      "section": [
+        3658.8,
+        3955.6
+      ],
+      "length": 9027.9
+    },
+    {
+      "name": "container_holder arm",
+      "instances": 0,
+      "dims": {
+        "w": 444.5,
+        "d": 12204.2,
+        "h": 644.7
+      },
+      "section": [
+        444.5,
+        644.7
+      ],
+      "length": 12204.2
+    },
+    {
+      "name": "rail track",
+      "instances": 0,
+      "dims": {
+        "w": 37228.4,
+        "d": 380.5,
+        "h": 367.5
+      },
+      "section": [
+        367.5,
+        380.5
+      ],
+      "length": 37228.4
+    },
+    {
+      "name": "1-1/4\" Pipe",
+      "instances": 0,
+      "dims": {
+        "w": 42.2,
+        "d": 304.8,
+        "h": 42.1
+      },
+      "section": [
+        42.1,
+        42.2
+      ],
+      "length": 304.8
+    },
+    {
+      "name": "1-1/4\" PVC 3-Way Elbow Connector Fitting",
+      "instances": 0,
+      "dims": {
+        "w": 89.5,
+        "d": 89.5,
+        "h": 89.5
+      },
+      "section": [
+        89.5,
+        89.5
+      ],
+      "length": 89.5
+    },
+    {
+      "name": "Component#1",
+      "instances": 0,
+      "dims": {
+        "w": 26516.0,
+        "d": 7826.0,
+        "h": 16132.1
+      },
+      "section": [
+        7826.0,
+        16132.1
+      ],
+      "length": 26516.0
+    },
+    {
+      "name": "Group#112",
+      "instances": 0,
+      "dims": {
+        "w": 490.5,
+        "d": 298.4,
+        "h": 3068.3
+      },
+      "section": [
+        298.4,
+        490.5
+      ],
+      "length": 3068.3
+    },
+    {
+      "name": "Group#107",
+      "instances": 0,
+      "dims": {
+        "w": 3110.0,
+        "d": 1560.0,
+        "h": 1356.0
+      },
+      "section": [
+        1356.0,
+        1560.0
+      ],
+      "length": 3110.0
+    },
+    {
+      "name": "Group#108",
+      "instances": 0,
+      "dims": {
+        "w": 299.7,
+        "d": 1084.0,
+        "h": 299.7
+      },
+      "section": [
+        299.7,
+        299.7
+      ],
+      "length": 1084.0
+    },
+    {
+      "name": "coil-attach1",
+      "instances": 0,
+      "dims": {
+        "w": 263.5,
+        "d": 247.0,
+        "h": 255.1
+      },
+      "section": [
+        247.0,
+        255.1
+      ],
+      "length": 263.5
+    },
+    {
+      "name": "brake",
+      "instances": 0,
+      "dims": {
+        "w": 148.0,
+        "d": 127.5,
+        "h": 710.0
+      },
+      "section": [
+        127.5,
+        148.0
+      ],
+      "length": 710.0
+    },
+    {
+      "name": "coil",
+      "instances": 0,
+      "dims": {
+        "w": 243.2,
+        "d": 243.3,
+        "h": 317.1
+      },
+      "section": [
+        243.2,
+        243.3
+      ],
+      "length": 317.1
+    },
+    {
+      "name": "Group#462",
+      "instances": 0,
+      "dims": {
+        "w": 166.8,
+        "d": 531.2,
+        "h": 1032.4
+      },
+      "section": [
+        166.8,
+        531.2
+      ],
+      "length": 1032.4
+    },
+    {
+      "name": "bolt_pipe",
+      "instances": 0,
+      "dims": {
+        "w": 127.5,
+        "d": 131.6,
+        "h": 17.3
+      },
+      "section": [
+        17.3,
+        127.5
+      ],
+      "length": 131.6
+    },
+    {
+      "name": "bolt_gantry",
+      "instances": 0,
+      "dims": {
+        "w": 45.0,
+        "d": 39.3,
+        "h": 5.4
+      },
+      "section": [
+        5.4,
+        39.3
+      ],
+      "length": 45.0
+    },
+    {
+      "name": "Laura",
+      "instances": 0,
+      "dims": {
+        "w": 613.0,
+        "d": 0.0,
+        "h": 1702.4
+      },
+      "section": [
+        0.0,
+        613.0
+      ],
+      "length": 1702.4
+    },
+    {
+      "name": "arm_bolt",
+      "instances": 0,
+      "dims": {
+        "w": 29.0,
+        "d": 29.0,
+        "h": 42.3
+      },
+      "section": [
+        29.0,
+        29.0
+      ],
+      "length": 42.3
+    },
+    {
+      "name": "wheel corner",
+      "instances": 0,
+      "dims": {
+        "w": 400.5,
+        "d": 494.0,
+        "h": 332.2
+      },
+      "section": [
+        332.2,
+        400.5
+      ],
+      "length": 494.0
+    },
+    {
+      "name": "Group#463",
+      "instances": 0,
+      "dims": {
+        "w": 584.1,
+        "d": 286.0,
+        "h": 171.2
+      },
+      "section": [
+        171.2,
+        286.0
+      ],
+      "length": 584.1
+    },
+    {
+      "name": "Group#461",
+      "instances": 0,
+      "dims": {
+        "w": 695.6,
+        "d": 540.5,
+        "h": 2427.7
+      },
+      "section": [
+        540.5,
+        695.6
+      ],
+      "length": 2427.7
+    },
+    {
+      "name": "Group#460",
+      "instances": 0,
+      "dims": {
+        "w": 262.6,
+        "d": 431.7,
+        "h": 432.2
+      },
+      "section": [
+        262.6,
+        431.7
+      ],
+      "length": 432.2
+    },
+    {
+      "name": "Group#536",
+      "instances": 0,
+      "dims": {
+        "w": 139.7,
+        "d": 38.1,
+        "h": 1211.5
+      },
+      "section": [
+        38.1,
+        139.7
+      ],
+      "length": 1211.5
+    },
+    {
+      "name": "Group#458",
+      "instances": 0,
+      "dims": {
+        "w": 166.8,
+        "d": 86.8,
+        "h": 1067.4
+      },
+      "section": [
+        86.8,
+        166.8
+      ],
+      "length": 1067.4
+    },
+    {
+      "name": "whels_corne_side",
+      "instances": 0,
+      "dims": {
+        "w": 394.9,
+        "d": 70.0,
+        "h": 292.7
+      },
+      "section": [
+        70.0,
+        292.7
+      ],
+      "length": 394.9
+    },
+    {
+      "name": "Component#7",
+      "instances": 0,
+      "dims": {
+        "w": 47348.6,
+        "d": 32061.8,
+        "h": 12338.3
+      },
+      "section": [
+        12338.3,
+        32061.8
+      ],
+      "length": 47348.6
+    },
+    {
+      "name": "1-1/4\" PVC Schedule 40 Furniture Grade Pipe",
+      "instances": 0,
+      "dims": {
+        "w": 55.6,
+        "d": 304.8,
+        "h": 55.6
+      },
+      "section": [
+        55.6,
+        55.6
+      ],
+      "length": 304.8
+    },
+    {
+      "name": "1.25 Inch PVC 3-Way Elbow Fitting Connector",
+      "instances": 0,
+      "dims": {
+        "w": 89.5,
+        "d": 89.5,
+        "h": 89.5
+      },
+      "section": [
+        89.5,
+        89.5
+      ],
+      "length": 89.5
+    },
+    {
+      "name": "Sang",
+      "instances": 0,
+      "dims": {
+        "w": 460.0,
+        "d": 0.0,
+        "h": 1758.8
+      },
+      "section": [
+        0.0,
+        460.0
+      ],
+      "length": 1758.8
+    },
+    {
+      "name": "ABK",
+      "instances": 0,
+      "dims": {
+        "w": 432.9,
+        "d": 250.0,
+        "h": 30.0
+      },
+      "section": [
+        30.0,
+        250.0
+      ],
+      "length": 432.9
+    },
+    {
+      "name": "GANTRY CRANE",
+      "instances": 0,
+      "dims": {
+        "w": 6808.6,
+        "d": 22362.6,
+        "h": 11612.2
+      },
+      "section": [
+        6808.6,
+        11612.2
+      ],
+      "length": 22362.6
+    },
+    {
+      "name": "Group#457",
+      "instances": 0,
+      "dims": {
+        "w": 411.4,
+        "d": 533.3,
+        "h": 2672.0
+      },
+      "section": [
+        411.4,
+        533.3
+      ],
+      "length": 2672.0
+    },
+    {
+      "name": "Group#456",
+      "instances": 0,
+      "dims": {
+        "w": 198.7,
+        "d": 527.3,
+        "h": 1136.9
+      },
+      "section": [
+        198.7,
+        527.3
+      ],
+      "length": 1136.9
+    },
+    {
+      "name": "Group#459",
+      "instances": 0,
+      "dims": {
+        "w": 166.8,
+        "d": 86.8,
+        "h": 1067.4
+      },
+      "section": [
+        86.8,
+        166.8
+      ],
+      "length": 1067.4
+    },
+    {
+      "name": "Group#455",
+      "instances": 0,
+      "dims": {
+        "w": 252.9,
+        "d": 302.0,
+        "h": 358.9
+      },
+      "section": [
+        252.9,
+        302.0
+      ],
+      "length": 358.9
+    },
+    {
+      "name": "bolt_gantry_top",
+      "instances": 0,
+      "dims": {
+        "w": 51.2,
+        "d": 59.0,
+        "h": 11.3
+      },
+      "section": [
+        11.3,
+        51.2
+      ],
+      "length": 59.0
+    },
+    {
+      "name": "Group#453",
+      "instances": 0,
+      "dims": {
+        "w": 198.7,
+        "d": 108.5,
+        "h": 1170.2
+      },
+      "section": [
+        108.5,
+        198.7
+      ],
+      "length": 1170.2
+    },
+    {
+      "name": "Group#454",
+      "instances": 0,
+      "dims": {
+        "w": 198.7,
+        "d": 108.5,
+        "h": 1170.2
+      },
+      "section": [
+        108.5,
+        198.7
+      ],
+      "length": 1170.2
+    },
+    {
+      "name": "pipe_wire_std",
+      "instances": 0,
+      "dims": {
+        "w": 102.7,
+        "d": 100.1,
+        "h": 782.3
+      },
+      "section": [
+        100.1,
+        102.7
+      ],
+      "length": 782.3
+    },
+    {
+      "name": "wheel_caterpillar",
+      "instances": 0,
+      "dims": {
+        "w": 71.9,
+        "d": 351.1,
+        "h": 35.0
+      },
+      "section": [
+        35.0,
+        71.9
+      ],
+      "length": 351.1
+    },
+    {
+      "name": "gantry_jack_hull_side",
+      "instances": 0,
+      "dims": {
+        "w": 3210.3,
+        "d": 548.6,
+        "h": 2132.3
+      },
+      "section": [
+        548.6,
+        2132.3
+      ],
+      "length": 3210.3
+    }
+  ]
+}

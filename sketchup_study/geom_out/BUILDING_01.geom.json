@@ -1,0 +1,826 @@
+{
+  "title": "BUILDING 01",
+  "path": "E:\\Maimaar Steel Pvt Ltd\\Proposals\\2024\\265-24-MSPL_\\Rev-00\\3D\\Building 01 (375 X 400)\\BUILDING 01.skp",
+  "bbox": {
+    "w": 114624.7,
+    "d": 121990.0,
+    "h": 8251.1
+  },
+  "units": 2,
+  "layers": [
+    "Layer0",
+    "MS",
+    "PERLIN",
+    "SHEETING",
+    "BRICK WALL",
+    "GUTTER"
+  ],
+  "scenes": [
+    "Scene 1",
+    "Scene 2",
+    "Scene 3",
+    "Scene 4",
+    "Scene 5",
+    "Scene 6"
+  ],
+  "tags": {
+    "MS": {
+      "count": 60,
+      "bbox": {
+        "w": 113884.4,
+        "d": 106980.0,
+        "h": 8019.6
+      }
+    },
+    "PERLIN": {
+      "count": 86,
+      "bbox": {
+        "w": 114289.1,
+        "d": 121920.7,
+        "h": 5169.1
+      }
+    },
+    "Layer0": {
+      "count": 4,
+      "bbox": {
+        "w": 114284.0,
+        "d": 121921.0,
+        "h": 8019.6
+      }
+    },
+    "SHEETING": {
+      "count": 1,
+      "bbox": {
+        "w": 114324.0,
+        "d": 121990.0,
+        "h": 5203.1
+      }
+    },
+    "GUTTER": {
+      "count": 2,
+      "bbox": {
+        "w": 114624.7,
+        "d": 121990.0,
+        "h": 5130.6
+      }
+    }
+  },
+  "definitions": [
+    {
+      "name": "Group#56",
+      "instances": 82,
+      "dims": {
+        "w": 145.2,
+        "d": 121920.0,
+        "h": 202.0
+      },
+      "section": [
+        145.2,
+        202.0
+      ],
+      "length": 121920.0
+    },
+    {
+      "name": "Group#5",
+      "instances": 34,
+      "dims": {
+        "w": 6368.7,
+        "d": 300.0,
+        "h": 716.4
+      },
+      "section": [
+        300.0,
+        716.4
+      ],
+      "length": 6368.7
+    },
+    {
+      "name": "Group#6",
+      "instances": 34,
+      "dims": {
+        "w": 6368.7,
+        "d": 300.0,
+        "h": 716.4
+      },
+      "section": [
+        300.0,
+        716.4
+      ],
+      "length": 6368.7
+    },
+    {
+      "name": "Group#7",
+      "instances": 34,
+      "dims": {
+        "w": 6368.7,
+        "d": 300.0,
+        "h": 716.4
+      },
+      "section": [
+        300.0,
+        716.4
+      ],
+      "length": 6368.7
+    },
+    {
+      "name": "Group#8",
+      "instances": 34,
+      "dims": {
+        "w": 6368.7,
+        "d": 300.0,
+        "h": 716.4
+      },
+      "section": [
+        300.0,
+        716.4
+      ],
+      "length": 6368.7
+    },
+    {
+      "name": "Group#9",
+      "instances": 34,
+      "dims": {
+        "w": 6368.7,
+        "d": 300.0,
+        "h": 716.4
+      },
+      "section": [
+        300.0,
+        716.4
+      ],
+      "length": 6368.7
+    },
+    {
+      "name": "Group#10",
+      "instances": 34,
+      "dims": {
+        "w": 6368.7,
+        "d": 300.0,
+        "h": 716.4
+      },
+      "section": [
+        300.0,
+        716.4
+      ],
+      "length": 6368.7
+    },
+    {
+      "name": "Group#12",
+      "instances": 34,
+      "dims": {
+        "w": 6151.8,
+        "d": 300.0,
+        "h": 716.4
+      },
+      "section": [
+        300.0,
+        716.4
+      ],
+      "length": 6151.8
+    },
+    {
+      "name": "Group#11",
+      "instances": 34,
+      "dims": {
+        "w": 6368.7,
+        "d": 300.0,
+        "h": 716.4
+      },
+      "section": [
+        300.0,
+        716.4
+      ],
+      "length": 6368.7
+    },
+    {
+      "name": "Group#17",
+      "instances": 30,
+      "dims": {
+        "w": 398.3,
+        "d": 300.0,
+        "h": 6191.1
+      },
+      "section": [
+        300.0,
+        398.3
+      ],
+      "length": 6191.1
+    },
+    {
+      "name": "Group#37",
+      "instances": 24,
+      "dims": {
+        "w": 398.3,
+        "d": 300.5,
+        "h": 5096.3
+      },
+      "section": [
+        300.5,
+        398.3
+      ],
+      "length": 5096.3
+    },
+    {
+      "name": "Group#29",
+      "instances": 15,
+      "dims": {
+        "w": 398.3,
+        "d": 300.0,
+        "h": 7619.9
+      },
+      "section": [
+        300.0,
+        398.3
+      ],
+      "length": 7619.9
+    },
+    {
+      "name": "Group#27",
+      "instances": 15,
+      "dims": {
+        "w": 113884.4,
+        "d": 300.0,
+        "h": 8019.6
+      },
+      "section": [
+        300.0,
+        8019.6
+      ],
+      "length": 113884.4
+    },
+    {
+      "name": "Group#22",
+      "instances": 15,
+      "dims": {
+        "w": 6368.7,
+        "d": 300.0,
+        "h": 917.4
+      },
+      "section": [
+        300.0,
+        917.4
+      ],
+      "length": 6368.7
+    },
+    {
+      "name": "Group#4",
+      "instances": 15,
+      "dims": {
+        "w": 6368.7,
+        "d": 300.0,
+        "h": 917.4
+      },
+      "section": [
+        300.0,
+        917.4
+      ],
+      "length": 6368.7
+    },
+    {
+      "name": "Group#23",
+      "instances": 15,
+      "dims": {
+        "w": 598.3,
+        "d": 300.0,
+        "h": 4562.6
+      },
+      "section": [
+        300.0,
+        598.3
+      ],
+      "length": 4562.6
+    },
+    {
+      "name": "Group#21",
+      "instances": 15,
+      "dims": {
+        "w": 56942.2,
+        "d": 300.0,
+        "h": 3457.0
+      },
+      "section": [
+        300.0,
+        3457.0
+      ],
+      "length": 56942.2
+    },
+    {
+      "name": "Group#14",
+      "instances": 15,
+      "dims": {
+        "w": 598.3,
+        "d": 300.0,
+        "h": 4562.6
+      },
+      "section": [
+        300.0,
+        598.3
+      ],
+      "length": 4562.6
+    },
+    {
+      "name": "Group#3",
+      "instances": 15,
+      "dims": {
+        "w": 56942.2,
+        "d": 300.0,
+        "h": 3457.0
+      },
+      "section": [
+        300.0,
+        3457.0
+      ],
+      "length": 56942.2
+    },
+    {
+      "name": "Group#24",
+      "instances": 4,
+      "dims": {
+        "w": 56942.2,
+        "d": 300.0,
+        "h": 3257.0
+      },
+      "section": [
+        300.0,
+        3257.0
+      ],
+      "length": 56942.2
+    },
+    {
+      "name": "Group#25",
+      "instances": 4,
+      "dims": {
+        "w": 6368.7,
+        "d": 300.0,
+        "h": 717.4
+      },
+      "section": [
+        300.0,
+        717.4
+      ],
+      "length": 6368.7
+    },
+    {
+      "name": "Group#30",
+      "instances": 4,
+      "dims": {
+        "w": 145.2,
+        "d": 113088.0,
+        "h": 202.0
+      },
+      "section": [
+        145.2,
+        202.0
+      ],
+      "length": 113088.0
+    },
+    {
+      "name": "Group#2",
+      "instances": 4,
+      "dims": {
+        "w": 398.3,
+        "d": 300.5,
+        "h": 5117.3
+      },
+      "section": [
+        300.5,
+        398.3
+      ],
+      "length": 5117.3
+    },
+    {
+      "name": "Group#32",
+      "instances": 2,
+      "dims": {
+        "w": 150.3,
+        "d": 121990.0,
+        "h": 5130.6
+      },
+      "section": [
+        150.3,
+        5130.6
+      ],
+      "length": 121990.0
+    },
+    {
+      "name": "Group#26",
+      "instances": 2,
+      "dims": {
+        "w": 398.3,
+        "d": 300.0,
+        "h": 4762.6
+      },
+      "section": [
+        300.0,
+        398.3
+      ],
+      "length": 4762.6
+    },
+    {
+      "name": "Group#16",
+      "instances": 2,
+      "dims": {
+        "w": 398.3,
+        "d": 300.0,
+        "h": 4762.6
+      },
+      "section": [
+        300.0,
+        398.3
+      ],
+      "length": 4762.6
+    },
+    {
+      "name": "Group#13",
+      "instances": 2,
+      "dims": {
+        "w": 398.3,
+        "d": 300.0,
+        "h": 7619.9
+      },
+      "section": [
+        300.0,
+        398.3
+      ],
+      "length": 7619.9
+    },
+    {
+      "name": "Group#1",
+      "instances": 2,
+      "dims": {
+        "w": 121.1,
+        "d": 121990.0,
+        "h": 200.0
+      },
+      "section": [
+        121.1,
+        200.0
+      ],
+      "length": 121990.0
+    },
+    {
+      "name": "Group#15",
+      "instances": 1,
+      "dims": {
+        "w": 113884.4,
+        "d": 398.8,
+        "h": 8019.6
+      },
+      "section": [
+        398.8,
+        8019.6
+      ],
+      "length": 113884.4
+    },
+    {
+      "name": "Group#36",
+      "instances": 1,
+      "dims": {
+        "w": 113900.0,
+        "d": 121520.0,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        113900.0
+      ],
+      "length": 121520.0
+    },
+    {
+      "name": "Group#33",
+      "instances": 1,
+      "dims": {
+        "w": 114324.0,
+        "d": 121990.0,
+        "h": 5203.1
+      },
+      "section": [
+        5203.1,
+        114324.0
+      ],
+      "length": 121990.0
+    },
+    {
+      "name": "Group#34",
+      "instances": 1,
+      "dims": {
+        "w": 113884.4,
+        "d": 398.8,
+        "h": 8019.6
+      },
+      "section": [
+        398.8,
+        8019.6
+      ],
+      "length": 113884.4
+    },
+    {
+      "name": "Group#38",
+      "instances": 1,
+      "dims": {
+        "w": 114284.0,
+        "d": 121920.6,
+        "h": 3048.0
+      },
+      "section": [
+        3048.0,
+        114284.0
+      ],
+      "length": 121920.6
+    },
+    {
+      "name": "Bicycle_Old",
+      "instances": 0,
+      "dims": {
+        "w": 1758.3,
+        "d": 594.1,
+        "h": 1026.2
+      },
+      "section": [
+        594.1,
+        1026.2
+      ],
+      "length": 1758.3
+    },
+    {
+      "name": "BikeRack",
+      "instances": 0,
+      "dims": {
+        "w": 1679.6,
+        "d": 76.2,
+        "h": 912.9
+      },
+      "section": [
+        76.2,
+        912.9
+      ],
+      "length": 1679.6
+    },
+    {
+      "name": "Bike_Pedal",
+      "instances": 0,
+      "dims": {
+        "w": 50.8,
+        "d": 76.2,
+        "h": 19.0
+      },
+      "section": [
+        19.0,
+        50.8
+      ],
+      "length": 76.2
+    },
+    {
+      "name": "BackDoorPass",
+      "instances": 0,
+      "dims": {
+        "w": 1132.4,
+        "d": 264.4,
+        "h": 1226.7
+      },
+      "section": [
+        264.4,
+        1132.4
+      ],
+      "length": 1226.7
+    },
+    {
+      "name": "Bike_Wheel",
+      "instances": 0,
+      "dims": {
+        "w": 632.2,
+        "d": 25.4,
+        "h": 638.7
+      },
+      "section": [
+        25.4,
+        632.2
+      ],
+      "length": 638.7
+    },
+    {
+      "name": "BackDoor",
+      "instances": 0,
+      "dims": {
+        "w": 1132.4,
+        "d": 264.4,
+        "h": 1226.7
+      },
+      "section": [
+        264.4,
+        1132.4
+      ],
+      "length": 1226.7
+    },
+    {
+      "name": "WheelBack",
+      "instances": 0,
+      "dims": {
+        "w": 647.7,
+        "d": 254.0,
+        "h": 631.5
+      },
+      "section": [
+        254.0,
+        631.5
+      ],
+      "length": 647.7
+    },
+    {
+      "name": "FrontDoor#2",
+      "instances": 0,
+      "dims": {
+        "w": 1332.6,
+        "d": 353.7,
+        "h": 1248.5
+      },
+      "section": [
+        353.7,
+        1248.5
+      ],
+      "length": 1332.6
+    },
+    {
+      "name": "Mirror",
+      "instances": 0,
+      "dims": {
+        "w": 71.6,
+        "d": 229.5,
+        "h": 103.2
+      },
+      "section": [
+        71.6,
+        103.2
+      ],
+      "length": 229.5
+    },
+    {
+      "name": "Bike_Handlebar_Half",
+      "instances": 0,
+      "dims": {
+        "w": 61.2,
+        "d": 297.0,
+        "h": 26.0
+      },
+      "section": [
+        26.0,
+        61.2
+      ],
+      "length": 297.0
+    },
+    {
+      "name": "CarCore#2",
+      "instances": 0,
+      "dims": {
+        "w": 4784.7,
+        "d": 895.4,
+        "h": 1494.0
+      },
+      "section": [
+        895.4,
+        1494.0
+      ],
+      "length": 4784.7
+    },
+    {
+      "name": "Car Sedan",
+      "instances": 0,
+      "dims": {
+        "w": 4784.7,
+        "d": 1987.6,
+        "h": 1494.0
+      },
+      "section": [
+        1494.0,
+        1987.6
+      ],
+      "length": 4784.7
+    },
+    {
+      "name": "Chris",
+      "instances": 0,
+      "dims": {
+        "w": 579.2,
+        "d": 0.0,
+        "h": 1765.2
+      },
+      "section": [
+        0.0,
+        579.2
+      ],
+      "length": 1765.2
+    },
+    {
+      "name": "Bike Rack Bikes",
+      "instances": 0,
+      "dims": {
+        "w": 1679.6,
+        "d": 2072.1,
+        "h": 1026.2
+      },
+      "section": [
+        1026.2,
+        1679.6
+      ],
+      "length": 2072.1
+    },
+    {
+      "name": "FrontDoorPass",
+      "instances": 0,
+      "dims": {
+        "w": 1332.6,
+        "d": 353.7,
+        "h": 1248.5
+      },
+      "section": [
+        353.7,
+        1248.5
+      ],
+      "length": 1332.6
+    },
+    {
+      "name": "Wheel",
+      "instances": 0,
+      "dims": {
+        "w": 647.7,
+        "d": 254.0,
+        "h": 631.5
+      },
+      "section": [
+        254.0,
+        631.5
+      ],
+      "length": 647.7
+    },
+    {
+      "name": "Bike_Frame",
+      "instances": 0,
+      "dims": {
+        "w": 430.4,
+        "d": 33.0,
+        "h": 419.9
+      },
+      "section": [
+        33.0,
+        419.9
+      ],
+      "length": 430.4
+    },
+    {
+      "name": "Bike_Fork_Half",
+      "instances": 0,
+      "dims": {
+        "w": 100.6,
+        "d": 12.7,
+        "h": 395.9
+      },
+      "section": [
+        12.7,
+        100.6
+      ],
+      "length": 395.9
+    },
+    {
+      "name": "Sumele",
+      "instances": 0,
+      "dims": {
+        "w": 594.0,
+        "d": 0.0,
+        "h": 1649.7
+      },
+      "section": [
+        0.0,
+        594.0
+      ],
+      "length": 1649.7
+    },
+    {
+      "name": "CarCore#1",
+      "instances": 0,
+      "dims": {
+        "w": 4784.7,
+        "d": 895.4,
+        "h": 1494.0
+      },
+      "section": [
+        895.4,
+        1494.0
+      ],
+      "length": 4784.7
+    },
+    {
+      "name": "ball",
+      "instances": 0,
+      "dims": {
+        "w": 297.1,
+        "d": 312.4,
+        "h": 265.8
+      },
+      "section": [
+        265.8,
+        297.1
+      ],
+      "length": 312.4
+    }
+  ]
+}

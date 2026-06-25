@@ -1,0 +1,1096 @@
+{
+  "title": "065-24-MSPL",
+  "path": "E:\\Maimaar Steel Pvt Ltd\\Proposals\\2024\\065-24-MSPL_Style Textile_Mezzanine Structure_Manga\\Rev-06\\3D\\065-24-MSPL.skp",
+  "bbox": {
+    "w": 93687.8,
+    "d": 126551.9,
+    "h": 5917.2
+  },
+  "units": 2,
+  "layers": [
+    "Layer0",
+    "PLAN",
+    "DECK",
+    "MS",
+    "Deck panel",
+    "EXSITING",
+    "partition glass",
+    "TABLE",
+    "STAIR"
+  ],
+  "scenes": [
+    "Scene 1",
+    "Scene 3",
+    "Scene 11",
+    "Scene 2",
+    "Scene 10",
+    "Scene 6",
+    "Scene 9",
+    "Scene 5",
+    "Scene 8",
+    "Scene 12",
+    "Scene 13"
+  ],
+  "tags": {
+    "PLAN": {
+      "count": 1,
+      "bbox": {
+        "w": 93687.8,
+        "d": 126551.9,
+        "h": 76.2
+      }
+    },
+    "Layer0": {
+      "count": 28,
+      "bbox": {
+        "w": 70319.6,
+        "d": 7469.1,
+        "h": 5072.0
+      }
+    },
+    "MS": {
+      "count": 70,
+      "bbox": {
+        "w": 69821.2,
+        "d": 4572.0,
+        "h": 2433.6
+      }
+    },
+    "DECK": {
+      "count": 1,
+      "bbox": {
+        "w": 69821.2,
+        "d": 4572.0,
+        "h": 118.0
+      }
+    },
+    "EXSITING": {
+      "count": 1,
+      "bbox": {
+        "w": 70319.6,
+        "d": 7467.6,
+        "h": 1269.0
+      }
+    },
+    "Deck panel": {
+      "count": 1,
+      "bbox": {
+        "w": 68398.3,
+        "d": 4572.0,
+        "h": 50.7
+      }
+    },
+    "TABLE": {
+      "count": 18,
+      "bbox": {
+        "w": 63593.3,
+        "d": 3445.5,
+        "h": 1512.0
+      }
+    },
+    "partition glass": {
+      "count": 18,
+      "bbox": {
+        "w": 61836.4,
+        "d": 3048.0,
+        "h": 2538.4
+      }
+    }
+  },
+  "definitions": [
+    {
+      "name": "frame",
+      "instances": 90,
+      "dims": {
+        "w": 368.1,
+        "d": 20.0,
+        "h": 105.7
+      },
+      "section": [
+        20.0,
+        105.7
+      ],
+      "length": 368.1
+    },
+    {
+      "name": "wiel",
+      "instances": 90,
+      "dims": {
+        "w": 40.0,
+        "d": 74.0,
+        "h": 74.0
+      },
+      "section": [
+        40.0,
+        74.0
+      ],
+      "length": 74.0
+    },
+    {
+      "name": "pole",
+      "instances": 54,
+      "dims": {
+        "w": 221.4,
+        "d": 0.0,
+        "h": 212.9
+      },
+      "section": [
+        0.0,
+        212.9
+      ],
+      "length": 221.4
+    },
+    {
+      "name": "Group#50",
+      "instances": 37,
+      "dims": {
+        "w": 150.0,
+        "d": 100.0,
+        "h": 6759.7
+      },
+      "section": [
+        100.0,
+        150.0
+      ],
+      "length": 6759.7
+    },
+    {
+      "name": "upper",
+      "instances": 36,
+      "dims": {
+        "w": 32.7,
+        "d": 12.7,
+        "h": 27.5
+      },
+      "section": [
+        12.7,
+        27.5
+      ],
+      "length": 32.7
+    },
+    {
+      "name": "rugleuning",
+      "instances": 36,
+      "dims": {
+        "w": 210.0,
+        "d": 20.0,
+        "h": 170.0
+      },
+      "section": [
+        20.0,
+        170.0
+      ],
+      "length": 210.0
+    },
+    {
+      "name": "Poltrona Frau Aster-X Armchair",
+      "instances": 36,
+      "dims": {
+        "w": 620.0,
+        "d": 587.9,
+        "h": 787.8
+      },
+      "section": [
+        587.9,
+        620.0
+      ],
+      "length": 787.8
+    },
+    {
+      "name": "turn",
+      "instances": 36,
+      "dims": {
+        "w": 6.0,
+        "d": 25.4,
+        "h": 5.7
+      },
+      "section": [
+        5.7,
+        6.0
+      ],
+      "length": 25.4
+    },
+    {
+      "name": "bovenste gedeelte",
+      "instances": 36,
+      "dims": {
+        "w": 493.0,
+        "d": 596.8,
+        "h": 738.0
+      },
+      "section": [
+        493.0,
+        596.8
+      ],
+      "length": 738.0
+    },
+    {
+      "name": "Group#43",
+      "instances": 35,
+      "dims": {
+        "w": 2000.0,
+        "d": 3492.3,
+        "h": 50.7
+      },
+      "section": [
+        50.7,
+        2000.0
+      ],
+      "length": 3492.3
+    },
+    {
+      "name": "Group#74",
+      "instances": 20,
+      "dims": {
+        "w": 1000.0,
+        "d": 279.0,
+        "h": 40.0
+      },
+      "section": [
+        40.0,
+        279.0
+      ],
+      "length": 1000.0
+    },
+    {
+      "name": "Group#75",
+      "instances": 20,
+      "dims": {
+        "w": 279.0,
+        "d": 1000.0,
+        "h": 40.0
+      },
+      "section": [
+        40.0,
+        279.0
+      ],
+      "length": 1000.0
+    },
+    {
+      "name": "apple magic mouse",
+      "instances": 18,
+      "dims": {
+        "w": 814.5,
+        "d": 1560.7,
+        "h": 233.4
+      },
+      "section": [
+        233.4,
+        814.5
+      ],
+      "length": 1560.7
+    },
+    {
+      "name": "IKEA Papierkorb Dokument",
+      "instances": 18,
+      "dims": {
+        "w": 301.7,
+        "d": 301.7,
+        "h": 347.6
+      },
+      "section": [
+        301.7,
+        301.7
+      ],
+      "length": 347.6
+    },
+    {
+      "name": "Group#60",
+      "instances": 18,
+      "dims": {
+        "w": 470.0,
+        "d": 153.0,
+        "h": 470.0
+      },
+      "section": [
+        153.0,
+        470.0
+      ],
+      "length": 470.0
+    },
+    {
+      "name": "Group#55",
+      "instances": 18,
+      "dims": {
+        "w": 6.4,
+        "d": 5.5,
+        "h": 6.4
+      },
+      "section": [
+        5.5,
+        6.4
+      ],
+      "length": 6.4
+    },
+    {
+      "name": "Apple Magic Mouse#1",
+      "instances": 18,
+      "dims": {
+        "w": 814.5,
+        "d": 1560.7,
+        "h": 233.4
+      },
+      "section": [
+        233.4,
+        814.5
+      ],
+      "length": 1560.7
+    },
+    {
+      "name": "Group#59",
+      "instances": 18,
+      "dims": {
+        "w": 3054.0,
+        "d": 7930.6,
+        "h": 40.0
+      },
+      "section": [
+        40.0,
+        3054.0
+      ],
+      "length": 7930.6
+    },
+    {
+      "name": "onderframe",
+      "instances": 18,
+      "dims": {
+        "w": 697.5,
+        "d": 732.3,
+        "h": 428.0
+      },
+      "section": [
+        428.0,
+        697.5
+      ],
+      "length": 732.3
+    },
+    {
+      "name": "Group#62",
+      "instances": 18,
+      "dims": {
+        "w": 609.6,
+        "d": 53.2,
+        "h": 424.7
+      },
+      "section": [
+        53.2,
+        424.7
+      ],
+      "length": 609.6
+    },
+    {
+      "name": "base",
+      "instances": 18,
+      "dims": {
+        "w": 152.4,
+        "d": 101.6,
+        "h": 12.7
+      },
+      "section": [
+        12.7,
+        101.6
+      ],
+      "length": 152.4
+    },
+    {
+      "name": "Group#63",
+      "instances": 18,
+      "dims": {
+        "w": 175.7,
+        "d": 160.1,
+        "h": 292.2
+      },
+      "section": [
+        160.1,
+        175.7
+      ],
+      "length": 292.2
+    },
+    {
+      "name": "Desk chair",
+      "instances": 18,
+      "dims": {
+        "w": 732.3,
+        "d": 704.2,
+        "h": 981.0
+      },
+      "section": [
+        704.2,
+        732.3
+      ],
+      "length": 981.0
+    },
+    {
+      "name": "keyboard#1",
+      "instances": 18,
+      "dims": {
+        "w": 3818.0,
+        "d": 8159.4,
+        "h": 567.9
+      },
+      "section": [
+        567.9,
+        3818.0
+      ],
+      "length": 8159.4
+    },
+    {
+      "name": "Group#64",
+      "instances": 18,
+      "dims": {
+        "w": 609.6,
+        "d": 160.1,
+        "h": 508.3
+      },
+      "section": [
+        160.1,
+        508.3
+      ],
+      "length": 609.6
+    },
+    {
+      "name": "Group#57",
+      "instances": 18,
+      "dims": {
+        "w": 470.0,
+        "d": 153.0,
+        "h": 470.0
+      },
+      "section": [
+        153.0,
+        470.0
+      ],
+      "length": 470.0
+    },
+    {
+      "name": "Group#52",
+      "instances": 18,
+      "dims": {
+        "w": 5192.3,
+        "d": 3445.5,
+        "h": 1512.0
+      },
+      "section": [
+        1512.0,
+        3445.5
+      ],
+      "length": 5192.3
+    },
+    {
+      "name": "Modern arm desk lamp steel",
+      "instances": 18,
+      "dims": {
+        "w": 433.5,
+        "d": 210.5,
+        "h": 542.0
+      },
+      "section": [
+        210.5,
+        433.5
+      ],
+      "length": 542.0
+    },
+    {
+      "name": "Group#56",
+      "instances": 18,
+      "dims": {
+        "w": 212.3,
+        "d": 210.5,
+        "h": 76.2
+      },
+      "section": [
+        76.2,
+        210.5
+      ],
+      "length": 212.3
+    },
+    {
+      "name": "Group#18",
+      "instances": 18,
+      "dims": {
+        "w": 3435.4,
+        "d": 3048.0,
+        "h": 2538.4
+      },
+      "section": [
+        2538.4,
+        3048.0
+      ],
+      "length": 3435.4
+    },
+    {
+      "name": "officer desk 2",
+      "instances": 18,
+      "dims": {
+        "w": 2630.0,
+        "d": 1603.8,
+        "h": 981.0
+      },
+      "section": [
+        981.0,
+        1603.8
+      ],
+      "length": 2630.0
+    },
+    {
+      "name": "Component#4",
+      "instances": 18,
+      "dims": {
+        "w": 814.5,
+        "d": 1560.7,
+        "h": 233.4
+      },
+      "section": [
+        233.4,
+        814.5
+      ],
+      "length": 1560.7
+    },
+    {
+      "name": "iMac 27\"",
+      "instances": 18,
+      "dims": {
+        "w": 2959.2,
+        "d": 1913.4,
+        "h": 530.1
+      },
+      "section": [
+        530.1,
+        1913.4
+      ],
+      "length": 2959.2
+    },
+    {
+      "name": "APPLE MAGIC MOUSE#2",
+      "instances": 18,
+      "dims": {
+        "w": 60.2,
+        "d": 115.3,
+        "h": 17.2
+      },
+      "section": [
+        17.2,
+        60.2
+      ],
+      "length": 115.3
+    },
+    {
+      "name": "Group#58",
+      "instances": 18,
+      "dims": {
+        "w": 5757.0,
+        "d": 12303.0,
+        "h": 796.0
+      },
+      "section": [
+        796.0,
+        5757.0
+      ],
+      "length": 12303.0
+    },
+    {
+      "name": "ske296",
+      "instances": 18,
+      "dims": {
+        "w": 132.4,
+        "d": 279.9,
+        "h": 38.4
+      },
+      "section": [
+        38.4,
+        132.4
+      ],
+      "length": 279.9
+    },
+    {
+      "name": "Group#7",
+      "instances": 12,
+      "dims": {
+        "w": 300.0,
+        "d": 200.0,
+        "h": 2433.6
+      },
+      "section": [
+        200.0,
+        300.0
+      ],
+      "length": 2433.6
+    },
+    {
+      "name": "Group#6",
+      "instances": 12,
+      "dims": {
+        "w": 200.0,
+        "d": 200.0,
+        "h": 4572.0
+      },
+      "section": [
+        200.0,
+        200.0
+      ],
+      "length": 4572.0
+    },
+    {
+      "name": "Group#3",
+      "instances": 8,
+      "dims": {
+        "w": 304.8,
+        "d": 762.0,
+        "h": 4572.0
+      },
+      "section": [
+        304.8,
+        762.0
+      ],
+      "length": 4572.0
+    },
+    {
+      "name": "Group#5",
+      "instances": 7,
+      "dims": {
+        "w": 304.8,
+        "d": 762.0,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        304.8
+      ],
+      "length": 762.0
+    },
+    {
+      "name": "Group#45",
+      "instances": 6,
+      "dims": {
+        "w": 1000.0,
+        "d": 1000.0,
+        "h": 40.0
+      },
+      "section": [
+        40.0,
+        1000.0
+      ],
+      "length": 1000.0
+    },
+    {
+      "name": "Group#73",
+      "instances": 6,
+      "dims": {
+        "w": 1000.0,
+        "d": 1000.0,
+        "h": 40.0
+      },
+      "section": [
+        40.0,
+        1000.0
+      ],
+      "length": 1000.0
+    },
+    {
+      "name": "Group#48",
+      "instances": 6,
+      "dims": {
+        "w": 150.0,
+        "d": 100.0,
+        "h": 1958.3
+      },
+      "section": [
+        100.0,
+        150.0
+      ],
+      "length": 1958.3
+    },
+    {
+      "name": "Group#12",
+      "instances": 5,
+      "dims": {
+        "w": 500.0,
+        "d": 38915.6,
+        "h": 669.0
+      },
+      "section": [
+        500.0,
+        669.0
+      ],
+      "length": 38915.6
+    },
+    {
+      "name": "Group#72",
+      "instances": 4,
+      "dims": {
+        "w": 75.0,
+        "d": 2400.0,
+        "h": 1130.7
+      },
+      "section": [
+        75.0,
+        1130.7
+      ],
+      "length": 2400.0
+    },
+    {
+      "name": "Group#66",
+      "instances": 4,
+      "dims": {
+        "w": 100.0,
+        "d": 150.0,
+        "h": 1056.6
+      },
+      "section": [
+        100.0,
+        150.0
+      ],
+      "length": 1056.6
+    },
+    {
+      "name": "Group#2",
+      "instances": 4,
+      "dims": {
+        "w": 862.6,
+        "d": 762.0,
+        "h": 4572.0
+      },
+      "section": [
+        762.0,
+        862.6
+      ],
+      "length": 4572.0
+    },
+    {
+      "name": "Group#4",
+      "instances": 3,
+      "dims": {
+        "w": 862.6,
+        "d": 762.0,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        762.0
+      ],
+      "length": 862.6
+    },
+    {
+      "name": "Group#8",
+      "instances": 2,
+      "dims": {
+        "w": 2300.0,
+        "d": 3400.0,
+        "h": 2445.9
+      },
+      "section": [
+        2300.0,
+        2445.9
+      ],
+      "length": 3400.0
+    },
+    {
+      "name": "Group#10",
+      "instances": 2,
+      "dims": {
+        "w": 381.0,
+        "d": 458.7,
+        "h": 3657.6
+      },
+      "section": [
+        381.0,
+        458.7
+      ],
+      "length": 3657.6
+    },
+    {
+      "name": "Group#78",
+      "instances": 2,
+      "dims": {
+        "w": 75.0,
+        "d": 2400.0,
+        "h": 1223.7
+      },
+      "section": [
+        75.0,
+        1223.7
+      ],
+      "length": 2400.0
+    },
+    {
+      "name": "Group#71",
+      "instances": 2,
+      "dims": {
+        "w": 0.0,
+        "d": 280.0,
+        "h": 186.1
+      },
+      "section": [
+        0.0,
+        186.1
+      ],
+      "length": 280.0
+    },
+    {
+      "name": "Group#80",
+      "instances": 2,
+      "dims": {
+        "w": 2300.0,
+        "d": 3400.0,
+        "h": 2154.4
+      },
+      "section": [
+        2154.4,
+        2300.0
+      ],
+      "length": 3400.0
+    },
+    {
+      "name": "Group#76",
+      "instances": 2,
+      "dims": {
+        "w": 2225.0,
+        "d": 1000.0,
+        "h": 200.0
+      },
+      "section": [
+        200.0,
+        1000.0
+      ],
+      "length": 2225.0
+    },
+    {
+      "name": "Group#33",
+      "instances": 2,
+      "dims": {
+        "w": 75.0,
+        "d": 1000.0,
+        "h": 200.0
+      },
+      "section": [
+        75.0,
+        200.0
+      ],
+      "length": 1000.0
+    },
+    {
+      "name": "Group#79",
+      "instances": 2,
+      "dims": {
+        "w": 75.0,
+        "d": 2400.0,
+        "h": 1223.7
+      },
+      "section": [
+        75.0,
+        1223.7
+      ],
+      "length": 2400.0
+    },
+    {
+      "name": "Group#11",
+      "instances": 1,
+      "dims": {
+        "w": 762.0,
+        "d": 7010.4,
+        "h": 500.0
+      },
+      "section": [
+        500.0,
+        762.0
+      ],
+      "length": 7010.4
+    },
+    {
+      "name": "Group#9",
+      "instances": 1,
+      "dims": {
+        "w": 69821.2,
+        "d": 4572.0,
+        "h": 118.0
+      },
+      "section": [
+        118.0,
+        4572.0
+      ],
+      "length": 69821.2
+    },
+    {
+      "name": "BUILDING-A- STYLE MANGA.dwg",
+      "instances": 1,
+      "dims": {
+        "w": 93687.8,
+        "d": 126551.9,
+        "h": 76.2
+      },
+      "section": [
+        76.2,
+        93687.8
+      ],
+      "length": 126551.9
+    },
+    {
+      "name": "Group#14",
+      "instances": 1,
+      "dims": {
+        "w": 70319.6,
+        "d": 7467.6,
+        "h": 1269.0
+      },
+      "section": [
+        1269.0,
+        7467.6
+      ],
+      "length": 70319.6
+    },
+    {
+      "name": "Group#15",
+      "instances": 1,
+      "dims": {
+        "w": 68398.3,
+        "d": 4572.0,
+        "h": 50.7
+      },
+      "section": [
+        50.7,
+        4572.0
+      ],
+      "length": 68398.3
+    },
+    {
+      "name": "Group#46",
+      "instances": 1,
+      "dims": {
+        "w": 150.0,
+        "d": 100.0,
+        "h": 6759.7
+      },
+      "section": [
+        100.0,
+        150.0
+      ],
+      "length": 6759.7
+    },
+    {
+      "name": "Group#47",
+      "instances": 1,
+      "dims": {
+        "w": 150.0,
+        "d": 100.0,
+        "h": 6759.7
+      },
+      "section": [
+        100.0,
+        150.0
+      ],
+      "length": 6759.7
+    },
+    {
+      "name": "Group#49",
+      "instances": 1,
+      "dims": {
+        "w": 150.0,
+        "d": 100.0,
+        "h": 6759.7
+      },
+      "section": [
+        100.0,
+        150.0
+      ],
+      "length": 6759.7
+    },
+    {
+      "name": "Group#120",
+      "instances": 1,
+      "dims": {
+        "w": 2000.0,
+        "d": 3492.3,
+        "h": 50.7
+      },
+      "section": [
+        50.7,
+        2000.0
+      ],
+      "length": 3492.3
+    },
+    {
+      "name": "Group#13",
+      "instances": 1,
+      "dims": {
+        "w": 77558.9,
+        "d": 7467.6,
+        "h": 100.0
+      },
+      "section": [
+        100.0,
+        7467.6
+      ],
+      "length": 77558.9
+    },
+    {
+      "name": "sketchup-download200609031709443",
+      "instances": 1,
+      "dims": {
+        "w": 716.5,
+        "d": 110.0,
+        "h": 1878.3
+      },
+      "section": [
+        110.0,
+        716.5
+      ],
+      "length": 1878.3
+    },
+    {
+      "name": "Group#16",
+      "instances": 1,
+      "dims": {
+        "w": 762.0,
+        "d": 7010.4,
+        "h": 500.0
+      },
+      "section": [
+        500.0,
+        762.0
+      ],
+      "length": 7010.4
+    },
+    {
+      "name": "Group#17",
+      "instances": 1,
+      "dims": {
+        "w": 762.0,
+        "d": 7010.4,
+        "h": 500.0
+      },
+      "section": [
+        500.0,
+        762.0
+      ],
+      "length": 7010.4
+    },
+    {
+      "name": "Group#1",
+      "instances": 1,
+      "dims": {
+        "w": 69873.6,
+        "d": 7239.0,
+        "h": 5072.0
+      },
+      "section": [
+        5072.0,
+        7239.0
+      ],
+      "length": 69873.6
+    },
+    {
+      "name": "Sumele",
+      "instances": 0,
+      "dims": {
+        "w": 594.0,
+        "d": 0.0,
+        "h": 1649.7
+      },
+      "section": [
+        0.0,
+        594.0
+      ],
+      "length": 1649.7
+    }
+  ]
+}

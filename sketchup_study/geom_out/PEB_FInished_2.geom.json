@@ -1,0 +1,153 @@
+{
+  "title": "PEB FInished",
+  "path": "E:\\Maimaar Steel Pvt Ltd\\Proposals\\2019\\086-19-MSPL_Six Stars Sports Apparel\\Rev-00\\3D\\PEB FInished.skp",
+  "bbox": {
+    "w": 46219.4,
+    "d": 126257.1,
+    "h": 13311.1
+  },
+  "units": 0,
+  "layers": [
+    "Layer0",
+    "Brick wall",
+    "Frames",
+    "Purlins"
+  ],
+  "scenes": [
+
+  ],
+  "tags": {
+    "Brick wall": {
+      "count": 2,
+      "bbox": {
+        "w": 27736.8,
+        "d": 117503.6,
+        "h": 914.4
+      }
+    },
+    "Frames": {
+      "count": 9,
+      "bbox": {
+        "w": 27279.6,
+        "d": 100790.4,
+        "h": 4597.4
+      }
+    },
+    "Layer0": {
+      "count": 763,
+      "bbox": {
+        "w": 46219.4,
+        "d": 126181.9,
+        "h": 12649.2
+      }
+    },
+    "Purlins": {
+      "count": 22,
+      "bbox": {
+        "w": 27178.0,
+        "d": 117353.7,
+        "h": 3854.3
+      }
+    }
+  },
+  "definitions": [
+    {
+      "name": "Group#3",
+      "instances": 22,
+      "dims": {
+        "w": 153.5,
+        "d": 204.5,
+        "h": 27178.0
+      },
+      "section": [
+        153.5,
+        204.5
+      ],
+      "length": 27178.0
+    },
+    {
+      "name": "Group#5",
+      "instances": 4,
+      "dims": {
+        "w": 304.8,
+        "d": 16306.8,
+        "h": 4597.4
+      },
+      "section": [
+        304.8,
+        4597.4
+      ],
+      "length": 16306.8
+    },
+    {
+      "name": "end wall column",
+      "instances": 4,
+      "dims": {
+        "w": 304.8,
+        "d": 304.8,
+        "h": 4365.6
+      },
+      "section": [
+        304.8,
+        304.8
+      ],
+      "length": 4365.6
+    },
+    {
+      "name": "Group#1",
+      "instances": 2,
+      "dims": {
+        "w": 27736.8,
+        "d": 16764.0,
+        "h": 914.4
+      },
+      "section": [
+        914.4,
+        16764.0
+      ],
+      "length": 27736.8
+    },
+    {
+      "name": "Group#4",
+      "instances": 1,
+      "dims": {
+        "w": 304.8,
+        "d": 16306.8,
+        "h": 4597.4
+      },
+      "section": [
+        304.8,
+        4597.4
+      ],
+      "length": 16306.8
+    },
+    {
+      "name": "Group#2",
+      "instances": 1,
+      "dims": {
+        "w": 27279.6,
+        "d": 16306.8,
+        "h": 4597.4
+      },
+      "section": [
+        4597.4,
+        16306.8
+      ],
+      "length": 27279.6
+    },
+    {
+      "name": "Chris",
+      "instances": 1,
+      "dims": {
+        "w": 579.2,
+        "d": 0.0,
+        "h": 1765.2
+      },
+      "section": [
+        0.0,
+        579.2
+      ],
+      "length": 1765.2
+    }
+  ]
+}

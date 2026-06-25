@@ -1,0 +1,312 @@
+{
+  "title": "3D",
+  "path": "E:\\Maimaar Steel Pvt Ltd\\Proposals\\2018\\028-18-MSPL_Roots Pharma\\Drawings\\3D.skp",
+  "bbox": {
+    "w": 15360.6,
+    "d": 6096.0,
+    "h": 3248.0
+  },
+  "units": 0,
+  "layers": [
+    "Layer0",
+    "Defpoints",
+    "plan",
+    "TITLE",
+    "TitleBlock"
+  ],
+  "scenes": [
+
+  ],
+  "tags": {
+    "Layer0": {
+      "count": 550,
+      "bbox": {
+        "w": 15360.6,
+        "d": 6096.0,
+        "h": 3248.0
+      }
+    }
+  },
+  "definitions": [
+    {
+      "name": "Group#11",
+      "instances": 6,
+      "dims": {
+        "w": 304.8,
+        "d": 1524.0,
+        "h": 50.8
+      },
+      "section": [
+        50.8,
+        304.8
+      ],
+      "length": 1524.0
+    },
+    {
+      "name": "Group#12",
+      "instances": 6,
+      "dims": {
+        "w": 304.8,
+        "d": 1524.0,
+        "h": 508.0
+      },
+      "section": [
+        304.8,
+        508.0
+      ],
+      "length": 1524.0
+    },
+    {
+      "name": "Address + Logo",
+      "instances": 0,
+      "dims": {
+        "w": 2645.5,
+        "d": 804.0,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        804.0
+      ],
+      "length": 2645.5
+    },
+    {
+      "name": "Complete Logo",
+      "instances": 0,
+      "dims": {
+        "w": 14109.1,
+        "d": 4287.9,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        4287.9
+      ],
+      "length": 14109.1
+    },
+    {
+      "name": "Group#10",
+      "instances": 0,
+      "dims": {
+        "w": 2516.8,
+        "d": 211.2,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        211.2
+      ],
+      "length": 2516.8
+    },
+    {
+      "name": "Group#9",
+      "instances": 0,
+      "dims": {
+        "w": 2516.8,
+        "d": 211.2,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        211.2
+      ],
+      "length": 2516.8
+    },
+    {
+      "name": "Group#8",
+      "instances": 0,
+      "dims": {
+        "w": 2516.8,
+        "d": 211.2,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        211.2
+      ],
+      "length": 2516.8
+    },
+    {
+      "name": "Group#7",
+      "instances": 0,
+      "dims": {
+        "w": 2516.8,
+        "d": 211.2,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        211.2
+      ],
+      "length": 2516.8
+    },
+    {
+      "name": "Group#6",
+      "instances": 0,
+      "dims": {
+        "w": 2516.8,
+        "d": 211.2,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        211.2
+      ],
+      "length": 2516.8
+    },
+    {
+      "name": "Group#5",
+      "instances": 0,
+      "dims": {
+        "w": 5033.6,
+        "d": 422.4,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        422.4
+      ],
+      "length": 5033.6
+    },
+    {
+      "name": "Group#4",
+      "instances": 0,
+      "dims": {
+        "w": 5033.6,
+        "d": 422.4,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        422.4
+      ],
+      "length": 5033.6
+    },
+    {
+      "name": "Group#3",
+      "instances": 0,
+      "dims": {
+        "w": 5033.6,
+        "d": 422.4,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        422.4
+      ],
+      "length": 5033.6
+    },
+    {
+      "name": "Group#2",
+      "instances": 0,
+      "dims": {
+        "w": 5033.6,
+        "d": 422.4,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        422.4
+      ],
+      "length": 5033.6
+    },
+    {
+      "name": "Group#1",
+      "instances": 0,
+      "dims": {
+        "w": 5033.6,
+        "d": 422.4,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        422.4
+      ],
+      "length": 5033.6
+    },
+    {
+      "name": "A$C6F8C6BE3",
+      "instances": 0,
+      "dims": {
+        "w": 4025.8,
+        "d": 1223.5,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        1223.5
+      ],
+      "length": 4025.8
+    },
+    {
+      "name": "Logo_Maimaar",
+      "instances": 0,
+      "dims": {
+        "w": 6019.9,
+        "d": 1829.5,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        1829.5
+      ],
+      "length": 6019.9
+    },
+    {
+      "name": "A$C39F42D16",
+      "instances": 0,
+      "dims": {
+        "w": 39834.3,
+        "d": 26571.3,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        26571.3
+      ],
+      "length": 39834.3
+    },
+    {
+      "name": "_ClosedBlank",
+      "instances": 0,
+      "dims": {
+        "w": 25.4,
+        "d": 8.5,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        8.5
+      ],
+      "length": 25.4
+    },
+    {
+      "name": "Proposal Plan.dwg",
+      "instances": 0,
+      "dims": {
+        "w": 19917.1,
+        "d": 12069.7,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        12069.7
+      ],
+      "length": 19917.1
+    },
+    {
+      "name": "Chris",
+      "instances": 0,
+      "dims": {
+        "w": 579.2,
+        "d": 0.0,
+        "h": 1765.2
+      },
+      "section": [
+        0.0,
+        579.2
+      ],
+      "length": 1765.2
+    }
+  ]
+}

@@ -1,0 +1,121 @@
+{
+  "title": "Untitled",
+  "path": "E:\\Maimaar Steel Pvt Ltd\\Proposals\\2022\\043-22-MSPL_MCB Islamic\\Rev-00\\3D Views\\Untitled.skp",
+  "bbox": {
+    "w": 7720.0,
+    "d": 4672.0,
+    "h": 3098.0
+  },
+  "units": 2,
+  "layers": [
+    "Layer0",
+    "Sandwich Panel"
+  ],
+  "scenes": [
+    "Scene 1"
+  ],
+  "tags": {
+    "Layer0": {
+      "count": 26,
+      "bbox": {
+        "w": 7620.0,
+        "d": 4572.0,
+        "h": 3048.0
+      }
+    },
+    "Sandwich Panel": {
+      "count": 1,
+      "bbox": {
+        "w": 7720.0,
+        "d": 4672.0,
+        "h": 3098.0
+      }
+    }
+  },
+  "definitions": [
+    {
+      "name": "Group#3",
+      "instances": 10,
+      "dims": {
+        "w": 7449.6,
+        "d": 100.0,
+        "h": 100.0
+      },
+      "section": [
+        100.0,
+        100.0
+      ],
+      "length": 7449.6
+    },
+    {
+      "name": "Group#1",
+      "instances": 8,
+      "dims": {
+        "w": 5023.2,
+        "d": 100.0,
+        "h": 100.0
+      },
+      "section": [
+        100.0,
+        100.0
+      ],
+      "length": 5023.2
+    },
+    {
+      "name": "Group#5",
+      "instances": 5,
+      "dims": {
+        "w": 7620.0,
+        "d": 100.0,
+        "h": 100.0
+      },
+      "section": [
+        100.0,
+        100.0
+      ],
+      "length": 7620.0
+    },
+    {
+      "name": "Group#4",
+      "instances": 1,
+      "dims": {
+        "w": 7720.0,
+        "d": 4672.0,
+        "h": 3098.0
+      },
+      "section": [
+        3098.0,
+        4672.0
+      ],
+      "length": 7720.0
+    },
+    {
+      "name": "Group#2",
+      "instances": 1,
+      "dims": {
+        "w": 7620.0,
+        "d": 100.0,
+        "h": 100.0
+      },
+      "section": [
+        100.0,
+        100.0
+      ],
+      "length": 7620.0
+    },
+    {
+      "name": "Laura",
+      "instances": 0,
+      "dims": {
+        "w": 613.0,
+        "d": 0.0,
+        "h": 1702.4
+      },
+      "section": [
+        0.0,
+        613.0
+      ],
+      "length": 1702.4
+    }
+  ]
+}

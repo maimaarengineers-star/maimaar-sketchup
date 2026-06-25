@@ -1,0 +1,5042 @@
+{
+  "title": "302-25-MSPL",
+  "path": "E:\\Maimaar Steel Pvt Ltd\\Proposals\\2025\\302-25-MSPL_Asad Abbas_Imam Bargah\\Rev-00\\3D Views\\Without Mezzanine\\302-25-MSPL.skp",
+  "bbox": {
+    "w": 139787.6,
+    "d": 48793.0,
+    "h": 9778.7
+  },
+  "units": 2,
+  "layers": [
+    "Layer0",
+    "sheeting",
+    "ms",
+    "purlin",
+    "Gutter and Pipes",
+    "brick wall",
+    "DECK",
+    "MAIN BEAM & JOIST",
+    "DOOR",
+    "Cars"
+  ],
+  "scenes": [
+    "Scene 1",
+    "Scene 2",
+    "Scene 3",
+    "Scene 4",
+    "Scene 5",
+    "Scene 6"
+  ],
+  "tags": {
+    "brick wall": {
+      "count": 1,
+      "bbox": {
+        "w": 42672.0,
+        "d": 42672.0,
+        "h": 7620.0
+      }
+    },
+    "ms": {
+      "count": 7,
+      "bbox": {
+        "w": 26974.0,
+        "d": 42672.0,
+        "h": 9518.7
+      }
+    },
+    "purlin": {
+      "count": 24,
+      "bbox": {
+        "w": 27378.0,
+        "d": 42672.0,
+        "h": 2087.1
+      }
+    },
+    "sheeting": {
+      "count": 1,
+      "bbox": {
+        "w": 27432.0,
+        "d": 42722.0,
+        "h": 2158.7
+      }
+    },
+    "Gutter and Pipes": {
+      "count": 2,
+      "bbox": {
+        "w": 27717.4,
+        "d": 42722.0,
+        "h": 8170.7
+      }
+    },
+    "MAIN BEAM & JOIST": {
+      "count": 100,
+      "bbox": {
+        "w": 26974.0,
+        "d": 42672.0,
+        "h": 3702.8
+      }
+    },
+    "DECK": {
+      "count": 1,
+      "bbox": {
+        "w": 26974.0,
+        "d": 42672.0,
+        "h": 100.0
+      }
+    },
+    "Layer0": {
+      "count": 22,
+      "bbox": {
+        "w": 139787.6,
+        "d": 48568.0,
+        "h": 3657.6
+      }
+    },
+    "DOOR": {
+      "count": 2,
+      "bbox": {
+        "w": 15240.0,
+        "d": 102.0,
+        "h": 3266.0
+      }
+    },
+    "Cars": {
+      "count": 16,
+      "bbox": {
+        "w": 15244.3,
+        "d": 36891.2,
+        "h": 1429.7
+      }
+    }
+  },
+  "definitions": [
+    {
+      "name": "Group#29",
+      "instances": 58,
+      "dims": {
+        "w": 200.0,
+        "d": 150.0,
+        "h": 4572.0
+      },
+      "section": [
+        150.0,
+        200.0
+      ],
+      "length": 4572.0
+    },
+    {
+      "name": "skp5542#1",
+      "instances": 32,
+      "dims": {
+        "w": 7.0,
+        "d": 17.6,
+        "h": 17.6
+      },
+      "section": [
+        7.0,
+        17.6
+      ],
+      "length": 17.6
+    },
+    {
+      "name": "inner_rim#1",
+      "instances": 32,
+      "dims": {
+        "w": 6.4,
+        "d": 13.9,
+        "h": 13.9
+      },
+      "section": [
+        6.4,
+        13.9
+      ],
+      "length": 13.9
+    },
+    {
+      "name": "rim#1",
+      "instances": 32,
+      "dims": {
+        "w": 1.7,
+        "d": 13.9,
+        "h": 13.9
+      },
+      "section": [
+        1.7,
+        13.9
+      ],
+      "length": 13.9
+    },
+    {
+      "name": "tire#1",
+      "instances": 32,
+      "dims": {
+        "w": 6.7,
+        "d": 17.6,
+        "h": 17.6
+      },
+      "section": [
+        6.7,
+        17.6
+      ],
+      "length": 17.6
+    },
+    {
+      "name": "구성 요소#15",
+      "instances": 32,
+      "dims": {
+        "w": 82.8,
+        "d": 692.7,
+        "h": 695.2
+      },
+      "section": [
+        82.8,
+        692.7
+      ],
+      "length": 695.2
+    },
+    {
+      "name": "chrome_rim",
+      "instances": 32,
+      "dims": {
+        "w": 1.2,
+        "d": 3.5,
+        "h": 3.4
+      },
+      "section": [
+        1.2,
+        3.4
+      ],
+      "length": 3.5
+    },
+    {
+      "name": "Gruppo#34",
+      "instances": 32,
+      "dims": {
+        "w": 337.1,
+        "d": 89.5,
+        "h": 178.3
+      },
+      "section": [
+        89.5,
+        178.3
+      ],
+      "length": 337.1
+    },
+    {
+      "name": "wheel_embl",
+      "instances": 32,
+      "dims": {
+        "w": 0.1,
+        "d": 0.4,
+        "h": 0.2
+      },
+      "section": [
+        0.1,
+        0.2
+      ],
+      "length": 0.4
+    },
+    {
+      "name": "Group#18",
+      "instances": 24,
+      "dims": {
+        "w": 142.6,
+        "d": 42672.0,
+        "h": 202.0
+      },
+      "section": [
+        142.6,
+        202.0
+      ],
+      "length": 42672.0
+    },
+    {
+      "name": "inner_rim",
+      "instances": 16,
+      "dims": {
+        "w": 6.4,
+        "d": 13.9,
+        "h": 13.9
+      },
+      "section": [
+        6.4,
+        13.9
+      ],
+      "length": 13.9
+    },
+    {
+      "name": "body#6",
+      "instances": 16,
+      "dims": {
+        "w": 5.5,
+        "d": 5.4,
+        "h": 3.2
+      },
+      "section": [
+        3.2,
+        5.4
+      ],
+      "length": 5.5
+    },
+    {
+      "name": "tire",
+      "instances": 16,
+      "dims": {
+        "w": 6.7,
+        "d": 17.6,
+        "h": 17.6
+      },
+      "section": [
+        6.7,
+        17.6
+      ],
+      "length": 17.6
+    },
+    {
+      "name": "Group#41",
+      "instances": 16,
+      "dims": {
+        "w": 5.2,
+        "d": 49.2,
+        "h": 9.2
+      },
+      "section": [
+        5.2,
+        9.2
+      ],
+      "length": 49.2
+    },
+    {
+      "name": "Group#68",
+      "instances": 16,
+      "dims": {
+        "w": 11.0,
+        "d": 35.3,
+        "h": 25.9
+      },
+      "section": [
+        11.0,
+        25.9
+      ],
+      "length": 35.3
+    },
+    {
+      "name": "skp5F8A#1",
+      "instances": 16,
+      "dims": {
+        "w": 6.6,
+        "d": 9.6,
+        "h": 4.5
+      },
+      "section": [
+        4.5,
+        6.6
+      ],
+      "length": 9.6
+    },
+    {
+      "name": "Group#69",
+      "instances": 16,
+      "dims": {
+        "w": 2.7,
+        "d": 51.9,
+        "h": 5.9
+      },
+      "section": [
+        2.7,
+        5.9
+      ],
+      "length": 51.9
+    },
+    {
+      "name": "Group#43",
+      "instances": 16,
+      "dims": {
+        "w": 0.7,
+        "d": 5.8,
+        "h": 1.2
+      },
+      "section": [
+        0.7,
+        1.2
+      ],
+      "length": 5.8
+    },
+    {
+      "name": "Group#44",
+      "instances": 16,
+      "dims": {
+        "w": 9.6,
+        "d": 10.5,
+        "h": 4.9
+      },
+      "section": [
+        4.9,
+        9.6
+      ],
+      "length": 10.5
+    },
+    {
+      "name": "Group#66",
+      "instances": 16,
+      "dims": {
+        "w": 5.1,
+        "d": 32.4,
+        "h": 18.5
+      },
+      "section": [
+        5.1,
+        18.5
+      ],
+      "length": 32.4
+    },
+    {
+      "name": "Group#45",
+      "instances": 16,
+      "dims": {
+        "w": 1.6,
+        "d": 30.8,
+        "h": 3.4
+      },
+      "section": [
+        1.6,
+        3.4
+      ],
+      "length": 30.8
+    },
+    {
+      "name": "rim",
+      "instances": 16,
+      "dims": {
+        "w": 1.7,
+        "d": 13.9,
+        "h": 13.9
+      },
+      "section": [
+        1.7,
+        13.9
+      ],
+      "length": 13.9
+    },
+    {
+      "name": "skp918C#1",
+      "instances": 16,
+      "dims": {
+        "w": 9.6,
+        "d": 10.7,
+        "h": 4.9
+      },
+      "section": [
+        4.9,
+        9.6
+      ],
+      "length": 10.7
+    },
+    {
+      "name": "Group#46",
+      "instances": 16,
+      "dims": {
+        "w": 0.5,
+        "d": 4.5,
+        "h": 0.5
+      },
+      "section": [
+        0.5,
+        0.5
+      ],
+      "length": 4.5
+    },
+    {
+      "name": "구성 요소#12",
+      "instances": 16,
+      "dims": {
+        "w": 482.4,
+        "d": 160.3,
+        "h": 224.9
+      },
+      "section": [
+        160.3,
+        224.9
+      ],
+      "length": 482.4
+    },
+    {
+      "name": "구성 요소#11",
+      "instances": 16,
+      "dims": {
+        "w": 383.5,
+        "d": 118.4,
+        "h": 184.6
+      },
+      "section": [
+        118.4,
+        184.6
+      ],
+      "length": 383.5
+    },
+    {
+      "name": "wheel_embl#1",
+      "instances": 16,
+      "dims": {
+        "w": 0.1,
+        "d": 0.4,
+        "h": 0.2
+      },
+      "section": [
+        0.1,
+        0.2
+      ],
+      "length": 0.4
+    },
+    {
+      "name": "textured_r#7",
+      "instances": 16,
+      "dims": {
+        "w": 6.4,
+        "d": 3.9,
+        "h": 0.6
+      },
+      "section": [
+        0.6,
+        3.9
+      ],
+      "length": 6.4
+    },
+    {
+      "name": "구성 요소#16",
+      "instances": 16,
+      "dims": {
+        "w": 355.8,
+        "d": 4503.0,
+        "h": 882.4
+      },
+      "section": [
+        355.8,
+        882.4
+      ],
+      "length": 4503.0
+    },
+    {
+      "name": "Group#65",
+      "instances": 16,
+      "dims": {
+        "w": 11.3,
+        "d": 71.8,
+        "h": 24.9
+      },
+      "section": [
+        11.3,
+        24.9
+      ],
+      "length": 71.8
+    },
+    {
+      "name": "skp561E#1",
+      "instances": 16,
+      "dims": {
+        "w": 7.6,
+        "d": 17.3,
+        "h": 3.7
+      },
+      "section": [
+        3.7,
+        7.6
+      ],
+      "length": 17.3
+    },
+    {
+      "name": "KLP_t",
+      "instances": 16,
+      "dims": {
+        "w": 65.5,
+        "d": 144.0,
+        "h": 144.0
+      },
+      "section": [
+        65.5,
+        144.0
+      ],
+      "length": 144.0
+    },
+    {
+      "name": "Group#64",
+      "instances": 16,
+      "dims": {
+        "w": 2.6,
+        "d": 2.9,
+        "h": 1.2
+      },
+      "section": [
+        1.2,
+        2.6
+      ],
+      "length": 2.9
+    },
+    {
+      "name": "Group#63",
+      "instances": 16,
+      "dims": {
+        "w": 4.4,
+        "d": 19.0,
+        "h": 7.5
+      },
+      "section": [
+        4.4,
+        7.5
+      ],
+      "length": 19.0
+    },
+    {
+      "name": "KLP_a2",
+      "instances": 16,
+      "dims": {
+        "w": 230.0,
+        "d": 490.0,
+        "h": 490.0
+      },
+      "section": [
+        230.0,
+        490.0
+      ],
+      "length": 490.0
+    },
+    {
+      "name": "misc#3",
+      "instances": 16,
+      "dims": {
+        "w": 7.6,
+        "d": 13.9,
+        "h": 3.7
+      },
+      "section": [
+        3.7,
+        7.6
+      ],
+      "length": 13.9
+    },
+    {
+      "name": "Group#70",
+      "instances": 16,
+      "dims": {
+        "w": 30.0,
+        "d": 305.1,
+        "h": 310.3
+      },
+      "section": [
+        30.0,
+        305.1
+      ],
+      "length": 310.3
+    },
+    {
+      "name": "Group#57",
+      "instances": 16,
+      "dims": {
+        "w": 5.5,
+        "d": 51.7,
+        "h": 9.7
+      },
+      "section": [
+        5.5,
+        9.7
+      ],
+      "length": 51.7
+    },
+    {
+      "name": "구성 요소#18",
+      "instances": 16,
+      "dims": {
+        "w": 121.0,
+        "d": 74.0,
+        "h": 66.5
+      },
+      "section": [
+        66.5,
+        74.0
+      ],
+      "length": 121.0
+    },
+    {
+      "name": "Group#56",
+      "instances": 16,
+      "dims": {
+        "w": 2.4,
+        "d": 32.2,
+        "h": 2.4
+      },
+      "section": [
+        2.4,
+        2.4
+      ],
+      "length": 32.2
+    },
+    {
+      "name": "reverse_li",
+      "instances": 16,
+      "dims": {
+        "w": 2.3,
+        "d": 0.9,
+        "h": 0.6
+      },
+      "section": [
+        0.6,
+        0.9
+      ],
+      "length": 2.3
+    },
+    {
+      "name": "detail_g01#3",
+      "instances": 16,
+      "dims": {
+        "w": 7.4,
+        "d": 2.6,
+        "h": 3.1
+      },
+      "section": [
+        2.6,
+        3.1
+      ],
+      "length": 7.4
+    },
+    {
+      "name": "chrome#7",
+      "instances": 16,
+      "dims": {
+        "w": 4.6,
+        "d": 2.6,
+        "h": 3.0
+      },
+      "section": [
+        2.6,
+        3.0
+      ],
+      "length": 4.6
+    },
+    {
+      "name": "chrome#6",
+      "instances": 16,
+      "dims": {
+        "w": 0.5,
+        "d": 7.2,
+        "h": 1.7
+      },
+      "section": [
+        0.5,
+        1.7
+      ],
+      "length": 7.2
+    },
+    {
+      "name": "window04#1",
+      "instances": 16,
+      "dims": {
+        "w": 3.6,
+        "d": 15.7,
+        "h": 6.1
+      },
+      "section": [
+        3.6,
+        6.1
+      ],
+      "length": 15.7
+    },
+    {
+      "name": "fogred#1",
+      "instances": 16,
+      "dims": {
+        "w": 2.3,
+        "d": 0.9,
+        "h": 2.2
+      },
+      "section": [
+        0.9,
+        2.2
+      ],
+      "length": 2.3
+    },
+    {
+      "name": "black_glas#3",
+      "instances": 16,
+      "dims": {
+        "w": 4.4,
+        "d": 19.0,
+        "h": 7.5
+      },
+      "section": [
+        4.4,
+        7.5
+      ],
+      "length": 19.0
+    },
+    {
+      "name": "frame#3",
+      "instances": 16,
+      "dims": {
+        "w": 2.5,
+        "d": 3.0,
+        "h": 1.2
+      },
+      "section": [
+        1.2,
+        2.5
+      ],
+      "length": 3.0
+    },
+    {
+      "name": "indicator_#3",
+      "instances": 16,
+      "dims": {
+        "w": 0.1,
+        "d": 3.4,
+        "h": 0.5
+      },
+      "section": [
+        0.1,
+        0.5
+      ],
+      "length": 3.4
+    },
+    {
+      "name": "plastic2#3",
+      "instances": 16,
+      "dims": {
+        "w": 0.4,
+        "d": 6.6,
+        "h": 1.6
+      },
+      "section": [
+        0.4,
+        1.6
+      ],
+      "length": 6.6
+    },
+    {
+      "name": "taillights#2",
+      "instances": 16,
+      "dims": {
+        "w": 5.7,
+        "d": 2.0,
+        "h": 1.2
+      },
+      "section": [
+        1.2,
+        2.0
+      ],
+      "length": 5.7
+    },
+    {
+      "name": "plastic2#4",
+      "instances": 16,
+      "dims": {
+        "w": 5.4,
+        "d": 4.7,
+        "h": 3.5
+      },
+      "section": [
+        3.5,
+        4.7
+      ],
+      "length": 5.4
+    },
+    {
+      "name": "glass#2",
+      "instances": 16,
+      "dims": {
+        "w": 0.3,
+        "d": 3.4,
+        "h": 0.5
+      },
+      "section": [
+        0.3,
+        0.5
+      ],
+      "length": 3.4
+    },
+    {
+      "name": "detail_gla#4",
+      "instances": 16,
+      "dims": {
+        "w": 4.2,
+        "d": 1.6,
+        "h": 0.6
+      },
+      "section": [
+        0.6,
+        1.6
+      ],
+      "length": 4.2
+    },
+    {
+      "name": "textured_r#4",
+      "instances": 16,
+      "dims": {
+        "w": 7.4,
+        "d": 2.8,
+        "h": 3.1
+      },
+      "section": [
+        2.8,
+        3.1
+      ],
+      "length": 7.4
+    },
+    {
+      "name": "Group#55",
+      "instances": 16,
+      "dims": {
+        "w": 0.6,
+        "d": 7.2,
+        "h": 2.0
+      },
+      "section": [
+        0.6,
+        2.0
+      ],
+      "length": 7.2
+    },
+    {
+      "name": "Group#53",
+      "instances": 16,
+      "dims": {
+        "w": 4.3,
+        "d": 5.3,
+        "h": 3.3
+      },
+      "section": [
+        3.3,
+        4.3
+      ],
+      "length": 5.3
+    },
+    {
+      "name": "Group#47",
+      "instances": 16,
+      "dims": {
+        "w": 226.1,
+        "d": 30.0,
+        "h": 59.8
+      },
+      "section": [
+        30.0,
+        59.8
+      ],
+      "length": 226.1
+    },
+    {
+      "name": "Group#52",
+      "instances": 16,
+      "dims": {
+        "w": 1.2,
+        "d": 5.8,
+        "h": 1.2
+      },
+      "section": [
+        1.2,
+        1.2
+      ],
+      "length": 5.8
+    },
+    {
+      "name": "Group#51",
+      "instances": 16,
+      "dims": {
+        "w": 2.0,
+        "d": 31.6,
+        "h": 3.9
+      },
+      "section": [
+        2.0,
+        3.9
+      ],
+      "length": 31.6
+    },
+    {
+      "name": "glass#3",
+      "instances": 16,
+      "dims": {
+        "w": 9.6,
+        "d": 9.8,
+        "h": 4.9
+      },
+      "section": [
+        4.9,
+        9.6
+      ],
+      "length": 9.8
+    },
+    {
+      "name": "Group#50",
+      "instances": 16,
+      "dims": {
+        "w": 7.4,
+        "d": 2.9,
+        "h": 3.1
+      },
+      "section": [
+        2.9,
+        3.1
+      ],
+      "length": 7.4
+    },
+    {
+      "name": "indicator_#4",
+      "instances": 16,
+      "dims": {
+        "w": 7.8,
+        "d": 3.5,
+        "h": 0.8
+      },
+      "section": [
+        0.8,
+        3.5
+      ],
+      "length": 7.8
+    },
+    {
+      "name": "textured_r#5",
+      "instances": 16,
+      "dims": {
+        "w": 9.6,
+        "d": 10.5,
+        "h": 4.9
+      },
+      "section": [
+        4.9,
+        9.6
+      ],
+      "length": 10.5
+    },
+    {
+      "name": "Group#48",
+      "instances": 16,
+      "dims": {
+        "w": 288.0,
+        "d": 5.0,
+        "h": 288.0
+      },
+      "section": [
+        5.0,
+        288.0
+      ],
+      "length": 288.0
+    },
+    {
+      "name": "hidhead#1",
+      "instances": 16,
+      "dims": {
+        "w": 5.8,
+        "d": 2.7,
+        "h": 1.3
+      },
+      "section": [
+        1.3,
+        2.7
+      ],
+      "length": 5.8
+    },
+    {
+      "name": "Group#49",
+      "instances": 16,
+      "dims": {
+        "w": 192.0,
+        "d": 10.0,
+        "h": 192.0
+      },
+      "section": [
+        10.0,
+        192.0
+      ],
+      "length": 192.0
+    },
+    {
+      "name": "Brembo",
+      "instances": 16,
+      "dims": {
+        "w": 89.5,
+        "d": 1214.9,
+        "h": 1214.9
+      },
+      "section": [
+        89.5,
+        1214.9
+      ],
+      "length": 1214.9
+    },
+    {
+      "name": "chrome_rim#1",
+      "instances": 16,
+      "dims": {
+        "w": 1.3,
+        "d": 3.5,
+        "h": 3.4
+      },
+      "section": [
+        1.3,
+        3.4
+      ],
+      "length": 3.5
+    },
+    {
+      "name": "Wheels",
+      "instances": 16,
+      "dims": {
+        "w": 233.2,
+        "d": 663.5,
+        "h": 663.5
+      },
+      "section": [
+        233.2,
+        663.5
+      ],
+      "length": 663.5
+    },
+    {
+      "name": "window01#1",
+      "instances": 16,
+      "dims": {
+        "w": 4.9,
+        "d": 27.6,
+        "h": 8.8
+      },
+      "section": [
+        4.9,
+        8.8
+      ],
+      "length": 27.6
+    },
+    {
+      "name": "detail_gla",
+      "instances": 16,
+      "dims": {
+        "w": 6.6,
+        "d": 9.6,
+        "h": 4.5
+      },
+      "section": [
+        4.5,
+        6.6
+      ],
+      "length": 9.6
+    },
+    {
+      "name": "KLP_p",
+      "instances": 16,
+      "dims": {
+        "w": 230.0,
+        "d": 660.0,
+        "h": 660.0
+      },
+      "section": [
+        230.0,
+        660.0
+      ],
+      "length": 660.0
+    },
+    {
+      "name": "fullbeam#1",
+      "instances": 16,
+      "dims": {
+        "w": 5.8,
+        "d": 2.7,
+        "h": 1.2
+      },
+      "section": [
+        1.2,
+        2.7
+      ],
+      "length": 5.8
+    },
+    {
+      "name": "skp5542",
+      "instances": 16,
+      "dims": {
+        "w": 7.0,
+        "d": 17.6,
+        "h": 17.6
+      },
+      "section": [
+        7.0,
+        17.6
+      ],
+      "length": 17.6
+    },
+    {
+      "name": "구성 요소#4",
+      "instances": 16,
+      "dims": {
+        "w": 256.1,
+        "d": 1621.0,
+        "h": 926.3
+      },
+      "section": [
+        256.1,
+        926.3
+      ],
+      "length": 1621.0
+    },
+    {
+      "name": "matte_colo",
+      "instances": 16,
+      "dims": {
+        "w": 4.4,
+        "d": 2.2,
+        "h": 1.8
+      },
+      "section": [
+        1.8,
+        2.2
+      ],
+      "length": 4.4
+    },
+    {
+      "name": "chrome#11",
+      "instances": 16,
+      "dims": {
+        "w": 4.6,
+        "d": 4.3,
+        "h": 2.2
+      },
+      "section": [
+        2.2,
+        4.3
+      ],
+      "length": 4.6
+    },
+    {
+      "name": "구성 요소#6",
+      "instances": 16,
+      "dims": {
+        "w": 532.7,
+        "d": 3589.9,
+        "h": 1243.1
+      },
+      "section": [
+        532.7,
+        1243.1
+      ],
+      "length": 3589.9
+    },
+    {
+      "name": "구성 요소#5",
+      "instances": 16,
+      "dims": {
+        "w": 157.0,
+        "d": 1751.5,
+        "h": 882.2
+      },
+      "section": [
+        157.0,
+        882.2
+      ],
+      "length": 1751.5
+    },
+    {
+      "name": "drlwhite#1",
+      "instances": 16,
+      "dims": {
+        "w": 6.3,
+        "d": 4.7,
+        "h": 3.2
+      },
+      "section": [
+        3.2,
+        4.7
+      ],
+      "length": 6.3
+    },
+    {
+      "name": "skp182B#1",
+      "instances": 16,
+      "dims": {
+        "w": 5.5,
+        "d": 5.6,
+        "h": 3.5
+      },
+      "section": [
+        3.5,
+        5.5
+      ],
+      "length": 5.6
+    },
+    {
+      "name": "indicator_#5",
+      "instances": 16,
+      "dims": {
+        "w": 3.5,
+        "d": 6.3,
+        "h": 1.8
+      },
+      "section": [
+        1.8,
+        3.5
+      ],
+      "length": 6.3
+    },
+    {
+      "name": "detail_gla#5",
+      "instances": 16,
+      "dims": {
+        "w": 3.3,
+        "d": 6.1,
+        "h": 1.5
+      },
+      "section": [
+        1.5,
+        3.3
+      ],
+      "length": 6.1
+    },
+    {
+      "name": "chrome_2#1",
+      "instances": 16,
+      "dims": {
+        "w": 8.0,
+        "d": 9.2,
+        "h": 3.2
+      },
+      "section": [
+        3.2,
+        8.0
+      ],
+      "length": 9.2
+    },
+    {
+      "name": "detail_g01#4",
+      "instances": 16,
+      "dims": {
+        "w": 3.8,
+        "d": 6.6,
+        "h": 2.0
+      },
+      "section": [
+        2.0,
+        3.8
+      ],
+      "length": 6.6
+    },
+    {
+      "name": "tail_light",
+      "instances": 16,
+      "dims": {
+        "w": 3.9,
+        "d": 3.8,
+        "h": 0.9
+      },
+      "section": [
+        0.9,
+        3.8
+      ],
+      "length": 3.9
+    },
+    {
+      "name": "taillights#3",
+      "instances": 16,
+      "dims": {
+        "w": 5.2,
+        "d": 7.1,
+        "h": 2.1
+      },
+      "section": [
+        2.1,
+        5.2
+      ],
+      "length": 7.1
+    },
+    {
+      "name": "textured_r#6",
+      "instances": 16,
+      "dims": {
+        "w": 6.6,
+        "d": 9.5,
+        "h": 4.5
+      },
+      "section": [
+        4.5,
+        6.6
+      ],
+      "length": 9.5
+    },
+    {
+      "name": "Group#35",
+      "instances": 14,
+      "dims": {
+        "w": 211.8,
+        "d": 151.8,
+        "h": 43041.9
+      },
+      "section": [
+        151.8,
+        211.8
+      ],
+      "length": 43041.9
+    },
+    {
+      "name": "Group#10",
+      "instances": 11,
+      "dims": {
+        "w": 350.0,
+        "d": 250.0,
+        "h": 1629.2
+      },
+      "section": [
+        250.0,
+        350.0
+      ],
+      "length": 1629.2
+    },
+    {
+      "name": "Group#26",
+      "instances": 10,
+      "dims": {
+        "w": 350.0,
+        "d": 250.0,
+        "h": 2230.7
+      },
+      "section": [
+        250.0,
+        350.0
+      ],
+      "length": 2230.7
+    },
+    {
+      "name": "Group#27",
+      "instances": 10,
+      "dims": {
+        "w": 200.0,
+        "d": 150.0,
+        "h": 6840.2
+      },
+      "section": [
+        150.0,
+        200.0
+      ],
+      "length": 6840.2
+    },
+    {
+      "name": "chrome#10",
+      "instances": 8,
+      "dims": {
+        "w": 9.5,
+        "d": 0.5,
+        "h": 3.3
+      },
+      "section": [
+        0.5,
+        3.3
+      ],
+      "length": 9.5
+    },
+    {
+      "name": "DLZ_t",
+      "instances": 8,
+      "dims": {
+        "w": 78.6,
+        "d": 882.8,
+        "h": 649.9
+      },
+      "section": [
+        78.6,
+        649.9
+      ],
+      "length": 882.8
+    },
+    {
+      "name": "Group#140",
+      "instances": 8,
+      "dims": {
+        "w": 7.4,
+        "d": 2.9,
+        "h": 3.1
+      },
+      "section": [
+        2.9,
+        3.1
+      ],
+      "length": 7.4
+    },
+    {
+      "name": "DLZ_lak",
+      "instances": 8,
+      "dims": {
+        "w": 155.1,
+        "d": 1139.7,
+        "h": 692.3
+      },
+      "section": [
+        155.1,
+        692.3
+      ],
+      "length": 1139.7
+    },
+    {
+      "name": "interior",
+      "instances": 8,
+      "dims": {
+        "w": 40.4,
+        "d": 67.7,
+        "h": 28.3
+      },
+      "section": [
+        28.3,
+        40.4
+      ],
+      "length": 67.7
+    },
+    {
+      "name": "skp5F8A",
+      "instances": 8,
+      "dims": {
+        "w": 6.6,
+        "d": 9.6,
+        "h": 4.5
+      },
+      "section": [
+        4.5,
+        6.6
+      ],
+      "length": 9.6
+    },
+    {
+      "name": "tail_light#3",
+      "instances": 8,
+      "dims": {
+        "w": 14.1,
+        "d": 0.8,
+        "h": 0.5
+      },
+      "section": [
+        0.5,
+        0.8
+      ],
+      "length": 14.1
+    },
+    {
+      "name": "DLZ_gum",
+      "instances": 8,
+      "dims": {
+        "w": 195.2,
+        "d": 1076.1,
+        "h": 850.8
+      },
+      "section": [
+        195.2,
+        850.8
+      ],
+      "length": 1076.1
+    },
+    {
+      "name": "DLZ_skl",
+      "instances": 8,
+      "dims": {
+        "w": 162.2,
+        "d": 937.7,
+        "h": 303.0
+      },
+      "section": [
+        162.2,
+        303.0
+      ],
+      "length": 937.7
+    },
+    {
+      "name": "2013+BMW+M6",
+      "instances": 8,
+      "dims": {
+        "w": 52.7,
+        "d": 123.9,
+        "h": 35.1
+      },
+      "section": [
+        35.1,
+        52.7
+      ],
+      "length": 123.9
+    },
+    {
+      "name": "Poulsen_Ballerup.skp",
+      "instances": 8,
+      "dims": {
+        "w": 166.0,
+        "d": 166.0,
+        "h": 111.1
+      },
+      "section": [
+        111.1,
+        166.0
+      ],
+      "length": 166.0
+    },
+    {
+      "name": "skp2E2C#1",
+      "instances": 8,
+      "dims": {
+        "w": 33.2,
+        "d": 20.3,
+        "h": 25.1
+      },
+      "section": [
+        20.3,
+        25.1
+      ],
+      "length": 33.2
+    },
+    {
+      "name": "plaka",
+      "instances": 8,
+      "dims": {
+        "w": 400.0,
+        "d": 2.4,
+        "h": 100.0
+      },
+      "section": [
+        2.4,
+        100.0
+      ],
+      "length": 400.0
+    },
+    {
+      "name": "skp4861#1",
+      "instances": 8,
+      "dims": {
+        "w": 11.2,
+        "d": 5.8,
+        "h": 10.0
+      },
+      "section": [
+        5.8,
+        10.0
+      ],
+      "length": 11.2
+    },
+    {
+      "name": "Group#141",
+      "instances": 8,
+      "dims": {
+        "w": 11.3,
+        "d": 71.8,
+        "h": 24.9
+      },
+      "section": [
+        11.3,
+        24.9
+      ],
+      "length": 71.8
+    },
+    {
+      "name": "DLP_skl",
+      "instances": 8,
+      "dims": {
+        "w": 392.2,
+        "d": 901.7,
+        "h": 340.9
+      },
+      "section": [
+        340.9,
+        392.2
+      ],
+      "length": 901.7
+    },
+    {
+      "name": "DLP_cbs",
+      "instances": 8,
+      "dims": {
+        "w": 144.6,
+        "d": 162.4,
+        "h": 42.2
+      },
+      "section": [
+        42.2,
+        144.6
+      ],
+      "length": 162.4
+    },
+    {
+      "name": "DLZ_chr",
+      "instances": 8,
+      "dims": {
+        "w": 136.4,
+        "d": 1123.8,
+        "h": 585.9
+      },
+      "section": [
+        136.4,
+        585.9
+      ],
+      "length": 1123.8
+    },
+    {
+      "name": "DLP_lak",
+      "instances": 8,
+      "dims": {
+        "w": 259.3,
+        "d": 1162.5,
+        "h": 827.9
+      },
+      "section": [
+        259.3,
+        827.9
+      ],
+      "length": 1162.5
+    },
+    {
+      "name": "DLP_chr",
+      "instances": 8,
+      "dims": {
+        "w": 213.1,
+        "d": 1164.1,
+        "h": 716.5
+      },
+      "section": [
+        213.1,
+        716.5
+      ],
+      "length": 1164.1
+    },
+    {
+      "name": "Group#145",
+      "instances": 8,
+      "dims": {
+        "w": 2.7,
+        "d": 51.9,
+        "h": 5.9
+      },
+      "section": [
+        2.7,
+        5.9
+      ],
+      "length": 51.9
+    },
+    {
+      "name": "DLZ_alu",
+      "instances": 8,
+      "dims": {
+        "w": 79.4,
+        "d": 671.3,
+        "h": 205.1
+      },
+      "section": [
+        79.4,
+        205.1
+      ],
+      "length": 671.3
+    },
+    {
+      "name": "2015 BMW - M6",
+      "instances": 8,
+      "dims": {
+        "w": 2636.9,
+        "d": 6195.4,
+        "h": 1756.3
+      },
+      "section": [
+        1756.3,
+        2636.9
+      ],
+      "length": 6195.4
+    },
+    {
+      "name": "black#4",
+      "instances": 8,
+      "dims": {
+        "w": 47.6,
+        "d": 4.4,
+        "h": 12.0
+      },
+      "section": [
+        4.4,
+        12.0
+      ],
+      "length": 47.6
+    },
+    {
+      "name": "body#9",
+      "instances": 8,
+      "dims": {
+        "w": 37.5,
+        "d": 16.1,
+        "h": 9.0
+      },
+      "section": [
+        9.0,
+        16.1
+      ],
+      "length": 37.5
+    },
+    {
+      "name": "plastic2#5",
+      "instances": 8,
+      "dims": {
+        "w": 44.4,
+        "d": 12.9,
+        "h": 13.1
+      },
+      "section": [
+        12.9,
+        13.1
+      ],
+      "length": 44.4
+    },
+    {
+      "name": "body#7",
+      "instances": 8,
+      "dims": {
+        "w": 47.6,
+        "d": 17.9,
+        "h": 14.8
+      },
+      "section": [
+        14.8,
+        17.9
+      ],
+      "length": 47.6
+    },
+    {
+      "name": "black#3",
+      "instances": 8,
+      "dims": {
+        "w": 48.0,
+        "d": 95.3,
+        "h": 21.0
+      },
+      "section": [
+        21.0,
+        48.0
+      ],
+      "length": 95.3
+    },
+    {
+      "name": "rubber_tri",
+      "instances": 8,
+      "dims": {
+        "w": 26.4,
+        "d": 4.3,
+        "h": 1.0
+      },
+      "section": [
+        1.0,
+        4.3
+      ],
+      "length": 26.4
+    },
+    {
+      "name": "matte_colo#3",
+      "instances": 8,
+      "dims": {
+        "w": 39.5,
+        "d": 7.5,
+        "h": 10.7
+      },
+      "section": [
+        7.5,
+        10.7
+      ],
+      "length": 39.5
+    },
+    {
+      "name": "DLP_gum",
+      "instances": 8,
+      "dims": {
+        "w": 274.0,
+        "d": 1134.6,
+        "h": 784.1
+      },
+      "section": [
+        274.0,
+        784.1
+      ],
+      "length": 1134.6
+    },
+    {
+      "name": "chrome#9",
+      "instances": 8,
+      "dims": {
+        "w": 6.5,
+        "d": 1.6,
+        "h": 1.9
+      },
+      "section": [
+        1.6,
+        1.9
+      ],
+      "length": 6.5
+    },
+    {
+      "name": "Signal LED",
+      "instances": 8,
+      "dims": {
+        "w": 292.6,
+        "d": 217.0,
+        "h": 43.4
+      },
+      "section": [
+        43.4,
+        217.0
+      ],
+      "length": 292.6
+    },
+    {
+      "name": "Rear LED Covers",
+      "instances": 8,
+      "dims": {
+        "w": 340.8,
+        "d": 374.8,
+        "h": 139.5
+      },
+      "section": [
+        139.5,
+        340.8
+      ],
+      "length": 374.8
+    },
+    {
+      "name": "black#5",
+      "instances": 8,
+      "dims": {
+        "w": 47.7,
+        "d": 6.7,
+        "h": 11.2
+      },
+      "section": [
+        6.7,
+        11.2
+      ],
+      "length": 47.7
+    },
+    {
+      "name": "frame#7",
+      "instances": 8,
+      "dims": {
+        "w": 47.6,
+        "d": 20.0,
+        "h": 14.1
+      },
+      "section": [
+        14.1,
+        20.0
+      ],
+      "length": 47.6
+    },
+    {
+      "name": "frame#4",
+      "instances": 8,
+      "dims": {
+        "w": 47.6,
+        "d": 117.4,
+        "h": 22.8
+      },
+      "section": [
+        22.8,
+        47.6
+      ],
+      "length": 117.4
+    },
+    {
+      "name": "araç",
+      "instances": 8,
+      "dims": {
+        "w": 2135.3,
+        "d": 4832.5,
+        "h": 1429.7
+      },
+      "section": [
+        1429.7,
+        2135.3
+      ],
+      "length": 4832.5
+    },
+    {
+      "name": "emblem#3",
+      "instances": 8,
+      "dims": {
+        "w": 8.5,
+        "d": 1.7,
+        "h": 2.7
+      },
+      "section": [
+        1.7,
+        2.7
+      ],
+      "length": 8.5
+    },
+    {
+      "name": "Front Gaskets",
+      "instances": 8,
+      "dims": {
+        "w": 275.3,
+        "d": 205.8,
+        "h": 118.4
+      },
+      "section": [
+        118.4,
+        205.8
+      ],
+      "length": 275.3
+    },
+    {
+      "name": "misc#2",
+      "instances": 8,
+      "dims": {
+        "w": 22.5,
+        "d": 5.1,
+        "h": 7.6
+      },
+      "section": [
+        5.1,
+        7.6
+      ],
+      "length": 22.5
+    },
+    {
+      "name": "chrome#8",
+      "instances": 8,
+      "dims": {
+        "w": 19.8,
+        "d": 3.2,
+        "h": 5.9
+      },
+      "section": [
+        3.2,
+        5.9
+      ],
+      "length": 19.8
+    },
+    {
+      "name": "body#8",
+      "instances": 8,
+      "dims": {
+        "w": 47.7,
+        "d": 23.2,
+        "h": 14.2
+      },
+      "section": [
+        14.2,
+        23.2
+      ],
+      "length": 47.7
+    },
+    {
+      "name": "weatherstr#1",
+      "instances": 8,
+      "dims": {
+        "w": 28.2,
+        "d": 5.5,
+        "h": 2.6
+      },
+      "section": [
+        2.6,
+        5.5
+      ],
+      "length": 28.2
+    },
+    {
+      "name": "Group#126",
+      "instances": 8,
+      "dims": {
+        "w": 9.6,
+        "d": 10.5,
+        "h": 4.9
+      },
+      "section": [
+        4.9,
+        9.6
+      ],
+      "length": 10.5
+    },
+    {
+      "name": "Door Seals",
+      "instances": 8,
+      "dims": {
+        "w": 198.1,
+        "d": 2183.7,
+        "h": 991.2
+      },
+      "section": [
+        198.1,
+        991.2
+      ],
+      "length": 2183.7
+    },
+    {
+      "name": "window",
+      "instances": 8,
+      "dims": {
+        "w": 34.2,
+        "d": 15.7,
+        "h": 7.3
+      },
+      "section": [
+        7.3,
+        15.7
+      ],
+      "length": 34.2
+    },
+    {
+      "name": "numplate#1",
+      "instances": 8,
+      "dims": {
+        "w": 7.2,
+        "d": 0.5,
+        "h": 0.1
+      },
+      "section": [
+        0.1,
+        0.5
+      ],
+      "length": 7.2
+    },
+    {
+      "name": "frame#6",
+      "instances": 8,
+      "dims": {
+        "w": 47.5,
+        "d": 16.5,
+        "h": 14.8
+      },
+      "section": [
+        14.8,
+        16.5
+      ],
+      "length": 47.5
+    },
+    {
+      "name": "구성 요소#7",
+      "instances": 8,
+      "dims": {
+        "w": 1645.4,
+        "d": 354.5,
+        "h": 50.6
+      },
+      "section": [
+        50.6,
+        354.5
+      ],
+      "length": 1645.4
+    },
+    {
+      "name": "Taillight Gaskets",
+      "instances": 8,
+      "dims": {
+        "w": 437.1,
+        "d": 492.6,
+        "h": 218.2
+      },
+      "section": [
+        218.2,
+        437.1
+      ],
+      "length": 492.6
+    },
+    {
+      "name": "Front LED Covers",
+      "instances": 8,
+      "dims": {
+        "w": 294.7,
+        "d": 303.9,
+        "h": 117.8
+      },
+      "section": [
+        117.8,
+        294.7
+      ],
+      "length": 303.9
+    },
+    {
+      "name": "Rear LED Assembly",
+      "instances": 8,
+      "dims": {
+        "w": 340.8,
+        "d": 389.7,
+        "h": 139.5
+      },
+      "section": [
+        139.5,
+        340.8
+      ],
+      "length": 389.7
+    },
+    {
+      "name": "Group#54",
+      "instances": 8,
+      "dims": {
+        "w": 30.4,
+        "d": 19.8,
+        "h": 6.2
+      },
+      "section": [
+        6.2,
+        19.8
+      ],
+      "length": 30.4
+    },
+    {
+      "name": "Front LED Assembly",
+      "instances": 8,
+      "dims": {
+        "w": 301.7,
+        "d": 373.7,
+        "h": 200.7
+      },
+      "section": [
+        200.7,
+        301.7
+      ],
+      "length": 373.7
+    },
+    {
+      "name": "Front Seat",
+      "instances": 8,
+      "dims": {
+        "w": 611.2,
+        "d": 893.8,
+        "h": 919.4
+      },
+      "section": [
+        611.2,
+        893.8
+      ],
+      "length": 919.4
+    },
+    {
+      "name": "Front Headlights Assembly",
+      "instances": 8,
+      "dims": {
+        "w": 320.4,
+        "d": 396.9,
+        "h": 162.6
+      },
+      "section": [
+        162.6,
+        320.4
+      ],
+      "length": 396.9
+    },
+    {
+      "name": "undercarri",
+      "instances": 8,
+      "dims": {
+        "w": 44.5,
+        "d": 114.5,
+        "h": 16.4
+      },
+      "section": [
+        16.4,
+        44.5
+      ],
+      "length": 114.5
+    },
+    {
+      "name": "Group#58",
+      "instances": 8,
+      "dims": {
+        "w": 37.7,
+        "d": 16.5,
+        "h": 9.2
+      },
+      "section": [
+        9.2,
+        16.5
+      ],
+      "length": 37.7
+    },
+    {
+      "name": "Group#59",
+      "instances": 8,
+      "dims": {
+        "w": 27.7,
+        "d": 17.2,
+        "h": 5.4
+      },
+      "section": [
+        5.4,
+        17.2
+      ],
+      "length": 27.7
+    },
+    {
+      "name": "Group#60",
+      "instances": 8,
+      "dims": {
+        "w": 37.0,
+        "d": 20.0,
+        "h": 9.2
+      },
+      "section": [
+        9.2,
+        20.0
+      ],
+      "length": 37.0
+    },
+    {
+      "name": "Rear Headrests",
+      "instances": 8,
+      "dims": {
+        "w": 550.3,
+        "d": 479.6,
+        "h": 829.3
+      },
+      "section": [
+        479.6,
+        550.3
+      ],
+      "length": 829.3
+    },
+    {
+      "name": "Group#61",
+      "instances": 8,
+      "dims": {
+        "w": 38.0,
+        "d": 23.2,
+        "h": 10.7
+      },
+      "section": [
+        10.7,
+        23.2
+      ],
+      "length": 38.0
+    },
+    {
+      "name": "Group#62",
+      "instances": 8,
+      "dims": {
+        "w": 30.1,
+        "d": 19.4,
+        "h": 6.1
+      },
+      "section": [
+        6.1,
+        19.4
+      ],
+      "length": 30.1
+    },
+    {
+      "name": "Headlight Glass",
+      "instances": 8,
+      "dims": {
+        "w": 336.4,
+        "d": 442.7,
+        "h": 438.7
+      },
+      "section": [
+        336.4,
+        438.7
+      ],
+      "length": 442.7
+    },
+    {
+      "name": "구성 요소#13",
+      "instances": 8,
+      "dims": {
+        "w": 105.5,
+        "d": 88.3,
+        "h": 61.8
+      },
+      "section": [
+        61.8,
+        88.3
+      ],
+      "length": 105.5
+    },
+    {
+      "name": "Sun Visors",
+      "instances": 8,
+      "dims": {
+        "w": 489.0,
+        "d": 189.0,
+        "h": 70.8
+      },
+      "section": [
+        70.8,
+        189.0
+      ],
+      "length": 489.0
+    },
+    {
+      "name": "Rear Lights Assembly",
+      "instances": 8,
+      "dims": {
+        "w": 398.1,
+        "d": 468.7,
+        "h": 194.2
+      },
+      "section": [
+        194.2,
+        398.1
+      ],
+      "length": 468.7
+    },
+    {
+      "name": "TR",
+      "instances": 8,
+      "dims": {
+        "w": 302.1,
+        "d": 185.1,
+        "h": 3.3
+      },
+      "section": [
+        3.3,
+        185.1
+      ],
+      "length": 302.1
+    },
+    {
+      "name": "light-point-2#7",
+      "instances": 8,
+      "dims": {
+        "w": 15.2,
+        "d": 15.2,
+        "h": 11.3
+      },
+      "section": [
+        11.3,
+        15.2
+      ],
+      "length": 15.2
+    },
+    {
+      "name": "Taillight Glass",
+      "instances": 8,
+      "dims": {
+        "w": 638.2,
+        "d": 1208.0,
+        "h": 633.3
+      },
+      "section": [
+        633.3,
+        638.2
+      ],
+      "length": 1208.0
+    },
+    {
+      "name": "indicator_#1",
+      "instances": 8,
+      "dims": {
+        "w": 7.8,
+        "d": 3.5,
+        "h": 0.8
+      },
+      "section": [
+        0.8,
+        3.5
+      ],
+      "length": 7.8
+    },
+    {
+      "name": "chrome_2",
+      "instances": 8,
+      "dims": {
+        "w": 8.0,
+        "d": 9.2,
+        "h": 3.2
+      },
+      "section": [
+        3.2,
+        8.0
+      ],
+      "length": 9.2
+    },
+    {
+      "name": "Group#152",
+      "instances": 8,
+      "dims": {
+        "w": 9.5,
+        "d": 35.0,
+        "h": 21.5
+      },
+      "section": [
+        9.5,
+        21.5
+      ],
+      "length": 35.0
+    },
+    {
+      "name": "hidhead",
+      "instances": 8,
+      "dims": {
+        "w": 5.8,
+        "d": 2.7,
+        "h": 1.3
+      },
+      "section": [
+        1.3,
+        2.7
+      ],
+      "length": 5.8
+    },
+    {
+      "name": "Hand Grabs",
+      "instances": 8,
+      "dims": {
+        "w": 57.2,
+        "d": 796.8,
+        "h": 79.3
+      },
+      "section": [
+        57.2,
+        79.3
+      ],
+      "length": 796.8
+    },
+    {
+      "name": "Headlight Housing",
+      "instances": 8,
+      "dims": {
+        "w": 346.1,
+        "d": 598.7,
+        "h": 258.7
+      },
+      "section": [
+        258.7,
+        346.1
+      ],
+      "length": 598.7
+    },
+    {
+      "name": "interior01",
+      "instances": 8,
+      "dims": {
+        "w": 13.3,
+        "d": 20.3,
+        "h": 25.1
+      },
+      "section": [
+        13.3,
+        20.3
+      ],
+      "length": 25.1
+    },
+    {
+      "name": "interior#4",
+      "instances": 8,
+      "dims": {
+        "w": 13.3,
+        "d": 20.3,
+        "h": 25.1
+      },
+      "section": [
+        13.3,
+        20.3
+      ],
+      "length": 25.1
+    },
+    {
+      "name": "emblem#1",
+      "instances": 8,
+      "dims": {
+        "w": 7.6,
+        "d": 0.3,
+        "h": 3.2
+      },
+      "section": [
+        0.3,
+        3.2
+      ],
+      "length": 7.6
+    },
+    {
+      "name": "skpAB3A",
+      "instances": 8,
+      "dims": {
+        "w": 37.5,
+        "d": 16.1,
+        "h": 9.0
+      },
+      "section": [
+        9.0,
+        16.1
+      ],
+      "length": 37.5
+    },
+    {
+      "name": "misc",
+      "instances": 8,
+      "dims": {
+        "w": 7.6,
+        "d": 13.9,
+        "h": 3.7
+      },
+      "section": [
+        3.7,
+        7.6
+      ],
+      "length": 13.9
+    },
+    {
+      "name": "Group#67",
+      "instances": 8,
+      "dims": {
+        "w": 2.2,
+        "d": 6.5,
+        "h": 3.7
+      },
+      "section": [
+        2.2,
+        3.7
+      ],
+      "length": 6.5
+    },
+    {
+      "name": "skp7495#1",
+      "instances": 8,
+      "dims": {
+        "w": 48.0,
+        "d": 117.4,
+        "h": 23.0
+      },
+      "section": [
+        23.0,
+        48.0
+      ],
+      "length": 117.4
+    },
+    {
+      "name": "skp6CFE",
+      "instances": 8,
+      "dims": {
+        "w": 40.4,
+        "d": 67.7,
+        "h": 28.3
+      },
+      "section": [
+        28.3,
+        40.4
+      ],
+      "length": 67.7
+    },
+    {
+      "name": "fullbeam",
+      "instances": 8,
+      "dims": {
+        "w": 5.8,
+        "d": 2.7,
+        "h": 1.2
+      },
+      "section": [
+        1.2,
+        2.7
+      ],
+      "length": 5.8
+    },
+    {
+      "name": "interior#5",
+      "instances": 8,
+      "dims": {
+        "w": 11.2,
+        "d": 5.8,
+        "h": 10.0
+      },
+      "section": [
+        5.8,
+        10.0
+      ],
+      "length": 11.2
+    },
+    {
+      "name": "Group#40",
+      "instances": 8,
+      "dims": {
+        "w": 14.1,
+        "d": 0.8,
+        "h": 0.5
+      },
+      "section": [
+        0.5,
+        0.8
+      ],
+      "length": 14.1
+    },
+    {
+      "name": "matte_colo#1",
+      "instances": 8,
+      "dims": {
+        "w": 4.4,
+        "d": 2.2,
+        "h": 1.8
+      },
+      "section": [
+        1.8,
+        2.2
+      ],
+      "length": 4.4
+    },
+    {
+      "name": "Cooper_lights_R6.skp#1",
+      "instances": 8,
+      "dims": {
+        "w": 125.6,
+        "d": 1208.0,
+        "h": 95.0
+      },
+      "section": [
+        95.0,
+        125.6
+      ],
+      "length": 1208.0
+    },
+    {
+      "name": "Cooper_Lights_R6_Component_01",
+      "instances": 8,
+      "dims": {
+        "w": 125.6,
+        "d": 1208.0,
+        "h": 95.0
+      },
+      "section": [
+        95.0,
+        125.6
+      ],
+      "length": 1208.0
+    },
+    {
+      "name": "skpDCA#1",
+      "instances": 8,
+      "dims": {
+        "w": 47.7,
+        "d": 23.3,
+        "h": 14.2
+      },
+      "section": [
+        14.2,
+        23.3
+      ],
+      "length": 47.7
+    },
+    {
+      "name": "Group#39",
+      "instances": 8,
+      "dims": {
+        "w": 55.7,
+        "d": 55.7,
+        "h": 12.3
+      },
+      "section": [
+        12.3,
+        55.7
+      ],
+      "length": 55.7
+    },
+    {
+      "name": "skp9530#1",
+      "instances": 8,
+      "dims": {
+        "w": 47.6,
+        "d": 17.9,
+        "h": 15.1
+      },
+      "section": [
+        15.1,
+        17.9
+      ],
+      "length": 47.6
+    },
+    {
+      "name": "Cooper_Lights_R6_Component_02",
+      "instances": 8,
+      "dims": {
+        "w": 101.2,
+        "d": 1201.3,
+        "h": 8.1
+      },
+      "section": [
+        8.1,
+        101.2
+      ],
+      "length": 1201.3
+    },
+    {
+      "name": "glass#1",
+      "instances": 8,
+      "dims": {
+        "w": 9.6,
+        "d": 9.8,
+        "h": 4.9
+      },
+      "section": [
+        4.9,
+        9.6
+      ],
+      "length": 9.8
+    },
+    {
+      "name": "textured_r#1",
+      "instances": 8,
+      "dims": {
+        "w": 9.6,
+        "d": 10.5,
+        "h": 4.9
+      },
+      "section": [
+        4.9,
+        9.6
+      ],
+      "length": 10.5
+    },
+    {
+      "name": "carbon_fib#1",
+      "instances": 8,
+      "dims": {
+        "w": 28.3,
+        "d": 34.0,
+        "h": 3.0
+      },
+      "section": [
+        3.0,
+        28.3
+      ],
+      "length": 34.0
+    },
+    {
+      "name": "body#10",
+      "instances": 8,
+      "dims": {
+        "w": 41.2,
+        "d": 37.4,
+        "h": 7.8
+      },
+      "section": [
+        7.8,
+        37.4
+      ],
+      "length": 41.2
+    },
+    {
+      "name": "black_glas",
+      "instances": 8,
+      "dims": {
+        "w": 38.0,
+        "d": 23.2,
+        "h": 10.7
+      },
+      "section": [
+        10.7,
+        23.2
+      ],
+      "length": 38.0
+    },
+    {
+      "name": "drlwhite",
+      "instances": 8,
+      "dims": {
+        "w": 6.3,
+        "d": 4.7,
+        "h": 3.2
+      },
+      "section": [
+        3.2,
+        4.7
+      ],
+      "length": 6.3
+    },
+    {
+      "name": "skp60D4#1",
+      "instances": 8,
+      "dims": {
+        "w": 44.5,
+        "d": 114.5,
+        "h": 16.4
+      },
+      "section": [
+        16.4,
+        44.5
+      ],
+      "length": 114.5
+    },
+    {
+      "name": "window02#1",
+      "instances": 8,
+      "dims": {
+        "w": 30.4,
+        "d": 19.8,
+        "h": 6.2
+      },
+      "section": [
+        6.2,
+        19.8
+      ],
+      "length": 30.4
+    },
+    {
+      "name": "chrome#5",
+      "instances": 8,
+      "dims": {
+        "w": 4.6,
+        "d": 4.3,
+        "h": 2.2
+      },
+      "section": [
+        2.2,
+        4.3
+      ],
+      "length": 4.6
+    },
+    {
+      "name": "glass",
+      "instances": 8,
+      "dims": {
+        "w": 0.3,
+        "d": 3.4,
+        "h": 0.5
+      },
+      "section": [
+        0.3,
+        0.5
+      ],
+      "length": 3.4
+    },
+    {
+      "name": "plastic2#2",
+      "instances": 8,
+      "dims": {
+        "w": 5.4,
+        "d": 4.7,
+        "h": 3.5
+      },
+      "section": [
+        3.5,
+        4.7
+      ],
+      "length": 5.4
+    },
+    {
+      "name": "Group#153",
+      "instances": 8,
+      "dims": {
+        "w": 5.1,
+        "d": 32.4,
+        "h": 18.5
+      },
+      "section": [
+        5.1,
+        18.5
+      ],
+      "length": 32.4
+    },
+    {
+      "name": "indicator_",
+      "instances": 8,
+      "dims": {
+        "w": 0.1,
+        "d": 3.4,
+        "h": 0.5
+      },
+      "section": [
+        0.1,
+        0.5
+      ],
+      "length": 3.4
+    },
+    {
+      "name": "Group#132",
+      "instances": 8,
+      "dims": {
+        "w": 5.2,
+        "d": 49.2,
+        "h": 9.2
+      },
+      "section": [
+        5.2,
+        9.2
+      ],
+      "length": 49.2
+    },
+    {
+      "name": "Group#128",
+      "instances": 8,
+      "dims": {
+        "w": 0.5,
+        "d": 4.5,
+        "h": 0.5
+      },
+      "section": [
+        0.5,
+        0.5
+      ],
+      "length": 4.5
+    },
+    {
+      "name": "textured_r",
+      "instances": 8,
+      "dims": {
+        "w": 6.4,
+        "d": 3.9,
+        "h": 0.6
+      },
+      "section": [
+        0.6,
+        3.9
+      ],
+      "length": 6.4
+    },
+    {
+      "name": "34 KEG 20",
+      "instances": 8,
+      "dims": {
+        "w": 1217.1,
+        "d": 191.3,
+        "h": 16.8
+      },
+      "section": [
+        16.8,
+        191.3
+      ],
+      "length": 1217.1
+    },
+    {
+      "name": "textured_r#3",
+      "instances": 8,
+      "dims": {
+        "w": 7.4,
+        "d": 2.8,
+        "h": 3.1
+      },
+      "section": [
+        2.8,
+        3.1
+      ],
+      "length": 7.4
+    },
+    {
+      "name": "chrome",
+      "instances": 8,
+      "dims": {
+        "w": 0.5,
+        "d": 7.2,
+        "h": 1.7
+      },
+      "section": [
+        0.5,
+        1.7
+      ],
+      "length": 7.2
+    },
+    {
+      "name": "detail_g01#2",
+      "instances": 8,
+      "dims": {
+        "w": 7.4,
+        "d": 2.6,
+        "h": 3.1
+      },
+      "section": [
+        2.6,
+        3.1
+      ],
+      "length": 7.4
+    },
+    {
+      "name": "chrome#3",
+      "instances": 8,
+      "dims": {
+        "w": 4.6,
+        "d": 2.6,
+        "h": 3.0
+      },
+      "section": [
+        2.6,
+        3.0
+      ],
+      "length": 4.6
+    },
+    {
+      "name": "frame#5",
+      "instances": 8,
+      "dims": {
+        "w": 2.5,
+        "d": 3.0,
+        "h": 1.2
+      },
+      "section": [
+        1.2,
+        2.5
+      ],
+      "length": 3.0
+    },
+    {
+      "name": "window04",
+      "instances": 8,
+      "dims": {
+        "w": 3.6,
+        "d": 15.7,
+        "h": 6.1
+      },
+      "section": [
+        3.6,
+        6.1
+      ],
+      "length": 15.7
+    },
+    {
+      "name": "Group#131",
+      "instances": 8,
+      "dims": {
+        "w": 1.6,
+        "d": 30.8,
+        "h": 3.4
+      },
+      "section": [
+        1.6,
+        3.4
+      ],
+      "length": 30.8
+    },
+    {
+      "name": "Cooper_Lights_DIVIDE_2x4_S_Component_04",
+      "instances": 8,
+      "dims": {
+        "w": 71.0,
+        "d": 1152.7,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        71.0
+      ],
+      "length": 1152.7
+    },
+    {
+      "name": "taillights#1",
+      "instances": 8,
+      "dims": {
+        "w": 5.7,
+        "d": 2.0,
+        "h": 1.2
+      },
+      "section": [
+        1.2,
+        2.0
+      ],
+      "length": 5.7
+    },
+    {
+      "name": "Group#130",
+      "instances": 8,
+      "dims": {
+        "w": 0.7,
+        "d": 5.8,
+        "h": 1.2
+      },
+      "section": [
+        0.7,
+        1.2
+      ],
+      "length": 5.8
+    },
+    {
+      "name": "body#4",
+      "instances": 8,
+      "dims": {
+        "w": 5.5,
+        "d": 5.4,
+        "h": 3.2
+      },
+      "section": [
+        3.2,
+        5.4
+      ],
+      "length": 5.5
+    },
+    {
+      "name": "plastic2",
+      "instances": 8,
+      "dims": {
+        "w": 0.4,
+        "d": 6.6,
+        "h": 1.6
+      },
+      "section": [
+        0.4,
+        1.6
+      ],
+      "length": 6.6
+    },
+    {
+      "name": "black_glas#1",
+      "instances": 8,
+      "dims": {
+        "w": 4.4,
+        "d": 19.0,
+        "h": 7.5
+      },
+      "section": [
+        4.4,
+        7.5
+      ],
+      "length": 19.0
+    },
+    {
+      "name": "detail_gla#2",
+      "instances": 8,
+      "dims": {
+        "w": 4.2,
+        "d": 1.6,
+        "h": 0.6
+      },
+      "section": [
+        0.6,
+        1.6
+      ],
+      "length": 4.2
+    },
+    {
+      "name": "Group#120",
+      "instances": 8,
+      "dims": {
+        "w": 0.6,
+        "d": 7.2,
+        "h": 2.0
+      },
+      "section": [
+        0.6,
+        2.0
+      ],
+      "length": 7.2
+    },
+    {
+      "name": "BMW_M6_13",
+      "instances": 8,
+      "dims": {
+        "w": 52.7,
+        "d": 123.9,
+        "h": 35.1
+      },
+      "section": [
+        35.1,
+        52.7
+      ],
+      "length": 123.9
+    },
+    {
+      "name": "taillights",
+      "instances": 8,
+      "dims": {
+        "w": 5.2,
+        "d": 7.1,
+        "h": 2.1
+      },
+      "section": [
+        2.1,
+        5.2
+      ],
+      "length": 7.1
+    },
+    {
+      "name": "skp918C",
+      "instances": 8,
+      "dims": {
+        "w": 9.6,
+        "d": 10.7,
+        "h": 4.9
+      },
+      "section": [
+        4.9,
+        9.6
+      ],
+      "length": 10.7
+    },
+    {
+      "name": "reverse_li#1",
+      "instances": 8,
+      "dims": {
+        "w": 2.3,
+        "d": 0.9,
+        "h": 0.6
+      },
+      "section": [
+        0.6,
+        0.9
+      ],
+      "length": 2.3
+    },
+    {
+      "name": "skp182B",
+      "instances": 8,
+      "dims": {
+        "w": 5.5,
+        "d": 5.6,
+        "h": 3.5
+      },
+      "section": [
+        3.5,
+        5.5
+      ],
+      "length": 5.6
+    },
+    {
+      "name": "Group#124",
+      "instances": 8,
+      "dims": {
+        "w": 2.4,
+        "d": 32.2,
+        "h": 2.4
+      },
+      "section": [
+        2.4,
+        2.4
+      ],
+      "length": 32.2
+    },
+    {
+      "name": "Group#72",
+      "instances": 8,
+      "dims": {
+        "w": 166.0,
+        "d": 166.0,
+        "h": 111.1
+      },
+      "section": [
+        111.1,
+        166.0
+      ],
+      "length": 166.0
+    },
+    {
+      "name": "skp561E",
+      "instances": 8,
+      "dims": {
+        "w": 7.6,
+        "d": 17.3,
+        "h": 3.7
+      },
+      "section": [
+        3.7,
+        7.6
+      ],
+      "length": 17.3
+    },
+    {
+      "name": "Group#122",
+      "instances": 8,
+      "dims": {
+        "w": 1.2,
+        "d": 5.8,
+        "h": 1.2
+      },
+      "section": [
+        1.2,
+        1.2
+      ],
+      "length": 5.8
+    },
+    {
+      "name": "Group#37",
+      "instances": 8,
+      "dims": {
+        "w": 228.7,
+        "d": 228.7,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        228.7
+      ],
+      "length": 228.7
+    },
+    {
+      "name": "window01",
+      "instances": 8,
+      "dims": {
+        "w": 4.9,
+        "d": 27.6,
+        "h": 8.8
+      },
+      "section": [
+        4.9,
+        8.8
+      ],
+      "length": 27.6
+    },
+    {
+      "name": "detail_gla#3",
+      "instances": 8,
+      "dims": {
+        "w": 6.6,
+        "d": 9.6,
+        "h": 4.5
+      },
+      "section": [
+        4.5,
+        6.6
+      ],
+      "length": 9.6
+    },
+    {
+      "name": "Group#71",
+      "instances": 8,
+      "dims": {
+        "w": 23.6,
+        "d": 23.6,
+        "h": 19.7
+      },
+      "section": [
+        19.7,
+        23.6
+      ],
+      "length": 23.6
+    },
+    {
+      "name": "textured_r#2",
+      "instances": 8,
+      "dims": {
+        "w": 6.6,
+        "d": 9.5,
+        "h": 4.5
+      },
+      "section": [
+        4.5,
+        6.6
+      ],
+      "length": 9.5
+    },
+    {
+      "name": "Group#119",
+      "instances": 8,
+      "dims": {
+        "w": 2.0,
+        "d": 31.6,
+        "h": 3.9
+      },
+      "section": [
+        2.0,
+        3.9
+      ],
+      "length": 31.6
+    },
+    {
+      "name": "tail_light#2",
+      "instances": 8,
+      "dims": {
+        "w": 3.9,
+        "d": 3.8,
+        "h": 0.9
+      },
+      "section": [
+        0.9,
+        3.8
+      ],
+      "length": 3.9
+    },
+    {
+      "name": "Group#123",
+      "instances": 8,
+      "dims": {
+        "w": 4.3,
+        "d": 5.3,
+        "h": 3.3
+      },
+      "section": [
+        3.3,
+        4.3
+      ],
+      "length": 5.3
+    },
+    {
+      "name": "Group#139",
+      "instances": 8,
+      "dims": {
+        "w": 4.4,
+        "d": 19.0,
+        "h": 7.5
+      },
+      "section": [
+        4.4,
+        7.5
+      ],
+      "length": 19.0
+    },
+    {
+      "name": "fogred",
+      "instances": 8,
+      "dims": {
+        "w": 2.3,
+        "d": 0.9,
+        "h": 2.2
+      },
+      "section": [
+        0.9,
+        2.2
+      ],
+      "length": 2.3
+    },
+    {
+      "name": "indicator_#2",
+      "instances": 8,
+      "dims": {
+        "w": 3.5,
+        "d": 6.3,
+        "h": 1.8
+      },
+      "section": [
+        1.8,
+        3.5
+      ],
+      "length": 6.3
+    },
+    {
+      "name": "Group#125",
+      "instances": 8,
+      "dims": {
+        "w": 5.5,
+        "d": 51.7,
+        "h": 9.7
+      },
+      "section": [
+        5.5,
+        9.7
+      ],
+      "length": 51.7
+    },
+    {
+      "name": "detail_g01#1",
+      "instances": 8,
+      "dims": {
+        "w": 3.8,
+        "d": 6.6,
+        "h": 2.0
+      },
+      "section": [
+        2.0,
+        3.8
+      ],
+      "length": 6.6
+    },
+    {
+      "name": "detail_gla#1",
+      "instances": 8,
+      "dims": {
+        "w": 3.3,
+        "d": 6.1,
+        "h": 1.5
+      },
+      "section": [
+        1.5,
+        3.3
+      ],
+      "length": 6.1
+    },
+    {
+      "name": "Group#116",
+      "instances": 8,
+      "dims": {
+        "w": 2.6,
+        "d": 2.9,
+        "h": 1.2
+      },
+      "section": [
+        1.2,
+        2.6
+      ],
+      "length": 2.9
+    },
+    {
+      "name": "Group#8",
+      "instances": 5,
+      "dims": {
+        "w": 26974.0,
+        "d": 250.0,
+        "h": 9518.7
+      },
+      "section": [
+        250.0,
+        9518.7
+      ],
+      "length": 26974.0
+    },
+    {
+      "name": "Group#13",
+      "instances": 5,
+      "dims": {
+        "w": 6781.6,
+        "d": 250.0,
+        "h": 1224.3
+      },
+      "section": [
+        250.0,
+        1224.3
+      ],
+      "length": 6781.6
+    },
+    {
+      "name": "Group#12",
+      "instances": 5,
+      "dims": {
+        "w": 550.0,
+        "d": 250.0,
+        "h": 3352.8
+      },
+      "section": [
+        250.0,
+        550.0
+      ],
+      "length": 3352.8
+    },
+    {
+      "name": "Group#7",
+      "instances": 5,
+      "dims": {
+        "w": 550.0,
+        "d": 250.0,
+        "h": 3352.8
+      },
+      "section": [
+        250.0,
+        550.0
+      ],
+      "length": 3352.8
+    },
+    {
+      "name": "Group#4",
+      "instances": 5,
+      "dims": {
+        "w": 6743.5,
+        "d": 250.0,
+        "h": 1055.5
+      },
+      "section": [
+        250.0,
+        1055.5
+      ],
+      "length": 6743.5
+    },
+    {
+      "name": "Group#3",
+      "instances": 5,
+      "dims": {
+        "w": 6781.6,
+        "d": 250.0,
+        "h": 1224.3
+      },
+      "section": [
+        250.0,
+        1224.3
+      ],
+      "length": 6781.6
+    },
+    {
+      "name": "Group#14",
+      "instances": 5,
+      "dims": {
+        "w": 6743.5,
+        "d": 250.0,
+        "h": 1055.5
+      },
+      "section": [
+        250.0,
+        1055.5
+      ],
+      "length": 6743.5
+    },
+    {
+      "name": "Mercedes-Benz CLS 350 CDI W218 2012",
+      "instances": 4,
+      "dims": {
+        "w": 2088.4,
+        "d": 4962.3,
+        "h": 1428.2
+      },
+      "section": [
+        1428.2,
+        2088.4
+      ],
+      "length": 4962.3
+    },
+    {
+      "name": "frame#1",
+      "instances": 4,
+      "dims": {
+        "w": 47.5,
+        "d": 16.5,
+        "h": 14.8
+      },
+      "section": [
+        14.8,
+        16.5
+      ],
+      "length": 47.5
+    },
+    {
+      "name": "window02",
+      "instances": 4,
+      "dims": {
+        "w": 30.4,
+        "d": 19.8,
+        "h": 6.2
+      },
+      "section": [
+        6.2,
+        19.8
+      ],
+      "length": 30.4
+    },
+    {
+      "name": "black",
+      "instances": 4,
+      "dims": {
+        "w": 48.0,
+        "d": 95.3,
+        "h": 21.0
+      },
+      "section": [
+        21.0,
+        48.0
+      ],
+      "length": 95.3
+    },
+    {
+      "name": "frame#2",
+      "instances": 4,
+      "dims": {
+        "w": 47.6,
+        "d": 20.0,
+        "h": 14.1
+      },
+      "section": [
+        14.1,
+        20.0
+      ],
+      "length": 47.6
+    },
+    {
+      "name": "weatherstr",
+      "instances": 4,
+      "dims": {
+        "w": 28.2,
+        "d": 5.5,
+        "h": 2.6
+      },
+      "section": [
+        2.6,
+        5.5
+      ],
+      "length": 28.2
+    },
+    {
+      "name": "rubber_tri#1",
+      "instances": 4,
+      "dims": {
+        "w": 26.4,
+        "d": 4.3,
+        "h": 1.0
+      },
+      "section": [
+        1.0,
+        4.3
+      ],
+      "length": 26.4
+    },
+    {
+      "name": "chrome#1",
+      "instances": 4,
+      "dims": {
+        "w": 19.8,
+        "d": 3.2,
+        "h": 6.0
+      },
+      "section": [
+        3.2,
+        6.0
+      ],
+      "length": 19.8
+    },
+    {
+      "name": "black_glas#2",
+      "instances": 4,
+      "dims": {
+        "w": 38.0,
+        "d": 23.2,
+        "h": 10.7
+      },
+      "section": [
+        10.7,
+        23.2
+      ],
+      "length": 38.0
+    },
+    {
+      "name": "body#1",
+      "instances": 4,
+      "dims": {
+        "w": 47.6,
+        "d": 17.9,
+        "h": 14.8
+      },
+      "section": [
+        14.8,
+        17.9
+      ],
+      "length": 47.6
+    },
+    {
+      "name": "body#2",
+      "instances": 4,
+      "dims": {
+        "w": 47.7,
+        "d": 23.2,
+        "h": 14.2
+      },
+      "section": [
+        14.2,
+        23.2
+      ],
+      "length": 47.7
+    },
+    {
+      "name": "plastic2#1",
+      "instances": 4,
+      "dims": {
+        "w": 44.4,
+        "d": 12.9,
+        "h": 13.1
+      },
+      "section": [
+        12.9,
+        13.1
+      ],
+      "length": 44.4
+    },
+    {
+      "name": "interior#1",
+      "instances": 4,
+      "dims": {
+        "w": 13.3,
+        "d": 20.3,
+        "h": 25.1
+      },
+      "section": [
+        13.3,
+        20.3
+      ],
+      "length": 25.1
+    },
+    {
+      "name": "Group#127",
+      "instances": 4,
+      "dims": {
+        "w": 14.1,
+        "d": 0.8,
+        "h": 0.5
+      },
+      "section": [
+        0.5,
+        0.8
+      ],
+      "length": 14.1
+    },
+    {
+      "name": "Group#134",
+      "instances": 4,
+      "dims": {
+        "w": 37.7,
+        "d": 16.5,
+        "h": 9.2
+      },
+      "section": [
+        9.2,
+        16.5
+      ],
+      "length": 37.7
+    },
+    {
+      "name": "Group#137",
+      "instances": 4,
+      "dims": {
+        "w": 27.7,
+        "d": 17.2,
+        "h": 5.4
+      },
+      "section": [
+        5.4,
+        17.2
+      ],
+      "length": 27.7
+    },
+    {
+      "name": "interior#2",
+      "instances": 4,
+      "dims": {
+        "w": 11.2,
+        "d": 5.8,
+        "h": 10.0
+      },
+      "section": [
+        5.8,
+        10.0
+      ],
+      "length": 11.2
+    },
+    {
+      "name": "emblem#2",
+      "instances": 4,
+      "dims": {
+        "w": 7.6,
+        "d": 0.3,
+        "h": 3.2
+      },
+      "section": [
+        0.3,
+        3.2
+      ],
+      "length": 7.6
+    },
+    {
+      "name": "interior01#1",
+      "instances": 4,
+      "dims": {
+        "w": 13.3,
+        "d": 20.3,
+        "h": 25.1
+      },
+      "section": [
+        13.3,
+        20.3
+      ],
+      "length": 25.1
+    },
+    {
+      "name": "Group#135",
+      "instances": 4,
+      "dims": {
+        "w": 38.0,
+        "d": 23.2,
+        "h": 10.7
+      },
+      "section": [
+        10.7,
+        23.2
+      ],
+      "length": 38.0
+    },
+    {
+      "name": "bmw m6",
+      "instances": 4,
+      "dims": {
+        "w": 1893.8,
+        "d": 4449.5,
+        "h": 1261.4
+      },
+      "section": [
+        1261.4,
+        1893.8
+      ],
+      "length": 4449.5
+    },
+    {
+      "name": "Component#1",
+      "instances": 4,
+      "dims": {
+        "w": 139.7,
+        "d": 46.1,
+        "h": 5.4
+      },
+      "section": [
+        5.4,
+        46.1
+      ],
+      "length": 139.7
+    },
+    {
+      "name": "Group#73",
+      "instances": 4,
+      "dims": {
+        "w": 1277.4,
+        "d": 620.1,
+        "h": 133.0
+      },
+      "section": [
+        133.0,
+        620.1
+      ],
+      "length": 1277.4
+    },
+    {
+      "name": "Group#74",
+      "instances": 4,
+      "dims": {
+        "w": 1365.7,
+        "d": 2685.0,
+        "h": 383.0
+      },
+      "section": [
+        383.0,
+        1365.7
+      ],
+      "length": 2685.0
+    },
+    {
+      "name": "Group#138",
+      "instances": 4,
+      "dims": {
+        "w": 30.1,
+        "d": 19.4,
+        "h": 6.1
+      },
+      "section": [
+        6.1,
+        19.4
+      ],
+      "length": 30.1
+    },
+    {
+      "name": "skp7495",
+      "instances": 4,
+      "dims": {
+        "w": 48.0,
+        "d": 117.4,
+        "h": 23.1
+      },
+      "section": [
+        23.1,
+        48.0
+      ],
+      "length": 117.4
+    },
+    {
+      "name": "skpDCA",
+      "instances": 4,
+      "dims": {
+        "w": 47.7,
+        "d": 23.3,
+        "h": 14.2
+      },
+      "section": [
+        14.2,
+        23.3
+      ],
+      "length": 47.7
+    },
+    {
+      "name": "undercarri#1",
+      "instances": 4,
+      "dims": {
+        "w": 44.5,
+        "d": 114.5,
+        "h": 16.4
+      },
+      "section": [
+        16.4,
+        44.5
+      ],
+      "length": 114.5
+    },
+    {
+      "name": "Group#133",
+      "instances": 4,
+      "dims": {
+        "w": 37.0,
+        "d": 20.0,
+        "h": 9.2
+      },
+      "section": [
+        9.2,
+        20.0
+      ],
+      "length": 37.0
+    },
+    {
+      "name": "Group#136",
+      "instances": 4,
+      "dims": {
+        "w": 30.4,
+        "d": 19.8,
+        "h": 6.2
+      },
+      "section": [
+        6.2,
+        19.8
+      ],
+      "length": 30.4
+    },
+    {
+      "name": "window#1",
+      "instances": 4,
+      "dims": {
+        "w": 34.2,
+        "d": 15.7,
+        "h": 7.3
+      },
+      "section": [
+        7.3,
+        15.7
+      ],
+      "length": 34.2
+    },
+    {
+      "name": "skp97F5",
+      "instances": 4,
+      "dims": {
+        "w": 2088.4,
+        "d": 4962.3,
+        "h": 1428.2
+      },
+      "section": [
+        1428.2,
+        2088.4
+      ],
+      "length": 4962.3
+    },
+    {
+      "name": "Group#75",
+      "instances": 4,
+      "dims": {
+        "w": 1502.7,
+        "d": 385.2,
+        "h": 175.3
+      },
+      "section": [
+        175.3,
+        385.2
+      ],
+      "length": 1502.7
+    },
+    {
+      "name": "skp9530",
+      "instances": 4,
+      "dims": {
+        "w": 47.6,
+        "d": 17.9,
+        "h": 15.1
+      },
+      "section": [
+        15.1,
+        17.9
+      ],
+      "length": 47.6
+    },
+    {
+      "name": "body#3",
+      "instances": 4,
+      "dims": {
+        "w": 41.2,
+        "d": 37.4,
+        "h": 7.8
+      },
+      "section": [
+        7.8,
+        37.4
+      ],
+      "length": 41.2
+    },
+    {
+      "name": "Group#147",
+      "instances": 4,
+      "dims": {
+        "w": 2.2,
+        "d": 6.5,
+        "h": 3.7
+      },
+      "section": [
+        2.2,
+        3.7
+      ],
+      "length": 6.5
+    },
+    {
+      "name": "DLP_alu",
+      "instances": 4,
+      "dims": {
+        "w": 77.0,
+        "d": 545.0,
+        "h": 291.2
+      },
+      "section": [
+        77.0,
+        291.2
+      ],
+      "length": 545.0
+    },
+    {
+      "name": "DLP_tex",
+      "instances": 4,
+      "dims": {
+        "w": 94.0,
+        "d": 956.5,
+        "h": 727.5
+      },
+      "section": [
+        94.0,
+        727.5
+      ],
+      "length": 956.5
+    },
+    {
+      "name": "Kar_chr",
+      "instances": 4,
+      "dims": {
+        "w": 1837.0,
+        "d": 4924.1,
+        "h": 1057.6
+      },
+      "section": [
+        1057.6,
+        1837.0
+      ],
+      "length": 4924.1
+    },
+    {
+      "name": "Group#76",
+      "instances": 4,
+      "dims": {
+        "w": 1752.6,
+        "d": 3236.4,
+        "h": 633.7
+      },
+      "section": [
+        633.7,
+        1752.6
+      ],
+      "length": 3236.4
+    },
+    {
+      "name": "Kar_alu",
+      "instances": 4,
+      "dims": {
+        "w": 1510.0,
+        "d": 66.0,
+        "h": 68.9
+      },
+      "section": [
+        66.0,
+        68.9
+      ],
+      "length": 1510.0
+    },
+    {
+      "name": "DPP_alu",
+      "instances": 4,
+      "dims": {
+        "w": 77.0,
+        "d": 545.0,
+        "h": 291.2
+      },
+      "section": [
+        77.0,
+        291.2
+      ],
+      "length": 545.0
+    },
+    {
+      "name": "tail_light#1",
+      "instances": 4,
+      "dims": {
+        "w": 14.1,
+        "d": 0.8,
+        "h": 0.5
+      },
+      "section": [
+        0.5,
+        0.8
+      ],
+      "length": 14.1
+    },
+    {
+      "name": "carbon_fib",
+      "instances": 4,
+      "dims": {
+        "w": 28.3,
+        "d": 34.0,
+        "h": 3.0
+      },
+      "section": [
+        3.0,
+        28.3
+      ],
+      "length": 34.0
+    },
+    {
+      "name": "2011 Mercedes-Benz CLS550 4Matic",
+      "instances": 4,
+      "dims": {
+        "w": 2088.4,
+        "d": 4962.3,
+        "h": 1428.2
+      },
+      "section": [
+        1428.2,
+        2088.4
+      ],
+      "length": 4962.3
+    },
+    {
+      "name": "DPP_tex",
+      "instances": 4,
+      "dims": {
+        "w": 94.0,
+        "d": 956.5,
+        "h": 727.5
+      },
+      "section": [
+        94.0,
+        727.5
+      ],
+      "length": 956.5
+    },
+    {
+      "name": "skp4861",
+      "instances": 4,
+      "dims": {
+        "w": 11.2,
+        "d": 5.8,
+        "h": 10.0
+      },
+      "section": [
+        5.8,
+        10.0
+      ],
+      "length": 11.2
+    },
+    {
+      "name": "interior#3",
+      "instances": 4,
+      "dims": {
+        "w": 40.4,
+        "d": 67.7,
+        "h": 28.3
+      },
+      "section": [
+        28.3,
+        40.4
+      ],
+      "length": 67.7
+    },
+    {
+      "name": "chrome#2",
+      "instances": 4,
+      "dims": {
+        "w": 6.5,
+        "d": 1.6,
+        "h": 1.9
+      },
+      "section": [
+        1.6,
+        1.9
+      ],
+      "length": 6.5
+    },
+    {
+      "name": "body#5",
+      "instances": 4,
+      "dims": {
+        "w": 37.5,
+        "d": 16.1,
+        "h": 9.0
+      },
+      "section": [
+        9.0,
+        16.1
+      ],
+      "length": 37.5
+    },
+    {
+      "name": "skp2E2C",
+      "instances": 4,
+      "dims": {
+        "w": 33.2,
+        "d": 20.3,
+        "h": 25.1
+      },
+      "section": [
+        20.3,
+        25.1
+      ],
+      "length": 33.2
+    },
+    {
+      "name": "chrome#4",
+      "instances": 4,
+      "dims": {
+        "w": 9.5,
+        "d": 0.5,
+        "h": 3.3
+      },
+      "section": [
+        0.5,
+        3.3
+      ],
+      "length": 9.5
+    },
+    {
+      "name": "MERCEDES LIGHT",
+      "instances": 4,
+      "dims": {
+        "w": 2088.4,
+        "d": 4975.9,
+        "h": 1428.2
+      },
+      "section": [
+        1428.2,
+        2088.4
+      ],
+      "length": 4975.9
+    },
+    {
+      "name": "matte_colo#2",
+      "instances": 4,
+      "dims": {
+        "w": 39.5,
+        "d": 7.2,
+        "h": 10.7
+      },
+      "section": [
+        7.2,
+        10.7
+      ],
+      "length": 39.5
+    },
+    {
+      "name": "black#2",
+      "instances": 4,
+      "dims": {
+        "w": 47.7,
+        "d": 6.7,
+        "h": 11.2
+      },
+      "section": [
+        6.7,
+        11.2
+      ],
+      "length": 47.7
+    },
+    {
+      "name": "Vol_tex",
+      "instances": 4,
+      "dims": {
+        "w": 380.0,
+        "d": 184.1,
+        "h": 348.2
+      },
+      "section": [
+        184.1,
+        348.2
+      ],
+      "length": 380.0
+    },
+    {
+      "name": "Kar_tex",
+      "instances": 4,
+      "dims": {
+        "w": 1663.0,
+        "d": 4815.3,
+        "h": 1089.3
+      },
+      "section": [
+        1089.3,
+        1663.0
+      ],
+      "length": 4815.3
+    },
+    {
+      "name": "frame",
+      "instances": 4,
+      "dims": {
+        "w": 47.6,
+        "d": 117.4,
+        "h": 22.9
+      },
+      "section": [
+        22.9,
+        47.6
+      ],
+      "length": 117.4
+    },
+    {
+      "name": "Kar_cbs",
+      "instances": 4,
+      "dims": {
+        "w": 1663.2,
+        "d": 4730.9,
+        "h": 520.9
+      },
+      "section": [
+        520.9,
+        1663.2
+      ],
+      "length": 4730.9
+    },
+    {
+      "name": "black#1",
+      "instances": 4,
+      "dims": {
+        "w": 47.6,
+        "d": 4.4,
+        "h": 12.0
+      },
+      "section": [
+        4.4,
+        12.0
+      ],
+      "length": 47.6
+    },
+    {
+      "name": "numplate",
+      "instances": 4,
+      "dims": {
+        "w": 7.2,
+        "d": 0.5,
+        "h": 0.1
+      },
+      "section": [
+        0.1,
+        0.5
+      ],
+      "length": 7.2
+    },
+    {
+      "name": "skp60D4",
+      "instances": 4,
+      "dims": {
+        "w": 44.5,
+        "d": 114.5,
+        "h": 16.4
+      },
+      "section": [
+        16.4,
+        44.5
+      ],
+      "length": 114.5
+    },
+    {
+      "name": "Group#15",
+      "instances": 4,
+      "dims": {
+        "w": 6743.5,
+        "d": 250.0,
+        "h": 1055.5
+      },
+      "section": [
+        250.0,
+        1055.5
+      ],
+      "length": 6743.5
+    },
+    {
+      "name": "Group#16",
+      "instances": 4,
+      "dims": {
+        "w": 6781.6,
+        "d": 250.0,
+        "h": 1024.3
+      },
+      "section": [
+        250.0,
+        1024.3
+      ],
+      "length": 6781.6
+    },
+    {
+      "name": "Kar_gum",
+      "instances": 4,
+      "dims": {
+        "w": 1857.0,
+        "d": 4895.8,
+        "h": 1179.1
+      },
+      "section": [
+        1179.1,
+        1857.0
+      ],
+      "length": 4895.8
+    },
+    {
+      "name": "Kar_lak",
+      "instances": 4,
+      "dims": {
+        "w": 1889.1,
+        "d": 4962.3,
+        "h": 1241.9
+      },
+      "section": [
+        1241.9,
+        1889.1
+      ],
+      "length": 4962.3
+    },
+    {
+      "name": "Int_tex",
+      "instances": 4,
+      "dims": {
+        "w": 1587.6,
+        "d": 3034.4,
+        "h": 1150.8
+      },
+      "section": [
+        1150.8,
+        1587.6
+      ],
+      "length": 3034.4
+    },
+    {
+      "name": "misc#1",
+      "instances": 4,
+      "dims": {
+        "w": 22.5,
+        "d": 5.1,
+        "h": 7.6
+      },
+      "section": [
+        5.1,
+        7.6
+      ],
+      "length": 22.5
+    },
+    {
+      "name": "araba",
+      "instances": 4,
+      "dims": {
+        "w": 2088.4,
+        "d": 4962.3,
+        "h": 1428.2
+      },
+      "section": [
+        1428.2,
+        2088.4
+      ],
+      "length": 4962.3
+    },
+    {
+      "name": "Group#77",
+      "instances": 4,
+      "dims": {
+        "w": 1893.8,
+        "d": 4449.5,
+        "h": 1261.4
+      },
+      "section": [
+        1261.4,
+        1893.8
+      ],
+      "length": 4449.5
+    },
+    {
+      "name": "Kar_sbs",
+      "instances": 4,
+      "dims": {
+        "w": 1661.9,
+        "d": 4623.9,
+        "h": 265.6
+      },
+      "section": [
+        265.6,
+        1661.9
+      ],
+      "length": 4623.9
+    },
+    {
+      "name": "Kar_skl",
+      "instances": 4,
+      "dims": {
+        "w": 1689.0,
+        "d": 4774.8,
+        "h": 1037.3
+      },
+      "section": [
+        1037.3,
+        1689.0
+      ],
+      "length": 4774.8
+    },
+    {
+      "name": "Group#23",
+      "instances": 3,
+      "dims": {
+        "w": 350.0,
+        "d": 250.0,
+        "h": 2473.2
+      },
+      "section": [
+        250.0,
+        350.0
+      ],
+      "length": 2473.2
+    },
+    {
+      "name": "Group#97",
+      "instances": 2,
+      "dims": {
+        "w": 5728.7,
+        "d": 102.0,
+        "h": 150.0
+      },
+      "section": [
+        102.0,
+        150.0
+      ],
+      "length": 5728.7
+    },
+    {
+      "name": "Group#96",
+      "instances": 2,
+      "dims": {
+        "w": 3048.0,
+        "d": 44.0,
+        "h": 3047.8
+      },
+      "section": [
+        44.0,
+        3047.8
+      ],
+      "length": 3048.0
+    },
+    {
+      "name": "Group#79",
+      "instances": 2,
+      "dims": {
+        "w": 2948.0,
+        "d": 38.1,
+        "h": 2947.8
+      },
+      "section": [
+        38.1,
+        2947.8
+      ],
+      "length": 2948.0
+    },
+    {
+      "name": "Group#5",
+      "instances": 2,
+      "dims": {
+        "w": 350.0,
+        "d": 250.0,
+        "h": 4018.8
+      },
+      "section": [
+        250.0,
+        350.0
+      ],
+      "length": 4018.8
+    },
+    {
+      "name": "Group#11",
+      "instances": 2,
+      "dims": {
+        "w": 350.0,
+        "d": 250.0,
+        "h": 3440.8
+      },
+      "section": [
+        250.0,
+        350.0
+      ],
+      "length": 3440.8
+    },
+    {
+      "name": "Group#24",
+      "instances": 2,
+      "dims": {
+        "w": 450.0,
+        "d": 250.0,
+        "h": 2317.7
+      },
+      "section": [
+        250.0,
+        450.0
+      ],
+      "length": 2317.7
+    },
+    {
+      "name": "Group#20",
+      "instances": 2,
+      "dims": {
+        "w": 350.0,
+        "d": 250.0,
+        "h": 3440.8
+      },
+      "section": [
+        250.0,
+        350.0
+      ],
+      "length": 3440.8
+    },
+    {
+      "name": "Group#98",
+      "instances": 2,
+      "dims": {
+        "w": 3048.0,
+        "d": 44.1,
+        "h": 3047.8
+      },
+      "section": [
+        44.1,
+        3047.8
+      ],
+      "length": 3048.0
+    },
+    {
+      "name": "Group#36",
+      "instances": 2,
+      "dims": {
+        "w": 285.4,
+        "d": 375501.8,
+        "h": 285.4
+      },
+      "section": [
+        285.4,
+        285.4
+      ],
+      "length": 375501.8
+    },
+    {
+      "name": "Group#42",
+      "instances": 2,
+      "dims": {
+        "w": 76.7,
+        "d": 21333.0,
+        "h": 4961.8
+      },
+      "section": [
+        76.7,
+        4961.8
+      ],
+      "length": 21333.0
+    },
+    {
+      "name": "Group#19",
+      "instances": 1,
+      "dims": {
+        "w": 27432.0,
+        "d": 42722.0,
+        "h": 2158.7
+      },
+      "section": [
+        2158.7,
+        27432.0
+      ],
+      "length": 42722.0
+    },
+    {
+      "name": "Group#17",
+      "instances": 1,
+      "dims": {
+        "w": 26974.0,
+        "d": 350.0,
+        "h": 9518.7
+      },
+      "section": [
+        350.0,
+        9518.7
+      ],
+      "length": 26974.0
+    },
+    {
+      "name": "Group#9",
+      "instances": 1,
+      "dims": {
+        "w": 26974.0,
+        "d": 350.0,
+        "h": 9518.7
+      },
+      "section": [
+        350.0,
+        9518.7
+      ],
+      "length": 26974.0
+    },
+    {
+      "name": "Group#21",
+      "instances": 1,
+      "dims": {
+        "w": 350.0,
+        "d": 252.3,
+        "h": 3689.1
+      },
+      "section": [
+        252.3,
+        350.0
+      ],
+      "length": 3689.1
+    },
+    {
+      "name": "Group#25",
+      "instances": 1,
+      "dims": {
+        "w": 450.0,
+        "d": 250.0,
+        "h": 2316.2
+      },
+      "section": [
+        250.0,
+        450.0
+      ],
+      "length": 2316.2
+    },
+    {
+      "name": "Group#6",
+      "instances": 1,
+      "dims": {
+        "w": 350.0,
+        "d": 252.3,
+        "h": 3689.0
+      },
+      "section": [
+        252.3,
+        350.0
+      ],
+      "length": 3689.0
+    },
+    {
+      "name": "Group#28",
+      "instances": 1,
+      "dims": {
+        "w": 450.0,
+        "d": 250.0,
+        "h": 2316.2
+      },
+      "section": [
+        250.0,
+        450.0
+      ],
+      "length": 2316.2
+    },
+    {
+      "name": "Group#1",
+      "instances": 1,
+      "dims": {
+        "w": 42672.0,
+        "d": 42672.0,
+        "h": 7620.0
+      },
+      "section": [
+        7620.0,
+        42672.0
+      ],
+      "length": 42672.0
+    },
+    {
+      "name": "Group#30",
+      "instances": 1,
+      "dims": {
+        "w": 26974.0,
+        "d": 42672.0,
+        "h": 100.0
+      },
+      "section": [
+        100.0,
+        26974.0
+      ],
+      "length": 42672.0
+    },
+    {
+      "name": "Group#38",
+      "instances": 1,
+      "dims": {
+        "w": 5728.7,
+        "d": 102.0,
+        "h": 2447.6
+      },
+      "section": [
+        102.0,
+        2447.6
+      ],
+      "length": 5728.7
+    },
+    {
+      "name": "Group#31",
+      "instances": 1,
+      "dims": {
+        "w": 5728.7,
+        "d": 102.0,
+        "h": 2447.6
+      },
+      "section": [
+        102.0,
+        2447.6
+      ],
+      "length": 5728.7
+    },
+    {
+      "name": "Group#32",
+      "instances": 1,
+      "dims": {
+        "w": 7620.0,
+        "d": 6096.0,
+        "h": 3657.6
+      },
+      "section": [
+        3657.6,
+        6096.0
+      ],
+      "length": 7620.0
+    },
+    {
+      "name": "Group#33",
+      "instances": 1,
+      "dims": {
+        "w": 4000.0,
+        "d": 4997.8,
+        "h": 3657.6
+      },
+      "section": [
+        3657.6,
+        4000.0
+      ],
+      "length": 4997.8
+    },
+    {
+      "name": "Group#34",
+      "instances": 1,
+      "dims": {
+        "w": 7620.0,
+        "d": 6096.0,
+        "h": 3657.6
+      },
+      "section": [
+        3657.6,
+        6096.0
+      ],
+      "length": 7620.0
+    },
+    {
+      "name": "Group#2",
+      "instances": 1,
+      "dims": {
+        "w": 350.0,
+        "d": 252.3,
+        "h": 3689.1
+      },
+      "section": [
+        252.3,
+        350.0
+      ],
+      "length": 3689.1
+    },
+    {
+      "name": "Group#22",
+      "instances": 1,
+      "dims": {
+        "w": 350.0,
+        "d": 252.3,
+        "h": 3689.0
+      },
+      "section": [
+        252.3,
+        350.0
+      ],
+      "length": 3689.0
+    },
+    {
+      "name": "Group#78",
+      "instances": 1,
+      "dims": {
+        "w": 139787.6,
+        "d": 6096.0,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        6096.0
+      ],
+      "length": 139787.6
+    },
+    {
+      "name": "Sumele",
+      "instances": 0,
+      "dims": {
+        "w": 594.0,
+        "d": 0.0,
+        "h": 1649.7
+      },
+      "section": [
+        0.0,
+        594.0
+      ],
+      "length": 1649.7
+    }
+  ]
+}

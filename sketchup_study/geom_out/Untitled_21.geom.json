@@ -1,0 +1,56 @@
+{
+  "title": "Untitled",
+  "path": "E:\\Maimaar Steel Pvt Ltd\\Proposals\\2019\\020-19-MSPL_Jaffer Group_Pre-Fabricated Hanger Building\\Untitled.skp",
+  "bbox": {
+    "w": 29354.3,
+    "d": 18829.3,
+    "h": 9753.6
+  },
+  "units": 0,
+  "layers": [
+    "Layer0"
+  ],
+  "scenes": [
+
+  ],
+  "tags": {
+    "Layer0": {
+      "count": 253,
+      "bbox": {
+        "w": 29354.3,
+        "d": 18829.3,
+        "h": 9753.6
+      }
+    }
+  },
+  "definitions": [
+    {
+      "name": "Group#1",
+      "instances": 4,
+      "dims": {
+        "w": 127.0,
+        "d": 374.7,
+        "h": 8897.3
+      },
+      "section": [
+        127.0,
+        374.7
+      ],
+      "length": 8897.3
+    },
+    {
+      "name": "Chris",
+      "instances": 1,
+      "dims": {
+        "w": 579.2,
+        "d": 0.0,
+        "h": 1765.2
+      },
+      "section": [
+        0.0,
+        579.2
+      ],
+      "length": 1765.2
+    }
+  ]
+}

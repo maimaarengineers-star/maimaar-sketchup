@@ -1,0 +1,674 @@
+{
+  "canonical": {
+    "DEFAULT_LAYER0": {
+      "uses": 1435,
+      "common_rgb": [
+        255,
+        84,
+        84
+      ],
+      "spellings": {
+        "Layer0": 1435
+      }
+    },
+    "SHEETING": {
+      "uses": 1186,
+      "common_rgb": [
+        102,
+        68,
+        0
+      ],
+      "spellings": {
+        "SHEETING": 480,
+        "sheeting": 297,
+        "Sheeting": 217,
+        "sHEETING": 20,
+        "Sheet": 18,
+        "Sheeti": 14,
+        "LIFT SHEETING": 10,
+        "SHeeting": 10,
+        "SHEETING 01": 10,
+        "PROPOSED SHEETING": 8,
+        "SHEETING ": 8,
+        "SHEETNG": 7,
+        "SHEETING 1": 7,
+        "ISM-ISB-E11_GROUND FLOOR - 02F (04-12-2023)$0$MDF Cladding": 6,
+        "ISM-ISB-E11_GROUND FLOOR - 02F (04-12-2023)$0$GRANITE CLADDING": 6,
+        "EXISTING SHEETING": 6,
+        "SHEETING 2": 5,
+        "SHEET": 5,
+        "EX-SHEETING": 4,
+        "future sheeting": 4
+      }
+    },
+    "PURLIN": {
+      "uses": 1169,
+      "common_rgb": [
+        0,
+        153,
+        135
+      ],
+      "spellings": {
+        "PURLIN": 432,
+        "purlin": 248,
+        "Purline": 94,
+        "Purlins": 93,
+        "PURLINS": 49,
+        "Purlin": 27,
+        "Purlins and Girts": 24,
+        "GIRTS": 19,
+        "pURLINS": 15,
+        "PURLINE": 15,
+        "girts": 11,
+        "purlins": 11,
+        "proposed purlins": 10,
+        "PURLIN 01": 10,
+        "purline": 8,
+        "PURLIN& GURTS": 6,
+        "PERLIN GIRTS": 5,
+        "Existing purline": 5,
+        "facia purlins": 4,
+        "purlin2": 4
+      }
+    },
+    "MAIN_FRAME (MS: cols+rafters)": {
+      "uses": 1004,
+      "common_rgb": [
+        119,
+        119,
+        153
+      ],
+      "spellings": {
+        "MS": 824,
+        "M.S": 68,
+        "ms": 67,
+        "Ms": 35,
+        "MS ": 6,
+        "m.s": 2,
+        " MS": 2
+      }
+    },
+    "GUTTER_DOWNPIPE": {
+      "uses": 977,
+      "common_rgb": [
+        170,
+        68,
+        0
+      ],
+      "spellings": {
+        "Gutter and Pipes": 406,
+        "Gutter": 130,
+        "EAVE GUTTER": 125,
+        "Gutters": 117,
+        "gutter and pipes": 36,
+        "PIPE": 28,
+        "Pipeline": 25,
+        "gutter": 19,
+        "gutter & pipes": 14,
+        "VALLY GUTTER": 11,
+        "Header Pipe": 10,
+        "GUTTER AND PIPES 01": 10,
+        " VALLEY Gutter and Pipes": 7,
+        "Valley Gutter": 4,
+        "Eave Gutter": 4,
+        "Pipe": 4,
+        "GUTTER": 3,
+        "eave gutter": 2,
+        "valley gutter": 2,
+        "10\" pipe": 2
+      }
+    },
+    "BRICK_MASONRY": {
+      "uses": 718,
+      "common_rgb": [
+        153,
+        0,
+        255
+      ],
+      "spellings": {
+        "BRICK WALL": 357,
+        "Brickwall": 66,
+        "brick wall": 31,
+        "Brick wall": 24,
+        "Brick Wall": 21,
+        "WALL": 19,
+        "BRICK": 16,
+        "Walls": 12,
+        "ISM-ISB-E11_GROUND FLOOR - 02F (04-12-2023)$0$Proposed Wall Masonry": 12,
+        "ISM-ISB-E11_GROUND FLOOR - 02F (04-12-2023)$0$Wall Hatch Proposed": 12,
+        "BRICK WALL ": 8,
+        "Walls - Short": 8,
+        "Wall and Slab": 8,
+        "wALLS": 7,
+        "Paririon Wall": 7,
+        "partition walls": 7,
+        "partition wall": 7,
+        "Wall": 6,
+        "ISM-ISB-E11_GROUND FLOOR - 02F (04-12-2023)$0$4inch MDF PARTITION WALL": 6,
+        "walls": 4
+      }
+    },
+    "ANNOTATION": {
+      "uses": 396,
+      "common_rgb": [
+        102,
+        68,
+        0
+      ],
+      "spellings": {
+        "Plan": 73,
+        "GREETING": 48,
+        "Tag1": 29,
+        "Titles": 25,
+        "Area": 22,
+        "PLAN": 21,
+        "TEXT": 18,
+        "area ": 15,
+        "plan": 14,
+        "DIMENSION": 10,
+        "area": 8,
+        "Master plan": 8,
+        "AREA": 7,
+        "dim": 6,
+        "Dimensions": 6,
+        "DIM": 6,
+        "ISM-ISB-E11_GROUND FLOOR - 02F (04-12-2023)$0$dim": 6,
+        "TitleBlock": 6,
+        "SEAL-TEXT": 5,
+        "1FSDIM0": 5
+      }
+    },
+    "DOOR": {
+      "uses": 395,
+      "common_rgb": [
+        102,
+        68,
+        0
+      ],
+      "spellings": {
+        "DOOR": 294,
+        "Door": 20,
+        "DOOR ": 11,
+        "door": 10,
+        "Shutters": 10,
+        "doors ": 8,
+        "ISM-ISB-E11_GROUND FLOOR - 02F (04-12-2023)$0$DOOR 1": 6,
+        "doors": 4,
+        "door ": 4,
+        "DOOR OPENNING": 4,
+        "Doors": 4,
+        "A-DOOR": 4,
+        "door and exhaust": 3,
+        "Sliding Door": 2,
+        "CGM Doors and Windows": 1,
+        "DOOR HANDLE": 1,
+        "DOCK DOOR": 1,
+        "DOCK 1 DOOR": 1,
+        "DOOR 1": 1,
+        "DOOR 2": 1
+      }
+    },
+    "STAIR": {
+      "uses": 359,
+      "common_rgb": [
+        102,
+        68,
+        0
+      ],
+      "spellings": {
+        "STAIR": 88,
+        "Ladder": 79,
+        "STAIRS": 53,
+        "Stairs": 30,
+        "stair": 27,
+        "Stair": 23,
+        "Spiral Staircase": 16,
+        "STAIR 2": 7,
+        "sTAIR": 6,
+        "Stair ": 5,
+        "STEP": 4,
+        "Steps": 3,
+        "Stair-01": 2,
+        "Stair 2": 2,
+        "Stair G": 2,
+        "Stair 1st": 2,
+        "steps": 2,
+        "Stepls": 1,
+        "stairs": 1,
+        "DOCK STAIR": 1
+      }
+    },
+    "DECK_PANEL": {
+      "uses": 319,
+      "common_rgb": [
+        0,
+        153,
+        135
+      ],
+      "spellings": {
+        "DECK": 63,
+        "DECK PANEL": 31,
+        "Sandwich Panels": 20,
+        "Deck": 18,
+        "Deck panel": 18,
+        "Decking Panels": 17,
+        "Wall Panel": 14,
+        "Decking Panel": 11,
+        "deck": 10,
+        "DECKING PANEL": 10,
+        "DECK 2": 9,
+        "proposed deck panel": 9,
+        "decking panel": 9,
+        "PANEL": 8,
+        "SOLER PANEL": 7,
+        "Concrete Deck": 6,
+        "deck panel": 5,
+        "panels": 5,
+        "1-PANEL WALL": 4,
+        "Solar Panels": 4
+      }
+    },
+    "ROOF_MONITOR_VENT": {
+      "uses": 215,
+      "common_rgb": [
+        0,
+        153,
+        135
+      ],
+      "spellings": {
+        "ROOF MONITER": 66,
+        "exhaust": 59,
+        "Ridge Ventilator": 18,
+        "EXHAUST": 14,
+        "TURBO VENTILATOR": 13,
+        "Louvers": 12,
+        "ridge ventilator": 7,
+        "Exhaust+Fan": 5,
+        "RIDGE VENTILATOR": 5,
+        "LOUVERS": 5,
+        "LOUVERS 02": 3,
+        "Exhaust and Lours": 2,
+        "Exhaust": 2,
+        "exhaust fan": 1,
+        "Exhaust ": 1,
+        "lOUVERS": 1,
+        "TURBO VENTILATION": 1
+      }
+    },
+    "RCC_CONCRETE": {
+      "uses": 212,
+      "common_rgb": [
+        102,
+        68,
+        0
+      ],
+      "spellings": {
+        "CONCRETE": 34,
+        "Concrete": 30,
+        "SLAB": 22,
+        "concrete": 19,
+        "Civil": 18,
+        "PROPOSED CONCRETE": 8,
+        "RCC BULDING ": 7,
+        "RCC COIUM": 6,
+        "RCC PADISTAL": 5,
+        "RCC": 4,
+        "RCC COLUMM": 3,
+        "SLAB 2": 3,
+        "RCC ": 3,
+        "EX SLAB": 3,
+        "rcc": 2,
+        "SLAB 1": 2,
+        "SLAB 3": 2,
+        "SLAB 4": 2,
+        "SLAB 5": 2,
+        "SLAB 6": 2
+      }
+    },
+    "COLUMN": {
+      "uses": 202,
+      "common_rgb": [
+        0,
+        153,
+        135
+      ],
+      "spellings": {
+        "COLUMN": 35,
+        "RCC COLUMNS": 30,
+        "RCC COLUMN": 22,
+        "R.C.C COLUMN": 12,
+        "STEEL COLUMN": 11,
+        "Cross Columns": 9,
+        "COLUMN -01": 7,
+        "COLUMN STEEL": 7,
+        "E.X R.C.C COLUMN": 7,
+        "RCC COLUMN ": 7,
+        "COLUMNS": 6,
+        "Columns": 6,
+        "ISM-ISB-E11_GROUND FLOOR - 02F (04-12-2023)$0$COLUMN PB": 6,
+        "COL.": 4,
+        "Steel Columns": 4,
+        "column": 4,
+        "rcc column": 3,
+        "EX R.C.C COLUMN": 2,
+        "Tube column": 2,
+        "STUB COLUMN": 2
+      }
+    },
+    "RAFTER": {
+      "uses": 185,
+      "common_rgb": [
+        119,
+        119,
+        153
+      ],
+      "spellings": {
+        "RCC BEAM": 28,
+        "RAFTER": 28,
+        "MAIN BEAM": 21,
+        "Beam": 14,
+        "crane beam": 13,
+        "Jack Beams": 9,
+        "beam": 9,
+        "Mezzanine Beams": 7,
+        "BEAM": 6,
+        "rafter": 6,
+        "MAIN BEAM & JOIST": 5,
+        "Rafters": 4,
+        "RCC Beams": 3,
+        "Crane Beams": 3,
+        "R.C.C BEAM": 3,
+        "MAINBEAM & JOIST": 3,
+        "main beam & joist": 3,
+        "existing rafter": 2,
+        "main beam": 2,
+        "JACKBEAM": 2
+      }
+    },
+    "WINDOW": {
+      "uses": 172,
+      "common_rgb": [
+        102,
+        68,
+        0
+      ],
+      "spellings": {
+        "window": 121,
+        "Windows": 15,
+        "WINDOWS": 15,
+        "WINDOW": 9,
+        "ISM-ISB-E11_GROUND FLOOR - 02F (04-12-2023)$0$Window Proposed": 6,
+        "windows": 3,
+        "CH-WINDOWS": 1,
+        "Glazing": 1,
+        "A-GLAZ": 1
+      }
+    },
+    "HANDRAIL": {
+      "uses": 172,
+      "common_rgb": [
+        119,
+        119,
+        153
+      ],
+      "spellings": {
+        "Handrail": 35,
+        "HANDRAIL": 33,
+        "Hanrails": 24,
+        "Handrail In": 23,
+        "Hnadrail Out": 23,
+        "HAND RAIL": 21,
+        "handrail": 5,
+        "RAILING": 3,
+        "hand rail": 2,
+        "hANDRAIL": 2,
+        "Handrails": 1
+      }
+    },
+    "EQUIPMENT_MACHINE": {
+      "uses": 168,
+      "common_rgb": [
+        102,
+        68,
+        0
+      ],
+      "spellings": {
+        "Machine": 36,
+        "AHU": 27,
+        "RF Dryer": 25,
+        "Hydro Extractor": 25,
+        "Equipment": 24,
+        "tank": 8,
+        "ISM-ISB-E11_GROUND FLOOR - 02F (04-12-2023)$0$16-EQUIPMENT": 6,
+        "ISM-ISB-E11_GROUND FLOOR - 02F (04-12-2023)$0$KITCHEN EQUIPMENT": 6,
+        "AHU PLAN": 4,
+        "Boiler Tank": 3,
+        "MACHINES": 2,
+        "CHILLER": 1,
+        "YD Machine": 1
+      }
+    },
+    "GLASS": {
+      "uses": 111,
+      "common_rgb": [
+        119,
+        119,
+        153
+      ],
+      "spellings": {
+        "Glass": 45,
+        "GLASS": 22,
+        "partition glass": 12,
+        "Glass Wall": 10,
+        "glass": 9,
+        "ISM-ISB-E11_GROUND FLOOR - 02F (04-12-2023)$0$GLASS": 6,
+        "_LiftShaftGlass": 5,
+        "roof glass": 2
+      }
+    },
+    "CHECKERED_PLATE": {
+      "uses": 106,
+      "common_rgb": [
+        102,
+        68,
+        0
+      ],
+      "spellings": {
+        "CKR PLATE": 30,
+        "checkered plate": 25,
+        "chackered plate 2": 23,
+        "Chacker Plate": 8,
+        "Checkered Plate": 5,
+        "CHECKERED PLATE": 4,
+        "Checkered Plates": 2,
+        "Checkered plate": 1,
+        "1st Floor chackered Plat": 1,
+        "3rd FloorCheckered Plate": 1,
+        "4th FloorCheckered Plate": 1,
+        "Roof Framing Chackered Plate": 1,
+        "Ground FloorChackered plate": 1,
+        "CHECKER PLATE": 1,
+        "steel checkerplate": 1,
+        "CHACKERED PLATE": 1
+      }
+    },
+    "EXISTING": {
+      "uses": 97,
+      "common_rgb": [
+        102,
+        68,
+        0
+      ],
+      "spellings": {
+        "EXISTING BUILDING": 22,
+        "EXISTING": 18,
+        "Existing Building ": 11,
+        "existing building": 11,
+        "EXISTING MS": 4,
+        "Existing": 4,
+        "EXISTING FRAME": 4,
+        "existing": 4,
+        "eXISTING": 3,
+        "Existing Structures": 3,
+        "Existing Shed": 3,
+        "EXISTING PEB SHED": 3,
+        "EXISTING ": 3,
+        "eXISTING\\": 2,
+        "EXISTING PLAN": 1,
+        "Existing Building": 1
+      }
+    },
+    "CANOPY_FASCIA": {
+      "uses": 84,
+      "common_rgb": [
+        0,
+        153,
+        135
+      ],
+      "spellings": {
+        "canopy": 22,
+        "Fascia": 21,
+        "Facia": 12,
+        "Canopy": 10,
+        "FACIA": 6,
+        "CANOPY": 6,
+        "FASCIA": 5,
+        "facia": 1,
+        "fascia": 1
+      }
+    },
+    "MEZZANINE": {
+      "uses": 78,
+      "common_rgb": [
+        102,
+        68,
+        0
+      ],
+      "spellings": {
+        "Mezzanine": 38,
+        "MEZZANINE": 19,
+        "mezzanine": 6,
+        "MEZZANINE 02": 4,
+        "MEZZANINE 01": 4,
+        "MezzaninE": 2,
+        "MEZZ-MS": 1,
+        "MEZZANINE G": 1,
+        "EXISTING MEZZANINE": 1,
+        "mezzanine ": 1,
+        "MEZZAININE": 1
+      }
+    },
+    "CRANE": {
+      "uses": 71,
+      "common_rgb": [
+        0,
+        153,
+        135
+      ],
+      "spellings": {
+        "Crane": 29,
+        "Trolly": 26,
+        "Cond Trolley": 16
+      }
+    },
+    "VEHICLE_PEOPLE": {
+      "uses": 55,
+      "common_rgb": [
+        0,
+        153,
+        135
+      ],
+      "spellings": {
+        "car": 25,
+        "Truck": 16,
+        "truck": 10,
+        "Plants": 2,
+        "plants": 1,
+        "Truck Body": 1
+      }
+    },
+    "SOLAR": {
+      "uses": 50,
+      "common_rgb": [
+        204,
+        68,
+        0
+      ],
+      "spellings": {
+        "Solar": 31,
+        "solar": 19
+      }
+    },
+    "BASE_BOLT": {
+      "uses": 45,
+      "common_rgb": [
+        102,
+        68,
+        0
+      ],
+      "spellings": {
+        "bOLTS": 30,
+        "J Bolt": 9,
+        "bolt": 3,
+        "bolts": 1,
+        "BOLTS": 1,
+        "Bolt": 1
+      }
+    },
+    "SKYBRIDGE": {
+      "uses": 31,
+      "common_rgb": [
+        119,
+        119,
+        153
+      ],
+      "spellings": {
+        "Skybridge": 25,
+        "New Bridge": 4,
+        "Yellow Bridge": 2
+      }
+    }
+  },
+  "unmatched_top": {
+    "Shed": 39,
+    "Joists": 21,
+    "JOIST": 20,
+    "coolers": 18,
+    "floor": 17,
+    "Partitions": 17,
+    "lift": 16,
+    "BASE": 16,
+    "CONOPY": 15,
+    "LIFT": 15,
+    "EXSITING": 15,
+    "bus": 15,
+    "Esquadrias": 14,
+    "cerb stone": 14,
+    "STEEL TUBE": 14,
+    "BUS": 14,
+    "Shehzore ": 14,
+    "Frame": 13,
+    "mesh": 13,
+    "C CHANEL": 13,
+    "Roof Platform": 13,
+    "grirting": 13,
+    "Adidas": 13,
+    "Bathroom": 13,
+    "TABLE": 13,
+    "FURNITURE": 13,
+    "TRUSS": 13,
+    "Platform": 12,
+    "HATCH": 12,
+    "Cable tray": 12,
+    "PROPOSED MS": 11,
+    "Outer Line": 11,
+    "Hladina00": 10,
+    "CARS": 10,
+    "Thin": 10,
+    "MS 01": 10,
+    "CHAIR": 10,
+    "ROAD": 9,
+    "PERINE": 9,
+    "PARKING": 9
+  }
+}

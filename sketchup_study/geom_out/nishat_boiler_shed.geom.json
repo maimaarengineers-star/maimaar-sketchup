@@ -1,0 +1,370 @@
+{
+  "title": "nishat boiler shed",
+  "path": "E:\\Maimaar Steel Pvt Ltd\\Proposals\\2023\\022-23-MSPL_Nishat Mills_Boiler Shed\\Rev-00\\3D-Drawings\\nishat boiler shed.skp",
+  "bbox": {
+    "w": 11250.0,
+    "d": 7521.3,
+    "h": 8731.7
+  },
+  "units": 2,
+  "layers": [
+    "Layer0",
+    "Purlins",
+    "Ms",
+    "Sheeting",
+    "Gutter"
+  ],
+  "scenes": [
+    "Scene 1",
+    "Scene 2",
+    "Scene 3",
+    "Scene 4",
+    "Scene 5",
+    "Scene 6",
+    "Scene 7"
+  ],
+  "tags": {
+    "Layer0": {
+      "count": 3,
+      "bbox": {
+        "w": 10550.0,
+        "d": 7521.3,
+        "h": 8378.0
+      }
+    },
+    "Purlins": {
+      "count": 19,
+      "bbox": {
+        "w": 11206.3,
+        "d": 7006.0,
+        "h": 5279.7
+      }
+    },
+    "Ms": {
+      "count": 14,
+      "bbox": {
+        "w": 11200.0,
+        "d": 6600.0,
+        "h": 8270.0
+      }
+    },
+    "Sheeting": {
+      "count": 3,
+      "bbox": {
+        "w": 11250.0,
+        "d": 7101.1,
+        "h": 5881.2
+      }
+    }
+  },
+  "definitions": [
+    {
+      "name": "Group#14",
+      "instances": 10,
+      "dims": {
+        "w": 203.0,
+        "d": 173.3,
+        "h": 10500.0
+      },
+      "section": [
+        173.3,
+        203.0
+      ],
+      "length": 10500.0
+    },
+    {
+      "name": "Group#73",
+      "instances": 6,
+      "dims": {
+        "w": 100.0,
+        "d": 131.1,
+        "h": 6223.4
+      },
+      "section": [
+        100.0,
+        131.1
+      ],
+      "length": 6223.4
+    },
+    {
+      "name": "Group#9",
+      "instances": 4,
+      "dims": {
+        "w": 203.0,
+        "d": 173.3,
+        "h": 6603.0
+      },
+      "section": [
+        173.3,
+        203.0
+      ],
+      "length": 6603.0
+    },
+    {
+      "name": "Group#5",
+      "instances": 3,
+      "dims": {
+        "w": 200.0,
+        "d": 3300.0,
+        "h": 600.0
+      },
+      "section": [
+        200.0,
+        600.0
+      ],
+      "length": 3300.0
+    },
+    {
+      "name": "Group#6",
+      "instances": 3,
+      "dims": {
+        "w": 203.0,
+        "d": 173.3,
+        "h": 6600.0
+      },
+      "section": [
+        173.3,
+        203.0
+      ],
+      "length": 6600.0
+    },
+    {
+      "name": "Group#7",
+      "instances": 3,
+      "dims": {
+        "w": 200.0,
+        "d": 3300.0,
+        "h": 600.0
+      },
+      "section": [
+        200.0,
+        600.0
+      ],
+      "length": 3300.0
+    },
+    {
+      "name": "Group#18",
+      "instances": 2,
+      "dims": {
+        "w": 10550.0,
+        "d": 210.4,
+        "h": 8378.0
+      },
+      "section": [
+        210.4,
+        8378.0
+      ],
+      "length": 10550.0
+    },
+    {
+      "name": "Group#72",
+      "instances": 2,
+      "dims": {
+        "w": 10550.0,
+        "d": 185.4,
+        "h": 235.4
+      },
+      "section": [
+        185.4,
+        235.4
+      ],
+      "length": 10550.0
+    },
+    {
+      "name": "Group#1",
+      "instances": 1,
+      "dims": {
+        "w": 10500.0,
+        "d": 7000.0,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        7000.0
+      ],
+      "length": 10500.0
+    },
+    {
+      "name": "Group#15",
+      "instances": 1,
+      "dims": {
+        "w": 700.0,
+        "d": 7101.1,
+        "h": 293.9
+      },
+      "section": [
+        293.9,
+        700.0
+      ],
+      "length": 7101.1
+    },
+    {
+      "name": "Group#16",
+      "instances": 1,
+      "dims": {
+        "w": 203.0,
+        "d": 173.3,
+        "h": 6484.0
+      },
+      "section": [
+        173.3,
+        203.0
+      ],
+      "length": 6484.0
+    },
+    {
+      "name": "Group#2",
+      "instances": 1,
+      "dims": {
+        "w": 200.0,
+        "d": 316.0,
+        "h": 7670.0
+      },
+      "section": [
+        200.0,
+        316.0
+      ],
+      "length": 7670.0
+    },
+    {
+      "name": "Group#4",
+      "instances": 1,
+      "dims": {
+        "w": 200.0,
+        "d": 316.0,
+        "h": 7670.0
+      },
+      "section": [
+        200.0,
+        316.0
+      ],
+      "length": 7670.0
+    },
+    {
+      "name": "Group#3",
+      "instances": 1,
+      "dims": {
+        "w": 200.0,
+        "d": 316.0,
+        "h": 7670.0
+      },
+      "section": [
+        200.0,
+        316.0
+      ],
+      "length": 7670.0
+    },
+    {
+      "name": "Group#13",
+      "instances": 1,
+      "dims": {
+        "w": 800.0,
+        "d": 200.0,
+        "h": 200.0
+      },
+      "section": [
+        200.0,
+        200.0
+      ],
+      "length": 800.0
+    },
+    {
+      "name": "Group#10",
+      "instances": 1,
+      "dims": {
+        "w": 203.0,
+        "d": 173.3,
+        "h": 6484.0
+      },
+      "section": [
+        173.3,
+        203.0
+      ],
+      "length": 6484.0
+    },
+    {
+      "name": "Group#12",
+      "instances": 1,
+      "dims": {
+        "w": 200.0,
+        "d": 316.0,
+        "h": 7670.0
+      },
+      "section": [
+        200.0,
+        316.0
+      ],
+      "length": 7670.0
+    },
+    {
+      "name": "Group#17",
+      "instances": 1,
+      "dims": {
+        "w": 200.0,
+        "d": 316.0,
+        "h": 7670.0
+      },
+      "section": [
+        200.0,
+        316.0
+      ],
+      "length": 7670.0
+    },
+    {
+      "name": "Group#8",
+      "instances": 1,
+      "dims": {
+        "w": 200.0,
+        "d": 316.0,
+        "h": 7670.0
+      },
+      "section": [
+        200.0,
+        316.0
+      ],
+      "length": 7670.0
+    },
+    {
+      "name": "Group#11",
+      "instances": 1,
+      "dims": {
+        "w": 10550.0,
+        "d": 7101.1,
+        "h": 5400.7
+      },
+      "section": [
+        5400.7,
+        7101.1
+      ],
+      "length": 10550.0
+    },
+    {
+      "name": "Group#19",
+      "instances": 1,
+      "dims": {
+        "w": 800.0,
+        "d": 200.0,
+        "h": 200.0
+      },
+      "section": [
+        200.0,
+        200.0
+      ],
+      "length": 800.0
+    },
+    {
+      "name": "Laura",
+      "instances": 0,
+      "dims": {
+        "w": 613.0,
+        "d": 0.0,
+        "h": 1702.4
+      },
+      "section": [
+        0.0,
+        613.0
+      ],
+      "length": 1702.4
+    }
+  ]
+}

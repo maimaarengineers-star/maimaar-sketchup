@@ -1,0 +1,237 @@
+{
+  "title": "Untitled",
+  "path": "E:\\Maimaar Steel Pvt Ltd\\Proposals\\2022\\034-22-MSPL_Royal Plaza\\3D Views\\Untitled.skp",
+  "bbox": {
+    "w": 30776.4,
+    "d": 55233.7,
+    "h": 18308.7
+  },
+  "units": 2,
+  "layers": [
+    "Layer0",
+    "Purlins",
+    "MS",
+    "Sheet"
+  ],
+  "scenes": [
+    "Scene 1"
+  ],
+  "tags": {
+    "Layer0": {
+      "count": 18,
+      "bbox": {
+        "w": 30776.4,
+        "d": 55223.7,
+        "h": 13716.7
+      }
+    },
+    "Purlins": {
+      "count": 2,
+      "bbox": {
+        "w": 17738.0,
+        "d": 48768.0,
+        "h": 4565.2
+      }
+    },
+    "MS": {
+      "count": 2,
+      "bbox": {
+        "w": 18288.0,
+        "d": 48768.0,
+        "h": 6116.0
+      }
+    },
+    "Sheet": {
+      "count": 2,
+      "bbox": {
+        "w": 18288.0,
+        "d": 48788.0,
+        "h": 4592.0
+      }
+    }
+  },
+  "definitions": [
+    {
+      "name": "Group#6",
+      "instances": 36,
+      "dims": {
+        "w": 2648.0,
+        "d": 151.5,
+        "h": 138.7
+      },
+      "section": [
+        138.7,
+        151.5
+      ],
+      "length": 2648.0
+    },
+    {
+      "name": "Group#4",
+      "instances": 11,
+      "dims": {
+        "w": 300.0,
+        "d": 304.8,
+        "h": 4592.0
+      },
+      "section": [
+        300.0,
+        304.8
+      ],
+      "length": 4592.0
+    },
+    {
+      "name": "Group#5",
+      "instances": 11,
+      "dims": {
+        "w": 150.0,
+        "d": 3830.0,
+        "h": 3830.0
+      },
+      "section": [
+        150.0,
+        3830.0
+      ],
+      "length": 3830.0
+    },
+    {
+      "name": "Group#3",
+      "instances": 11,
+      "dims": {
+        "w": 250.0,
+        "d": 250.0,
+        "h": 4572.0
+      },
+      "section": [
+        250.0,
+        250.0
+      ],
+      "length": 4572.0
+    },
+    {
+      "name": "Group#2",
+      "instances": 11,
+      "dims": {
+        "w": 300.0,
+        "d": 304.8,
+        "h": 20.0
+      },
+      "section": [
+        20.0,
+        300.0
+      ],
+      "length": 304.8
+    },
+    {
+      "name": "Laura",
+      "instances": 1,
+      "dims": {
+        "w": 613.0,
+        "d": 0.0,
+        "h": 1702.4
+      },
+      "section": [
+        0.0,
+        613.0
+      ],
+      "length": 1702.4
+    },
+    {
+      "name": "Group#1",
+      "instances": 1,
+      "dims": {
+        "w": 22860.0,
+        "d": 48768.0,
+        "h": 13716.0
+      },
+      "section": [
+        13716.0,
+        22860.0
+      ],
+      "length": 48768.0
+    },
+    {
+      "name": "Group#7",
+      "instances": 1,
+      "dims": {
+        "w": 14690.0,
+        "d": 153.0,
+        "h": 4565.2
+      },
+      "section": [
+        153.0,
+        4565.2
+      ],
+      "length": 14690.0
+    },
+    {
+      "name": "Group#8",
+      "instances": 1,
+      "dims": {
+        "w": 15240.0,
+        "d": 4080.0,
+        "h": 6116.0
+      },
+      "section": [
+        4080.0,
+        6116.0
+      ],
+      "length": 15240.0
+    },
+    {
+      "name": "Group#9",
+      "instances": 1,
+      "dims": {
+        "w": 18288.0,
+        "d": 4080.0,
+        "h": 6116.0
+      },
+      "section": [
+        4080.0,
+        6116.0
+      ],
+      "length": 18288.0
+    },
+    {
+      "name": "Group#10",
+      "instances": 1,
+      "dims": {
+        "w": 17738.0,
+        "d": 153.0,
+        "h": 4565.2
+      },
+      "section": [
+        153.0,
+        4565.2
+      ],
+      "length": 17738.0
+    },
+    {
+      "name": "Group#11",
+      "instances": 1,
+      "dims": {
+        "w": 18288.0,
+        "d": 10.0,
+        "h": 4592.0
+      },
+      "section": [
+        10.0,
+        4592.0
+      ],
+      "length": 18288.0
+    },
+    {
+      "name": "Group#12",
+      "instances": 1,
+      "dims": {
+        "w": 15240.0,
+        "d": 10.0,
+        "h": 4592.0
+      },
+      "section": [
+        10.0,
+        4592.0
+      ],
+      "length": 15240.0
+    }
+  ]
+}

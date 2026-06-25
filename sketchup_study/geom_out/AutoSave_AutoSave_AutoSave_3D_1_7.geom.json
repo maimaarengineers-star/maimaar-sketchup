@@ -1,0 +1,303 @@
+{
+  "title": "AutoSave_AutoSave_AutoSave_3D_1",
+  "path": "E:\\Maimaar Steel Pvt Ltd\\Proposals\\2019\\013-19-MSPL_Omya Pack\\Rev-00\\3D Sketchup\\AutoSave_AutoSave_AutoSave_3D_1.skp",
+  "bbox": {
+    "w": 211541.1,
+    "d": 100423.7,
+    "h": 97098.9
+  },
+  "units": 0,
+  "layers": [
+    "Layer0",
+    "Column",
+    "Purlins",
+    "Curtain wall Girts",
+    "Skeleton Group",
+    "Curtain Wall",
+    "BrickWall",
+    "Girts",
+    "Roof Sheeting",
+    "Viranda Purlins",
+    "Eave Gutter and Down Spout",
+    "Endwall",
+    "Liner"
+  ],
+  "scenes": [
+    "Scene 1",
+    "Scene 2"
+  ],
+  "tags": {
+    "Column": {
+      "count": 13052,
+      "bbox": {
+        "w": 211312.5,
+        "d": 100423.7,
+        "h": 96964.3
+      }
+    },
+    "Purlins": {
+      "count": 1480,
+      "bbox": {
+        "w": 199223.9,
+        "d": 62484.0,
+        "h": 89412.9
+      }
+    },
+    "Curtain wall Girts": {
+      "count": 67,
+      "bbox": {
+        "w": 137920.4,
+        "d": 65734.2,
+        "h": 92383.5
+      }
+    },
+    "Curtain Wall": {
+      "count": 451,
+      "bbox": {
+        "w": 137971.2,
+        "d": 62611.0,
+        "h": 92374.8
+      }
+    },
+    "BrickWall": {
+      "count": 484,
+      "bbox": {
+        "w": 200277.4,
+        "d": 62653.6,
+        "h": 91123.5
+      }
+    },
+    "Girts": {
+      "count": 147,
+      "bbox": {
+        "w": 200248.7,
+        "d": 62653.6,
+        "h": 92209.3
+      }
+    },
+    "Roof Sheeting": {
+      "count": 780,
+      "bbox": {
+        "w": 202682.6,
+        "d": 62484.0,
+        "h": 92448.8
+      }
+    },
+    "Viranda Purlins": {
+      "count": 16,
+      "bbox": {
+        "w": 138929.1,
+        "d": 62484.0,
+        "h": 88384.2
+      }
+    },
+    "Eave Gutter and Down Spout": {
+      "count": 1282,
+      "bbox": {
+        "w": 140236.4,
+        "d": 62497.8,
+        "h": 90693.9
+      }
+    },
+    "Endwall": {
+      "count": 13,
+      "bbox": {
+        "w": 62782.5,
+        "d": 10329.6,
+        "h": 9428.6
+      }
+    },
+    "Liner": {
+      "count": 241,
+      "bbox": {
+        "w": 62306.2,
+        "d": 61989.8,
+        "h": 5791.2
+      }
+    }
+  },
+  "definitions": [
+    {
+      "name": "Group#1",
+      "instances": 432,
+      "dims": {
+        "w": 10287.0,
+        "d": 298.8,
+        "h": 199.9
+      },
+      "section": [
+        199.9,
+        298.8
+      ],
+      "length": 10287.0
+    },
+    {
+      "name": "Group#2",
+      "instances": 24,
+      "dims": {
+        "w": 0.0,
+        "d": 298.8,
+        "h": 199.9
+      },
+      "section": [
+        0.0,
+        199.9
+      ],
+      "length": 298.8
+    },
+    {
+      "name": "Group#3",
+      "instances": 15,
+      "dims": {
+        "w": 284.0,
+        "d": 10287.0,
+        "h": 3818.5
+      },
+      "section": [
+        284.0,
+        3818.5
+      ],
+      "length": 10287.0
+    },
+    {
+      "name": "Group#5",
+      "instances": 8,
+      "dims": {
+        "w": 284.0,
+        "d": 10287.0,
+        "h": 3818.5
+      },
+      "section": [
+        284.0,
+        3818.5
+      ],
+      "length": 10287.0
+    },
+    {
+      "name": "Group#6",
+      "instances": 8,
+      "dims": {
+        "w": 284.0,
+        "d": 10287.0,
+        "h": 3818.5
+      },
+      "section": [
+        284.0,
+        3818.5
+      ],
+      "length": 10287.0
+    },
+    {
+      "name": "V-Ray Dome Light#1",
+      "instances": 1,
+      "dims": {
+        "w": 51.5,
+        "d": 50.8,
+        "h": 25.4
+      },
+      "section": [
+        25.4,
+        50.8
+      ],
+      "length": 51.5
+    },
+    {
+      "name": "Group#9",
+      "instances": 1,
+      "dims": {
+        "w": 284.0,
+        "d": 10287.0,
+        "h": 3818.5
+      },
+      "section": [
+        284.0,
+        3818.5
+      ],
+      "length": 10287.0
+    },
+    {
+      "name": "Group#4",
+      "instances": 1,
+      "dims": {
+        "w": 284.0,
+        "d": 84.7,
+        "h": 2963.1
+      },
+      "section": [
+        84.7,
+        284.0
+      ],
+      "length": 2963.1
+    },
+    {
+      "name": "V-Ray Spot Light",
+      "instances": 1,
+      "dims": {
+        "w": 32.1,
+        "d": 27.8,
+        "h": 29.4
+      },
+      "section": [
+        27.8,
+        29.4
+      ],
+      "length": 32.1
+    },
+    {
+      "name": "V-Ray Dome Light",
+      "instances": 1,
+      "dims": {
+        "w": 51.5,
+        "d": 50.8,
+        "h": 25.4
+      },
+      "section": [
+        25.4,
+        50.8
+      ],
+      "length": 51.5
+    },
+    {
+      "name": "V-Ray Sphere Light#1",
+      "instances": 0,
+      "dims": {
+        "w": 50.8,
+        "d": 50.8,
+        "h": 50.8
+      },
+      "section": [
+        50.8,
+        50.8
+      ],
+      "length": 50.8
+    },
+    {
+      "name": "V-Ray Sphere Light",
+      "instances": 0,
+      "dims": {
+        "w": 178.3,
+        "d": 178.3,
+        "h": 50.8
+      },
+      "section": [
+        50.8,
+        178.3
+      ],
+      "length": 178.3
+    },
+    {
+      "name": "Chris",
+      "instances": 0,
+      "dims": {
+        "w": 579.2,
+        "d": 0.0,
+        "h": 1765.2
+      },
+      "section": [
+        0.0,
+        579.2
+      ],
+      "length": 1765.2
+    }
+  ]
+}

@@ -1,0 +1,195 @@
+{
+  "title": "3D",
+  "path": "E:\\Maimaar Steel Pvt Ltd\\Proposals\\2024\\019-24-MSPL_Nishat Mills Pvt. Ltd._Dairy Farmhouse_Lahore\\Rev-00\\3D\\3D.skp",
+  "bbox": {
+    "w": 9539.1,
+    "d": 19845.0,
+    "h": 4281.0
+  },
+  "units": 2,
+  "layers": [
+    "Layer0",
+    "sheeting",
+    "purline",
+    "MS",
+    "Gutter"
+  ],
+  "scenes": [
+    "Scene 1",
+    "Scene 2",
+    "Scene 3",
+    "Scene 4",
+    "Scene 5",
+    "Scene 6"
+  ],
+  "tags": {
+    "Layer0": {
+      "count": 1,
+      "bbox": {
+        "w": 9150.0,
+        "d": 19825.0,
+        "h": 0.0
+      }
+    },
+    "MS": {
+      "count": 16,
+      "bbox": {
+        "w": 9150.0,
+        "d": 19825.0,
+        "h": 4123.0
+      }
+    },
+    "purline": {
+      "count": 8,
+      "bbox": {
+        "w": 9207.1,
+        "d": 19825.0,
+        "h": 1024.3
+      }
+    },
+    "sheeting": {
+      "count": 1,
+      "bbox": {
+        "w": 9224.2,
+        "d": 19845.0,
+        "h": 1040.1
+      }
+    },
+    "Gutter": {
+      "count": 2,
+      "bbox": {
+        "w": 9539.1,
+        "d": 19845.0,
+        "h": 3353.4
+      }
+    }
+  },
+  "definitions": [
+    {
+      "name": "Group#65",
+      "instances": 8,
+      "dims": {
+        "w": 100.0,
+        "d": 131.1,
+        "h": 3333.9
+      },
+      "section": [
+        100.0,
+        131.1
+      ],
+      "length": 3333.9
+    },
+    {
+      "name": "Group#4",
+      "instances": 8,
+      "dims": {
+        "w": 115.6,
+        "d": 19825.0,
+        "h": 152.0
+      },
+      "section": [
+        115.6,
+        152.0
+      ],
+      "length": 19825.0
+    },
+    {
+      "name": "Group#3",
+      "instances": 8,
+      "dims": {
+        "w": 4575.0,
+        "d": 150.0,
+        "h": 1075.0
+      },
+      "section": [
+        150.0,
+        1075.0
+      ],
+      "length": 4575.0
+    },
+    {
+      "name": "Group#2",
+      "instances": 8,
+      "dims": {
+        "w": 200.0,
+        "d": 150.0,
+        "h": 3048.0
+      },
+      "section": [
+        150.0,
+        200.0
+      ],
+      "length": 3048.0
+    },
+    {
+      "name": "Group#76",
+      "instances": 2,
+      "dims": {
+        "w": 157.6,
+        "d": 29623.8,
+        "h": 4033.8
+      },
+      "section": [
+        157.6,
+        4033.8
+      ],
+      "length": 29623.8
+    },
+    {
+      "name": "Group#6",
+      "instances": 2,
+      "dims": {
+        "w": 185.4,
+        "d": 19845.0,
+        "h": 195.7
+      },
+      "section": [
+        185.4,
+        195.7
+      ],
+      "length": 19845.0
+    },
+    {
+      "name": "Group#5",
+      "instances": 1,
+      "dims": {
+        "w": 9224.2,
+        "d": 19845.0,
+        "h": 1040.1
+      },
+      "section": [
+        1040.1,
+        9224.2
+      ],
+      "length": 19845.0
+    },
+    {
+      "name": "Group#1",
+      "instances": 1,
+      "dims": {
+        "w": 9150.0,
+        "d": 19825.0,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        9150.0
+      ],
+      "length": 19825.0
+    },
+    {
+      "name": "Sumele",
+      "instances": 0,
+      "dims": {
+        "w": 594.0,
+        "d": 0.0,
+        "h": 1649.7
+      },
+      "section": [
+        0.0,
+        594.0
+      ],
+      "length": 1649.7
+    }
+  ]
+}

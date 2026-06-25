@@ -1,0 +1,98 @@
+{
+  "title": "Untitled",
+  "path": "E:\\Maimaar Steel Pvt Ltd\\Proposals\\2019\\065-19-MSPL_Magadon Sports\\Rev-02\\3d Views\\Untitled.skp",
+  "bbox": {
+    "w": 26532.1,
+    "d": 32640.1,
+    "h": 6248.4
+  },
+  "units": 0,
+  "layers": [
+    "Layer0"
+  ],
+  "scenes": [
+
+  ],
+  "tags": {
+    "Layer0": {
+      "count": 449,
+      "bbox": {
+        "w": 26532.1,
+        "d": 32640.1,
+        "h": 6248.4
+      }
+    }
+  },
+  "definitions": [
+    {
+      "name": "Component#1",
+      "instances": 3,
+      "dims": {
+        "w": 1270.0,
+        "d": 1270.0,
+        "h": 1270.0
+      },
+      "section": [
+        1270.0,
+        1270.0
+      ],
+      "length": 1270.0
+    },
+    {
+      "name": "Component",
+      "instances": 3,
+      "dims": {
+        "w": 1385.5,
+        "d": 1760.0,
+        "h": 1743.2
+      },
+      "section": [
+        1385.5,
+        1743.2
+      ],
+      "length": 1760.0
+    },
+    {
+      "name": "Chris",
+      "instances": 1,
+      "dims": {
+        "w": 579.2,
+        "d": 0.0,
+        "h": 1765.2
+      },
+      "section": [
+        0.0,
+        579.2
+      ],
+      "length": 1765.2
+    },
+    {
+      "name": "Component#3",
+      "instances": 0,
+      "dims": {
+        "w": 46078.8,
+        "d": 46078.8,
+        "h": 16739.1
+      },
+      "section": [
+        16739.1,
+        46078.8
+      ],
+      "length": 46078.8
+    },
+    {
+      "name": "Component#2",
+      "instances": 0,
+      "dims": {
+        "w": 46078.8,
+        "d": 46078.8,
+        "h": 16739.1
+      },
+      "section": [
+        16739.1,
+        46078.8
+      ],
+      "length": 46078.8
+    }
+  ]
+}

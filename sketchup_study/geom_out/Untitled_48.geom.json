@@ -1,0 +1,358 @@
+{
+  "title": "Untitled",
+  "path": "E:\\Maimaar Steel Pvt Ltd\\Proposals\\2024\\033-24-MSPL_Stitching Center_Mr. Naffar Hussain\\Rev-00\\3d drawing\\Untitled.skp",
+  "bbox": {
+    "w": 10818.0,
+    "d": 4421.6,
+    "h": 3412.7
+  },
+  "units": 2,
+  "layers": [
+    "Layer0",
+    "sand wich panel",
+    "steel tube"
+  ],
+  "scenes": [
+    "Scene 1",
+    "Scene 2",
+    "Scene 3",
+    "Scene 4",
+    "Scene 5"
+  ],
+  "tags": {
+    "sand wich panel": {
+      "count": 43,
+      "bbox": {
+        "w": 10818.0,
+        "d": 4421.6,
+        "h": 3412.7
+      }
+    },
+    "steel tube": {
+      "count": 14,
+      "bbox": {
+        "w": 10668.0,
+        "d": 4267.2,
+        "h": 3332.9
+      }
+    },
+    "Layer0": {
+      "count": 2,
+      "bbox": {
+        "w": 10668.0,
+        "d": 4267.2,
+        "h": 3332.9
+      }
+    }
+  },
+  "definitions": [
+    {
+      "name": "Group#22",
+      "instances": 20,
+      "dims": {
+        "w": 75.0,
+        "d": 1000.0,
+        "h": 3151.2
+      },
+      "section": [
+        75.0,
+        1000.0
+      ],
+      "length": 3151.2
+    },
+    {
+      "name": "Group#7",
+      "instances": 10,
+      "dims": {
+        "w": 75.0,
+        "d": 1000.0,
+        "h": 4141.5
+      },
+      "section": [
+        75.0,
+        1000.0
+      ],
+      "length": 4141.5
+    },
+    {
+      "name": "Group#20",
+      "instances": 8,
+      "dims": {
+        "w": 100.0,
+        "d": 100.0,
+        "h": 5184.0
+      },
+      "section": [
+        100.0,
+        100.0
+      ],
+      "length": 5184.0
+    },
+    {
+      "name": "Group#11",
+      "instances": 3,
+      "dims": {
+        "w": 100.0,
+        "d": 100.0,
+        "h": 2948.2
+      },
+      "section": [
+        100.0,
+        100.0
+      ],
+      "length": 2948.2
+    },
+    {
+      "name": "Group#3",
+      "instances": 3,
+      "dims": {
+        "w": 100.0,
+        "d": 100.0,
+        "h": 3226.0
+      },
+      "section": [
+        100.0,
+        100.0
+      ],
+      "length": 3226.0
+    },
+    {
+      "name": "Group#25",
+      "instances": 2,
+      "dims": {
+        "w": 75.0,
+        "d": 1000.0,
+        "h": 3220.4
+      },
+      "section": [
+        75.0,
+        1000.0
+      ],
+      "length": 3220.4
+    },
+    {
+      "name": "Group#12",
+      "instances": 2,
+      "dims": {
+        "w": 100.0,
+        "d": 100.0,
+        "h": 4067.2
+      },
+      "section": [
+        100.0,
+        100.0
+      ],
+      "length": 4067.2
+    },
+    {
+      "name": "Group#8",
+      "instances": 2,
+      "dims": {
+        "w": 75.0,
+        "d": 1000.0,
+        "h": 3358.5
+      },
+      "section": [
+        75.0,
+        1000.0
+      ],
+      "length": 3358.5
+    },
+    {
+      "name": "Group#5",
+      "instances": 2,
+      "dims": {
+        "w": 4267.2,
+        "d": 100.0,
+        "h": 384.7
+      },
+      "section": [
+        100.0,
+        384.7
+      ],
+      "length": 4267.2
+    },
+    {
+      "name": "Group#2",
+      "instances": 2,
+      "dims": {
+        "w": 4267.2,
+        "d": 100.0,
+        "h": 3332.9
+      },
+      "section": [
+        100.0,
+        3332.9
+      ],
+      "length": 4267.2
+    },
+    {
+      "name": "Group#15",
+      "instances": 2,
+      "dims": {
+        "w": 75.0,
+        "d": 1000.0,
+        "h": 3289.5
+      },
+      "section": [
+        75.0,
+        1000.0
+      ],
+      "length": 3289.5
+    },
+    {
+      "name": "Group#23",
+      "instances": 2,
+      "dims": {
+        "w": 75.0,
+        "d": 1000.0,
+        "h": 3427.5
+      },
+      "section": [
+        75.0,
+        1000.0
+      ],
+      "length": 3427.5
+    },
+    {
+      "name": "Group#24",
+      "instances": 2,
+      "dims": {
+        "w": 75.0,
+        "d": 267.2,
+        "h": 3445.6
+      },
+      "section": [
+        75.0,
+        267.2
+      ],
+      "length": 3445.6
+    },
+    {
+      "name": "Group#19",
+      "instances": 1,
+      "dims": {
+        "w": 75.0,
+        "d": 818.0,
+        "h": 3151.2
+      },
+      "section": [
+        75.0,
+        818.0
+      ],
+      "length": 3151.2
+    },
+    {
+      "name": "Group#10",
+      "instances": 1,
+      "dims": {
+        "w": 4267.2,
+        "d": 100.0,
+        "h": 3332.9
+      },
+      "section": [
+        100.0,
+        3332.9
+      ],
+      "length": 4267.2
+    },
+    {
+      "name": "Group#6",
+      "instances": 1,
+      "dims": {
+        "w": 75.0,
+        "d": 818.0,
+        "h": 4141.5
+      },
+      "section": [
+        75.0,
+        818.0
+      ],
+      "length": 4141.5
+    },
+    {
+      "name": "Group#13",
+      "instances": 1,
+      "dims": {
+        "w": 7.1,
+        "d": 0.0,
+        "h": 106.9
+      },
+      "section": [
+        0.0,
+        7.1
+      ],
+      "length": 106.9
+    },
+    {
+      "name": "Group#4",
+      "instances": 1,
+      "dims": {
+        "w": 100.0,
+        "d": 100.0,
+        "h": 5184.0
+      },
+      "section": [
+        100.0,
+        100.0
+      ],
+      "length": 5184.0
+    },
+    {
+      "name": "Group#1",
+      "instances": 1,
+      "dims": {
+        "w": 4267.2,
+        "d": 10668.0,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        4267.2
+      ],
+      "length": 10668.0
+    },
+    {
+      "name": "Group#14",
+      "instances": 1,
+      "dims": {
+        "w": 4267.2,
+        "d": 100.0,
+        "h": 384.7
+      },
+      "section": [
+        100.0,
+        384.7
+      ],
+      "length": 4267.2
+    },
+    {
+      "name": "Group#9",
+      "instances": 1,
+      "dims": {
+        "w": 75.0,
+        "d": 818.0,
+        "h": 3151.2
+      },
+      "section": [
+        75.0,
+        818.0
+      ],
+      "length": 3151.2
+    },
+    {
+      "name": "Sumele",
+      "instances": 0,
+      "dims": {
+        "w": 594.0,
+        "d": 0.0,
+        "h": 1649.7
+      },
+      "section": [
+        0.0,
+        594.0
+      ],
+      "length": 1649.7
+    }
+  ]
+}

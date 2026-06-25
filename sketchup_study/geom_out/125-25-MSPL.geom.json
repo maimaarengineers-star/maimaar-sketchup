@@ -1,0 +1,236 @@
+{
+  "title": "125-25-MSPL",
+  "path": "E:\\Maimaar Steel Pvt Ltd\\Proposals\\2025\\125-25-MSPL_Elite Builders_Fabrication Shed_Multan\\Rev-00\\3D-Views\\125-25-MSPL.skp",
+  "bbox": {
+    "w": 30757.3,
+    "d": 7964.8,
+    "h": 6326.0
+  },
+  "units": 2,
+  "layers": [
+    "Layer0",
+    "Gutter and Pipes",
+    "SHEETING",
+    "PURLIN",
+    "MS"
+  ],
+  "scenes": [
+    "Scene 1",
+    "Scene 2",
+    "Scene 3",
+    "Scene 4",
+    "Scene 5"
+  ],
+  "tags": {
+    "Layer0": {
+      "count": 1,
+      "bbox": {
+        "w": 30480.0,
+        "d": 7924.8,
+        "h": 0.0
+      }
+    },
+    "MS": {
+      "count": 18,
+      "bbox": {
+        "w": 30480.0,
+        "d": 7924.8,
+        "h": 6091.2
+      }
+    },
+    "PURLIN": {
+      "count": 22,
+      "bbox": {
+        "w": 30465.7,
+        "d": 7924.8,
+        "h": 504.6
+      }
+    },
+    "SHEETING": {
+      "count": 1,
+      "bbox": {
+        "w": 30480.0,
+        "d": 7964.8,
+        "h": 539.6
+      }
+    },
+    "Gutter and Pipes": {
+      "count": 2,
+      "bbox": {
+        "w": 30757.3,
+        "d": 7964.8,
+        "h": 5784.6
+      }
+    }
+  },
+  "definitions": [
+    {
+      "name": "Group#7",
+      "instances": 22,
+      "dims": {
+        "w": 132.6,
+        "d": 7924.8,
+        "h": 202.0
+      },
+      "section": [
+        132.6,
+        202.0
+      ],
+      "length": 7924.8
+    },
+    {
+      "name": "Group#37",
+      "instances": 4,
+      "dims": {
+        "w": 211.8,
+        "d": 151.8,
+        "h": 56951.6
+      },
+      "section": [
+        151.8,
+        211.8
+      ],
+      "length": 56951.6
+    },
+    {
+      "name": "Group#6",
+      "instances": 4,
+      "dims": {
+        "w": 300.0,
+        "d": 200.2,
+        "h": 5634.8
+      },
+      "section": [
+        200.2,
+        300.0
+      ],
+      "length": 5634.8
+    },
+    {
+      "name": "Group#5",
+      "instances": 4,
+      "dims": {
+        "w": 300.0,
+        "d": 200.0,
+        "h": 5486.4
+      },
+      "section": [
+        200.0,
+        300.0
+      ],
+      "length": 5486.4
+    },
+    {
+      "name": "Group#4",
+      "instances": 4,
+      "dims": {
+        "w": 7620.0,
+        "d": 200.0,
+        "h": 458.3
+      },
+      "section": [
+        200.0,
+        458.3
+      ],
+      "length": 7620.0
+    },
+    {
+      "name": "Group#3",
+      "instances": 4,
+      "dims": {
+        "w": 7626.1,
+        "d": 200.0,
+        "h": 452.4
+      },
+      "section": [
+        200.0,
+        452.4
+      ],
+      "length": 7626.1
+    },
+    {
+      "name": "Group#27",
+      "instances": 2,
+      "dims": {
+        "w": 285.4,
+        "d": 6954.8,
+        "h": 285.4
+      },
+      "section": [
+        285.4,
+        285.4
+      ],
+      "length": 6954.8
+    },
+    {
+      "name": "Group#26",
+      "instances": 2,
+      "dims": {
+        "w": 74.6,
+        "d": 3977.2,
+        "h": 1967.2
+      },
+      "section": [
+        74.6,
+        1967.2
+      ],
+      "length": 3977.2
+    },
+    {
+      "name": "Group#2",
+      "instances": 2,
+      "dims": {
+        "w": 300.0,
+        "d": 200.0,
+        "h": 5785.2
+      },
+      "section": [
+        200.0,
+        300.0
+      ],
+      "length": 5785.2
+    },
+    {
+      "name": "Group#8",
+      "instances": 1,
+      "dims": {
+        "w": 30480.0,
+        "d": 7964.8,
+        "h": 539.6
+      },
+      "section": [
+        539.6,
+        7964.8
+      ],
+      "length": 30480.0
+    },
+    {
+      "name": "Group#1",
+      "instances": 1,
+      "dims": {
+        "w": 30480.0,
+        "d": 7924.8,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        7924.8
+      ],
+      "length": 30480.0
+    },
+    {
+      "name": "Sumele",
+      "instances": 0,
+      "dims": {
+        "w": 594.0,
+        "d": 0.0,
+        "h": 1649.7
+      },
+      "section": [
+        0.0,
+        594.0
+      ],
+      "length": 1649.7
+    }
+  ]
+}

@@ -1,0 +1,182 @@
+{
+  "title": "Untitled",
+  "path": "E:\\Maimaar Steel Pvt Ltd\\Proposals\\2021\\040-21-MSPL_Staircase_Abu Bakr\\Rev-00\\3D Views\\Untitled.skp",
+  "bbox": {
+    "w": 5937.3,
+    "d": 2743.2,
+    "h": 3810.0
+  },
+  "units": 0,
+  "layers": [
+    "Layer0"
+  ],
+  "scenes": [
+    "Scene 1"
+  ],
+  "tags": {
+    "Layer0": {
+      "count": 303,
+      "bbox": {
+        "w": 5937.3,
+        "d": 2743.2,
+        "h": 3810.0
+      }
+    }
+  },
+  "definitions": [
+    {
+      "name": "Group#1",
+      "instances": 363,
+      "dims": {
+        "w": 113.0,
+        "d": 38.0,
+        "h": 40.0
+      },
+      "section": [
+        38.0,
+        40.0
+      ],
+      "length": 113.0
+    },
+    {
+      "name": "1000x400-panel",
+      "instances": 3,
+      "dims": {
+        "w": 1243.0,
+        "d": 418.0,
+        "h": 40.0
+      },
+      "section": [
+        40.0,
+        418.0
+      ],
+      "length": 1243.0
+    },
+    {
+      "name": "Walkway Grating",
+      "instances": 3,
+      "dims": {
+        "w": 1243.0,
+        "d": 418.0,
+        "h": 40.0
+      },
+      "section": [
+        40.0,
+        418.0
+      ],
+      "length": 1243.0
+    },
+    {
+      "name": "Group#2",
+      "instances": 1,
+      "dims": {
+        "w": 3716.6,
+        "d": 1333.5,
+        "h": 2952.8
+      },
+      "section": [
+        1333.5,
+        2952.8
+      ],
+      "length": 3716.6
+    },
+    {
+      "name": "base",
+      "instances": 0,
+      "dims": {
+        "w": 2634.0,
+        "d": 4538.0,
+        "h": 12.0
+      },
+      "section": [
+        12.0,
+        2634.0
+      ],
+      "length": 4538.0
+    },
+    {
+      "name": "Laura",
+      "instances": 0,
+      "dims": {
+        "w": 613.0,
+        "d": 0.0,
+        "h": 1702.4
+      },
+      "section": [
+        0.0,
+        613.0
+      ],
+      "length": 1702.4
+    },
+    {
+      "name": "PerforatedSheet",
+      "instances": 0,
+      "dims": {
+        "w": 2198.0,
+        "d": 1214.0,
+        "h": 5.0
+      },
+      "section": [
+        5.0,
+        1214.0
+      ],
+      "length": 2198.0
+    },
+    {
+      "name": "StructureX",
+      "instances": 0,
+      "dims": {
+        "w": 164.0,
+        "d": 1849.0,
+        "h": 200.0
+      },
+      "section": [
+        164.0,
+        200.0
+      ],
+      "length": 1849.0
+    },
+    {
+      "name": "Spiral Staircase",
+      "instances": 0,
+      "dims": {
+        "w": 2248.8,
+        "d": 1933.6,
+        "h": 3650.5
+      },
+      "section": [
+        1933.6,
+        2248.8
+      ],
+      "length": 3650.5
+    },
+    {
+      "name": "Spiral staris",
+      "instances": 0,
+      "dims": {
+        "w": 2248.8,
+        "d": 1933.6,
+        "h": 3650.5
+      },
+      "section": [
+        1933.6,
+        2248.8
+      ],
+      "length": 3650.5
+    },
+    {
+      "name": "StructureY",
+      "instances": 0,
+      "dims": {
+        "w": 2634.0,
+        "d": 172.6,
+        "h": 200.0
+      },
+      "section": [
+        172.6,
+        200.0
+      ],
+      "length": 2634.0
+    }
+  ]
+}

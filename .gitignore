@@ -1,0 +1,13 @@
+# Track only the SketchUp work added this session; ignore the rest of the large tree
+# (Portal has its own repo; proposals/DXF/data are not for this repo).
+/*
+!.gitignore
+!sketchup_study/
+!sketchup_generator/
+
+# within the tracked modules, skip generated/binary artifacts
+sketchup_generator/out/
+sketchup_study/geom_out/batch.log
+**/__pycache__/
+*.pyc
+*.skb

@@ -1,0 +1,1300 @@
+{
+  "title": "337-25-MSPL",
+  "path": "E:\\Maimaar Steel Pvt Ltd\\Proposals\\2025\\337-25-MSPL_Replacement of roof sheeting_Faisal Movers_Lahore\\Rev-00\\3D Views\\Faisal Movers Shed\\337-25-MSPL.skp",
+  "bbox": {
+    "w": 17669.4,
+    "d": 14426.6,
+    "h": 7738.7
+  },
+  "units": 2,
+  "layers": [
+    "Layer0",
+    "sheeting",
+    "ANGLE",
+    "MS",
+    "Gutter and Pipes",
+    "TRUSS",
+    "BUS",
+    "FASCIA"
+  ],
+  "scenes": [
+    "Scene 1",
+    "Scene 2",
+    "Scene 3",
+    "Scene 4",
+    "Scene 5",
+    "Scene 6"
+  ],
+  "tags": {
+    "MS": {
+      "count": 4,
+      "bbox": {
+        "w": 15496.5,
+        "d": 10650.0,
+        "h": 7082.6
+      }
+    },
+    "Layer0": {
+      "count": 3,
+      "bbox": {
+        "w": 17200.0,
+        "d": 14383.6,
+        "h": 3048.0
+      }
+    },
+    "Gutter and Pipes": {
+      "count": 1,
+      "bbox": {
+        "w": 138.7,
+        "d": 12220.2,
+        "h": 5939.4
+      }
+    },
+    "TRUSS": {
+      "count": 16,
+      "bbox": {
+        "w": 17628.8,
+        "d": 10310.0,
+        "h": 1668.1
+      }
+    },
+    "sheeting": {
+      "count": 58,
+      "bbox": {
+        "w": 17619.2,
+        "d": 12263.0,
+        "h": 1723.6
+      }
+    },
+    "BUS": {
+      "count": 2,
+      "bbox": {
+        "w": 12039.6,
+        "d": 6309.2,
+        "h": 3810.0
+      }
+    },
+    "ANGLE": {
+      "count": 49,
+      "bbox": {
+        "w": 17613.6,
+        "d": 12276.0,
+        "h": 1727.1
+      }
+    },
+    "FASCIA": {
+      "count": 4,
+      "bbox": {
+        "w": 17669.4,
+        "d": 12336.0,
+        "h": 1726.3
+      }
+    }
+  },
+  "definitions": [
+    {
+      "name": "Group#11",
+      "instances": 444,
+      "dims": {
+        "w": 50.0,
+        "d": 480.0,
+        "h": 50.0
+      },
+      "section": [
+        50.0,
+        50.0
+      ],
+      "length": 480.0
+    },
+    {
+      "name": "Group#3",
+      "instances": 428,
+      "dims": {
+        "w": 550.4,
+        "d": 49.9,
+        "h": 448.1
+      },
+      "section": [
+        49.9,
+        448.1
+      ],
+      "length": 550.4
+    },
+    {
+      "name": "Group#26",
+      "instances": 36,
+      "dims": {
+        "w": 50.0,
+        "d": 50.0,
+        "h": 931.9
+      },
+      "section": [
+        50.0,
+        50.0
+      ],
+      "length": 931.9
+    },
+    {
+      "name": "Group#5",
+      "instances": 36,
+      "dims": {
+        "w": 50.0,
+        "d": 931.9,
+        "h": 50.0
+      },
+      "section": [
+        50.0,
+        50.0
+      ],
+      "length": 931.9
+    },
+    {
+      "name": "Group#12",
+      "instances": 32,
+      "dims": {
+        "w": 50.0,
+        "d": 17633.7,
+        "h": 50.0
+      },
+      "section": [
+        50.0,
+        50.0
+      ],
+      "length": 17633.7
+    },
+    {
+      "name": "Group#20",
+      "instances": 30,
+      "dims": {
+        "w": 12250.0,
+        "d": 575.7,
+        "h": 10.7
+      },
+      "section": [
+        10.7,
+        575.7
+      ],
+      "length": 12250.0
+    },
+    {
+      "name": "Group#14",
+      "instances": 26,
+      "dims": {
+        "w": 17633.7,
+        "d": 486.7,
+        "h": 65.9
+      },
+      "section": [
+        65.9,
+        486.7
+      ],
+      "length": 17633.7
+    },
+    {
+      "name": "Group#15",
+      "instances": 13,
+      "dims": {
+        "w": 50.0,
+        "d": 10310.0,
+        "h": 50.0
+      },
+      "section": [
+        50.0,
+        50.0
+      ],
+      "length": 10310.0
+    },
+    {
+      "name": "Group#4",
+      "instances": 12,
+      "dims": {
+        "w": 10310.0,
+        "d": 50.0,
+        "h": 50.0
+      },
+      "section": [
+        50.0,
+        50.0
+      ],
+      "length": 10310.0
+    },
+    {
+      "name": "Group#7",
+      "instances": 12,
+      "dims": {
+        "w": 12250.0,
+        "d": 50.0,
+        "h": 500.0
+      },
+      "section": [
+        50.0,
+        500.0
+      ],
+      "length": 12250.0
+    },
+    {
+      "name": "Truck / bus wheel#1",
+      "instances": 10,
+      "dims": {
+        "w": 4129.0,
+        "d": 1829.0,
+        "h": 4129.0
+      },
+      "section": [
+        1829.0,
+        4129.0
+      ],
+      "length": 4129.0
+    },
+    {
+      "name": "Group#977",
+      "instances": 4,
+      "dims": {
+        "w": 3000.0,
+        "d": 3000.0,
+        "h": 4660.0
+      },
+      "section": [
+        3000.0,
+        3000.0
+      ],
+      "length": 4660.0
+    },
+    {
+      "name": "Group#24",
+      "instances": 3,
+      "dims": {
+        "w": 17628.8,
+        "d": 50.0,
+        "h": 1649.5
+      },
+      "section": [
+        50.0,
+        1649.5
+      ],
+      "length": 17628.8
+    },
+    {
+      "name": "Group#27",
+      "instances": 2,
+      "dims": {
+        "w": 12336.0,
+        "d": 30.0,
+        "h": 1726.3
+      },
+      "section": [
+        30.0,
+        1726.3
+      ],
+      "length": 12336.0
+    },
+    {
+      "name": "Group#986",
+      "instances": 2,
+      "dims": {
+        "w": 9743.2,
+        "d": 14199.0,
+        "h": 3083.4
+      },
+      "section": [
+        3083.4,
+        9743.2
+      ],
+      "length": 14199.0
+    },
+    {
+      "name": "Group#18",
+      "instances": 2,
+      "dims": {
+        "w": 157.3,
+        "d": 969.5,
+        "h": 999.2
+      },
+      "section": [
+        157.3,
+        969.5
+      ],
+      "length": 999.2
+    },
+    {
+      "name": "Group#985",
+      "instances": 2,
+      "dims": {
+        "w": 19486.3,
+        "d": 5035.0,
+        "h": 18130.4
+      },
+      "section": [
+        5035.0,
+        18130.4
+      ],
+      "length": 19486.3
+    },
+    {
+      "name": "Group#980",
+      "instances": 2,
+      "dims": {
+        "w": 10255.8,
+        "d": 1055.9,
+        "h": 1167.3
+      },
+      "section": [
+        1055.9,
+        1167.3
+      ],
+      "length": 10255.8
+    },
+    {
+      "name": "Component#7",
+      "instances": 2,
+      "dims": {
+        "w": 12337.6,
+        "d": 2702.0,
+        "h": 3471.6
+      },
+      "section": [
+        2702.0,
+        3471.6
+      ],
+      "length": 12337.6
+    },
+    {
+      "name": "Group#983",
+      "instances": 2,
+      "dims": {
+        "w": 13003.7,
+        "d": 3883.0,
+        "h": 16973.3
+      },
+      "section": [
+        3883.0,
+        13003.7
+      ],
+      "length": 16973.3
+    },
+    {
+      "name": "Group#984",
+      "instances": 2,
+      "dims": {
+        "w": 10243.2,
+        "d": 12620.9,
+        "h": 1003.9
+      },
+      "section": [
+        1003.9,
+        10243.2
+      ],
+      "length": 12620.9
+    },
+    {
+      "name": "Group#10",
+      "instances": 2,
+      "dims": {
+        "w": 400.0,
+        "d": 400.0,
+        "h": 6096.0
+      },
+      "section": [
+        400.0,
+        400.0
+      ],
+      "length": 6096.0
+    },
+    {
+      "name": "Group#991",
+      "instances": 2,
+      "dims": {
+        "w": 10243.2,
+        "d": 4973.4,
+        "h": 17823.0
+      },
+      "section": [
+        4973.4,
+        10243.2
+      ],
+      "length": 17823.0
+    },
+    {
+      "name": "Group#23",
+      "instances": 2,
+      "dims": {
+        "w": 400.0,
+        "d": 400.0,
+        "h": 7082.6
+      },
+      "section": [
+        400.0,
+        400.0
+      ],
+      "length": 7082.6
+    },
+    {
+      "name": "Group#982",
+      "instances": 2,
+      "dims": {
+        "w": 19486.3,
+        "d": 15633.5,
+        "h": 5406.6
+      },
+      "section": [
+        5406.6,
+        15633.5
+      ],
+      "length": 19486.3
+    },
+    {
+      "name": "Group#989",
+      "instances": 2,
+      "dims": {
+        "w": 2160.0,
+        "d": 5575.9,
+        "h": 3650.7
+      },
+      "section": [
+        2160.0,
+        3650.7
+      ],
+      "length": 5575.9
+    },
+    {
+      "name": "Group#988",
+      "instances": 2,
+      "dims": {
+        "w": 2936.8,
+        "d": 9667.5,
+        "h": 4000.0
+      },
+      "section": [
+        2936.8,
+        4000.0
+      ],
+      "length": 9667.5
+    },
+    {
+      "name": "Group#979",
+      "instances": 2,
+      "dims": {
+        "w": 19486.3,
+        "d": 8665.1,
+        "h": 19000.7
+      },
+      "section": [
+        8665.1,
+        19000.7
+      ],
+      "length": 19486.3
+    },
+    {
+      "name": "Group#992",
+      "instances": 2,
+      "dims": {
+        "w": 16572.0,
+        "d": 3055.1,
+        "h": 4608.0
+      },
+      "section": [
+        3055.1,
+        4608.0
+      ],
+      "length": 16572.0
+    },
+    {
+      "name": "Group#993",
+      "instances": 2,
+      "dims": {
+        "w": 3736.0,
+        "d": 15547.5,
+        "h": 5297.6
+      },
+      "section": [
+        3736.0,
+        5297.6
+      ],
+      "length": 15547.5
+    },
+    {
+      "name": "Group#990",
+      "instances": 2,
+      "dims": {
+        "w": 10440.0,
+        "d": 4411.7,
+        "h": 6544.3
+      },
+      "section": [
+        4411.7,
+        6544.3
+      ],
+      "length": 10440.0
+    },
+    {
+      "name": "Group#994",
+      "instances": 2,
+      "dims": {
+        "w": 16840.0,
+        "d": 14360.0,
+        "h": 5642.4
+      },
+      "section": [
+        5642.4,
+        14360.0
+      ],
+      "length": 16840.0
+    },
+    {
+      "name": "Group#978",
+      "instances": 2,
+      "dims": {
+        "w": 857.7,
+        "d": 5119.1,
+        "h": 4987.5
+      },
+      "section": [
+        857.7,
+        4987.5
+      ],
+      "length": 5119.1
+    },
+    {
+      "name": "Group#987",
+      "instances": 2,
+      "dims": {
+        "w": 9743.2,
+        "d": 14199.0,
+        "h": 3083.4
+      },
+      "section": [
+        3083.4,
+        9743.2
+      ],
+      "length": 14199.0
+    },
+    {
+      "name": "ASHOK LEYLAND",
+      "instances": 2,
+      "dims": {
+        "w": 2172.7,
+        "d": 163.9,
+        "h": 15.0
+      },
+      "section": [
+        15.0,
+        163.9
+      ],
+      "length": 2172.7
+    },
+    {
+      "name": "Group#981",
+      "instances": 2,
+      "dims": {
+        "w": 11976.4,
+        "d": 1914.8,
+        "h": 1037.4
+      },
+      "section": [
+        1037.4,
+        1914.8
+      ],
+      "length": 11976.4
+    },
+    {
+      "name": "Butaca GAC",
+      "instances": 2,
+      "dims": {
+        "w": 21376.1,
+        "d": 20553.5,
+        "h": 31474.2
+      },
+      "section": [
+        20553.5,
+        21376.1
+      ],
+      "length": 31474.2
+    },
+    {
+      "name": "GAC Seat 01",
+      "instances": 2,
+      "dims": {
+        "w": 21376.1,
+        "d": 20553.5,
+        "h": 31474.2
+      },
+      "section": [
+        20553.5,
+        21376.1
+      ],
+      "length": 31474.2
+    },
+    {
+      "name": "Group#16",
+      "instances": 2,
+      "dims": {
+        "w": 157.3,
+        "d": 969.5,
+        "h": 999.2
+      },
+      "section": [
+        157.3,
+        969.5
+      ],
+      "length": 999.2
+    },
+    {
+      "name": "Group#8",
+      "instances": 2,
+      "dims": {
+        "w": 211.8,
+        "d": 151.8,
+        "h": 60774.1
+      },
+      "section": [
+        151.8,
+        211.8
+      ],
+      "length": 60774.1
+    },
+    {
+      "name": "Group#21",
+      "instances": 1,
+      "dims": {
+        "w": 3048.0,
+        "d": 2133.6,
+        "h": 3048.0
+      },
+      "section": [
+        2133.6,
+        3048.0
+      ],
+      "length": 3048.0
+    },
+    {
+      "name": "Group#28",
+      "instances": 1,
+      "dims": {
+        "w": 17609.4,
+        "d": 30.0,
+        "h": 1726.3
+      },
+      "section": [
+        30.0,
+        1726.3
+      ],
+      "length": 17609.4
+    },
+    {
+      "name": "Group#9",
+      "instances": 1,
+      "dims": {
+        "w": 17628.8,
+        "d": 60.0,
+        "h": 1649.5
+      },
+      "section": [
+        60.0,
+        1649.5
+      ],
+      "length": 17628.8
+    },
+    {
+      "name": "Group#29",
+      "instances": 1,
+      "dims": {
+        "w": 17609.4,
+        "d": 30.0,
+        "h": 1726.3
+      },
+      "section": [
+        30.0,
+        1726.3
+      ],
+      "length": 17609.4
+    },
+    {
+      "name": "Group#52",
+      "instances": 1,
+      "dims": {
+        "w": 12250.0,
+        "d": 498.2,
+        "h": 10.7
+      },
+      "section": [
+        10.7,
+        498.2
+      ],
+      "length": 12250.0
+    },
+    {
+      "name": "Group#13",
+      "instances": 1,
+      "dims": {
+        "w": 10310.0,
+        "d": 50.0,
+        "h": 50.0
+      },
+      "section": [
+        50.0,
+        50.0
+      ],
+      "length": 10310.0
+    },
+    {
+      "name": "Group#22",
+      "instances": 1,
+      "dims": {
+        "w": 12250.0,
+        "d": 17200.0,
+        "h": 0.0
+      },
+      "section": [
+        0.0,
+        12250.0
+      ],
+      "length": 17200.0
+    },
+    {
+      "name": "Group#2",
+      "instances": 1,
+      "dims": {
+        "w": 74.6,
+        "d": 6102.1,
+        "h": 3606.8
+      },
+      "section": [
+        74.6,
+        3606.8
+      ],
+      "length": 6102.1
+    },
+    {
+      "name": "Group#6",
+      "instances": 1,
+      "dims": {
+        "w": 285.4,
+        "d": 5076.7,
+        "h": 285.4
+      },
+      "section": [
+        285.4,
+        285.4
+      ],
+      "length": 5076.7
+    },
+    {
+      "name": "PENTEK_RP Fineline 70W_Window+Glazing",
+      "instances": 0,
+      "dims": {
+        "w": 2060.0,
+        "d": 134.5,
+        "h": 2000.0
+      },
+      "section": [
+        134.5,
+        2000.0
+      ],
+      "length": 2060.0
+    },
+    {
+      "name": "Group#59",
+      "instances": 0,
+      "dims": {
+        "w": 13317.0,
+        "d": 203.3,
+        "h": 4537.3
+      },
+      "section": [
+        203.3,
+        4537.3
+      ],
+      "length": 13317.0
+    },
+    {
+      "name": "PENTEK_RP Fineline 70W_Window+Glazing#4",
+      "instances": 0,
+      "dims": {
+        "w": 1137.2,
+        "d": 134.5,
+        "h": 2000.0
+      },
+      "section": [
+        134.5,
+        1137.2
+      ],
+      "length": 2000.0
+    },
+    {
+      "name": "PENTEK_RP Fineline 70W_Window#3",
+      "instances": 0,
+      "dims": {
+        "w": 983.6,
+        "d": 134.5,
+        "h": 1950.0
+      },
+      "section": [
+        134.5,
+        983.6
+      ],
+      "length": 1950.0
+    },
+    {
+      "name": "PENTEK_RP Fineline 70W_Window_Case_E2#5",
+      "instances": 0,
+      "dims": {
+        "w": 1137.2,
+        "d": 70.0,
+        "h": 40.0
+      },
+      "section": [
+        40.0,
+        70.0
+      ],
+      "length": 1137.2
+    },
+    {
+      "name": "PENTEK_RP Fineline 70W_Window_Case_E2#4",
+      "instances": 0,
+      "dims": {
+        "w": 1135.0,
+        "d": 70.0,
+        "h": 40.0
+      },
+      "section": [
+        40.0,
+        70.0
+      ],
+      "length": 1135.0
+    },
+    {
+      "name": "Group#58",
+      "instances": 0,
+      "dims": {
+        "w": 10842.4,
+        "d": 127.0,
+        "h": 203.2
+      },
+      "section": [
+        127.0,
+        203.2
+      ],
+      "length": 10842.4
+    },
+    {
+      "name": "PENTEK_RP Fineline 70W_Window",
+      "instances": 0,
+      "dims": {
+        "w": 1019.1,
+        "d": 134.5,
+        "h": 1950.0
+      },
+      "section": [
+        134.5,
+        1019.1
+      ],
+      "length": 1950.0
+    },
+    {
+      "name": "PENTEK_RP Fineline 70W_Window_Case_E2",
+      "instances": 0,
+      "dims": {
+        "w": 1075.5,
+        "d": 70.0,
+        "h": 40.0
+      },
+      "section": [
+        40.0,
+        70.0
+      ],
+      "length": 1075.5
+    },
+    {
+      "name": "PENTEK_RP Fineline 70W_Glazing",
+      "instances": 0,
+      "dims": {
+        "w": 940.0,
+        "d": 30.0,
+        "h": 1920.0
+      },
+      "section": [
+        30.0,
+        940.0
+      ],
+      "length": 1920.0
+    },
+    {
+      "name": "PENTEK_RP Fineline 70W_Window_GlazingBead_Glazing",
+      "instances": 0,
+      "dims": {
+        "w": 970.0,
+        "d": 30.0,
+        "h": 1950.0
+      },
+      "section": [
+        30.0,
+        970.0
+      ],
+      "length": 1950.0
+    },
+    {
+      "name": "PENTEK_RP Fineline 70W_Window_Case_E2#1",
+      "instances": 0,
+      "dims": {
+        "w": 1076.1,
+        "d": 70.0,
+        "h": 40.0
+      },
+      "section": [
+        40.0,
+        70.0
+      ],
+      "length": 1076.1
+    },
+    {
+      "name": "PENTEK_RP Fineline 70W_windowcase",
+      "instances": 0,
+      "dims": {
+        "w": 52.0,
+        "d": 75.0,
+        "h": 1950.0
+      },
+      "section": [
+        52.0,
+        75.0
+      ],
+      "length": 1950.0
+    },
+    {
+      "name": "Component#39",
+      "instances": 0,
+      "dims": {
+        "w": 2.5,
+        "d": 2.5,
+        "h": 260.0
+      },
+      "section": [
+        2.5,
+        2.5
+      ],
+      "length": 260.0
+    },
+    {
+      "name": "Component#38",
+      "instances": 0,
+      "dims": {
+        "w": 2.5,
+        "d": 60.4,
+        "h": 63.5
+      },
+      "section": [
+        2.5,
+        60.4
+      ],
+      "length": 63.5
+    },
+    {
+      "name": "PENTEK_RP+Fineline+70W_Steel_Window_Glazing",
+      "instances": 0,
+      "dims": {
+        "w": 1289.6,
+        "d": 84.2,
+        "h": 1252.1
+      },
+      "section": [
+        84.2,
+        1252.1
+      ],
+      "length": 1289.6
+    },
+    {
+      "name": "Sumele",
+      "instances": 0,
+      "dims": {
+        "w": 594.0,
+        "d": 0.0,
+        "h": 1649.7
+      },
+      "section": [
+        0.0,
+        594.0
+      ],
+      "length": 1649.7
+    },
+    {
+      "name": "12 x 10 - Classic Split Sliding Door",
+      "instances": 0,
+      "dims": {
+        "w": 13317.0,
+        "d": 203.3,
+        "h": 4537.3
+      },
+      "section": [
+        203.3,
+        4537.3
+      ],
+      "length": 13317.0
+    },
+    {
+      "name": "PENTEK_RP Fineline 70W_Window_Case_E1",
+      "instances": 0,
+      "dims": {
+        "w": 40.0,
+        "d": 70.0,
+        "h": 2000.0
+      },
+      "section": [
+        40.0,
+        70.0
+      ],
+      "length": 2000.0
+    },
+    {
+      "name": "PENTEK_RP+Fineline+70W_Steel_Window_Glazing#4",
+      "instances": 0,
+      "dims": {
+        "w": 711.9,
+        "d": 84.2,
+        "h": 1252.1
+      },
+      "section": [
+        84.2,
+        711.9
+      ],
+      "length": 1252.1
+    },
+    {
+      "name": "PENTEK_RP Fineline 70W_Window_Vent_E1#2",
+      "instances": 0,
+      "dims": {
+        "w": 25.0,
+        "d": 70.0,
+        "h": 1950.0
+      },
+      "section": [
+        25.0,
+        70.0
+      ],
+      "length": 1950.0
+    },
+    {
+      "name": "PENTEK_RP Fineline 70W_glass#2",
+      "instances": 0,
+      "dims": {
+        "w": 920.0,
+        "d": 4.0,
+        "h": 1884.0
+      },
+      "section": [
+        4.0,
+        920.0
+      ],
+      "length": 1884.0
+    },
+    {
+      "name": "PENTEK_RP Fineline 70W_Window_T3_glazingbead_2",
+      "instances": 0,
+      "dims": {
+        "w": 15.0,
+        "d": 30.0,
+        "h": 1950.0
+      },
+      "section": [
+        15.0,
+        30.0
+      ],
+      "length": 1950.0
+    },
+    {
+      "name": "PENTEK_RP Fineline 70W_Glazing_Glass",
+      "instances": 0,
+      "dims": {
+        "w": 940.0,
+        "d": 4.0,
+        "h": 1920.0
+      },
+      "section": [
+        4.0,
+        940.0
+      ],
+      "length": 1920.0
+    },
+    {
+      "name": "PENTEK_RP Fineline 70W_glass",
+      "instances": 0,
+      "dims": {
+        "w": 920.0,
+        "d": 4.0,
+        "h": 1884.0
+      },
+      "section": [
+        4.0,
+        920.0
+      ],
+      "length": 1884.0
+    },
+    {
+      "name": "PENTEK_RP Finelin 70W_Window_T4_glazingbead",
+      "instances": 0,
+      "dims": {
+        "w": 970.0,
+        "d": 30.0,
+        "h": 15.0
+      },
+      "section": [
+        15.0,
+        30.0
+      ],
+      "length": 970.0
+    },
+    {
+      "name": "PENTEK_RP Fineline 70W_Window_Vent_E1",
+      "instances": 0,
+      "dims": {
+        "w": 61.1,
+        "d": 70.0,
+        "h": 1950.0
+      },
+      "section": [
+        61.1,
+        70.0
+      ],
+      "length": 1950.0
+    },
+    {
+      "name": "PENTEK_RP Fineline 70W_Window_Leaf_GlazingBead",
+      "instances": 0,
+      "dims": {
+        "w": 950.0,
+        "d": 30.0,
+        "h": 17.0
+      },
+      "section": [
+        17.0,
+        30.0
+      ],
+      "length": 950.0
+    },
+    {
+      "name": "PENTEK_RP Fineline 70W_Window_T3_glazingbead_2#1",
+      "instances": 0,
+      "dims": {
+        "w": 15.0,
+        "d": 10.0,
+        "h": 1912.7
+      },
+      "section": [
+        10.0,
+        15.0
+      ],
+      "length": 1912.7
+    },
+    {
+      "name": "PENTEK_RP Fineline 70W_windowcase#1",
+      "instances": 0,
+      "dims": {
+        "w": 22.0,
+        "d": 5.0,
+        "h": 966.0
+      },
+      "section": [
+        5.0,
+        22.0
+      ],
+      "length": 966.0
+    },
+    {
+      "name": "PENTEK_RP Fineline 70W_GlazingBead_E2",
+      "instances": 0,
+      "dims": {
+        "w": 15.0,
+        "d": 30.0,
+        "h": 1931.7
+      },
+      "section": [
+        15.0,
+        30.0
+      ],
+      "length": 1931.7
+    },
+    {
+      "name": "PENTEK_RP Fineline 70W_Window_Vent_E1#1",
+      "instances": 0,
+      "dims": {
+        "w": 18.7,
+        "d": 70.0,
+        "h": 950.0
+      },
+      "section": [
+        18.7,
+        70.0
+      ],
+      "length": 950.0
+    },
+    {
+      "name": "PENTEK_RP Fineline 70W_Window_Handle",
+      "instances": 0,
+      "dims": {
+        "w": 29.0,
+        "d": 59.5,
+        "h": 126.9
+      },
+      "section": [
+        29.0,
+        59.5
+      ],
+      "length": 126.9
+    },
+    {
+      "name": "PENTEK_RP Fineline 70W_Window_Glazing Bead#1",
+      "instances": 0,
+      "dims": {
+        "w": 920.0,
+        "d": 10.0,
+        "h": 15.0
+      },
+      "section": [
+        10.0,
+        15.0
+      ],
+      "length": 920.0
+    },
+    {
+      "name": "PENTEK_RP Fineline 70W_Window_Glazing Bead",
+      "instances": 0,
+      "dims": {
+        "w": 940.0,
+        "d": 10.0,
+        "h": 15.0
+      },
+      "section": [
+        10.0,
+        15.0
+      ],
+      "length": 940.0
+    },
+    {
+      "name": "Group#19",
+      "instances": 0,
+      "dims": {
+        "w": 4777.3,
+        "d": 50.8,
+        "h": 4957.6
+      },
+      "section": [
+        50.8,
+        4777.3
+      ],
+      "length": 4957.6
+    },
+    {
+      "name": "PENTEK_RP Finelin 70W_WindowGlazingBead",
+      "instances": 0,
+      "dims": {
+        "w": 920.0,
+        "d": 10.0,
+        "h": 13.7
+      },
+      "section": [
+        10.0,
+        13.7
+      ],
+      "length": 920.0
+    }
+  ]
+}
