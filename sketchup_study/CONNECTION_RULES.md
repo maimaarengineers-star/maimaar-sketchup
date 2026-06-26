@@ -50,6 +50,14 @@ Anchor variants seen: `M20×500 anchor bolt`, `M24×625 J-bolt`, `M24×600 stud 
 | Base anchors | 4 generic | **4 × L/J-shaped** anchor bolts (M20–M24), 20 mm plate |
 | Knee back-up plate | always gusset | per rule: web ≥ 8 mm → none; depth<400 & web<8 → add |
 
+## Measured plate dimensions (dimension values near callouts, 133 drawings)
+- **Knee / end-plate:** plate ≈ **225 × 520 mm** (also 450/540 common); bolt pitch ~40–175 mm.
+  NB the bolted END-PLATE (~520 mm) is shorter than the full haunch web depth — the haunch
+  (deep tapered web) and the end-plate are different things.
+- **Base plate / anchors:** edge/gauge values cluster at 50, 75, 100, 125, 150 mm; bolt
+  spread 200–300 mm; reach up to ~660 mm on the largest columns. Base plate ~320 × 490 × 22.
+- Encoded: real end-plate component (264×682×11) + base plate 320×490×22 + M20/M24 bolts.
+
 ## Source
 - Drawings: `D:\autocad_approval\dxf\*.dxf` (133) — from `E:\…\Jobs` 2022–2026, latest rev.
 - Scanner: `sketchup_study` (ezdxf): bolt-circle diameters + connection text callouts.
