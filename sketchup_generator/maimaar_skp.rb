@@ -25,7 +25,7 @@ module MaimaarSKP
   TAGS = {
     'MS-FRAME'        => [206, 32, 32, 1.0],   'PLATE' => [120, 124, 130, 1.0],
     'CLIP'            => [150, 156, 164, 1.0],  'PURLIN' => [178, 184, 190, 1.0],  # galvanised silver
-    'SHEETING'        => [214, 219, 225, 0.50], 'ROOF-SHEET' => [212, 217, 223, 1.0],  # opaque light metal roof
+    'SHEETING'        => [214, 219, 225, 0.72], 'ROOF-SHEET' => [212, 217, 223, 1.0],  # profiled metal cladding
     'SKYLIGHT'        => [225, 238, 248, 0.22], 'GUTTER-DOWNPIPE' => [150, 156, 162, 1.0],
     'BRACE-CABLE'     => [60, 63, 70, 1.0],     'TRIM' => [180, 186, 192, 1.0],
     'SHEET-RIB'       => [150, 158, 166, 1.0],  'BOLT' => [40, 42, 46, 1.0],
@@ -49,6 +49,17 @@ module MaimaarSKP
       m = model.materials[name] || model.materials.add(name)
       m.color = Sketchup::Color.new(c[0], c[1], c[2]); m.alpha = c[3]
       @mat[name] = m
+    end
+    # profiled-metal RIB texture on the sheeting (looks like Type-R sheet, no heavy geometry)
+    rib = File.join(HERE, 'assets', 'rib.png')
+    if File.exist?(rib)
+      ['ROOF-SHEET', 'SHEETING'].each do |t|
+        begin
+          @mat[t].texture = rib
+          @mat[t].texture.size = 0.30 if @mat[t].texture   # rib pitch ~300 mm
+        rescue
+        end
+      end
     end
     ro = model.rendering_options
     ro['BackgroundColor'] = Sketchup::Color.new(255, 255, 255) rescue nil
@@ -167,6 +178,26 @@ module MaimaarSKP
     g.layer = lay(@model, tag); g
   end
 
+  # REAL profiled (corrugated) sheet: ruled surface from base edge a->b to top edge d->c,
+  # corrugated ALONG a->b (ribs run a->d). ndir = outward offset unit dir; depth = rib height.
+  def self.corr_panel(ents, a, b, d, c, ndir, pitch, depth, tag)
+    la = Math.sqrt((b[0] - a[0])**2 + (b[1] - a[1])**2 + (b[2] - a[2])**2)
+    n = [4, (la / (pitch / 2.0)).ceil].max          # half-pitch stations (zig-zag ribs)
+    base = []; top = []
+    (0..n).each do |i|
+      t = i.to_f / n
+      o = i.odd? ? depth : 0.0
+      ab = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]
+      dc = [d[0] + (c[0] - d[0]) * t, d[1] + (c[1] - d[1]) * t, d[2] + (c[2] - d[2]) * t]
+      base << [ab[0] + ndir[0] * o, ab[1] + ndir[1] * o, ab[2] + ndir[2] * o]
+      top  << [dc[0] + ndir[0] * o, dc[1] + ndir[1] * o, dc[2] + ndir[2] * o]
+    end
+    g = ents.add_group; e = g.entities
+    (0...n).each { |i| safe_face(e, [pt(*base[i]), pt(*base[i + 1]), pt(*top[i + 1]), pt(*top[i])]) }
+    g.entities.grep(Sketchup::Face).each { |ff| ff.material = @mat[tag]; ff.back_material = @mat[tag] }
+    g.layer = lay(@model, tag); g.material = @mat[tag]; g
+  end
+
   # ---- one area -----------------------------------------------------------------
   def self.build_area(area, ox, oy)
     ents = @model.entities
@@ -267,6 +298,7 @@ module MaimaarSKP
 
     # cladding (+ masonry band) + roof
     bwh = num((r['finish'] || {})['blockWallHeight']); bwh = (bwh > 0.1 ? [bwh, eave - 0.3].min : 0.0)
+    # PROFILED SHEETS — flat faces carrying the Type-R RIB TEXTURE (reliable, light)
     face(ents, [[x0, oy + 0, rtop.call(0)], [xl, oy + 0, rtop.call(0)], [xl, oy + ridge, rtop.call(ridge)], [x0, oy + ridge, rtop.call(ridge)]], 'ROOF-SHEET')
     face(ents, [[x0, oy + ridge, rtop.call(ridge)], [xl, oy + ridge, rtop.call(ridge)], [xl, oy + w, rtop.call(w)], [x0, oy + w, rtop.call(w)]], 'ROOF-SHEET')
     [[0.0, 'NSW'], [w, 'FSW']].each do |wy, nm|
@@ -277,24 +309,6 @@ module MaimaarSKP
       face(ents, [[xe, oy + 0, 0], [xe, oy + w, 0], [xe, oy + w, bwh], [xe, oy + 0, bwh]], 'BRICK-MASONRY') if bwh > 0
       face(ents, [[xe, oy + 0, bwh], [xe, oy + w, bwh], [xe, oy + w, eave], [xe, oy + ridge, peak], [xe, oy + 0, eave]], 'SHEETING')
     end
-
-    # Type-R rib lines (coarser pitch so they read as ribs, not a black mass)
-    rib = 0.60; rs = []; xr = x0 + rib
-    while xr < xl
-      rs << [[xr, oy + 0, rtop.call(0) + 0.01], [xr, oy + ridge, rtop.call(ridge) + 0.01]]
-      rs << [[xr, oy + ridge, rtop.call(ridge) + 0.01], [xr, oy + w, rtop.call(w) + 0.01]]
-      xr += rib
-    end
-    lines(ents, rs, 'SHEET-RIB') unless rs.empty?
-    ws = []; xr = x0 + rib
-    while xr < xl
-      ws << [[xr, oy - 0.01, bwh], [xr, oy - 0.01, eave]]; ws << [[xr, oy + w + 0.01, bwh], [xr, oy + w + 0.01, eave]]; xr += rib
-    end
-    yr = rib
-    while yr < w
-      ws << [[x0 - 0.01, oy + yr, bwh], [x0 - 0.01, oy + yr, eave]]; ws << [[xl + 0.01, oy + yr, bwh], [xl + 0.01, oy + yr, eave]]; yr += rib
-    end
-    lines(ents, ws, 'SHEET-RIB') unless ws.empty?
 
     # eave gutters + downpipes
     [[0.0, -1.0], [w, 1.0]].each { |wy, sgn| seg(ents, pt(x0, oy + wy + sgn * 0.10, eave + 0.02), pt(xl, oy + wy + sgn * 0.10, eave + 0.02), 0.18, 0.12, 'GUTTER-DOWNPIPE') }
