@@ -107,6 +107,24 @@ module MaimaarSKP
 
   def self.seg(ents, a, b, w, h, tag); box(ents, a, b, w, h, w, h, tag); end
 
+  # bolt GRID on a plate: ncols across the width (both sides of the web) x nrows down the
+  # depth; each bolt is a short stud through the plate (head shows on BOTH faces).
+  def self.bolt_grid(ents, c, axis, gw, gd, ncols, nrows)
+    dir = Geom::Vector3d.new(*axis); dir = Z_AXIS.clone if dir.length == 0; dir.normalize!
+    up = dir.parallel?(Z_AXIS) ? Y_AXIS : Z_AXIS
+    r = dir.cross(up); r.normalize!; u = r.cross(dir); u.normalize!
+    ncols.times do |i|
+      rx = ncols == 1 ? 0.0 : (-0.5 + i.to_f / (ncols - 1)) * gw
+      nrows.times do |j|
+        uz = nrows == 1 ? 0.0 : (-0.5 + j.to_f / (nrows - 1)) * gd
+        bx = c[0] + r.x * rx + u.x * uz; by = c[1] + r.y * rx + u.y * uz; bz = c[2] + r.z * rx + u.z * uz
+        a = [bx - dir.x * 0.06, by - dir.y * 0.06, bz - dir.z * 0.06]
+        b = [bx + dir.x * 0.06, by + dir.y * 0.06, bz + dir.z * 0.06]
+        seg(ents, pt(*a), pt(*b), 0.026, 0.026, 'BOLT')
+      end
+    end
+  end
+
   # built-up I (tapered web dA->dB, constant flanges)
   def self.imember(ents, a, b, da, db, tag)
     _, r, u = basis(a, b)
@@ -233,19 +251,20 @@ module MaimaarSKP
       fw2 = IFW / 2.0 + 0.012
       [[0.0, 1.0], [w, -1.0]].each do |wy, inn|
         corner = [x, oy + wy, eave]; ax = un.call(corner, apex)
-        # CONNECTION PLATE at the knee: clear projecting bolted end-plate (always visible)...
-        endplate(ents, [corner[0] + ax[0] * 0.04, corner[1] + ax[1] * 0.04, corner[2] + ax[2] * 0.04], ax, IFW + 0.14, dk + 0.14, 0.022, 'PLATE')
-        # ...+ the REAL extracted end-plate component (bolt holes) + haunch gusset
-        realcomp('endplate', [corner[0], corner[1], corner[2] - dk * 0.35], 0.0, 'PLATE')
+        # KNEE moment connection: column end-plate + rafter end-plate bolted to EACH OTHER,
+        # the plate extends 100 mm BEYOND the web depth on both ends (dk + 0.20).
+        kc = [corner[0] + ax[0] * 0.05, corner[1] + ax[1] * 0.05, corner[2] + ax[2] * 0.05]
+        endplate(ents, kc, ax, IFW + 0.10, dk + 0.20, 0.022, 'PLATE')
         gl = dk * 1.1
         [-fw2, fw2].each { |sx| plate(ents, [[x + sx, oy + wy, eave], [x + sx, oy + wy, eave - gl], [x + sx, oy + wy + inn * gl, eave]], 0.012, 'PLATE') }
-        [0.20, 0.42, 0.64, 0.86].each { |t| seg(ents, pt(x - 0.17, oy + wy, eave - dk * t), pt(x + 0.17, oy + wy, eave - dk * t), 0.034, 0.034, 'BOLT') }
+        # bolts in TWO columns (both sides of the web) x 4 rows, sitting in the extended zones
+        bolt_grid(ents, kc, ax, IFW + 0.06, dk + 0.16, 2, 4)
       end
-      # RIDGE connection plate: clear projecting end-plate + real component + bolts
+      # RIDGE moment connection: two rafter end-plates bolted together, extended 100 mm beyond web
       axr = un.call([x, oy + 0, eave], apex)
-      endplate(ents, [apex[0] - axr[0] * 0.04, apex[1] - axr[1] * 0.04, apex[2] - axr[2] * 0.04], axr, IFW + 0.14, da + 0.14, 0.022, 'PLATE')
-      realcomp('endplate', [x, oy + ridge, peak - da * 0.35], 0.0, 'PLATE')
-      [0.25, 0.55, 0.85].each { |t| seg(ents, pt(x - 0.17, oy + ridge, peak - da * t), pt(x + 0.17, oy + ridge, peak - da * t), 0.034, 0.034, 'BOLT') }
+      rc = [apex[0] - axr[0] * 0.05, apex[1] - axr[1] * 0.05, apex[2] - axr[2] * 0.05]
+      endplate(ents, rc, axr, IFW + 0.10, da + 0.20, 0.022, 'PLATE')
+      bolt_grid(ents, rc, axr, IFW + 0.06, da + 0.16, 2, 3)
     end
 
     # purlins (bypass) + clips
