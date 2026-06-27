@@ -240,6 +240,26 @@
                         (peb-alist-get v3 "BP_EW_LEFT_FRAME")) out))
   (setq out (cons (cons "EW_RIGHT_FRAME"
                         (peb-alist-get v3 "BP_EW_RIGHT_FRAME")) out))
+  ;; per-dimension measurement BASIS (IF) for basis-aware plan dimensions
+  (setq out (cons (cons "LENGTH_REF"    (peb-alist-get v3 "BP_LENGTH_REF"))    out))
+  (setq out (cons (cons "WIDTH_REF"     (peb-alist-get v3 "BP_WIDTH_REF"))     out))
+  (setq out (cons (cons "WIDTH_MOD_REF" (peb-alist-get v3 "BP_WIDTH_MOD_REF")) out))
+  (setq out (cons (cons "BAY_REF"       (peb-alist-get v3 "BP_BAY_REF"))       out))
+  (setq out (cons (cons "EW_LEFT_REF"   (peb-alist-get v3 "BP_EW_LEFT_REF"))   out))
+  (setq out (cons (cons "EW_RIGHT_REF"  (peb-alist-get v3 "BP_EW_RIGHT_REF"))  out))
+  (setq out (cons (cons "HEIGHT_REF"    (peb-alist-get v3 "BP_HEIGHT_REF"))    out))
+  ;; raw grouped spacing expressions (mm) — printed verbatim on the plan
+  (setq out (cons (cons "BAYEXPR" (peb-alist-get v3 "BP_BAY_SPACING"))      out))
+  (setq out (cons (cons "MODEXPR" (peb-alist-get v3 "BP_WIDTH_MOD"))        out))
+  (setq out (cons (cons "EWLEXPR" (peb-alist-get v3 "BP_EW_LEFT_SPACING"))  out))
+  (setq out (cons (cons "EWREXPR" (peb-alist-get v3 "BP_EW_RIGHT_SPACING")) out))
+  ;; end-wall girts (gate end-wall posts) + wall conditions (for sections/elevations)
+  (setq out (cons (cons "EW_LEFT_GIRTS"  (peb-alist-get v3 "BP_EW_LEFT_GIRTS"))  out))
+  (setq out (cons (cons "EW_RIGHT_GIRTS" (peb-alist-get v3 "BP_EW_RIGHT_GIRTS")) out))
+  (setq out (cons (cons "OW_NSW" (peb-alist-get v3 "OW_NSW")) out))
+  (setq out (cons (cons "OW_FSW" (peb-alist-get v3 "OW_FSW")) out))
+  (setq out (cons (cons "OW_LEW" (peb-alist-get v3 "OW_LEW")) out))
+  (setq out (cons (cons "OW_REW" (peb-alist-get v3 "OW_REW")) out))
   (reverse out))
 
 ;; ============================================================================
