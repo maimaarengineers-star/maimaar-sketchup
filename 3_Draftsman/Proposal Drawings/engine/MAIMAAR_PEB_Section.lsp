@@ -4925,6 +4925,10 @@
                  (cons 62 col) (cons 100 "AcDbTrace")
                  (list 10 x1 y1 0.0) (list 11 x2 y2 0.0)
                  (list 12 x3 y3 0.0) (list 13 x3 y3 0.0))))
+;; AUTOFIT: return a text height so a string of N chars fits within width mw on
+;; ONE line, capped at the desired height mh (Arial char width ~ 0.60 x height).
+(defun tb-fith (s mw mh)
+  (min mh (/ mw (* (max 1.0 (float (strlen s))) 0.64))))
 
 ;; strip an embedded unit suffix ("0 KN/m2" -> "0", "135 km/h" -> "135")
 (defun peb-num-only (s / p)
@@ -5036,11 +5040,13 @@
        (list "RAINFALL INTENSITY"     (tb-get "RAIN")     "MM/HR"))
     (setq rh (* H 0.0200) yCur (- yCur rh))
     (tb-mtext lx (+ yCur (* rh 0.5)) sm 0 4 (car r) white)
-    (tb-mtext vx (+ yCur (* rh 0.5)) val 0 4 (cadr r) green)
+    (tb-mtext vx (+ yCur (* rh 0.5)) (tb-fith (cadr r) (* W 0.19) val) 0 4 (cadr r) green)
     (if (/= (caddr r) "")
       (tb-mtext ux (+ yCur (* rh 0.5)) sm 0 4 (caddr r) grey)))
   (setq rh (* H 0.024) yCur (- yCur rh))
-  (tb-mtext (+ X0 (* W 0.04)) (+ yCur (* rh 0.4)) (* H 0.0100) cw 1
+  (tb-mtext (+ X0 (* W 0.04)) (+ yCur (* rh 0.4))
+    (tb-fith (strcat "AS PER " (tb-get "CODE") " METAL BUILDING SYSTEMS MANUAL")
+             cw (* H 0.0100)) cw 1
     (strcat "{\\fArial|i1;AS PER " (tb-get "CODE")
             " METAL BUILDING SYSTEMS MANUAL}") green)
   (tb-hdiv yCur)
@@ -5070,12 +5076,12 @@
   ;; PROJECT
   (setq bt yCur rh (* H 0.058) yCur (- yCur rh))
   (tb-mtext (+ X0 (* W 0.04)) (- bt (* lbl 1.3)) lbl cw 1 "PROJECT :" grey)
-  (tb-mtext midX (+ yCur (* rh 0.30)) bv cw 5 (tb-get "PROJECT") green)
+  (tb-mtext midX (+ yCur (* rh 0.30)) (tb-fith (tb-get "PROJECT") (* 1.9 cw) bv) cw 5 (tb-get "PROJECT") green)
   (tb-hdiv yCur)
   ;; CUSTOMER
   (setq bt yCur rh (* H 0.048) yCur (- yCur rh))
   (tb-mtext (+ X0 (* W 0.04)) (- bt (* lbl 1.3)) lbl cw 1 "CUSTOMER :" grey)
-  (tb-mtext midX (+ yCur (* rh 0.28)) bv cw 5 (tb-get "CUSTOMER") green)
+  (tb-mtext midX (+ yCur (* rh 0.28)) (tb-fith (tb-get "CUSTOMER") (* 1.6 cw) bv) cw 5 (tb-get "CUSTOMER") green)
   (tb-hdiv yCur)
   ;; STEEL CONTRACTOR : real Maimaar logo + address
   (setq bt yCur rh (* H 0.175) yCur (- yCur rh))
@@ -5091,13 +5097,14 @@
                     (list "No. Of Identical Bldg." (tb-get "IDENTICAL")))
     (setq rh (* H 0.024) yCur (- yCur rh))
     (tb-mtext (+ X0 (* W 0.05)) (+ yCur (* rh 0.50)) lbl 0 4 (car pr) grey)
-    (tb-mtext (+ X0 (* W 0.52)) (+ yCur (* rh 0.50)) val (* W 0.45) 4
+    (tb-mtext (+ X0 (* W 0.52)) (+ yCur (* rh 0.50))
+              (tb-fith (strcat ": " (cadr pr)) (* W 0.44) val) (* W 0.45) 4
               (strcat ": " (cadr pr)) green)
     (tb-hdiv yCur))
   ;; Drawing Title
   (setq bt yCur rh (* H 0.045) yCur (- yCur rh))
   (tb-mtext (+ X0 (* W 0.04)) (- bt (* lbl 1.2)) lbl cw 1 "Drawing Title :" grey)
-  (tb-mtext midX (+ yCur (* rh 0.26)) bv cw 5
+  (tb-mtext midX (+ yCur (* rh 0.26)) (tb-fith (tb-get "DRGTITLE") cw bv) cw 5
             (strcat "{\\fArial|b1;" (tb-get "DRGTITLE") "}") green)
   (tb-hdiv yCur)
   ;; footer : Scale | Sheet Size | Sheet No.  (fills down to Y0)
