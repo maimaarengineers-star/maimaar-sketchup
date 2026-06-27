@@ -217,6 +217,8 @@
   (setq out (cons (cons "SEISMIC"    (peb-alist-get v3 "DL_SEISMIC"))     out))
   (setq out (cons (cons "SNOW"       (peb-alist-get v3 "DL_SNOW"))        out))
   (setq out (cons (cons "DESIGNCODE" (peb-alist-get v3 "DL_DESIGN_CODE")) out))
+  (setq out (cons (cons "TEMP"       (peb-alist-get v3 "DL_TEMP"))        out))
+  (setq out (cons (cons "RAIN"       (peb-alist-get v3 "DL_RAINFALL"))    out))
   (setq roofSheet (peb-build-sheeting-string v3 "ROOF"))
   (setq wallSheet (peb-build-sheeting-string v3 "WALL"))
   (setq out (cons (cons "ROOFSHEETING" roofSheet) out))
@@ -4929,10 +4931,11 @@
   (setq p (vl-string-search " " s))
   (if p (substr s 1 p) s))
 
-;; title-block value helpers: default when the IF value is blank; snow shows an
-;; em-dash when zero/blank (not applicable) else the IF figure.
+;; title-block value helpers (IF-linked): default when blank; dash "-" when not
+;; applicable (zero / none); seismic shown as a ZONE.
 (defun peb-tb-or (v d) (if (= v "") d v))
-(defun peb-tb-snow (v) (if (member v '("" "0" "0.0" "0.00")) "\U+2014" v))
+(defun peb-tb-snow (v) (if (member (strcase v) '("" "0" "0.0" "0.00" "NONE" "-")) "-" v))
+(defun peb-tb-zone (v) (cond ((= v "") "AS PER SITE") ((wcmatch (strcase v) "*ZONE*") v) (T (strcat "ZONE " v))))
 
 ;; "DD/MM/YYYY" -> "DD-Mon-YYYY" (clean date for the title block); pass-through otherwise.
 (defun peb-pretty-date (s / p1 p2 dd mm yy months)
@@ -4981,52 +4984,73 @@
         (command "_.-INSERT" *PEB-LOGO-DWG* (list px py 0.0) s s 0))))
     (princ "\n[title block] logo DWG not found — box left empty.")))
 
+;; Mammut-MIRROR vertical title strip:  NOTES + disclaimer + DESIGN-LOAD table
+;; anchored at the TOP, PROJECT-INFORMATION block anchored at the BOTTOM (exact
+;; mirror of the Mammut proposal-drawing title block).  Every value links to the IF.
 (defun peb-titleblock-mammut (X0 Y0 W H data
-                              / white grey green blue midX cw val lbl bv sm
-                              yTop yCur rh bt c1x c2x c3x c4x tb-get tb-hdiv tb-sec tb-row)
-  (setq white 7 grey 8 green 3 blue 5)
+                              / white grey green cyan midX cw val lbl bv sm
+                              yCur bt rh bottomH lx vx ux c1x c2x tb-get tb-hdiv)
+  (setq white 7 grey 8 green 3 cyan 4)
   (defun tb-get (k) (cond ((cdr (assoc k data))) (T "")))
   (defun tb-hdiv (y) (tb-line X0 y (+ X0 W) y white))
-  ;; section header bar (centred, bold)
-  (defun tb-sec (title hgt)
-    (setq bt yCur yCur (- yCur hgt))
-    (tb-mtext midX (+ yCur (* hgt 0.28)) (* H 0.0150) cw 5
-              (strcat "{\\fArial|b1;" title "}") white)
-    (tb-hdiv yCur))
-  ;; one "LABEL : VALUE  UNIT" data row (label grey, value green)
-  (defun tb-row (lab vlu unit hgt / vy)
-    (setq vy (+ (- yCur hgt) (* hgt 0.50)))
-    (tb-mtext (+ X0 (* W 0.05)) vy sm 0 4 lab grey)
-    (tb-mtext (+ X0 (* W 0.55)) vy val 0 4 (strcat ": " vlu) green)
-    (if (/= unit "") (tb-mtext (+ X0 (* W 0.95)) vy sm 0 6 unit grey))
-    (setq yCur (- yCur hgt))
-    (tb-hdiv yCur))
   (setq midX (+ X0 (* W 0.50)) cw (* W 0.90)
-        val (* H 0.0150) lbl (* H 0.0120) bv (* H 0.0175) sm (* H 0.0120))
+        val (* H 0.0140) lbl (* H 0.0112) bv (* H 0.0160) sm (* H 0.0108))
   (tb-rect X0 Y0 (+ X0 W) (+ Y0 H) white)
-  (setq yTop (+ Y0 H) yCur yTop)
-  ;; ===== BUILDING DESIGN LOADS =====
-  (tb-sec "BUILDING DESIGN LOADS" (* H 0.028))
-  (tb-row "LIVE LOAD (ROOF)"  (tb-get "LL_ROOF")  "KN/M\U+00B2" (* H 0.024))
-  (tb-row "LIVE LOAD (FRAME)" (tb-get "LL_FRAME") "KN/M\U+00B2" (* H 0.024))
-  (tb-row "WIND SPEED"        (tb-get "WIND")     "KM/H"        (* H 0.024))
-  (tb-row "COLLATERAL LOAD"   (tb-get "COLL")     "KN/M\U+00B2" (* H 0.024))
-  (tb-row "SNOW LOAD"         (tb-get "SNOW")     "KN/M\U+00B2" (* H 0.024))
-  (tb-row "SEISMIC"           (tb-get "SEISMIC")  ""            (* H 0.024))
-  (tb-row "DESIGN CODE"       (tb-get "CODE")     ""            (* H 0.024))
-  ;; ===== GENERAL NOTES =====
-  (tb-sec "GENERAL NOTES" (* H 0.026))
-  (setq rh (* H 0.120) bt yCur yCur (- yCur rh))
-  (tb-mtext (+ X0 (* W 0.04)) (- bt (* sm 1.1)) (* sm 0.88) cw 1
-    (strcat "1. ALL DIMENSIONS ARE IN MM.\\P"
-            "2. PROPOSAL DRAWING — NOT FOR\\P"
-            "    CONSTRUCTION.\\P"
-            "3. DRAWING NOT TO SCALE.\\P"
-            "4. ACCESSORIES AS PER PROPOSAL SCOPE.\\P"
-            "5. STEELWORK PER APPROVED FAB. DWGS.") white)
+
+  ;; ===================== TOP : GENERAL NOTES =====================
+  (setq yCur (+ Y0 H))
+  (setq rh (* H 0.026) bt yCur yCur (- yCur rh))
+  (tb-mtext midX (+ yCur (* rh 0.28)) (* H 0.0140) cw 5
+            "{\\fArial|b1;GENERAL NOTES}" white)
   (tb-hdiv yCur)
-  ;; ===== TITLE BLOCK =====  rev table : two sub-rows x 5 cols
-  (setq rh (* H 0.030))
+  (setq rh (* H 0.122) bt yCur yCur (- yCur rh))
+  (tb-mtext (+ X0 (* W 0.04)) (- bt (* sm 1.3)) (* sm 0.92) cw 1
+    (strcat "1. ALL DIMENSIONS ARE IN MM.\\P"
+            "2. PROPOSAL DRAWING - NOT FOR CONSTRUCTION.\\P"
+            "3. PROPOSAL DRAWING IS INDICATIVE ONLY; FINAL\\P"
+            "    DIMENSIONS & LEVELS WILL BE SHOWN IN THE\\P"
+            "    APPROVAL DRAWING AT THE DESIGN STAGE.\\P"
+            "4. FOR DETAILED DESCRIPTION, REFER TO THE\\P"
+            "    TECHNICAL & FINANCIAL PROPOSAL.") white)
+  (tb-hdiv yCur)
+  ;; ----- disclaimer -----
+  (setq rh (* H 0.058) bt yCur yCur (- yCur rh))
+  (tb-mtext midX (+ yCur (* rh 0.5)) (* H 0.0105) cw 5
+    (strcat "{\\fArial|b1;THIS DOCUMENT IS A PROPOSAL DRAWING OF\\P"
+            "MAIMAAR STEEL (PVT) LTD - NOT FOR CONSTRUCTION}") cyan)
+  (tb-hdiv yCur)
+  ;; ----- DESIGN-LOAD table (Mammut format) -----
+  (setq lx (+ X0 (* W 0.05)) vx (+ X0 (* W 0.60)) ux (+ X0 (* W 0.80)))
+  (setq rh (* H 0.052) bt yCur yCur (- yCur rh))
+  (tb-mtext (+ X0 (* W 0.04)) (- bt (* H 0.0150)) (* H 0.0120) cw 1
+    (strcat "{\\fArial|b1;THE BUILDING HAS BEEN DESIGNED TO\\P"
+            "SUPPORT IT'S OWN DEAD LOAD PLUS:}") green)
+  (foreach r (list
+       (list "LIVE LOAD ON ROOF"      (tb-get "LL_ROOF")  "KN/SQ.M.")
+       (list "LIVE LOAD ON FRAME"     (tb-get "LL_FRAME") "KN/SQ.M.")
+       (list "WIND SPEED"             (tb-get "WIND")     "KPH")
+       (list "ADD'L. COLLATERAL LOAD" (tb-get "COLL")     "")
+       (list "ROOF SNOW LOAD"         (tb-get "SNOW")     "KN/SQ.M.")
+       (list "SEISMIC LOAD"           (tb-get "SEISMIC")  "")
+       (list "TEMPERATURE LOAD"       (tb-get "TEMP")     "")
+       (list "RAINFALL INTENSITY"     (tb-get "RAIN")     "MM/HR"))
+    (setq rh (* H 0.0200) yCur (- yCur rh))
+    (tb-mtext lx (+ yCur (* rh 0.5)) sm 0 4 (car r) white)
+    (tb-mtext vx (+ yCur (* rh 0.5)) val 0 4 (cadr r) green)
+    (if (/= (caddr r) "")
+      (tb-mtext ux (+ yCur (* rh 0.5)) sm 0 4 (caddr r) grey)))
+  (setq rh (* H 0.024) yCur (- yCur rh))
+  (tb-mtext (+ X0 (* W 0.04)) (+ yCur (* rh 0.4)) (* H 0.0100) cw 1
+    (strcat "{\\fArial|i1;AS PER " (tb-get "CODE")
+            " METAL BUILDING SYSTEMS MANUAL}") green)
+  (tb-hdiv yCur)
+
+  ;; ============ BOTTOM : PROJECT INFORMATION (anchored to bottom) ============
+  (setq bottomH (* H 0.515))
+  (setq yCur (+ Y0 bottomH))
+  (tb-hdiv yCur)
+  ;; rev table : two sub-rows x cols
+  (setq rh (* H 0.026))
   (tb-mtext (+ X0 (* W 0.11)) (- yCur (* rh 0.55)) val 0 5 (tb-get "REV")  green)
   (tb-mtext (+ X0 (* W 0.41)) (- yCur (* rh 0.55)) val 0 5 (tb-get "DATE") green)
   (tb-mtext (+ X0 (* W 0.80)) (- yCur (* rh 0.55)) val 0 5 (tb-get "DRN")  green)
@@ -5044,39 +5068,39 @@
   (setq yCur (- yCur (* rh 2.0)))
   (tb-hdiv yCur)
   ;; PROJECT
-  (setq bt yCur rh (* H 0.075) yCur (- yCur rh))
+  (setq bt yCur rh (* H 0.058) yCur (- yCur rh))
   (tb-mtext (+ X0 (* W 0.04)) (- bt (* lbl 1.3)) lbl cw 1 "PROJECT :" grey)
-  (tb-mtext midX (+ yCur (* rh 0.34)) bv cw 5 (tb-get "PROJECT") green)
+  (tb-mtext midX (+ yCur (* rh 0.30)) bv cw 5 (tb-get "PROJECT") green)
   (tb-hdiv yCur)
   ;; CUSTOMER
-  (setq bt yCur rh (* H 0.060) yCur (- yCur rh))
+  (setq bt yCur rh (* H 0.048) yCur (- yCur rh))
   (tb-mtext (+ X0 (* W 0.04)) (- bt (* lbl 1.3)) lbl cw 1 "CUSTOMER :" grey)
-  (tb-mtext midX (+ yCur (* rh 0.30)) bv cw 5 (tb-get "CUSTOMER") green)
+  (tb-mtext midX (+ yCur (* rh 0.28)) bv cw 5 (tb-get "CUSTOMER") green)
   (tb-hdiv yCur)
-  ;; STEEL CONTRACTOR : REAL Maimaar logo (-INSERTed) + address
-  (setq bt yCur rh (* H 0.210) yCur (- yCur rh))
+  ;; STEEL CONTRACTOR : real Maimaar logo + address
+  (setq bt yCur rh (* H 0.175) yCur (- yCur rh))
   (tb-mtext (+ X0 (* W 0.04)) (- bt (* lbl 1.3)) lbl cw 1 "STEEL CONTRACTOR :" grey)
-  (peb-tb-place-logo (+ X0 (* W 0.10)) (+ yCur (* rh 0.50))
+  (peb-tb-place-logo (+ X0 (* W 0.10)) (+ yCur (* rh 0.52))
                      (+ X0 (* W 0.90)) (- bt (* lbl 2.4)))
-  (tb-mtext (+ X0 (* W 0.06)) (+ yCur (* rh 0.46)) sm cw 1 (tb-get "ADDR") white)
+  (tb-mtext (+ X0 (* W 0.06)) (+ yCur (* rh 0.48)) sm cw 1 (tb-get "ADDR") white)
   (tb-hdiv yCur)
   ;; quote / bldg rows
   (foreach pr (list (list "QUOTE NO." (tb-get "QUOTE"))
                     (list "Bldg. No." (tb-get "BLDGNO"))
                     (list "Bldg. Name." (tb-get "BLDGNAME"))
                     (list "No. Of Identical Bldg." (tb-get "IDENTICAL")))
-    (setq rh (* H 0.030) yCur (- yCur rh))
+    (setq rh (* H 0.024) yCur (- yCur rh))
     (tb-mtext (+ X0 (* W 0.05)) (+ yCur (* rh 0.50)) lbl 0 4 (car pr) grey)
     (tb-mtext (+ X0 (* W 0.52)) (+ yCur (* rh 0.50)) val (* W 0.45) 4
               (strcat ": " (cadr pr)) green)
     (tb-hdiv yCur))
   ;; Drawing Title
-  (setq bt yCur rh (* H 0.050) yCur (- yCur rh))
+  (setq bt yCur rh (* H 0.045) yCur (- yCur rh))
   (tb-mtext (+ X0 (* W 0.04)) (- bt (* lbl 1.2)) lbl cw 1 "Drawing Title :" grey)
-  (tb-mtext midX (+ yCur (* rh 0.24)) bv cw 5
+  (tb-mtext midX (+ yCur (* rh 0.26)) bv cw 5
             (strcat "{\\fArial|b1;" (tb-get "DRGTITLE") "}") green)
   (tb-hdiv yCur)
-  ;; footer : Scale | Sheet Size | Sheet No.
+  ;; footer : Scale | Sheet Size | Sheet No.  (fills down to Y0)
   (setq rh (- yCur Y0) c1x (+ X0 (* W 0.40)) c2x (+ X0 (* W 0.70)))
   (tb-line c1x Y0 c1x yCur white) (tb-line c2x Y0 c2x yCur white)
   (tb-mtext (+ X0 (* W 0.04)) (- yCur (* lbl 1.2)) lbl 0 1 "Scale" grey)
@@ -5948,7 +5972,9 @@
       (cons "WIND"     (if (= windspeed "") "AS PER CODE" (peb-num-only windspeed)))
       (cons "COLL"     (if (= collateral "") "0.0" (peb-num-only collateral)))
       (cons "SNOW"     (peb-tb-snow (MSPL-Get-Str data "SNOW")))
-      (cons "SEISMIC"  (peb-tb-or (MSPL-Get-Str data "SEISMIC")    "AS PER SITE"))
+      (cons "SEISMIC"  (peb-tb-zone (MSPL-Get-Str data "SEISMIC")))
+      (cons "TEMP"     (peb-tb-snow (MSPL-Get-Str data "TEMP")))
+      (cons "RAIN"     (peb-tb-or   (MSPL-Get-Str data "RAIN") "-"))
       (cons "CODE"     (peb-tb-or (MSPL-Get-Str data "DESIGNCODE") "MBMA 2006"))
       (cons "PROJECT"  project)
       (cons "CUSTOMER" client)
