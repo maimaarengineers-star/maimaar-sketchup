@@ -162,6 +162,7 @@
   (setq out (cons (cons "TBDRN"    (peb-alist-get v3 "HD_DRN_BY"))    out))
   (setq out (cons (cons "TBCHK"    (peb-alist-get v3 "HD_CHK_BY"))    out))
   (setq out (cons (cons "TBBLDGNAME" (peb-alist-get v3 "HD_BLDG_NAME")) out))
+  (setq out (cons (cons "LOCATION"   (peb-alist-get v3 "HD_LOCATION"))  out))
   (setq len (peb-alist-get v3 "BP_LENGTH"))
   (setq wid (peb-alist-get v3 "BP_WIDTH"))
   (setq out (cons (cons "LENGTH" len) out))
@@ -5008,7 +5009,8 @@
             "{\\fArial|b1;GENERAL NOTES}" white)
   (tb-hdiv yCur)
   (setq rh (* H 0.122) bt yCur yCur (- yCur rh))
-  (tb-mtext (+ X0 (* W 0.04)) (- bt (* sm 1.3)) (* sm 0.92) cw 1
+  (tb-mtext (+ X0 (* W 0.04)) (- bt (* sm 1.3))
+    (tb-fith "    DIMENSIONS & LEVELS WILL BE SHOWN IN THE" cw (* sm 0.92)) cw 1
     (strcat "1. ALL DIMENSIONS ARE IN MM.\\P"
             "2. PROPOSAL DRAWING - NOT FOR CONSTRUCTION.\\P"
             "3. PROPOSAL DRAWING IS INDICATIVE ONLY; FINAL\\P"
@@ -5019,14 +5021,16 @@
   (tb-hdiv yCur)
   ;; ----- disclaimer -----
   (setq rh (* H 0.058) bt yCur yCur (- yCur rh))
-  (tb-mtext midX (+ yCur (* rh 0.5)) (* H 0.0105) cw 5
+  (tb-mtext midX (+ yCur (* rh 0.5))
+    (tb-fith "MAIMAAR STEEL (PVT) LTD - NOT FOR CONSTRUCTION" cw (* H 0.0105)) cw 5
     (strcat "{\\fArial|b1;THIS DOCUMENT IS A PROPOSAL DRAWING OF\\P"
             "MAIMAAR STEEL (PVT) LTD - NOT FOR CONSTRUCTION}") cyan)
   (tb-hdiv yCur)
   ;; ----- DESIGN-LOAD table (Mammut format) -----
   (setq lx (+ X0 (* W 0.05)) vx (+ X0 (* W 0.60)) ux (+ X0 (* W 0.80)))
   (setq rh (* H 0.052) bt yCur yCur (- yCur rh))
-  (tb-mtext (+ X0 (* W 0.04)) (- bt (* H 0.0150)) (* H 0.0120) cw 1
+  (tb-mtext (+ X0 (* W 0.04)) (- bt (* H 0.0150))
+    (tb-fith "SUPPORT IT'S OWN DEAD LOAD PLUS:" cw (* H 0.0120)) cw 1
     (strcat "{\\fArial|b1;THE BUILDING HAS BEEN DESIGNED TO\\P"
             "SUPPORT IT'S OWN DEAD LOAD PLUS:}") green)
   (foreach r (list

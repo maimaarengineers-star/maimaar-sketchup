@@ -1,165 +1,161 @@
 ;; ============================================================================
-;;  MAIMAAR_PEB_Cover.lsp  —  Cover sheet (page 1) of the Proposal Drawing set
+;;  MAIMAAR_PEB_Cover.lsp  —  Cover sheet (PRO-00) of the Proposal Drawing set
 ;; ----------------------------------------------------------------------------
-;;  Maimaar-branded cover, laid out like the Mammut (MBS) proposal-drawing cover:
-;;    outer/inner border · vertical "PROPOSAL DRAWING" banner · logo block ·
-;;    company contact block · bottom-right TITLE BLOCK filled from the PEB_Data
-;;    HD_* header fields (the SAME data file the Section/Plan engine reads).
+;;  Mammut-grade, fully IF-linked cover.  It re-uses the SAME Mammut right-edge
+;;  title strip (peb-titleblock-mammut) that the Plan & Section draw, fed from
+;;  the SAME PEB_Data file — so the cover's title block (project, customer,
+;;  revision, date, design loads, design code …) is identical to every sheet's.
+;;  Edit the IF (or the title data) and regenerate -> cover AND all sheets update
+;;  together: one source of truth, exactly like the Mammut set.
 ;;
-;;  Commands:
-;;    (peb-cover-from-file "<path to PEB_Data_B1_A1.txt>")   non-interactive
-;;    C:PEB-COVER                                            prompts for the file
+;;  Pure entmake (batch-safe under acad /b).  Load AFTER the engine:
+;;     (load ".../engine/MAIMAAR_PEB_Section.lsp")
+;;     (load ".../engine/MAIMAAR_PEB_Plan.lsp")
+;;     (load ".../engine/MAIMAAR_PEB_Cover.lsp")
+;;     (peb-cover-from-file "...PEB_Data_B1_A1.txt")   ; or  C:PEB-COVER
 ;;
-;;  Self-contained: it includes its own tiny KEY=value reader, so it loads and
-;;  runs WITHOUT the Section/Plan engine. Drawn in an A3-landscape layout
-;;  (420 x 297 "paper mm") multiplied by *PEB-COVER-SCALE* so it sits at the
-;;  same drawing-unit scale as the other sheets. Edit the branding constants
-;;  below to correct any company detail.
+;;  Depends on engine helpers: MSPL-Read-Data, MSPL-Get-Str, peb-titleblock-mammut,
+;;  tb-line/tb-rect/tb-mtext/tb-fith, peb-tb-place-logo, peb-tb-or/snow/zone,
+;;  peb-num-only, peb-pretty-date, format-date.
 ;; ============================================================================
 
-;; ---- EDITABLE BRANDING (correct these to taste) ----------------------------
-(setq *MAIMAAR-NAME*  "MAIMAAR")
-(setq *MAIMAAR-TAG*   "STEEL  (PVT)  LTD")
-(setq *MAIMAAR-SUB*   "a Maimaar Group company")
-(setq *MAIMAAR-ADDR*  (list "Lalazar Commercial Area, Raiwind Road,"
-                            "Thokar Niaz Baig, Lahore, Pakistan"))
-(setq *MAIMAAR-PHONE* "Ph: +92-42-XXXXXXXX   Mob: +92-300-XXXXXXX")
-(setq *MAIMAAR-EMAIL* "maimaar.engineers@gmail.com")
-(setq *MAIMAAR-WEB*   "www.maimaargroup.com")
-(setq *PEB-COVER-SCALE* 100.0)   ; paper-mm -> drawing-units multiplier
+;; Build the SAME title-block data alist the sheets use (single source of truth).
+(defun peb-cover-tbdata (data drg sheetno
+                         / propinput propno tbQuote bno revno dat drn chk)
+  (setq propinput (MSPL-Get-Str data "PROPOSAL"))
+  (if (= propinput "") (setq propinput "000"))
+  (setq propno (strcat "MSPL-26-" propinput))
+  (setq tbQuote (MSPL-Get-Str data "PROPOSAL_FULL"))
+  (if (= tbQuote "")
+    (cond ((and (= (strlen propinput) 5) (wcmatch propinput "#####"))
+           (setq tbQuote (strcat "MSPL-" (substr propinput 1 2) "-" (substr propinput 3))))
+          (T (setq tbQuote propno))))
+  (setq bno (MSPL-Get-Str data "BLDGNO"))
+  (if (= bno "") (setq bno "01"))
+  (if (= (strlen bno) 1) (setq bno (strcat "0" bno)))
+  (setq revno (MSPL-Get-Str data "REVNO"))
+  (if (or (= revno "0") (= revno "")) (setq revno "00"))
+  (setq drn (MSPL-Get-Str data "TBDRN")) (if (= drn "") (setq drn "M.H"))
+  (setq chk (MSPL-Get-Str data "TBCHK")) (if (= chk "") (setq chk "YEA"))
+  (setq dat (MSPL-Get-Str data "TBDATE"))
+  (if (= dat "") (setq dat (format-date (getvar "CDATE"))) (setq dat (peb-pretty-date dat)))
+  (list
+    (cons "REV" revno) (cons "DATE" dat) (cons "DRN" drn) (cons "CHK" chk)
+    (cons "LL_ROOF"  (peb-tb-or (MSPL-Get-Str data "LIVEROOF")  "0.57"))
+    (cons "LL_FRAME" (peb-tb-or (MSPL-Get-Str data "LIVEFRAME") "0.57"))
+    (cons "WIND"     (peb-tb-or (peb-num-only (MSPL-Get-Str data "WINDSPEED")) "AS PER CODE"))
+    (cons "COLL"     (peb-tb-or (peb-num-only (MSPL-Get-Str data "COLLATERAL")) "0.0"))
+    (cons "SNOW"     (peb-tb-snow (MSPL-Get-Str data "SNOW")))
+    (cons "SEISMIC"  (peb-tb-zone (MSPL-Get-Str data "SEISMIC")))
+    (cons "TEMP"     (peb-tb-snow (MSPL-Get-Str data "TEMP")))
+    (cons "RAIN"     (peb-tb-or (MSPL-Get-Str data "RAIN") "-"))
+    (cons "CODE"     (peb-tb-or (MSPL-Get-Str data "DESIGNCODE") "MBMA 2006"))
+    (cons "PROJECT"  (MSPL-Get-Str data "PROJECT"))
+    (cons "CUSTOMER" (MSPL-Get-Str data "CLIENT"))
+    (cons "ADDR" (strcat "Lahore Office\\P"
+                         "238, First Floor, Lalazar Commercial Area,\\P"
+                         "Raiwind Road, Lahore, Pakistan\\P"
+                         "Web: www.maimaargroup.com\\P"
+                         "Cell : +(92-300) 807 4007"))
+    (cons "QUOTE" tbQuote) (cons "BLDGNO" bno)
+    (cons "BLDGNAME" (MSPL-Get-Str data "TBBLDGNAME"))
+    (cons "IDENTICAL" "ONE")
+    (cons "DRGTITLE" drg) (cons "SCALE" "N.T.S.") (cons "SHEETSIZE" "A1")
+    (cons "SHEETNO" sheetno)))
 
-;; ---- minimal self-contained PEB_Data (v3) reader ---------------------------
-(defun peb-cov-read (path / f line s alist pos k v)
-  (setq alist '())
-  (if (setq f (open path "r"))
-    (progn
-      (while (setq line (read-line f))
-        (setq s (vl-string-trim " \t\r" line))
-        (cond
-          ((= s "") nil)
-          ((= (substr s 1 1) ";") nil)
-          ((and (= (substr s 1 1) "[") (= (substr s (strlen s) 1) "]")) nil)
-          (T (setq pos (vl-string-search "=" s))
-             (if pos
-               (progn
-                 (setq k (substr s 1 pos))
-                 (setq v (substr s (+ pos 2)))
-                 (setq alist (cons (cons k v) alist)))))))
-      (close f)))
-  (reverse alist))
-
-(defun peb-cov-get (data key / p) (if (setq p (assoc key data)) (cdr p) ""))
-
-;; ---- drawing helpers (paper coords -> drawing units) -----------------------
-;; *cov-ox* *cov-oy* *cov-s* are set by peb-cover-draw before any primitive.
-(defun cov-pt (x y) (list (+ *cov-ox* (* x *cov-s*)) (+ *cov-oy* (* y *cov-s*)) 0.0))
-
-(defun cov-line (x1 y1 x2 y2)
-  (entmakex (list '(0 . "LINE") (cons 10 (cov-pt x1 y1)) (cons 11 (cov-pt x2 y2)))))
-
-(defun cov-rect (x1 y1 x2 y2)
-  (cov-line x1 y1 x2 y1) (cov-line x2 y1 x2 y2)
-  (cov-line x2 y2 x1 y2) (cov-line x1 y2 x1 y1))
-
-;; just = TEXT 2-letter code (BL ML MC MR TL ...). h in paper-mm. rot in degrees.
-(defun cov-text (x y h just rot str)
-  (if (or (null str) (= str "")) (setq str " "))
-  (command "_.TEXT" "_J" just (cov-pt x y) (* h *cov-s*) rot str))
-
-;; label/value pair on one row (label small, value larger) for the title block.
-(defun cov-field (x y labh valh lab val)
-  (cov-text x (+ y (* valh 1.05)) labh "BL" 0 lab)
-  (cov-text x y valh "BL" 0 (strcase val)))
-
-;; ---- the cover ------------------------------------------------------------
-(defun peb-cover-draw (data ox oy s / B A propno rev cust proj loc dat drn chk yL)
-  (setq *cov-ox* ox  *cov-oy* oy  *cov-s* s)
-
-  ;; ensure a clean text style + a layer for the cover linework
-  (if (not (tblsearch "STYLE" "PEB-COVER"))
-    (vl-catch-all-apply '(lambda () (command "_.-STYLE" "PEB-COVER" "romans.shx" "0" "1" "0" "_N" "_N"))))
-  (setvar "TEXTSTYLE" "PEB-COVER")
-  (if (not (tblsearch "LAYER" "COVER"))
-    (vl-catch-all-apply '(lambda () (command "_.-LAYER" "_Make" "COVER" "_Color" "7" "COVER" ""))))
-  (setvar "CLAYER" "COVER")
-
-  ;; header values from the PEB_Data HD_* fields
-  (setq B      (peb-cov-get data "BUILDING_NUM")
-        A      (peb-cov-get data "AREA_NUM")
-        propno (peb-cov-get data "HD_PROPOSAL_NO")
-        rev    (peb-cov-get data "HD_REVISION")
-        cust   (peb-cov-get data "HD_CUSTOMER")
-        proj   (peb-cov-get data "HD_PROJECT")
-        loc    (peb-cov-get data "HD_LOCATION")
-        dat    (peb-cov-get data "HD_DATE")
-        drn    (peb-cov-get data "HD_DRN_BY")
-        chk    (peb-cov-get data "HD_CHK_BY"))
-  (if (= B "") (setq B "1")) (if (= A "") (setq A "1"))
-  (if (= rev "") (setq rev "0"))
-
-  ;; ---- sheet borders (A3 landscape 420 x 297) ----
-  (cov-rect 5 5 415 292)
-  (cov-rect 10 10 410 287)
-
-  ;; ---- vertical "PROPOSAL DRAWING" banner (center-left) ----
-  (cov-rect 92 48 122 252)
-  (cov-rect 96 52 118 248)
-  (cov-text 107 150 11 "MC" 90 "PROPOSAL  DRAWING")
-
-  ;; ---- left strip: proposal / quote no. ----
-  (cov-text 24 48 5 "BL" 90 (strcat "PROPOSAL / QUOTE NO. :   " propno))
-
-  ;; ---- LOGO block (top-right) ----
-  ;; Vector wordmark placeholder — drop the real Maimaar logo here later via
-  ;; IMAGEATTACH or a logo BLOCK insert (see header note).
-  (cov-rect 300 232 405 282)
-  (cov-text 352 262 14 "MC" 0 *MAIMAAR-NAME*)
-  (cov-text 352 248 5  "MC" 0 *MAIMAAR-TAG*)
-  (cov-text 352 240 3  "MC" 0 *MAIMAAR-SUB*)
-
-  ;; ---- company CONTACT block (right, under logo) ----
-  (setq yL 220)
-  (cov-text 302 yL 3 "BL" 0 (car *MAIMAAR-ADDR*))   (setq yL (- yL 6))
-  (cov-text 302 yL 3 "BL" 0 (cadr *MAIMAAR-ADDR*))  (setq yL (- yL 6))
-  (cov-text 302 yL 3 "BL" 0 *MAIMAAR-PHONE*)        (setq yL (- yL 6))
-  (cov-text 302 yL 3 "BL" 0 (strcat "E: " *MAIMAAR-EMAIL*)) (setq yL (- yL 6))
-  (cov-text 302 yL 3 "BL" 0 (strcat "W: " *MAIMAAR-WEB*))
-
-  ;; ---- "Preliminary - Not For Construction" note ----
-  (cov-text 210 40 4 "MC" 0 "PRELIMINARY  -  NOT  FOR  CONSTRUCTION")
-
-  ;; ---- TITLE BLOCK (bottom-right) ----
-  (cov-rect 255 12 408 95)
-  (cov-line 255 80 408 80)            ; under CUSTOMER
-  (cov-line 255 66 408 66)            ; under BUILDING NAME
-  (cov-line 255 52 408 52)            ; under PROJECT TITLE
-  (cov-line 255 38 408 38)            ; under LOCATION
-  (cov-line 331 12 331 38)            ; vertical split (left/right cells)
-  (cov-line 255 25 408 25)            ; mid-row split
-  (cov-field 258 82 2.6 4.0 "CUSTOMER:"        cust)
-  (cov-field 258 68 2.6 4.0 "BUILDING:"        (strcat "BUILDING " B " - AREA " A))
-  (cov-field 258 54 2.6 4.0 "PROJECT TITLE:"   proj)
-  (cov-field 258 40 2.6 4.0 "LOCATION:"        loc)
-  (cov-field 258 27 2.4 3.4 "PREPARED BY:" drn)
-  (cov-field 334 27 2.4 3.4 "DATE:"        dat)
-  (cov-field 258 14 2.4 3.4 "CHECKED BY:" chk)
-  (cov-field 334 14 2.4 3.4 "REV:"        rev)
+;; the cover
+(defun peb-cover-draw (data / white grey green cyan red blue
+                            Hc Wc stripW stripX gap hx0 hx1 hcx
+                            bx0 bx1 by0 by1 yy proj cust loc tb get
+                            lcx0 lcx1 rcx0 rcx1 ph)
+  (setq white 7 grey 8 green 3 cyan 4 red 1 blue 5)
+  (defun get (k) (MSPL-Get-Str data k))
+  ;; ---- canvas (drawing units; landscape, ~A-series ratio) ----
+  (setq Hc 29700.0 Wc 42000.0)
+  (setq stripW (* Hc 0.46) gap (* Hc 0.028) stripX (- Wc stripW))
+  ;; whole-sheet border (double)
+  (tb-rect 0 0 Wc Hc white)
+  (tb-rect (* Hc 0.012) (* Hc 0.012) (- Wc (* Hc 0.012)) (- Hc (* Hc 0.012)) white)
+  ;; ---- right title strip : identical to every sheet (IF-linked) ----
+  (peb-titleblock-mammut stripX 0.0 stripW Hc (peb-cover-tbdata data "COVER SHEET" "PRO-00"))
+  ;; ---- hero area ----
+  (setq hx0 (* Hc 0.05) hx1 (- stripX gap) hcx (/ (+ hx0 hx1) 2.0))
+  ;; logo (real Maimaar) centred at top
+  (peb-tb-place-logo (- hcx (* Hc 0.26)) (* Hc 0.815) (+ hcx (* Hc 0.26)) (* Hc 0.955))
+  (tb-mtext hcx (* Hc 0.785) (* Hc 0.020) (* Hc 1.2) 5
+            "{\\fArial|b1;PRE-ENGINEERED STEEL BUILDINGS}" green)
+  ;; big PROPOSAL DRAWING banner (double box)
+  (setq bx0 (- hcx (* Hc 0.42)) bx1 (+ hcx (* Hc 0.42))
+        by0 (* Hc 0.600) by1 (* Hc 0.730))
+  (tb-rect bx0 by0 bx1 by1 white)
+  (tb-rect (+ bx0 (* Hc 0.010)) (+ by0 (* Hc 0.010))
+           (- bx1 (* Hc 0.010)) (- by1 (* Hc 0.010)) white)
+  (tb-mtext hcx (* Hc 0.640) (* Hc 0.060) (* Hc 1.6) 5
+            "{\\fArial|b1;PROPOSAL DRAWING}" white)
+  ;; ---- PROJECT / CUSTOMER / LOCATION hero ----
+  (setq proj (get "PROJECT") cust (get "CLIENT") loc (get "LOCATION"))
+  (if (= proj "") (setq proj "UNNAMED PROJECT"))
+  (if (= cust "") (setq cust "UNNAMED CLIENT"))
+  (tb-mtext hcx (* Hc 0.560) (* Hc 0.013) (* Hc 1.2) 5 "{\\fArial|b1;PROJECT}" grey)
+  (tb-mtext hcx (* Hc 0.515) (tb-fith proj (* 1.9 (- hx1 hx0)) (* Hc 0.026))
+            (- hx1 hx0) 5 (strcat "{\\fArial|b1;" proj "}") green)
+  (tb-mtext hcx (* Hc 0.448) (* Hc 0.013) (* Hc 1.2) 5 "{\\fArial|b1;CLIENT}" grey)
+  (tb-mtext hcx (* Hc 0.412) (tb-fith cust (* 1.4 (- hx1 hx0)) (* Hc 0.020))
+            (- hx1 hx0) 5 (strcat "{\\fArial|b1;" cust "}") green)
+  (if (/= loc "")
+    (tb-mtext hcx (* Hc 0.378) (* Hc 0.013) (- hx1 hx0) 5 loc white))
+  ;; ---- bottom panels : LIST OF DRAWINGS (left) + DESIGN CRITERIA (right) ----
+  (setq lcx0 hx0 lcx1 (- hcx (* Hc 0.015))
+        rcx0 (+ hcx (* Hc 0.015)) rcx1 hx1
+        by1 (* Hc 0.330) by0 (* Hc 0.085))
+  ;; LIST OF DRAWINGS
+  (tb-rect lcx0 by0 lcx1 by1 white)
+  (tb-line lcx0 (- by1 (* Hc 0.030)) lcx1 (- by1 (* Hc 0.030)) white)
+  (tb-mtext (/ (+ lcx0 lcx1) 2.0) (- by1 (* Hc 0.022)) (* Hc 0.015) (- lcx1 lcx0) 5
+            "{\\fArial|b1;LIST OF DRAWINGS}" white)
+  (setq yy (- by1 (* Hc 0.058)))
+  (foreach d (list (list "PRO-00" "COVER SHEET")
+                   (list "PRO-01" "COLUMN LAY-OUT PLAN")
+                   (list "PRO-02" "CROSS SECTION"))
+    (tb-mtext (+ lcx0 (* Hc 0.015)) yy (* Hc 0.0135) 0 4 (car d) green)
+    (tb-mtext (+ lcx0 (* Hc 0.090)) yy (* Hc 0.0135) 0 4 (cadr d) white)
+    (setq yy (- yy (* Hc 0.030))))
+  ;; DESIGN CRITERIA
+  (tb-rect rcx0 by0 rcx1 by1 white)
+  (tb-line rcx0 (- by1 (* Hc 0.030)) rcx1 (- by1 (* Hc 0.030)) white)
+  (tb-mtext (/ (+ rcx0 rcx1) 2.0) (- by1 (* Hc 0.022)) (* Hc 0.015) (- rcx1 rcx0) 5
+            "{\\fArial|b1;DESIGN CRITERIA}" white)
+  (setq yy (- by1 (* Hc 0.058)))
+  (foreach c (list
+       (list "DESIGN CODE" (peb-tb-or (get "DESIGNCODE") "MBMA 2006"))
+       (list "WIND SPEED"  (strcat (peb-tb-or (peb-num-only (get "WINDSPEED")) "AS PER CODE") " KPH"))
+       (list "LIVE LOAD"   (strcat (peb-tb-or (get "LIVEROOF") "0.57") " KN/SQ.M."))
+       (list "SEISMIC"     (peb-tb-zone (get "SEISMIC")))
+       (list "STEEL"       "ASTM A572 Gr.50 / A36")
+       (list "BOLTS"       "ASTM A325")
+       (list "WELD"        "AWS D1.1"))
+    (tb-mtext (+ rcx0 (* Hc 0.015)) yy (* Hc 0.0125) 0 4 (car c) grey)
+    (tb-mtext (+ rcx0 (* Hc 0.110)) yy
+              (tb-fith (cadr c) (* (- rcx1 rcx0) 0.55) (* Hc 0.0125)) 0 4 (cadr c) green)
+    (setq yy (- yy (* Hc 0.030))))
+  ;; ---- NOT FOR CONSTRUCTION footer ----
+  (tb-mtext hcx (* Hc 0.045) (* Hc 0.016) (- hx1 hx0) 5
+            "{\\fArial|b1;PROPOSAL DRAWING  -  NOT FOR CONSTRUCTION}" red)
   (princ))
 
-;; non-interactive entry (mirrors peb-section-from-file): reads + draws at origin.
+;; non-interactive entry (mirrors peb-section-from-file)
 (defun peb-cover-from-file (path / data)
-  (setq data (peb-cov-read path))
+  (setq data (MSPL-Read-Data path))
   (if data
-    (progn (peb-cover-draw data 0.0 0.0 *PEB-COVER-SCALE*)
-           (command "_.ZOOM" "_E"))
+    (peb-cover-draw data)
     (alert (strcat "Cover: could not read PEB_Data file:\n" path)))
   (princ))
 
-;; interactive entry — prompts for the data file.
+;; interactive entry
 (defun C:PEB-COVER ( / path)
   (setq path (getfiled "Select PEB_Data file for the cover sheet" "" "txt" 16))
   (if path (peb-cover-from-file path))
   (princ))
 
-(princ "\nMAIMAAR_PEB_Cover.lsp loaded — run  C:PEB-COVER  or (peb-cover-from-file \"...txt\").")
+(princ "\nMAIMAAR_PEB_Cover.lsp loaded - run  C:PEB-COVER  or (peb-cover-from-file \"...txt\").")
 (princ)
