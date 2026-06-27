@@ -49,8 +49,9 @@
 ;; ============================================================================
 
 (defun peb-cover-draw (data / white grey green blue red cx Hc Wc get
-                            bx0 bx1 by0 by1 tx0 tx1 lx0 lx1 mid rh rt y1 y2 y3 y4 yy
-                            proj cust bname loc quote rev dat drn chk propinput propno)
+                            bx0 bx1 by0 by1 tx0 tx1 lx0 lx1 mid rh rt y1 y2 y3 y4 y5 yy
+                            proj cust bname loc quote rev dat drn chk propinput propno
+                            bno ident nbld i)
   (setq white 7 grey 8 green 3 blue 5 red 1)
   (defun get (k) (MSPL-Get-Str data k))
   (setq Hc 29700.0 Wc 42000.0 cx (/ Wc 2.0))
@@ -73,6 +74,11 @@
   (if (= dat "") (setq dat (format-date (getvar "CDATE"))) (setq dat (peb-pretty-date dat)))
   (if (= bname "") (setq bname (strcat "BUILDING " (get "BLDGNO"))))
   (if (= bname "BUILDING ") (setq bname "BUILDING 01"))
+  ;; building no. (zero-padded) + no. of identical buildings
+  (setq bno (get "BLDGNO")) (if (= bno "") (setq bno "1"))
+  (if (= (strlen bno) 1) (setq bno (strcat "0" bno)))
+  (setq ident (get "IDENTICAL")) (if (= ident "") (setq ident "1"))
+  (if (= (strlen ident) 1) (setq ident (strcat "0" ident)))
   ;; ALL text CAPITAL
   (setq proj (strcase proj) cust (strcase cust) bname (strcase bname)
         loc (strcase loc) quote (strcase quote) dat (strcase dat)
@@ -122,32 +128,36 @@
   ;; ---- bottom-right TITLE BLOCK (Mammut) : non-uniform rows, PROJECT row taller ----
   (setq tx0 (* Wc 0.40) tx1 (* Wc 0.965) by0 (* Hc 0.045) by1 (* Hc 0.300)
         mid (/ (+ tx0 tx1) 2.0))
-  (setq rh (* (- by1 by0) 0.185)   ; standard row height
-        rt (* (- by1 by0) 0.260))  ; taller PROJECT TITLE row (2-line wrap)
+  (setq rh (* (- by1 by0) 0.155)   ; standard row height (5 rows)
+        rt (* (- by1 by0) 0.225))  ; taller PROJECT TITLE row (2-line wrap)
   (tb-rect tx0 by0 tx1 by1 white)
   (setq y1 (- by1 rh)        ; under CUSTOMER
         y2 (- y1 rh)         ; under BUILDING NAME
         y3 (- y2 rt)         ; under PROJECT TITLE
-        y4 (- y3 rh))        ; under PREPARED/CHECKED  (DATE/REV ends at by0)
+        y4 (- y3 rh)         ; under BLDG NO. / IDENTICAL
+        y5 (- y4 rh))        ; under PREPARED/CHECKED  (DATE/REV ends at by0)
   (tb-line tx0 y1 tx1 y1 white)
   (tb-line tx0 y2 tx1 y2 white)
   (tb-line tx0 y3 tx1 y3 white)
   (tb-line tx0 y4 tx1 y4 white)
-  (tb-line mid by0 mid y3 white)   ; vertical split for the last 2 rows
+  (tb-line tx0 y5 tx1 y5 white)
+  (tb-line mid by0 mid y3 white)   ; vertical split for the 3 lower split rows
   ;; row helpers (label small grey at top; value bold green, autofit, wraps in tall rows)
   (defun cov-lab (x ytop s)
-    (tb-mtext (+ x (* Hc 0.008)) (- ytop (* Hc 0.010)) (* Hc 0.0090) 0 4 s grey))
+    (tb-mtext (+ x (* Hc 0.008)) (- ytop (* Hc 0.0090)) (* Hc 0.0084) 0 4 s grey))
   (defun cov-val (x w ytop rhh s)
     (tb-mtext (+ x (* Hc 0.010)) (- ytop (* rhh 0.60))
-              (tb-fith s (* w 0.92) (* Hc 0.0150)) (* w 0.92) 4
+              (tb-fith s (* w 0.90) (* Hc 0.0140)) (* w 0.90) 4
               (strcat "{\\fArial|b1;" s "}") green))
-  (cov-lab tx0 by1 "CUSTOMER :")        (cov-val tx0 (- tx1 tx0) by1 rh cust)
-  (cov-lab tx0 y1  "BUILDING NAME :")   (cov-val tx0 (- tx1 tx0) y1  rh bname)
-  (cov-lab tx0 y2  "PROJECT TITLE :")   (cov-val tx0 (- tx1 tx0) y2  rt proj)
-  (cov-lab tx0 y3  "PREPARED BY :")     (cov-val tx0 (- mid tx0) y3 rh drn)
-  (cov-lab mid y3  "CHECKED BY :")      (cov-val mid (- tx1 mid) y3 rh chk)
-  (cov-lab tx0 y4  "DATE :")            (cov-val tx0 (- mid tx0) y4 rh dat)
-  (cov-lab mid y4  "REV :")             (cov-val mid (- tx1 mid) y4 rh rev)
+  (cov-lab tx0 by1 "CUSTOMER :")             (cov-val tx0 (- tx1 tx0) by1 rh cust)
+  (cov-lab tx0 y1  "BUILDING NAME :")        (cov-val tx0 (- tx1 tx0) y1  rh bname)
+  (cov-lab tx0 y2  "PROJECT TITLE :")        (cov-val tx0 (- tx1 tx0) y2  rt proj)
+  (cov-lab tx0 y3  "BLDG. NO. :")            (cov-val tx0 (- mid tx0) y3 rh bno)
+  (cov-lab mid y3  "NO. OF IDENTICAL BLDGS. :") (cov-val mid (- tx1 mid) y3 rh ident)
+  (cov-lab tx0 y4  "PREPARED BY :")          (cov-val tx0 (- mid tx0) y4 rh drn)
+  (cov-lab mid y4  "CHECKED BY :")           (cov-val mid (- tx1 mid) y4 rh chk)
+  (cov-lab tx0 y5  "DATE :")                 (cov-val tx0 (- mid tx0) y5 rh dat)
+  (cov-lab mid y5  "REV :")                  (cov-val mid (- tx1 mid) y5 rh rev)
 
   ;; ---- bottom-left LIST OF DRAWINGS (compact, balances the title block) ----
   (setq lx0 (* Wc 0.035) lx1 (* Wc 0.385) by0 (* Hc 0.045) by1 (* Hc 0.300))
@@ -155,14 +165,20 @@
   (tb-line lx0 (- by1 (* Hc 0.030)) lx1 (- by1 (* Hc 0.030)) white)
   (tb-mtext (/ (+ lx0 lx1) 2.0) (- by1 (* Hc 0.021)) (* Hc 0.014) (- lx1 lx0) 5
             "{\\fArial|b1;LIST OF DRAWINGS}" white)
-  (setq yy (- by1 (* Hc 0.054)))
-  (foreach d (list (list "PRO-00" "COVER SHEET")
-                   (list "PRO-01" "COLUMN LAY-OUT PLAN")
-                   (list "PRO-02" "CROSS SECTION"))
-    (tb-mtext (+ lx0 (* Hc 0.012)) yy (* Hc 0.0125) 0 4 (car d) green)
-    (tb-mtext (+ lx0 (* Hc 0.082)) yy
-              (tb-fith (cadr d) (- lx1 (+ lx0 (* Hc 0.090))) (* Hc 0.0125)) 0 4 (cadr d) white)
-    (setq yy (- yy (* Hc 0.030))))
+  ;; auto-tiled per building: B-00 cover, then B-01 .. B-NN (one drawing per building)
+  (setq nbld (atoi (get "BLDGCOUNT"))) (if (< nbld 1) (setq nbld 1)) (if (> nbld 8) (setq nbld 8))
+  (setq yy (- by1 (* Hc 0.052)))
+  (tb-mtext (+ lx0 (* Hc 0.012)) yy (* Hc 0.0120) 0 4 "B-00" green)
+  (tb-mtext (+ lx0 (* Hc 0.075)) yy (* Hc 0.0120) 0 4 "COVER SHEET" white)
+  (setq yy (- yy (* Hc 0.028)) i 1)
+  (while (<= i nbld)
+    (tb-mtext (+ lx0 (* Hc 0.012)) yy (* Hc 0.0120) 0 4
+              (strcat "B-" (if (< i 10) "0" "") (itoa i)) green)
+    (tb-mtext (+ lx0 (* Hc 0.075)) yy
+              (tb-fith (strcat "BUILDING NO. " (if (< i 10) "0" "") (itoa i))
+                       (- lx1 (+ lx0 (* Hc 0.082))) (* Hc 0.0120)) 0 4
+              (strcat "BUILDING NO. " (if (< i 10) "0" "") (itoa i)) white)
+    (setq yy (- yy (* Hc 0.028)) i (1+ i)))
 
   ;; ---- footer note (in the bottom margin, clear of the boxes + border) ----
   (tb-mtext cx (* Hc 0.031)
