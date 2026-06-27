@@ -19,7 +19,7 @@
 ;; ============================================================================
 
 (defun peb-cover-draw (data / white grey green blue red cx Hc Wc get
-                            bx0 bx1 by0 by1 tx0 tx1 lx0 lx1 mid rh yy
+                            bx0 bx1 by0 by1 tx0 tx1 lx0 lx1 mid rh rt y1 y2 y3 y4 yy
                             proj cust bname loc quote rev dat drn chk propinput propno)
   (setq white 7 grey 8 green 3 blue 5 red 1)
   (defun get (k) (MSPL-Get-Str data k))
@@ -43,6 +43,10 @@
   (if (= dat "") (setq dat (format-date (getvar "CDATE"))) (setq dat (peb-pretty-date dat)))
   (if (= bname "") (setq bname (strcat "BUILDING " (get "BLDGNO"))))
   (if (= bname "BUILDING ") (setq bname "BUILDING 01"))
+  ;; ALL text CAPITAL
+  (setq proj (strcase proj) cust (strcase cust) bname (strcase bname)
+        loc (strcase loc) quote (strcase quote) dat (strcase dat)
+        drn (strcase drn) chk (strcase chk))
 
   ;; ---- triple border (Mammut) ----
   (tb-rect 0 0 Wc Hc white)
@@ -51,13 +55,17 @@
 
   ;; ---- logo + company + contact (top, centred) ----
   (peb-tb-place-logo (- cx (* Hc 0.30)) (* Hc 0.775) (+ cx (* Hc 0.30)) (* Hc 0.948))
-  (tb-mtext cx (* Hc 0.748) (* Hc 0.030) (* Wc 0.9) 5
+  (tb-mtext cx (* Hc 0.748)
+            (tb-fith "MAIMAAR STEEL (PVT) LTD" (* Wc 0.50) (* Hc 0.030)) (* Wc 0.9) 5
             "{\\fArial|b1;MAIMAAR STEEL (PVT) LTD}" blue)
-  (tb-mtext cx (* Hc 0.719) (* Hc 0.015) (* Wc 0.9) 5
+  (tb-mtext cx (* Hc 0.719)
+            (tb-fith "PRE-ENGINEERED STEEL BUILDINGS" (* Wc 0.45) (* Hc 0.015)) (* Wc 0.9) 5
             "{\\fArial|b1;PRE-ENGINEERED STEEL BUILDINGS}" green)
-  (tb-mtext cx (* Hc 0.690) (* Hc 0.0105) (* Wc 0.9) 5
-    (strcat "238, First Floor, Lalazar Commercial Area, Raiwind Road, Lahore, Pakistan\\P"
-            "Web: www.maimaargroup.com      E-mail: maimaar.engineers@gmail.com      Cell: +(92-300) 807 4007")
+  (tb-mtext cx (* Hc 0.690)
+    (tb-fith "WEB: WWW.MAIMAARGROUP.COM      E-MAIL: MAIMAAR.ENGINEERS@GMAIL.COM      CELL: +(92-300) 807 4007"
+             (* Wc 0.90) (* Hc 0.0105)) (* Wc 0.9) 5
+    (strcat "238, FIRST FLOOR, LALAZAR COMMERCIAL AREA, RAIWIND ROAD, LAHORE, PAKISTAN\\P"
+            "WEB: WWW.MAIMAARGROUP.COM      E-MAIL: MAIMAAR.ENGINEERS@GMAIL.COM      CELL: +(92-300) 807 4007")
     white)
 
   ;; ---- PROPOSAL DRAWING banner (double box, big) ----
@@ -65,7 +73,9 @@
   (tb-rect bx0 by0 bx1 by1 white)
   (tb-rect (+ bx0 (* Hc 0.010)) (+ by0 (* Hc 0.010))
            (- bx1 (* Hc 0.010)) (- by1 (* Hc 0.010)) white)
-  (tb-mtext cx (* Hc 0.510) (* Hc 0.066) (* Hc 1.7) 5 "{\\fArial|b1;PROPOSAL DRAWING}" white)
+  (tb-mtext cx (* Hc 0.510)
+            (tb-fith "PROPOSAL DRAWING" (* (- bx1 bx0) 0.88) (* Hc 0.066)) (* Hc 1.7) 5
+            "{\\fArial|b1;PROPOSAL DRAWING}" white)
 
   ;; ---- PROPOSAL / QUOTE NO. box ----
   (setq bx0 (- cx (* Hc 0.31)) bx1 (+ cx (* Hc 0.31)) by0 (* Hc 0.392) by1 (* Hc 0.442))
@@ -74,34 +84,35 @@
             (tb-fith (strcat "PROPOSAL / QUOTE NO. :   " quote) (* (- bx1 bx0) 0.92) (* Hc 0.020))
             (- bx1 bx0) 5 (strcat "{\\fArial|b1;PROPOSAL / QUOTE NO. :   " quote "}") green)
 
-  ;; ---- bottom-right TITLE BLOCK (Mammut) ----
+  ;; ---- bottom-right TITLE BLOCK (Mammut) : non-uniform rows, PROJECT row taller ----
   (setq tx0 (* Wc 0.40) tx1 (* Wc 0.965) by0 (* Hc 0.045) by1 (* Hc 0.300)
-        mid (/ (+ tx0 tx1) 2.0) rh (/ (- (* Hc 0.300) (* Hc 0.045)) 5.0))
+        mid (/ (+ tx0 tx1) 2.0))
+  (setq rh (* (- by1 by0) 0.185)   ; standard row height
+        rt (* (- by1 by0) 0.260))  ; taller PROJECT TITLE row (2-line wrap)
   (tb-rect tx0 by0 tx1 by1 white)
-  (tb-line tx0 (- by1 rh)         tx1 (- by1 rh) white)         ; under CUSTOMER
-  (tb-line tx0 (- by1 (* rh 2.0)) tx1 (- by1 (* rh 2.0)) white) ; under BUILDING NAME
-  (tb-line tx0 (- by1 (* rh 3.0)) tx1 (- by1 (* rh 3.0)) white) ; under PROJECT TITLE
-  (tb-line tx0 (- by1 (* rh 4.0)) tx1 (- by1 (* rh 4.0)) white) ; under PREPARED/CHECKED
-  (tb-line mid (+ by0 (* rh 0.0)) mid (- by1 (* rh 3.0)) white) ; vertical split (last 2 rows)
-  ;; row helper values
-  (defun cov-lab (x ytop s) (tb-mtext (+ x (* Hc 0.008)) (- ytop (* Hc 0.010)) (* Hc 0.0090) 0 4 s grey))
-  (defun cov-val (x w ytop s)
-    (tb-mtext (+ x (* Hc 0.010)) (- ytop (* rh 0.64))
+  (setq y1 (- by1 rh)        ; under CUSTOMER
+        y2 (- y1 rh)         ; under BUILDING NAME
+        y3 (- y2 rt)         ; under PROJECT TITLE
+        y4 (- y3 rh))        ; under PREPARED/CHECKED  (DATE/REV ends at by0)
+  (tb-line tx0 y1 tx1 y1 white)
+  (tb-line tx0 y2 tx1 y2 white)
+  (tb-line tx0 y3 tx1 y3 white)
+  (tb-line tx0 y4 tx1 y4 white)
+  (tb-line mid by0 mid y3 white)   ; vertical split for the last 2 rows
+  ;; row helpers (label small grey at top; value bold green, autofit, wraps in tall rows)
+  (defun cov-lab (x ytop s)
+    (tb-mtext (+ x (* Hc 0.008)) (- ytop (* Hc 0.010)) (* Hc 0.0090) 0 4 s grey))
+  (defun cov-val (x w ytop rhh s)
+    (tb-mtext (+ x (* Hc 0.010)) (- ytop (* rhh 0.60))
               (tb-fith s (* w 0.92) (* Hc 0.0150)) (* w 0.92) 4
               (strcat "{\\fArial|b1;" s "}") green))
-  ;; CUSTOMER
-  (cov-lab tx0 by1 "CUSTOMER :")            (cov-val tx0 (- tx1 tx0) by1 cust)
-  ;; BUILDING NAME
-  (cov-lab tx0 (- by1 rh) "BUILDING NAME :")(cov-val tx0 (- tx1 tx0) (- by1 rh) bname)
-  ;; PROJECT TITLE
-  (cov-lab tx0 (- by1 (* rh 2.0)) "PROJECT TITLE :")
-  (cov-val tx0 (- tx1 tx0) (- by1 (* rh 2.0)) proj)
-  ;; PREPARED BY | CHECKED BY
-  (cov-lab tx0 (- by1 (* rh 3.0)) "PREPARED BY :") (cov-val tx0 (- mid tx0) (- by1 (* rh 3.0)) drn)
-  (cov-lab mid (- by1 (* rh 3.0)) "CHECKED BY :")  (cov-val mid (- tx1 mid) (- by1 (* rh 3.0)) chk)
-  ;; DATE | REV
-  (cov-lab tx0 (- by1 (* rh 4.0)) "DATE :") (cov-val tx0 (- mid tx0) (- by1 (* rh 4.0)) dat)
-  (cov-lab mid (- by1 (* rh 4.0)) "REV :")  (cov-val mid (- tx1 mid) (- by1 (* rh 4.0)) rev)
+  (cov-lab tx0 by1 "CUSTOMER :")        (cov-val tx0 (- tx1 tx0) by1 rh cust)
+  (cov-lab tx0 y1  "BUILDING NAME :")   (cov-val tx0 (- tx1 tx0) y1  rh bname)
+  (cov-lab tx0 y2  "PROJECT TITLE :")   (cov-val tx0 (- tx1 tx0) y2  rt proj)
+  (cov-lab tx0 y3  "PREPARED BY :")     (cov-val tx0 (- mid tx0) y3 rh drn)
+  (cov-lab mid y3  "CHECKED BY :")      (cov-val mid (- tx1 mid) y3 rh chk)
+  (cov-lab tx0 y4  "DATE :")            (cov-val tx0 (- mid tx0) y4 rh dat)
+  (cov-lab mid y4  "REV :")             (cov-val mid (- tx1 mid) y4 rh rev)
 
   ;; ---- bottom-left LIST OF DRAWINGS (compact, balances the title block) ----
   (setq lx0 (* Wc 0.035) lx1 (* Wc 0.385) by0 (* Hc 0.045) by1 (* Hc 0.300))
@@ -114,11 +125,13 @@
                    (list "PRO-01" "COLUMN LAY-OUT PLAN")
                    (list "PRO-02" "CROSS SECTION"))
     (tb-mtext (+ lx0 (* Hc 0.012)) yy (* Hc 0.0125) 0 4 (car d) green)
-    (tb-mtext (+ lx0 (* Hc 0.082)) yy (* Hc 0.0125) 0 4 (cadr d) white)
+    (tb-mtext (+ lx0 (* Hc 0.082)) yy
+              (tb-fith (cadr d) (- lx1 (+ lx0 (* Hc 0.090))) (* Hc 0.0125)) 0 4 (cadr d) white)
     (setq yy (- yy (* Hc 0.030))))
 
   ;; ---- footer note (in the bottom margin, clear of the boxes + border) ----
-  (tb-mtext cx (* Hc 0.031) (* Hc 0.0105) (* Wc 0.9) 5
+  (tb-mtext cx (* Hc 0.031)
+            (tb-fith "PROPOSAL DRAWING  -  NOT FOR CONSTRUCTION" (* Wc 0.55) (* Hc 0.0105)) (* Wc 0.9) 5
             "{\\fArial|b1;PROPOSAL DRAWING  -  NOT FOR CONSTRUCTION}" red)
   (princ))
 
