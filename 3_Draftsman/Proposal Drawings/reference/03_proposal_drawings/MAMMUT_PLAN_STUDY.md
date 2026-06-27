@@ -41,5 +41,33 @@ RCC area) and **Raaziq Industrial** (crane + mezzanine). These validate the appr
 - **Build (approved plan)**: P2 basis-driven labels (map IF basis → "C/C OF STEEL COLUMNS"/"O/O OF STEEL"/…); P3 exact grouped chains (incl. unequal-individual + subtotals); P4 endwall posts from IF + half-grids + doors/windows offsets + braced-bay clash; P5 multi-area (hatched secondary areas, per-area basis, shared boundary, AREA-0N tags, web/2+200 gap).
 - **Future (beyond this plan)**: in-plan mezzanine (hatch + stairs), crane beam + run-length + capacity, cut-outs, walkway, valley gutter — capture as a later accessory-detailing phase (data already exists: MZ_*, CR_*, ST_*, RX_*/CN_*).
 
+## Multi-area / multi-building catalogue (31 distinct proposal sets scanned)
+Rendered the column-layout-plan page of 31 distinct proposal-drawing sets (2010-2014) into
+contact sheets + deep-read the richest. NOTE: the archive mixes **Mammut** and **Izhar Steel**
+(a competitor) proposals — both are valid PEB references; the conventions agree.
+
+**How multiple areas are represented (the key for P5):**
+1. **Each area = its own grid + columns + AREA-0N tag**, tiled to form the combined footprint;
+   each area dimensioned with its own bay/width chains + basis (areas may differ in basis).
+2. **Hatch convention for non-new-steel zones** — RCC, EXISTING, FUTURE areas are drawn with a
+   concrete/diagonal **HATCH + label**, visually distinct from the clear new-steel area:
+   - "RCC STRUCTURE" (Raaziq, #15, Al-Nafia) — concrete area adjacent to steel.
+   - "EXISTING RCC BUILDING" / "EXISTING STEEL BUILDING" (Unilever, #24, #26, US Denim) — tie-in.
+   - "FUTURE EXTENSION" / "FUTURE BUILDING" (Zealcon-4228, Roshan, Kainat) — provision zone, hatched.
+3. **Two-area side-by-side** with shared boundary + the column-centreline gap: Zealcon-092
+   (AREA-01 + AREA-02 + a Roof Plan on the same sheet), Kainat (AREA #1 + AREA #2).
+4. **Multi-BUILDING on one sheet**: Werrick ("BUILDING 1" + "NEW BUILDING" + "BUILDING 2").
+5. **L-shaped / non-rectangular** combined footprint (#28) — areas at different x/y offsets.
+6. **Mezzanine** present → a separate "MEZZANINE FLOOR PLAN" beside the column plan (ZRK, Raaziq).
+7. **Crane** buildings: crane-beam line + "CRANE RUN LENGTH" + capacity + cage-ladders (#26, Zealcon-4228, Raaziq).
+8. Long buildings (Big-Bird, 21 bays) carry **roof monitors/ventilators** along the ridge (→ roof plan / P6).
+
+**Direct consequences for our build:**
+- P5 must support: per-area grid+tag+dims at tiled offsets; a **HATCH style for RCC/EXISTING/FUTURE
+  areas** with a type label (drive from the IF area "structure type" / position); the web/2+200
+  inter-area gap; shared-boundary dual labels; and tolerate L-shaped (non-collinear) tilings.
+- Roof plan (P6) references: #19, #22, #23, #25 (purlins, fall arrows, ridge, skylights, sheeting).
+- Later accessory phase: mezzanine floor plan, crane beam + run length, cage ladders.
+
 ## Coverage note
 Representative deep study (multi-span + crane/mezzanine + RCC multi-area) captured the full convention set. A bulk DWG→DXF conversion of ~50 sets (ODA File Converter / `acad DXFOUT` batch) can be run to extract exact geometry for any detail not visible in the rendered PDFs; the conventions above are sufficient to implement P2–P5.
