@@ -723,7 +723,7 @@
 ;; is complete (no external post-processing).  Override before drawing if needed.
 (if (not *PEB-LOGO-DWG*)
   (setq *PEB-LOGO-DWG*
-        "D:/maimaar-os/3_Draftsman/Proposal Drawings/lisp_assets/MAIMAAR_LOGO_REAL.dwg"))
+        "D:/maimaar-os/3_Draftsman/Proposal Drawings/assets/MAIMAAR_LOGO_REAL.dwg"))
 
 ;; Insert the real Maimaar logo, scaled+centred to fit the cell (x0 y0)-(x1 y1).
 (defun peb-tb-place-logo (x0 y0 x1 y1 / lw lh cw ch s px py pad)
