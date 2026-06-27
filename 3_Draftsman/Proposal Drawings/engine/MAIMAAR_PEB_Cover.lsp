@@ -53,35 +53,36 @@
   (tb-rect (* Hc 0.010) (* Hc 0.010) (- Wc (* Hc 0.010)) (- Hc (* Hc 0.010)) white)
   (tb-rect (* Hc 0.017) (* Hc 0.017) (- Wc (* Hc 0.017)) (- Hc (* Hc 0.017)) white)
 
-  ;; ---- logo + company + contact (top, centred) ----
-  (peb-tb-place-logo (- cx (* Hc 0.30)) (* Hc 0.775) (+ cx (* Hc 0.30)) (* Hc 0.948))
-  (tb-mtext cx (* Hc 0.748)
-            (tb-fith "MAIMAAR STEEL (PVT) LTD" (* Wc 0.50) (* Hc 0.030)) (* Wc 0.9) 5
+  ;; ---- logo + company + contact (top, centred) + accent rule ----
+  (peb-tb-place-logo (- cx (* Hc 0.33)) (* Hc 0.772) (+ cx (* Hc 0.33)) (* Hc 0.960))
+  (tb-mtext cx (* Hc 0.745)
+            (tb-fith "MAIMAAR STEEL (PVT) LTD" (* Wc 0.55) (* Hc 0.034)) (* Wc 0.9) 5
             "{\\fArial|b1;MAIMAAR STEEL (PVT) LTD}" blue)
-  (tb-mtext cx (* Hc 0.719)
-            (tb-fith "PRE-ENGINEERED STEEL BUILDINGS" (* Wc 0.45) (* Hc 0.015)) (* Wc 0.9) 5
+  (tb-mtext cx (* Hc 0.714)
+            (tb-fith "PRE-ENGINEERED STEEL BUILDINGS" (* Wc 0.46) (* Hc 0.016)) (* Wc 0.9) 5
             "{\\fArial|b1;PRE-ENGINEERED STEEL BUILDINGS}" green)
-  (tb-mtext cx (* Hc 0.690)
+  (tb-mtext cx (* Hc 0.687)
     (tb-fith "WEB: WWW.MAIMAARGROUP.COM      E-MAIL: MAIMAAR.ENGINEERS@GMAIL.COM      CELL: +(92-300) 807 4007"
              (* Wc 0.90) (* Hc 0.0105)) (* Wc 0.9) 5
     (strcat "238, FIRST FLOOR, LALAZAR COMMERCIAL AREA, RAIWIND ROAD, LAHORE, PAKISTAN\\P"
             "WEB: WWW.MAIMAARGROUP.COM      E-MAIL: MAIMAAR.ENGINEERS@GMAIL.COM      CELL: +(92-300) 807 4007")
     white)
+  (tb-line (- cx (* Hc 0.36)) (* Hc 0.666) (+ cx (* Hc 0.36)) (* Hc 0.666) green)
 
-  ;; ---- PROPOSAL DRAWING banner (double box, big) ----
-  (setq bx0 (- cx (* Hc 0.46)) bx1 (+ cx (* Hc 0.46)) by0 (* Hc 0.468) by1 (* Hc 0.606))
+  ;; ---- PROPOSAL DRAWING banner (LARGE double box - the cover hero) ----
+  (setq bx0 (- cx (* Hc 0.55)) bx1 (+ cx (* Hc 0.55)) by0 (* Hc 0.448) by1 (* Hc 0.642))
   (tb-rect bx0 by0 bx1 by1 white)
-  (tb-rect (+ bx0 (* Hc 0.010)) (+ by0 (* Hc 0.010))
-           (- bx1 (* Hc 0.010)) (- by1 (* Hc 0.010)) white)
-  (tb-mtext cx (* Hc 0.510)
-            (tb-fith "PROPOSAL DRAWING" (* (- bx1 bx0) 0.88) (* Hc 0.066)) (* Hc 1.7) 5
+  (tb-rect (+ bx0 (* Hc 0.012)) (+ by0 (* Hc 0.012))
+           (- bx1 (* Hc 0.012)) (- by1 (* Hc 0.012)) white)
+  (tb-mtext cx (* Hc 0.545)
+            (tb-fith "PROPOSAL DRAWING" (* (- bx1 bx0) 0.84) (* Hc 0.092)) (* Hc 1.9) 5
             "{\\fArial|b1;PROPOSAL DRAWING}" white)
 
   ;; ---- PROPOSAL / QUOTE NO. box ----
-  (setq bx0 (- cx (* Hc 0.31)) bx1 (+ cx (* Hc 0.31)) by0 (* Hc 0.392) by1 (* Hc 0.442))
+  (setq bx0 (- cx (* Hc 0.35)) bx1 (+ cx (* Hc 0.35)) by0 (* Hc 0.366) by1 (* Hc 0.424))
   (tb-rect bx0 by0 bx1 by1 white)
-  (tb-mtext cx (* Hc 0.410)
-            (tb-fith (strcat "PROPOSAL / QUOTE NO. :   " quote) (* (- bx1 bx0) 0.92) (* Hc 0.020))
+  (tb-mtext cx (* Hc 0.395)
+            (tb-fith (strcat "PROPOSAL / QUOTE NO. :   " quote) (* (- bx1 bx0) 0.92) (* Hc 0.022))
             (- bx1 bx0) 5 (strcat "{\\fArial|b1;PROPOSAL / QUOTE NO. :   " quote "}") green)
 
   ;; ---- bottom-right TITLE BLOCK (Mammut) : non-uniform rows, PROJECT row taller ----
