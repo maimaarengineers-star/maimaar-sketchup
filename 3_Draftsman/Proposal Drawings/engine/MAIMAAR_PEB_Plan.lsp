@@ -379,20 +379,25 @@
   )
 )
 
+;; ALL drawing-body text is UPPERCASE (owner rule + Mammut master). These helpers
+;; emit single-line TEXT (no MText/RTF), so a blanket strcase is safe here.
 (defun txt (just pt h rot str)
   (if (not *PEB-TEXT-SCALE*) (setq *PEB-TEXT-SCALE* 1.0))
+  (if str (setq str (strcase str)))
   (setvar "TEXTSTYLE" "PEB-BODY")
   (command "TEXT" "J" just pt (* h *PEB-TEXT-SCALE*) rot str)
 )
 
 (defun txt-bold (just pt h rot str)
   (if (not *PEB-TEXT-SCALE*) (setq *PEB-TEXT-SCALE* 1.0))
+  (if str (setq str (strcase str)))
   (setvar "TEXTSTYLE" "PEB-TITLE")
   (command "TEXT" "J" just pt (* h *PEB-TEXT-SCALE*) rot str)
 )
 
 (defun txt-dim (just pt h rot str)
   (if (not *PEB-TEXT-SCALE*) (setq *PEB-TEXT-SCALE* 1.0))
+  (if str (setq str (strcase str)))
   (setvar "TEXTSTYLE" "PEB-DIM")
   (command "TEXT" "J" just pt (* h *PEB-TEXT-SCALE*) rot str)
 )
@@ -895,6 +900,9 @@
   (tb-line x1 y1 x2 y1 col) (tb-line x2 y1 x2 y2 col)
   (tb-line x2 y2 x1 y2 col) (tb-line x1 y2 x1 y1 col))
 (defun tb-mtext (x y h wid attach str col)
+  ;; UPPERCASE plain strings (labels + IF values); skip RTF blocks ("{\f...}") so
+  ;; MText control words (\fArial, \b1, \P) are not corrupted by strcase.
+  (if (and str (not (vl-string-search "{" str))) (setq str (strcase str)))
   (entmake (list (cons 0 "MTEXT") (cons 100 "AcDbEntity") (cons 8 "0")
                  (cons 62 col) (cons 100 "AcDbMText")
                  (list 10 x y 0.0) (cons 40 h) (cons 41 wid)
@@ -1459,16 +1467,20 @@
   ;; Bay lines run from NSW sheeting outer to FSW sheeting outer.
   ;; Width lines run from LEW sheeting outer to REW sheeting outer.
   ;; Grid bubbles sit just outside the sheeting line for clean look.
-  (setq gridY1 (- 0.0 mainHalfY sheetGap))    ; below NSW sheeting
-  (setq gridY2 (+ wid mainHalfY sheetGap))    ; above FSW sheeting
-  (setq gridX1 (- 0.0 endHalfX sheetGap))     ; left of LEW sheeting
-  (setq gridX2 (+ len endHalfX sheetGap))     ; right of REW sheeting
+  ;; Master (Mammut): grid bubbles sit WELL CLEAR of the building — OUTSIDE the
+  ;; dimension chains — and the green axis line runs from the building out to the
+  ;; bubble, stopping at the bubble edge.  Bay bubbles go above the overall-length
+  ;; dim (wid + 2400 DS); width bubbles go left of the overall-width dim (-3500 DS).
+  (setq gridY1 (- 0.0 mainHalfY sheetGap))            ; near (NSW) end of axis
+  (setq gridY2 (+ wid (* 3300.0 *PEB-DIM-SCALE*)))    ; FSW bubble, clear of dims
+  (setq gridX1 (- 0.0 (* 4300.0 *PEB-DIM-SCALE*)))    ; LEW bubble, clear of dims
+  (setq gridX2 (+ len endHalfX sheetGap))             ; near (REW) end of axis
+  (setq bubR (* 520.0 *PEB-TEXT-SCALE*))              ; gap so line stops at bubble
 
-  ;; Phase-2A v19: bubbles sit at the cyan sheeting line (gridY2 / gridX1).
   (setq i 1)
   (foreach x bayPts
     (setvar "CLAYER" "GRID-LINES")
-    (command "LINE" (list x gridY1) (list x gridY2) "")
+    (command "LINE" (list x gridY1) (list x (- gridY2 bubR)) "")
     (setvar "CLAYER" "GRID")
     (grid-bubble x gridY2 (itoa i))
     (setq i (1+ i))
@@ -1483,7 +1495,7 @@
     (if (and (> y 0.5) (< y (- wid 0.5)))
       (progn
         (setvar "CLAYER" "GRID-LINES")
-        (command "LINE" (list gridX1 y) (list gridX2 y) "")))
+        (command "LINE" (list (+ gridX1 bubR) y) (list gridX2 y) "")))
     (setvar "CLAYER" "GRID")
     (grid-bubble gridX1 y (chr (+ 65 j)))
     (setq j (1+ j))
