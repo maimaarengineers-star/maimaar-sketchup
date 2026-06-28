@@ -260,6 +260,14 @@
   (setq out (cons (cons "OW_FSW" (peb-alist-get v3 "OW_FSW")) out))
   (setq out (cons (cons "OW_LEW" (peb-alist-get v3 "OW_LEW")) out))
   (setq out (cons (cons "OW_REW" (peb-alist-get v3 "OW_REW")) out))
+  ;; Pass every placement (PL*) and bracing (BR*) key through verbatim so the
+  ;; plan can draw doors/windows + the braced-bay clash flag. (wcmatch "PL*" is
+  ;; safe — letters are literal; no '@'/'#' specials in these key names.)
+  (foreach kv v3
+    (if (and (car kv)
+             (or (wcmatch (strcase (car kv)) "PL*")
+                 (wcmatch (strcase (car kv)) "BR*")))
+      (setq out (cons kv out))))
   (reverse out))
 
 ;; ============================================================================
@@ -489,6 +497,91 @@
     (setq cx (/ (+ x0 x1) 2.0) cy (+ oy (/ wid 2.0)))
     (txt "MC" (list cx (+ cy (* 700 *PEB-TEXT-SCALE*))) (* 260 *PEB-TEXT-SCALE*) 0 "BRACED BAY"))
   (setvar "CLAYER" prevLayer))
+
+;; 0-based bay index containing position `at` (mm along length).
+(defun peb-bay-of (at bayPts / i)
+  (setq i 0)
+  (while (and (< (+ i 2) (length bayPts)) (>= at (nth (1+ i) bayPts)))
+    (setq i (1+ i)))
+  i)
+
+;; nearest grid station (mm) to x along a station list.
+(defun peb-nearest-grid (x stations / best bd d)
+  (setq best (car stations) bd 1e12)
+  (foreach g stations (setq d (abs (- x g))) (if (< d bd) (progn (setq bd d best g))))
+  best)
+
+;; Draw ONE wall opening (door/window) in plan: jambs + panel across the gap,
+;; a swing arc for doors, the MARK, an OFFSET dim to the nearest grid, and a RED
+;; "(!) OPENING IN BRACED BAY" flag when a sidewall opening sits in a braced bay.
+(defun peb-draw-one-opening (surf at w mark isDoor braced len wid ox oy bayPts
+                             / px py horiz hw dep prev inSign ng off)
+  (setq hw (/ w 2.0) dep 400.0 prev (getvar "CLAYER"))
+  (cond
+    ((= surf "NSW") (setq px (+ ox at) py oy        horiz T inSign 1.0))
+    ((= surf "FSW") (setq px (+ ox at) py (+ oy wid) horiz T inSign -1.0))
+    ((= surf "LEW") (setq px ox        py (+ oy at) horiz nil inSign 1.0))
+    ((= surf "REW") (setq px (+ ox len) py (+ oy at) horiz nil inSign -1.0))
+    (T (setq px nil)))
+  (if px (progn
+    (setvar "CLAYER" "OPEN")
+    (if horiz
+      (progn
+        (command "_.LINE" (list (- px hw) py) (list (- px hw) (+ py (* inSign dep))) "")
+        (command "_.LINE" (list (+ px hw) py) (list (+ px hw) (+ py (* inSign dep))) "")
+        (command "_.LINE" (list (- px hw) (+ py (* inSign dep))) (list (+ px hw) (+ py (* inSign dep))) "")
+        ;; swing arc ONLY for narrow personnel doors (<=1.5m); wide industrial
+        ;; doors (roll-up/sliding) just show the clean opening gap.
+        (if (and isDoor (<= w 1500.0)) (command "_.ARC" "_C" (list (- px hw) py) (list (+ px hw) py) (list (- px hw) (+ py (* inSign w))))))
+      (progn
+        (command "_.LINE" (list px (- py hw)) (list (+ px (* inSign dep)) (- py hw)) "")
+        (command "_.LINE" (list px (+ py hw)) (list (+ px (* inSign dep)) (+ py hw)) "")
+        (command "_.LINE" (list (+ px (* inSign dep)) (- py hw)) (list (+ px (* inSign dep)) (+ py hw)) "")
+        (if (and isDoor (<= w 1500.0)) (command "_.ARC" "_C" (list px (- py hw)) (list px (+ py hw)) (list (+ px (* inSign w)) (- py hw))))))
+    ;; MARK label just outside the wall
+    (setvar "CLAYER" "TEXT")
+    (if horiz
+      (txt "MC" (list px (- py (* inSign 600 *PEB-TEXT-SCALE*))) (* 280 *PEB-TEXT-SCALE*) 0 mark)
+      (txt "MC" (list (- px (* inSign 600 *PEB-TEXT-SCALE*)) py) (* 280 *PEB-TEXT-SCALE*) 0 mark))
+    ;; OFFSET dim from the nearest grid (so the draughtsman sees the location;
+    ;; no cross-bracing may sit at an opening) — horizontal walls only (length axis).
+    (if horiz
+      (progn
+        (setq ng (peb-nearest-grid (- px ox) bayPts) off (abs (- (- px ox) ng)))
+        (if (> off 1.0)
+          (progn
+            (peb-dim-h-stretch (+ ox ng) px
+                               (+ py (* inSign 1900 *PEB-DIM-SCALE*))
+                               (rtos off 2 0))
+            (peb-recolor-last-dim 0)))))
+    ;; clash flag
+    (if braced
+      (progn
+        (setvar "CLAYER" "COLUMNS")             ; red
+        (txt "MC" (list px (- py (* inSign 1250 *PEB-TEXT-SCALE*)))
+             (* 230 *PEB-TEXT-SCALE*) 0 "(!) OPENING IN BRACED BAY")))
+    (setvar "CLAYER" prev))))
+
+;; Loop [PLACEMENTS]: draw every wall door/window (skip ROOF — that's the roof plan).
+(defun peb-draw-placements (data ox oy len wid bayPts / cnt i pre surf at w mark typ isDoor braced bayIdx)
+  (setq cnt (atoi (peb-tb-or (MSPL-Get-Str data "PL_COUNT") "0")))
+  (setq braced (peb-braced-bays bayPts))
+  (setq i 1)
+  (while (<= i cnt)
+    (setq pre  (strcat "PL" (itoa i) "_"))
+    (setq surf (strcase (peb-tb-or (MSPL-Get-Str data (strcat pre "SURFACE")) "")))
+    (setq at   (atof (peb-tb-or (MSPL-Get-Str data (strcat pre "AT")) "0")))
+    (setq w    (atof (peb-tb-or (MSPL-Get-Str data (strcat pre "WIDTH")) "0")))
+    (setq mark (peb-tb-or (MSPL-Get-Str data (strcat pre "MARK")) ""))
+    (setq typ  (strcase (peb-tb-or (MSPL-Get-Str data (strcat pre "TYPE")) "")))
+    (setq isDoor (or (vl-string-search "DOOR" typ) (= typ "")))
+    (if (and (> w 0.0) (member surf '("NSW" "FSW" "LEW" "REW")))
+      (progn
+        (setq bayIdx (if (member surf '("NSW" "FSW")) (peb-bay-of at bayPts) -1))
+        (peb-draw-one-opening surf at w mark isDoor
+                              (if (member bayIdx braced) T nil)
+                              len wid ox oy bayPts)))
+    (setq i (1+ i))))
 
 (defun draw-RCC-column (x y / s prevLayer)
   (setq s 520)
@@ -1526,6 +1619,9 @@
   ;; Mammut convention: brace the 2nd & 2nd-last bay (never end bays) + interior
   ;; braces so no unbraced run > 27 m.  Drawn on the CROSS layer (hidden, 0.13).
   (vl-catch-all-apply (function (lambda () (peb-draw-bracing bayPts wid 0.0 0.0))))
+
+  ;; ── Doors / windows at their offsets (+ braced-bay clash flag) ─
+  (vl-catch-all-apply (function (lambda () (peb-draw-placements data 0.0 0.0 len wid bayPts))))
 
   ;; ── Slope arrows (Phase-2A user rules) ────────────────────────
   ;; Column-count rule, start at bay 2 (between GL 2-3):

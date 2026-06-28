@@ -72,6 +72,7 @@
     ("ARROWS"       3   "Continuous" 0.13)   ; dim ticks/arrows match dim colour
     ("TEXT"         7   "Continuous" 0.13)
     ("AREA-MARK"    8   "Continuous" 0.09)
+    ("OPEN"         6   "Continuous" 0.18)   ; doors / windows / openings (magenta)
     ;; --- masonry / RCC / fills ---
     ("BRICK-WALL"   30  "Continuous" 0.25)
     ("RCC-COLUMN"   8   "Continuous" 0.35)
