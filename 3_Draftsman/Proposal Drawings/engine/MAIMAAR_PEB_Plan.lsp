@@ -510,21 +510,22 @@
 ;; (inset top/bottom by web/2 = colOff, not the full sheeting width) + a clearly
 ;; visible "BRACED BAY" tag.  ox/oy = area origin (0,0 single).
 (defun peb-draw-bracing (bayPts wid ox oy / braced prevLayer x0 x1 cx ymid first)
-  ;; Cross-bracing on the COLUMN LAYOUT PLAN, Zealcon style: a dotted (DASHED)
-  ;; cyan X across each braced bay, corner-to-corner — between the side-wall
-  ;; columns, touching BOTH side walls (NSW + FSW).  Each braced bay carries a
-  ;; vertical magenta "BRACED BAY" tag; one "CROSS BRACING (TYP.)" note overall.
+  ;; Cross-bracing on the COLUMN LAYOUT PLAN, Zealcon style: a cyan DOTTED (DASHED)
+  ;; BOWTIE per braced bay — ONE X per roof slope, pinching at the ridge centreline
+  ;; (ymid).  This is the true roof-bracing representation (X in each roof plane),
+  ;; not a single full-width X.  Vertical magenta "BRACED BAY" + "CROSS BRACING (TYP.)".
   (setq braced (peb-braced-bays bayPts))
   (setq prevLayer (getvar "CLAYER") ymid (+ oy (/ wid 2.0)) first T)
   (foreach b braced
     (setq x0 (+ ox (nth b bayPts)) x1 (+ ox (nth (1+ b) bayPts)) cx (/ (+ x0 x1) 2.0))
     (setvar "CLAYER" "CROSS")
-    (command "_.LINE" (list x0 oy)        (list x1 (+ oy wid)) "")   ; NSW->FSW diagonal
-    (command "_.LINE" (list x0 (+ oy wid)) (list x1 oy)        "")   ; FSW->NSW diagonal
-    ;; vertical magenta "BRACED BAY" tag in the bay (SECONDARY layer = magenta)
+    (command "_.LINE" (list x0 oy)         (list x1 ymid)       "")   ; lower slope /
+    (command "_.LINE" (list x0 ymid)       (list x1 oy)         "")   ; lower slope \
+    (command "_.LINE" (list x0 ymid)       (list x1 (+ oy wid)) "")   ; upper slope /
+    (command "_.LINE" (list x0 (+ oy wid)) (list x1 ymid)       "")   ; upper slope \
+    ;; "BRACED BAY" marking — vertical, magenta (Zealcon)
     (setvar "CLAYER" "SECONDARY")
-    (txt-bold "MC" (list cx ymid) (* 300 *PEB-TEXT-SCALE*) 90 "BRACED BAY")
-    ;; one "CROSS BRACING (TYP.)" note (first braced bay), below the building
+    (txt-bold "MC" (list cx ymid) (* 320 *PEB-TEXT-SCALE*) 90 "BRACED BAY")
     (if first
       (progn
         (setq first nil)
@@ -1435,6 +1436,9 @@
   (setq mainHalfY 0.0)                ; column outer flange = grid line
   (setq endHalfX  0.0)
   (setq sheetGap  230.0)              ; column flange → sheeting gap
+  ;; Global linetype scale tied to building size so DASHED/CENTER linetypes
+  ;; (grid lines, cross-bracing) actually render as dashes at this scale.
+  (setvar "LTSCALE" (max 60.0 (/ (max len wid) 400.0)))
   (setvar "CELTSCALE" 2.0)            ; per-entity linetype scale = 2.0
   (setvar "CLAYER" "COL-OUTER")
   (command "RECTANG"

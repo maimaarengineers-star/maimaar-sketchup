@@ -45,7 +45,7 @@
     ("TB-HEADER"    1   "Continuous" 0.50)
     ;; --- grid system (green grid + Roshan thin sub-scheme @ 0.09) ---
     ("GRID"         3   "Continuous" 0.13)   ; grid bubbles + chain frame (Mammut grid = green)
-    ("GRID-LINES"   3   "Continuous" 0.09)   ; grid axis lines — green continuous (master)
+    ("GRID-LINES"   3   "DASHED"     0.09)   ; grid axis lines — green dashed (Zealcon)
     ("GRID-TEXT"    1   "Continuous" 0.09)   ; grid bubble numbers (red)
     ("COLUMN-HATCH" 8   "Continuous" 0.09)   ; column poché (thin grey)
     ;; --- primary steel ---
@@ -53,7 +53,7 @@
     ("COLUMNS"      1   "Continuous" 0.50)   ; Template-B heavy RED columns
     ("COL-CENTER"   1   "CENTER"     0.09)   ; plan column centre-line
     ("CL"           1   "CENTER"     0.09)   ; section alias of COL-CENTER
-    ("CROSS"        4   "DASHED"     0.13)   ; cross-bracing — cyan dotted diagonal (Zealcon)
+    ("CROSS"        4   "DASHED"     0.18)   ; cross-bracing — cyan dotted X (Zealcon)
     ("BOLTS"        7   "Continuous" 0.09)
     ("PLATES"       7   "Continuous" 0.35)
     ("FRAME"        7   "Continuous" 0.50)   ; section main-frame outline (heavy)
