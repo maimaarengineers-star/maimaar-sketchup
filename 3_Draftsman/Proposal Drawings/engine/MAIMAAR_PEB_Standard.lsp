@@ -53,6 +53,7 @@
     ("COLUMNS"      1   "Continuous" 0.50)   ; Template-B heavy RED columns
     ("COL-CENTER"   1   "CENTER"     0.09)   ; plan column centre-line
     ("CL"           1   "CENTER"     0.09)   ; section alias of COL-CENTER
+    ("CROSS"        82  "HIDDEN"     0.13)   ; X cross-bracing (exemplar-exact)
     ("BOLTS"        7   "Continuous" 0.09)
     ("PLATES"       7   "Continuous" 0.35)
     ("FRAME"        7   "Continuous" 0.50)   ; section main-frame outline (heavy)

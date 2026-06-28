@@ -457,6 +457,39 @@
   (setvar "CLAYER" prevLayer)
 )
 
+;; Braced-bay selection — port of geometryRules bracingPlan: never brace the END
+;; bays; brace the 2nd and 2nd-last bay; add interior braces so no unbraced run
+;; exceeds 27 m. Returns 0-based bay indices. bayPts = grid x-stations (len+1 pts).
+(defun peb-braced-bays (bayPts / n braced i x1 lastX)
+  (setq n (1- (length bayPts)))
+  (cond
+    ((<= n 0) nil)
+    ((= n 1) (list 0))
+    ((= n 2) (list 0 1))
+    (T
+      (setq braced (list 1 (- n 2)))
+      (setq i 2 lastX (nth 2 bayPts))           ; right edge of the braced 2nd bay
+      (while (< i (- n 2))
+        (setq x1 (nth (1+ i) bayPts))
+        (if (> (- x1 lastX) 27000.0)
+          (progn (setq braced (cons i braced)) (setq lastX x1)))
+        (setq i (1+ i)))
+      braced)))
+
+;; Draw roof X cross-bracing in each braced bay (full-width X between the two
+;; adjacent frame lines) + a "BRACED BAY" tag.  ox/oy = area origin (0,0 single).
+(defun peb-draw-bracing (bayPts wid ox oy / braced prevLayer x0 x1 cx cy)
+  (setq braced (peb-braced-bays bayPts))
+  (setq prevLayer (getvar "CLAYER"))
+  (setvar "CLAYER" "CROSS")
+  (foreach b braced
+    (setq x0 (+ ox (nth b bayPts)) x1 (+ ox (nth (1+ b) bayPts)))
+    (command "_.LINE" (list x0 oy)        (list x1 (+ oy wid)) "")
+    (command "_.LINE" (list x0 (+ oy wid)) (list x1 oy)        "")
+    (setq cx (/ (+ x0 x1) 2.0) cy (+ oy (/ wid 2.0)))
+    (txt "MC" (list cx (+ cy (* 700 *PEB-TEXT-SCALE*))) (* 260 *PEB-TEXT-SCALE*) 0 "BRACED BAY"))
+  (setvar "CLAYER" prevLayer))
+
 (defun draw-RCC-column (x y / s prevLayer)
   (setq s 520)
   (setq prevLayer (getvar "CLAYER"))
@@ -1253,9 +1286,9 @@
   (setvar "CELTSCALE" 1.0)            ; reset for everything else
 
   ;; ── AREA marking (Mammut convention) ──────────────────────────────
-  ;; A boxed "AREA No. 01" tag at the centre, with FOUR lines running from
-  ;; the box's corners out to the building's four corners (the box masks the
-  ;; crossing — lines do NOT pass through it).
+  ;; A clean boxed "AREA No. 01" tag at the centre.  (The old full-span corner
+  ;; diagonals were removed — Mammut identifies an area with a boxed tag, not a
+  ;; giant X, and the X competed visually with the real roof cross-bracing.)
   (setq aCx (/ len 2.0) aCy (/ wid 2.0))
   (setq aTxH (if *PEB-TEXT-SCALE* (* 550.0 *PEB-TEXT-SCALE*) 550.0))
   (setq aBw  (+ (* (strlen "AREA No. 01") aTxH 0.34) aTxH))   ; box half-width to fit text
@@ -1264,11 +1297,6 @@
   (defun aLn (x1 y1 x2 y2)
     (entmake (list (cons 0 "LINE") (cons 8 "AREA-MARK")
                    (list 10 x1 y1 0.0) (list 11 x2 y2 0.0))))
-  ;; four lines: box corner -> nearest building corner
-  (aLn (- aCx aBw) (+ aCy aBh) 0.0 wid)     ; top-left
-  (aLn (+ aCx aBw) (+ aCy aBh) len wid)     ; top-right
-  (aLn (- aCx aBw) (- aCy aBh) 0.0 0.0)     ; bottom-left
-  (aLn (+ aCx aBw) (- aCy aBh) len 0.0)     ; bottom-right
   ;; centre box (4 lines)
   (aLn (- aCx aBw) (- aCy aBh) (+ aCx aBw) (- aCy aBh))
   (aLn (+ aCx aBw) (- aCy aBh) (+ aCx aBw) (+ aCy aBh))
@@ -1493,6 +1521,11 @@
       )
     )
   )
+
+  ;; ── Roof cross-bracing (X) in the braced bays ────────────────
+  ;; Mammut convention: brace the 2nd & 2nd-last bay (never end bays) + interior
+  ;; braces so no unbraced run > 27 m.  Drawn on the CROSS layer (hidden, 0.13).
+  (vl-catch-all-apply (function (lambda () (peb-draw-bracing bayPts wid 0.0 0.0))))
 
   ;; ── Slope arrows (Phase-2A user rules) ────────────────────────
   ;; Column-count rule, start at bay 2 (between GL 2-3):
