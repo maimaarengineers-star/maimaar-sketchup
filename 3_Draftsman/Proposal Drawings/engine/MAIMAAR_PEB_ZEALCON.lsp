@@ -51,18 +51,18 @@
      (z-poly p "Z-BUB" 3 T)
      (z-txt (+ x (* r 0.18)) y (* r 0.95) 0 lab "Z-BUBTXT" 3))))
 
-;; dotted (DASHED) cyan X across a bay [x0,x1] x [y0,y1]
-(defun z-brace (x0 x1 y0 y1)
-  (z-line x0 y0 x1 y1 "Z-CROSS" 4)
-  (z-line x0 y1 x1 y0 "Z-CROSS" 4))
+;; cyan ISO-dot cross-bracing — TWO X's per braced bay pinching at the ridge
+;; centreline ym (one X per roof slope), matching the Zealcon "bowtie".
+(defun z-brace (x0 x1 y0 y1 ym)
+  (z-line x0 y0 x1 ym "Z-CROSS" 4) (z-line x0 ym x1 y0 "Z-CROSS" 4)   ; lower slope X
+  (z-line x0 ym x1 y1 "Z-CROSS" 4) (z-line x0 y1 x1 ym "Z-CROSS" 4))  ; upper slope X
 
-;; red FILL marker (small pentagon + vertical "FILL")
-(defun z-fill (x y / r)
-  (setq r 360.0)
-  (z-poly (list (list (- x r)(+ y (* r 0.45))) (list (+ x r)(+ y (* r 0.45)))
-                (list (+ x r)(- y (* r 0.15))) (list x (- y r))
-                (list (- x r)(- y (* r 0.15)))) "Z-FILL" 1 T)
-  (z-txt (- x (* r 2.2)) y 360.0 90 "FILL" "Z-FILL" 1))
+;; white "FALL" roof-drainage marker (vertical text + small slope arrow) — Zealcon
+(defun z-fall (x y dir / a)        ; dir +1 toward eave above, -1 below
+  (z-txt (- x 700.0) y 560.0 90 "FALL" "Z-DIM" 7)
+  (z-line x (- y 500.0) x (+ y 500.0) "Z-DIM" 7)
+  (z-line x (+ y (* dir 500.0)) (- x 200.0) (+ y (* dir 150.0)) "Z-DIM" 7)
+  (z-line x (+ y (* dir 500.0)) (+ x 200.0) (+ y (* dir 150.0)) "Z-DIM" 7))
 
 ;; hand-drawn leader: line tip->elbow + filled arrow at tip + text at elbow
 (defun z-leader (tx ty ex ey str lay col / a hl dx dy d ux uy)
@@ -80,13 +80,14 @@
 (defun C:ZEALCON-PLAN ( / bayPts widthPts L W i j n x x0 x1 y bub dimY1 dimY2
                           gridTop gridLeft dimX1 dimX2 ax cy)
   (setvar "FILEDIA" 0) (setvar "CMDECHO" 0)
-  (if (not (tblsearch "LTYPE" "DASHED"))
-    (vl-catch-all-apply (function (lambda () (command "_.-LINETYPE" "_Load" "DASHED" "acad.lin" "")))))
+  (foreach lt '("DASHED" "ACAD_ISO07W100")
+    (if (not (tblsearch "LTYPE" lt))
+      (vl-catch-all-apply (function (lambda () (command "_.-LINETYPE" "_Load" lt "acad.lin" ""))))))
   (setvar "LTSCALE" 100.0)
   (z-layer "Z-OUTLINE" 7 "Continuous") (z-layer "Z-GRID" 3 "DASHED")
   (z-layer "Z-BUB" 3 "Continuous") (z-layer "Z-BUBTXT" 3 "Continuous")
   (z-layer "Z-DIM" 7 "Continuous") (z-layer "Z-COL" 1 "Continuous")
-  (z-layer "Z-CROSS" 4 "DASHED") (z-layer "Z-AREA" 7 "Continuous")
+  (z-layer "Z-CROSS" 4 "ACAD_ISO07W100") (z-layer "Z-AREA" 7 "Continuous")
   (z-layer "Z-FILL" 1 "Continuous") (z-layer "Z-BB" 6 "Continuous")
   (z-layer "Z-TITLE" 5 "Continuous") (z-layer "Z-CRANE" 7 "Continuous")
 
@@ -105,18 +106,16 @@
     (z-line x 0.0 x (- gridTop 600.0) "Z-GRID" 3)
     (z-bubble x gridTop 600.0 (itoa (1+ i)) "D")
     (setq i (1+ i)))
-  ;; horizontal grid lines + left bubbles (A..C)
-  (setq j 0)
-  (foreach y widthPts
-    (z-line (+ gridLeft 600.0) y L y "Z-GRID" 3)
-    (z-bubble gridLeft y 600.0 (chr (+ 65 j)) "R")
-    (setq j (1+ j)))
+  ;; horizontal grids — ONLY A (top wall) and B (bottom wall); the 6200/6200 is
+  ;; the half-width to the RIDGE centreline, NOT a grid (no bubble, no columns).
+  (z-line (+ gridLeft 600.0) W L W "Z-GRID" 3) (z-bubble gridLeft W 600.0 "A" "R")
+  (z-line (+ gridLeft 600.0) 0.0 L 0.0 "Z-GRID" 3) (z-bubble gridLeft 0.0 600.0 "B" "R")
 
-  ;; columns — small red filled square at each grid node
+  ;; columns — at A & B walls only (8 x 2), Zealcon column colour (ACI 20)
   (foreach x bayPts
-    (foreach y widthPts
+    (foreach y (list 0.0 W)
       (z-solid (list (- x 180)(- y 180)) (list (+ x 180)(- y 180))
-               (list (- x 180)(+ y 180)) (list (+ x 180)(+ y 180)) "Z-COL" 1)))
+               (list (- x 180)(+ y 180)) (list (+ x 180)(+ y 180)) "Z-COL" 20)))
 
   ;; LENGTH dim chain (individual bays) at top + overall note
   (z-line 0.0 dimY1 L dimY1 "Z-DIM" 7)
@@ -149,42 +148,45 @@
     (setq ax (cadr a) cy (/ W 2.0))
     (z-poly (list (list (- ax 1600)(- cy 500)) (list (+ ax 1600)(- cy 500))
                   (list (+ ax 1600)(+ cy 500)) (list (- ax 1600)(+ cy 500))) "Z-AREA" 7 T)
-    (z-txt ax cy 650.0 0 (car a) "Z-AREA" 7))
+    (z-txt ax cy 702.0 0 (car a) "Z-AREA" 7))
 
-  ;; cross-bracing (dotted cyan X) in 2 braced bays + BRACED BAY + note
+  ;; cross-bracing (cyan ISO-dot X, pinched at the ridge) in 2 braced bays +
+  ;; "B R A C E D  B A Y" (magenta, vertical) + 2-line CROSS BRACING / (TYP.) note
   (foreach bb (list (list 5750.0 11500.0) (list 28900.0 34100.0))
     (setq x0 (car bb) x1 (cadr bb))
-    (z-brace x0 x1 0.0 W)
-    (z-txt (/ (+ x0 x1) 2.0) (/ W 2.0) 700.0 90 "BRACED BAY" "Z-BB" 6))
-  (z-leader 6000.0 -200.0 4500.0 -1800.0 "CROSS BRACING (TYP.)" "Z-DIM" 7)
+    (z-brace x0 x1 0.0 W (/ W 2.0))
+    (z-txt (/ (+ x0 x1) 2.0) (/ W 2.0) 514.0 90 "B R A C E D  B A Y" "Z-BB" 6))
+  (z-leader 6000.0 -200.0 4500.0 -1800.0 "CROSS BRACING" "Z-DIM" 7)
+  (z-txt 4500.0 -2350.0 500.0 0 "(TYP.)" "Z-DIM" 7)
 
-  ;; FILL markers at braced columns
-  (foreach fp (list (list 5750.0 (* W 0.72)) (list 5750.0 (* W 0.28))
-                    (list 28900.0 (* W 0.72)) (list 28900.0 (* W 0.28)))
-    (z-fill (car fp) (cadr fp)))
+  ;; FALL roof-drainage markers (white, vertical) — one per slope at each end zone
+  (z-fall 5750.0  (* W 0.72)  1.0) (z-fall 5750.0  (* W 0.28) -1.0)
+  (z-fall 28900.0 (* W 0.72)  1.0) (z-fall 28900.0 (* W 0.28) -1.0)
 
-  ;; BEARING FRAME BOTH ENDS leader (top-left)
-  (z-leader 0.0 W (- 0.0 3500.0) (+ W 2600.0) "BEARING FRAME BOTH ENDS" "Z-DIM" 7)
+  ;; BEARING FRAME / BOTH ENDS (2-line leader, top-left)
+  (z-leader 0.0 W (- 0.0 3500.0) (+ W 2900.0) "BEARING FRAME" "Z-DIM" 7)
+  (z-txt (- 0.0 2400.0) (+ W 2300.0) 500.0 0 "BOTH ENDS" "Z-DIM" 7)
 
-  ;; crane: beam line (mid) + crane symbol + run note
+  ;; crane: beam line (mid) + crane symbol + 2 run notes (grey ACI 8)
   (z-line 5750.0 (/ W 2.0) 34100.0 (/ W 2.0) "Z-CRANE" 7)
   (z-poly (list (list 22000 (- (/ W 2.0) 300))(list 23200 (- (/ W 2.0) 300))
                 (list 23200 (+ (/ W 2.0) 300))(list 22000 (+ (/ W 2.0) 300))) "Z-CRANE" 7 T)
-  (z-txt 17600.0 (+ (/ W 2.0) 400.0) 450.0 0 "CRANE RUN: 12200   02MT CRANE" "Z-CRANE" 7)
+  (z-txt 19000.0 (+ (/ W 2.0) 500.0) 450.0 0 "CRANE RUN: 12200" "Z-CRANE" 8)
+  (z-txt 19000.0 (- (/ W 2.0) 500.0) 450.0 0 "02MT Crane"       "Z-CRANE" 8)
   (z-leader 11500.0 (* W 0.62) 13500.0 (* W 0.80) "CRANE BEAM" "Z-DIM" 7)
 
-  ;; ridge line + rafter + roof/ladder labels
+  ;; ridge line + rafter + roof/ladder labels (spread to avoid overlap)
   (z-leader 17600.0 (/ W 2.0) 15000.0 (* W 0.62) "RIDGE LINE" "Z-DIM" 7)
-  (z-leader 34100.0 (* W 0.55) 36500.0 (* W 0.62) "C/L OF RAFTER" "Z-DIM" 7)
-  (z-leader 0.0 0.0 (- 0.0 2500.0) (- 0.0 1500.0) "CAGE LADDER" "Z-DIM" 7)
-  (z-leader 5750.0 0.0 4000.0 (- 0.0 1500.0) "CAGE LADDER" "Z-DIM" 7)
-  (z-leader 1000.0 0.0 (- 0.0 1500.0) (- 0.0 2600.0) "LOW ROOF" "Z-DIM" 7)
+  (z-leader 34100.0 (* W 0.55) 36500.0 (* W 0.62) "CL OF RAFTER" "Z-DIM" 7)
+  (z-leader 2000.0 0.0 2000.0 (- 0.0 1500.0) "CAGE LADDER" "Z-DIM" 7)
+  (z-leader 6500.0 0.0 7500.0 (- 0.0 2600.0) "CAGE LADDER" "Z-DIM" 7)
+  (z-leader 300.0 0.0 (- 0.0 2600.0) (- 0.0 900.0) "LOW ROOF" "Z-DIM" 7)
   (z-leader L (* W 0.30) (+ L 2600.0) (* W 0.20) "HIGH ROOF" "Z-DIM" 7)
-  (z-txt (- gridLeft 1200.0) (- 0.0 1200.0) 600.0 0 "LEW" "Z-DIM" 7)
-  (z-leader (* L 0.72) 0.0 (* L 0.80) (- 0.0 1800.0) "NEAR SIDE WALL" "Z-DIM" 7)
+  (z-txt (- gridLeft 1400.0) (- 0.0 900.0) 600.0 0 "LEW" "Z-DIM" 7)
+  (z-leader (* L 0.78) 0.0 (* L 0.82) (- 0.0 1800.0) "NEAR SIDE WALL" "Z-DIM" 7)
 
-  ;; title (blue, big, bottom-centre)  — NO title block
-  (z-txt (/ L 2.0) (- 0.0 5500.0) 1600.0 0 "COLUMN LAY-OUT PLAN" "Z-TITLE" 5)
+  ;; title (blue, big, UNDERLINED, bottom-centre)  — NO title block
+  (z-txt (/ L 2.0) (- 0.0 5200.0) 1131.0 0 "%%uCOLUMN LAY-OUT PLAN" "Z-TITLE" 5)
 
   (command "_.ZOOM" "_E")
   (princ "\nZealcon column-layout plan drawn."))
