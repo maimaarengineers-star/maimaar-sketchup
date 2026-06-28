@@ -53,7 +53,7 @@
     ("COLUMNS"      1   "Continuous" 0.50)   ; Template-B heavy RED columns
     ("COL-CENTER"   1   "CENTER"     0.09)   ; plan column centre-line
     ("CL"           1   "CENTER"     0.09)   ; section alias of COL-CENTER
-    ("CROSS"        82  "Continuous" 0.13)   ; X cross-bracing — solid (master)
+    ("CROSS"        4   "DASHED"     0.13)   ; cross-bracing — cyan dotted diagonal (Zealcon)
     ("BOLTS"        7   "Continuous" 0.09)
     ("PLATES"       7   "Continuous" 0.35)
     ("FRAME"        7   "Continuous" 0.50)   ; section main-frame outline (heavy)
@@ -194,7 +194,7 @@
 (defun peb-std-setup ( / )
   (vl-catch-all-apply '(lambda () (setvar "LWDISPLAY" 1)))  ; show lineweights
   ;; preload the linetypes the standard uses
-  (foreach lt '("DASHDOT" "HIDDEN" "CENTER") (peb-std-ltype lt))
+  (foreach lt '("DASHDOT" "HIDDEN" "CENTER" "DASHED") (peb-std-ltype lt))
   (peb-ensure-layers)
   (peb-std-textstyle "PEB-TITLE" "romand.shx")
   (peb-std-textstyle "PEB-BODY"  "romans.shx")

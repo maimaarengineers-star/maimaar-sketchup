@@ -509,18 +509,27 @@
 ;; Draw roof X cross-bracing in each braced bay — the X spans BETWEEN THE COLUMNS
 ;; (inset top/bottom by web/2 = colOff, not the full sheeting width) + a clearly
 ;; visible "BRACED BAY" tag.  ox/oy = area origin (0,0 single).
-(defun peb-draw-bracing (bayPts wid ox oy / braced prevLayer x0 x1 cx cy inset y0 y1)
+(defun peb-draw-bracing (bayPts wid ox oy / braced prevLayer x0 x1 cx ymid first)
+  ;; Cross-bracing on the COLUMN LAYOUT PLAN, Zealcon style: a dotted (DASHED)
+  ;; cyan X across each braced bay, corner-to-corner — between the side-wall
+  ;; columns, touching BOTH side walls (NSW + FSW).  Each braced bay carries a
+  ;; vertical magenta "BRACED BAY" tag; one "CROSS BRACING (TYP.)" note overall.
   (setq braced (peb-braced-bays bayPts))
-  (setq inset (/ (if *PEB-COL-WEB* *PEB-COL-WEB* 600.0) 2.0))
-  (setq prevLayer (getvar "CLAYER"))
-  (setvar "CLAYER" "CROSS")
+  (setq prevLayer (getvar "CLAYER") ymid (+ oy (/ wid 2.0)) first T)
   (foreach b braced
-    (setq x0 (+ ox (nth b bayPts)) x1 (+ ox (nth (1+ b) bayPts)))
-    (setq y0 (+ oy inset) y1 (+ oy (- wid inset)))
-    (command "_.LINE" (list x0 y0) (list x1 y1) "")
-    (command "_.LINE" (list x0 y1) (list x1 y0) "")
-    (setq cx (/ (+ x0 x1) 2.0) cy (+ oy (/ wid 2.0)))
-    (txt "MC" (list cx cy) (* 280 *PEB-TEXT-SCALE*) 0 "BRACED BAY"))
+    (setq x0 (+ ox (nth b bayPts)) x1 (+ ox (nth (1+ b) bayPts)) cx (/ (+ x0 x1) 2.0))
+    (setvar "CLAYER" "CROSS")
+    (command "_.LINE" (list x0 oy)        (list x1 (+ oy wid)) "")   ; NSW->FSW diagonal
+    (command "_.LINE" (list x0 (+ oy wid)) (list x1 oy)        "")   ; FSW->NSW diagonal
+    ;; vertical magenta "BRACED BAY" tag in the bay (SECONDARY layer = magenta)
+    (setvar "CLAYER" "SECONDARY")
+    (txt-bold "MC" (list cx ymid) (* 300 *PEB-TEXT-SCALE*) 90 "BRACED BAY")
+    ;; one "CROSS BRACING (TYP.)" note (first braced bay), below the building
+    (if first
+      (progn
+        (setq first nil)
+        (setvar "CLAYER" "TEXT")
+        (txt "MC" (list cx (- oy (* 1500 *PEB-TEXT-SCALE*))) (* 260 *PEB-TEXT-SCALE*) 0 "CROSS BRACING (TYP.)"))))
   (setvar "CLAYER" prevLayer))
 
 ;; 0-based bay index containing position `at` (mm along length).
@@ -1437,10 +1446,10 @@
     (list (+ len sheetGap)            (+ wid sheetGap)))
   (setvar "CELTSCALE" 1.0)            ; reset for everything else
 
-  ;; ── AREA marking (Mammut convention) ──────────────────────────────
-  ;; A boxed "AREA No. 01" tag at the centre + the FOUR area cross-lines running
-  ;; from the box corners out to the building corners (the area-identification X).
-  ;; The box masks the crossing so the lines do not pass through the label.
+  ;; ── AREA marking (Zealcon convention) ─────────────────────────────
+  ;; A boxed "AREA No. 01" tag at the centre.  NO full-building diagonal X — the
+  ;; area is identified by the box; the only X on the plan is the cross-bracing
+  ;; in the braced bays (Zealcon master).
   (setq aCx (/ len 2.0) aCy (/ wid 2.0))
   (setq aTxH (if *PEB-TEXT-SCALE* (* 550.0 *PEB-TEXT-SCALE*) 550.0))
   (setq aBw  (+ (* (strlen "AREA No. 01") aTxH 0.34) aTxH))   ; box half-width to fit text
@@ -1449,11 +1458,6 @@
   (defun aLn (x1 y1 x2 y2)
     (entmake (list (cons 0 "LINE") (cons 8 "AREA-MARK")
                    (list 10 x1 y1 0.0) (list 11 x2 y2 0.0))))
-  ;; four area cross-lines: box corner -> nearest building corner
-  (aLn (- aCx aBw) (+ aCy aBh) 0.0 wid)     ; top-left
-  (aLn (+ aCx aBw) (+ aCy aBh) len wid)     ; top-right
-  (aLn (- aCx aBw) (- aCy aBh) 0.0 0.0)     ; bottom-left
-  (aLn (+ aCx aBw) (- aCy aBh) len 0.0)     ; bottom-right
   ;; centre box (4 lines)
   (aLn (- aCx aBw) (- aCy aBh) (+ aCx aBw) (- aCy aBh))
   (aLn (+ aCx aBw) (- aCy aBh) (+ aCx aBw) (+ aCy aBh))

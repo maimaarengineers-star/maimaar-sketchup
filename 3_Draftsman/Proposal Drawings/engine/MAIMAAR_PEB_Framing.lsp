@@ -57,8 +57,15 @@
   (setvar "CLAYER" "RIDGE")
   (command "_.LINE" (list ox midY) (list (+ ox len) midY) "")
 
-  ;; roof X cross-bracing in the braced bays (reuse plan logic)
-  (vl-catch-all-apply (function (lambda () (peb-draw-bracing bayPts wid ox oy))))
+  ;; ROOF cross-bracing in the braced bays — full-bay X (this is the ROOF plane;
+  ;; the COLUMN LAYOUT plan carries the WALL bracing via peb-draw-bracing).
+  (vl-catch-all-apply (function (lambda ()
+    (setq prev (getvar "CLAYER"))
+    (setvar "CLAYER" "CROSS")
+    (foreach b (peb-braced-bays bayPts)
+      (command "_.LINE" (list (+ ox (nth b bayPts)) oy) (list (+ ox (nth (1+ b) bayPts)) (+ oy wid)) "")
+      (command "_.LINE" (list (+ ox (nth b bayPts)) (+ oy wid)) (list (+ ox (nth (1+ b) bayPts)) oy) ""))
+    (setvar "CLAYER" prev))))
 
   ;; FALL arrows (ridge -> each eave) at a few stations
   (foreach fx (list (* len 0.25) (* len 0.75))
