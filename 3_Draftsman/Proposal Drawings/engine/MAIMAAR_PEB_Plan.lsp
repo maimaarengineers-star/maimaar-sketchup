@@ -544,6 +544,16 @@
     ((= u "")                                           "OUT TO OUT OF STEEL")
     (T u)))
 
+;; render a raw IF grouped spacing expression verbatim (mm): "1@7620+5@8200" ->
+;; "1@7620 + 5@8200" (just spaces the + separators; values untouched = exact IF).
+(defun peb-fmt-expr (s / r ch i)
+  (setq r "" i 1)
+  (repeat (strlen s)
+    (setq ch (substr s i 1))
+    (setq r (if (= ch "+") (strcat r " + ") (strcat r ch)))
+    (setq i (1+ i)))
+  r)
+
 (defun peb-fmt-group (count spacing / total mmStr ftStr ftTotal mode)
   ;;  Format a (count, spacing) group per *PEB-DIM-DISPLAY* mode.
   ;;  v6 — single-line MMFT (compact, no vertical stacking).
@@ -944,6 +954,11 @@
 
   ;; Initialize MAIMAAR-DIM dimstyle (Section-spec native dims).
   (vl-catch-all-apply (function (lambda () (setup-maimaar-dim))))
+  ;; Lay the shared Presentation Standards DB (layers/colours/lineweights/
+  ;; styles) when MAIMAAR_PEB_Standard.lsp is loaded.  When it is NOT loaded
+  ;; the inline make-layer block further down stays as the fallback.
+  (if (boundp 'peb-std-setup)
+    (vl-catch-all-apply (function (lambda () (peb-std-setup)))))
   ;; Fix the Standard multileader style so MLEADERs get a visible
   ;; "Closed Filled" arrowhead (parity with PEB_Section.lsp).
   (vl-catch-all-apply (function (lambda () (peb-setup-mleader-style))))
@@ -1184,25 +1199,30 @@
   (setvar "LTSCALE"
     (max 50.0 (min 500.0 (/ (max len wid) 200.0))))
 
-  (make-layer "BORDER"     "7"   "Continuous" "0.70")
-  (make-layer "GRID"       "150" "Continuous" "0.25")
-  (make-layer "GRID-LINES" "8"   "DASHDOT"    "0.09")
-  (make-layer "STRUCTURE"  "7"   "Continuous" "0.50")
-  (make-layer "COLUMNS"    "1"   "Continuous" "0.35")   ; Phase-2A v15: red
-  (make-layer "BOLTS"      "7"   "Continuous" "0.09")   ; Phase-2A v15: white
-  (make-layer "COL-CENTER" "1"   "CENTER"     "0.09")
-  ;; Phase-2A: thinner ridge + dotted RAFTER layer (per user — looks beautiful)
-  (make-layer "RIDGE"      "5"   "HIDDEN"     "0.09")   ; thin dotted blue
-  (make-layer "RAFTER"     "8"   "HIDDEN"     "0.05")   ; thin dotted grey
-  (make-layer "AREA-MARK"  "8"   "Continuous" "0.05")   ; thin diagonal AREA cross-marks (grey)
-  (make-layer "TEXT"       "7"   "Continuous" "0.25")
-  (make-layer "DIMENSIONS" "3"   "Continuous" "0.18")
-  (make-layer "ARROWS"     "4"   "Continuous" "0.25")   ; Phase-2A v9: cyan
-  ;; Phase-2A v14: Mammut-style column-face + sheeting-face lines
-  (make-layer "COL-OUTER"  "4"   "DASHDOT"    "0.09")   ; cyan DASHDOT line @ column outer face
-  (make-layer "SHEETING"   "4"   "Continuous" "0.09")   ; outer cyan line @ sheeting face
-  (make-layer "TITLEBLOCK" "1"   "Continuous" "0.35")
-  (make-layer "TB-HEADER"  "1"   "Continuous" "0.50")
+  ;; Layers: prefer the shared Presentation Standards DB (already laid by
+  ;; peb-std-setup above when MAIMAAR_PEB_Standard.lsp is loaded).  Fall back
+  ;; to this inline block only when the standard module is NOT present.
+  (if (not (boundp 'peb-ensure-layers))
+   (progn
+    (make-layer "BORDER"     "7"   "Continuous" "0.70")
+    (make-layer "GRID"       "150" "Continuous" "0.25")
+    (make-layer "GRID-LINES" "8"   "DASHDOT"    "0.09")
+    (make-layer "STRUCTURE"  "7"   "Continuous" "0.50")
+    (make-layer "COLUMNS"    "1"   "Continuous" "0.35")   ; Phase-2A v15: red
+    (make-layer "BOLTS"      "7"   "Continuous" "0.09")   ; Phase-2A v15: white
+    (make-layer "COL-CENTER" "1"   "CENTER"     "0.09")
+    ;; Phase-2A: thinner ridge + dotted RAFTER layer (per user — looks beautiful)
+    (make-layer "RIDGE"      "5"   "HIDDEN"     "0.09")   ; thin dotted blue
+    (make-layer "RAFTER"     "8"   "HIDDEN"     "0.05")   ; thin dotted grey
+    (make-layer "AREA-MARK"  "8"   "Continuous" "0.05")   ; thin diagonal AREA cross-marks (grey)
+    (make-layer "TEXT"       "7"   "Continuous" "0.25")
+    (make-layer "DIMENSIONS" "3"   "Continuous" "0.18")
+    (make-layer "ARROWS"     "4"   "Continuous" "0.25")   ; Phase-2A v9: cyan
+    ;; Phase-2A v14: Mammut-style column-face + sheeting-face lines
+    (make-layer "COL-OUTER"  "4"   "DASHDOT"    "0.09")   ; cyan DASHDOT line @ column outer face
+    (make-layer "SHEETING"   "4"   "Continuous" "0.09")   ; outer cyan line @ sheeting face
+    (make-layer "TITLEBLOCK" "1"   "Continuous" "0.35")
+    (make-layer "TB-HEADER"  "1"   "Continuous" "0.50")))
 
   ;; ── Building outline (Phase-2A v23: column-flange flush) ─────────
   ;; Now that columns are placed with outer flange ON the grid line
@@ -1572,12 +1592,21 @@
   ;; returns (startX endX count spacing) tuples; we draw one
   ;; peb-dim-h-stretch per group with override text via peb-fmt-group.
 
-  ;; HORIZONTAL (bay) groups along top of building
-  (foreach grp (peb-group-equal-spans bayPts)
-    (peb-dim-h-stretch (nth 0 grp) (nth 1 grp)
-                       (+ wid (* 900 *PEB-DIM-SCALE*))
-                       (peb-fmt-group (nth 2 grp) (nth 3 grp)))
-    (peb-recolor-last-dim 0))                ; ByBlock
+  ;; HORIZONTAL (bay) chain — print the IF grouped expression VERBATIM (mm) when
+  ;; available (exact IF match, no re-collapse); else fall back to derived groups.
+  (setq bayExpr (MSPL-Get-Str data "BAYEXPR"))
+  ;; NOTE: test for a literal "@" with vl-string-search, NOT wcmatch — in AutoLISP
+  ;; wcmatch "@" is a wildcard ("any alpha char"), so a digit-only expression like
+  ;; 7500+4@8365+7500 would never match and silently fall back to derived groups.
+  (if (and bayExpr (/= bayExpr "") (vl-string-search "@" bayExpr))
+    (progn
+      (peb-dim-h-stretch 0 len (+ wid (* 900 *PEB-DIM-SCALE*)) (peb-fmt-expr bayExpr))
+      (peb-recolor-last-dim 0))
+    (foreach grp (peb-group-equal-spans bayPts)
+      (peb-dim-h-stretch (nth 0 grp) (nth 1 grp)
+                         (+ wid (* 900 *PEB-DIM-SCALE*))
+                         (peb-fmt-group (nth 2 grp) (nth 3 grp)))
+      (peb-recolor-last-dim 0)))            ; ByBlock
   ;; Overall length dim — formatted per *PEB-DIM-DISPLAY* mode.
   (peb-dim-h-stretch 0 len (+ wid (* 2400 *PEB-DIM-SCALE*))
                      (peb-fmt-labelled "BUILDING LENGTH" len
@@ -1585,19 +1614,28 @@
                                                     (MSPL-Get-Str data "BAY_REF")))))
   (peb-recolor-last-dim 0)                   ; ByBlock for overall length
 
-  ;; VERTICAL (width) groups along left side
-  (foreach grp (peb-group-equal-spans widthPts)
-    (peb-dim-height-stretch 0.0 (- (* 1200 *PEB-DIM-SCALE*))
-                            (nth 0 grp) (nth 1 grp)
-                            (peb-fmt-group (nth 2 grp) (nth 3 grp)))
-    (peb-recolor-last-dim 0))                ; ByBlock left
-  ;; Mirror dim chain on right side (for big plans where left chain
-  ;; alone isn't enough)
-  (foreach grp (peb-group-equal-spans widthPts)
-    (peb-dim-height-stretch len (+ len (* 1200 *PEB-DIM-SCALE*))
-                            (nth 0 grp) (nth 1 grp)
-                            (peb-fmt-group (nth 2 grp) (nth 3 grp)))
-    (peb-recolor-last-dim 0))                ; ByBlock right
+  ;; VERTICAL (width-module) chain — print the IF expression VERBATIM (mm) when
+  ;; available; else fall back to derived groups. Drawn both sides for big plans.
+  ;; Skip entirely for clear-span (no interior columns → overall width is enough).
+  (setq modExpr (MSPL-Get-Str data "MODEXPR"))
+  (if (> (length widthPts) 2)
+    (if (and modExpr (/= modExpr "") (vl-string-search "@" modExpr))
+      (progn
+        (peb-dim-height-stretch 0.0 (- (* 1200 *PEB-DIM-SCALE*)) 0 wid (peb-fmt-expr modExpr))
+        (peb-recolor-last-dim 0)            ; ByBlock left
+        (peb-dim-height-stretch len (+ len (* 1200 *PEB-DIM-SCALE*)) 0 wid (peb-fmt-expr modExpr))
+        (peb-recolor-last-dim 0))           ; ByBlock right
+      (progn
+        (foreach grp (peb-group-equal-spans widthPts)
+          (peb-dim-height-stretch 0.0 (- (* 1200 *PEB-DIM-SCALE*))
+                                  (nth 0 grp) (nth 1 grp)
+                                  (peb-fmt-group (nth 2 grp) (nth 3 grp)))
+          (peb-recolor-last-dim 0))         ; ByBlock left
+        (foreach grp (peb-group-equal-spans widthPts)
+          (peb-dim-height-stretch len (+ len (* 1200 *PEB-DIM-SCALE*))
+                                  (nth 0 grp) (nth 1 grp)
+                                  (peb-fmt-group (nth 2 grp) (nth 3 grp)))
+          (peb-recolor-last-dim 0)))))      ; ByBlock right
   ;; Overall width dims — formatted per *PEB-DIM-DISPLAY* mode.
   (peb-dim-height-stretch 0.0 (- (* 3500 *PEB-DIM-SCALE*)) 0 wid
                           (peb-fmt-labelled "BUILDING WIDTH" wid

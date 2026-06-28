@@ -52,7 +52,13 @@
                             bx0 bx1 by0 by1 tx0 tx1 lx0 lx1 mid rh rt y1 y2 y3 y4 y5 yy
                             proj cust bname loc quote rev dat drn chk propinput propno
                             bno ident nbld i)
-  (setq white 7 grey 8 green 3 blue 5 red 1)
+  ;; Colours come from the shared Presentation Standards DB (*PEB-COLORS* via
+  ;; peb-color) when MAIMAAR_PEB_Standard.lsp is loaded, so the cover stays in
+  ;; lock-step with the plan/section palette; otherwise use the R6 literals.
+  (if (boundp 'peb-color)
+    (setq white (peb-color 'WHITE) grey (peb-color 'GREY) green (peb-color 'GREEN)
+          blue  (peb-color 'BLUE)  red  (peb-color 'RED))
+    (setq white 7 grey 8 green 3 blue 5 red 1))
   (defun get (k) (MSPL-Get-Str data k))
   (setq Hc 29700.0 Wc 42000.0 cx (/ Wc 2.0))
   ;; ---- values (IF-linked) ----
