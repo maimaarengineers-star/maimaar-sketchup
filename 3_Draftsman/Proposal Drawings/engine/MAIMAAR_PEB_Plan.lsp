@@ -531,6 +531,19 @@
             (strcat " " suffix)
             "")))
 
+;; map an IF "Measured At" basis string -> the Mammut-style dim-label suffix.
+(defun peb-basis-suffix (b / u)
+  (setq u (strcase b))
+  (cond
+    ((wcmatch u "*SHEET*")                              "OUT TO OUT OF SHEETING LINE")
+    ((wcmatch u "*CENTER TO CENTER*,*CENTRE TO CENTRE*,*C/C*") "CENTER TO CENTER OF STEEL COLUMNS")
+    ((wcmatch u "*BRICK*")                              "OUT TO OUT OF BRICKWORK")
+    ((wcmatch u "*KNEE*")                               "IN TO IN OF STEEL COLUMNS @ KNEE")
+    ((wcmatch u "*BASE*")                               "IN TO IN OF STEEL COLUMNS @ BASE")
+    ((wcmatch u "*STEEL LINE*,*OUT TO OUT OF STEEL*")   "OUT TO OUT OF STEEL")
+    ((= u "")                                           "OUT TO OUT OF STEEL")
+    (T u)))
+
 (defun peb-fmt-group (count spacing / total mmStr ftStr ftTotal mode)
   ;;  Format a (count, spacing) group per *PEB-DIM-DISPLAY* mode.
   ;;  v6 — single-line MMFT (compact, no vertical stacking).
@@ -1567,7 +1580,9 @@
     (peb-recolor-last-dim 0))                ; ByBlock
   ;; Overall length dim — formatted per *PEB-DIM-DISPLAY* mode.
   (peb-dim-h-stretch 0 len (+ wid (* 2400 *PEB-DIM-SCALE*))
-                     (peb-fmt-labelled "BUILDING LENGTH" len "OUT TO OUT OF STEEL"))
+                     (peb-fmt-labelled "BUILDING LENGTH" len
+                       (peb-basis-suffix (peb-tb-or (MSPL-Get-Str data "LENGTH_REF")
+                                                    (MSPL-Get-Str data "BAY_REF")))))
   (peb-recolor-last-dim 0)                   ; ByBlock for overall length
 
   ;; VERTICAL (width) groups along left side
@@ -1585,10 +1600,14 @@
     (peb-recolor-last-dim 0))                ; ByBlock right
   ;; Overall width dims — formatted per *PEB-DIM-DISPLAY* mode.
   (peb-dim-height-stretch 0.0 (- (* 3500 *PEB-DIM-SCALE*)) 0 wid
-                          (peb-fmt-labelled "BUILDING WIDTH" wid "OUT TO OUT OF STEEL"))
+                          (peb-fmt-labelled "BUILDING WIDTH" wid
+                            (peb-basis-suffix (peb-tb-or (MSPL-Get-Str data "WIDTH_REF")
+                                                         (MSPL-Get-Str data "WIDTH_MOD_REF")))))
   (peb-recolor-last-dim 0)                   ; ByBlock for overall width (LEW)
   (peb-dim-height-stretch len (+ len (* 3500 *PEB-DIM-SCALE*)) 0 wid
-                          (peb-fmt-labelled "BUILDING WIDTH" wid "OUT TO OUT OF STEEL"))
+                          (peb-fmt-labelled "BUILDING WIDTH" wid
+                            (peb-basis-suffix (peb-tb-or (MSPL-Get-Str data "WIDTH_REF")
+                                                         (MSPL-Get-Str data "WIDTH_MOD_REF")))))
   (peb-recolor-last-dim 0)                   ; ByBlock for overall width (REW)
 
   ;; ── Title (Phase-2A: compact dim × dim with area) ────────────
