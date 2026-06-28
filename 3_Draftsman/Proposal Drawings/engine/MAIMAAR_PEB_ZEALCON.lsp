@@ -43,13 +43,13 @@
                    (list (+ x r)(- y (* r 0.15))) (list x (- y r))
                    (list (- x r)(- y (* r 0.15)))))
      (z-poly p "Z-BUB" 3 T)
-     (z-txt x (+ y (* r 0.18)) (* r 0.95) 0 lab "Z-BUBTXT" 3))
+     (z-txt x (+ y (* r 0.18)) (* r 0.95) 0 lab "Z-BUBTXT" 1))
     (T
      (setq p (list (list (+ x (* r 0.45))(- y r)) (list (+ x (* r 0.45))(+ y r))
                    (list (- x (* r 0.15))(+ y r)) (list (- x r) y)
                    (list (- x (* r 0.15))(- y r))))
      (z-poly p "Z-BUB" 3 T)
-     (z-txt (+ x (* r 0.18)) y (* r 0.95) 0 lab "Z-BUBTXT" 3))))
+     (z-txt (+ x (* r 0.18)) y (* r 0.95) 0 lab "Z-BUBTXT" 1))))
 
 ;; cyan ISO-dot cross-bracing — TWO X's per braced bay pinching at the ridge
 ;; centreline ym (one X per roof slope), matching the Zealcon "bowtie".
@@ -156,16 +156,16 @@
     (setq x0 (car bb) x1 (cadr bb))
     (z-brace x0 x1 0.0 W (/ W 2.0))
     (z-txt (/ (+ x0 x1) 2.0) (/ W 2.0) 514.0 90 "B R A C E D  B A Y" "Z-BB" 6))
-  (z-leader 6000.0 -200.0 4500.0 -1800.0 "CROSS BRACING" "Z-DIM" 7)
-  (z-txt 4500.0 -2350.0 500.0 0 "(TYP.)" "Z-DIM" 7)
+  (z-leader 8625.0 3100.0 6500.0 -3550.0 "CROSS BRACING" "Z-DIM" 7)
+  (z-txt 6500.0 -4050.0 500.0 0 "(TYP.)" "Z-DIM" 7)
 
   ;; FALL roof-drainage markers (white, vertical) — one per slope at each end zone
   (z-fall 5750.0  (* W 0.72)  1.0) (z-fall 5750.0  (* W 0.28) -1.0)
   (z-fall 28900.0 (* W 0.72)  1.0) (z-fall 28900.0 (* W 0.28) -1.0)
 
-  ;; BEARING FRAME / BOTH ENDS (2-line leader, top-left)
-  (z-leader 0.0 W (- 0.0 3500.0) (+ W 2900.0) "BEARING FRAME" "Z-DIM" 7)
-  (z-txt (- 0.0 2400.0) (+ W 2300.0) 500.0 0 "BOTH ENDS" "Z-DIM" 7)
+  ;; BEARING FRAME / BOTH ENDS (2-line leader, top-left, clear of width dim)
+  (z-leader 0.0 W (- 0.0 4800.0) (+ W 3550.0) "BEARING FRAME" "Z-DIM" 7)
+  (z-txt (- 0.0 4800.0) (+ W 3300.0) 500.0 0 "BOTH ENDS" "Z-DIM" 7)
 
   ;; crane: beam line (mid) + crane symbol + 2 run notes (grey ACI 8)
   (z-line 5750.0 (/ W 2.0) 34100.0 (/ W 2.0) "Z-CRANE" 7)
@@ -178,9 +178,9 @@
   ;; ridge line + rafter + roof/ladder labels (spread to avoid overlap)
   (z-leader 17600.0 (/ W 2.0) 15000.0 (* W 0.62) "RIDGE LINE" "Z-DIM" 7)
   (z-leader 34100.0 (* W 0.55) 36500.0 (* W 0.62) "CL OF RAFTER" "Z-DIM" 7)
-  (z-leader 2000.0 0.0 2000.0 (- 0.0 1500.0) "CAGE LADDER" "Z-DIM" 7)
-  (z-leader 6500.0 0.0 7500.0 (- 0.0 2600.0) "CAGE LADDER" "Z-DIM" 7)
-  (z-leader 300.0 0.0 (- 0.0 2600.0) (- 0.0 900.0) "LOW ROOF" "Z-DIM" 7)
+  (z-leader 2000.0 0.0 1500.0 (- 0.0 2050.0) "CAGE LADDER" "Z-DIM" 7)
+  (z-leader 6500.0 0.0 9000.0 (- 0.0 2050.0) "CAGE LADDER" "Z-DIM" 7)
+  (z-leader 300.0 0.0 (- 0.0 3400.0) (- 0.0 1000.0) "LOW ROOF" "Z-DIM" 7)
   (z-leader L (* W 0.30) (+ L 2600.0) (* W 0.20) "HIGH ROOF" "Z-DIM" 7)
   (z-txt (- gridLeft 1400.0) (- 0.0 900.0) 600.0 0 "LEW" "Z-DIM" 7)
   (z-leader (* L 0.78) 0.0 (* L 0.82) (- 0.0 1800.0) "NEAR SIDE WALL" "Z-DIM" 7)
