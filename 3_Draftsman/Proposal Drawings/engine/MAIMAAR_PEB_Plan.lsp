@@ -707,6 +707,23 @@
     ((= u "")                                           "OUT TO OUT OF STEEL")
     (T u)))
 
+;; Basis -> witness-line offsets (lo hi) in mm, so the dim/marking lines sit at
+;; the chosen reference plane (owner: "dim/marking lines must match the basis").
+;;   Steel line      -> ( 0       0 )      (default; grid = steel line)
+;;   Sheeting line   -> (-230   +230)      (out to out of sheeting)
+;;   C/C of column   -> (+half  -half)     (witness lines drop to column centres)
+;;   Brickwork       -> (-230   +230)
+;;   In-to-in @ K/B  -> (+2half -2half)    (inner faces)
+;; `half` = half the relevant column depth (web/2 for width, end-col w/2 for length).
+(defun peb-basis-offsets (b half / u sg)
+  (setq u (strcase (if b b "")) sg 230.0)
+  (cond
+    ((wcmatch u "*SHEET*")                                     (list (- sg) sg))
+    ((wcmatch u "*CENTER TO CENTER*,*CENTRE TO CENTRE*,*C/C*") (list half (- half)))
+    ((wcmatch u "*BRICK*")                                     (list (- sg) sg))
+    ((wcmatch u "*KNEE*,*BASE*")                               (list (* 2.0 half) (* -2.0 half)))
+    (T                                                         (list 0.0 0.0))))
+
 ;; render a raw IF grouped spacing expression verbatim (mm): "1@7620+5@8200" ->
 ;; "1@7620 + 5@8200" (just spaces the + separators; values untouched = exact IF).
 (defun peb-fmt-expr (s / r ch i)
@@ -1780,8 +1797,10 @@
                          (+ wid (* 900 *PEB-DIM-SCALE*))
                          (peb-fmt-group (nth 2 grp) (nth 3 grp)))
       (peb-recolor-last-dim 0)))            ; ByBlock
-  ;; Overall length dim — formatted per *PEB-DIM-DISPLAY* mode.
-  (peb-dim-h-stretch 0 len (+ wid (* 2400 *PEB-DIM-SCALE*))
+  ;; Overall length dim — witness lines shifted to the chosen basis plane.
+  (setq bofs (peb-basis-offsets (peb-tb-or (MSPL-Get-Str data "LENGTH_REF")
+                                           (MSPL-Get-Str data "BAY_REF")) 230.0))
+  (peb-dim-h-stretch (car bofs) (+ len (cadr bofs)) (+ wid (* 2400 *PEB-DIM-SCALE*))
                      (peb-fmt-labelled "BUILDING LENGTH" len
                        (peb-basis-suffix (peb-tb-or (MSPL-Get-Str data "LENGTH_REF")
                                                     (MSPL-Get-Str data "BAY_REF")))))
@@ -1809,13 +1828,15 @@
                                   (nth 0 grp) (nth 1 grp)
                                   (peb-fmt-group (nth 2 grp) (nth 3 grp)))
           (peb-recolor-last-dim 0)))))      ; ByBlock right
-  ;; Overall width dims — formatted per *PEB-DIM-DISPLAY* mode.
-  (peb-dim-height-stretch 0.0 (- (* 3500 *PEB-DIM-SCALE*)) 0 wid
+  ;; Overall width dims — witness lines shifted to the chosen basis plane.
+  (setq wofs (peb-basis-offsets (peb-tb-or (MSPL-Get-Str data "WIDTH_REF")
+                                           (MSPL-Get-Str data "WIDTH_MOD_REF")) colOff))
+  (peb-dim-height-stretch 0.0 (- (* 3500 *PEB-DIM-SCALE*)) (car wofs) (+ wid (cadr wofs))
                           (peb-fmt-labelled "BUILDING WIDTH" wid
                             (peb-basis-suffix (peb-tb-or (MSPL-Get-Str data "WIDTH_REF")
                                                          (MSPL-Get-Str data "WIDTH_MOD_REF")))))
   (peb-recolor-last-dim 0)                   ; ByBlock for overall width (LEW)
-  (peb-dim-height-stretch len (+ len (* 3500 *PEB-DIM-SCALE*)) 0 wid
+  (peb-dim-height-stretch len (+ len (* 3500 *PEB-DIM-SCALE*)) (car wofs) (+ wid (cadr wofs))
                           (peb-fmt-labelled "BUILDING WIDTH" wid
                             (peb-basis-suffix (peb-tb-or (MSPL-Get-Str data "WIDTH_REF")
                                                          (MSPL-Get-Str data "WIDTH_MOD_REF")))))
