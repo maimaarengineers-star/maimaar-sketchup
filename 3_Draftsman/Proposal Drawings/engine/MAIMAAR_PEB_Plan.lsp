@@ -397,15 +397,18 @@
   (command "TEXT" "J" just pt (* h *PEB-TEXT-SCALE*) rot str)
 )
 
-(defun grid-bubble (x y label)
+(defun grid-bubble (x y label / r prev)
+  ;; Clean single circle (green GRID layer) with a red GRID-TEXT number — the
+  ;; Mammut grid-bubble look.  Caller places (x,y) clear outside the building so
+  ;; the bubble never overlaps a column; the grid line stops at the bubble.
   (if (not *PEB-TEXT-SCALE*) (setq *PEB-TEXT-SCALE* 1.0))
-  (setq r1 (* 380 *PEB-TEXT-SCALE*))
-  (setq r2 (* 420 *PEB-TEXT-SCALE*))
-  (command "CIRCLE" (list x y) r1)
-  (command "CIRCLE" (list x y) r2)
+  (setq r (* 460 *PEB-TEXT-SCALE*) prev (getvar "CLAYER"))
+  (setvar "CLAYER" "GRID")
+  (command "_.CIRCLE" (list x y) r)
+  (setvar "CLAYER" "GRID-TEXT")
   (setvar "TEXTSTYLE" "PEB-TITLE")
-  (command "TEXT" "J" "MC" (list x y) (* 280 *PEB-TEXT-SCALE*) 0 label)
-)
+  (command "_.TEXT" "_J" "_MC" (list x y) (* 300 *PEB-TEXT-SCALE*) 0 label)
+  (setvar "CLAYER" prev))
 
 (defun col-crosshair (x y / arm)
   (setq arm 280)
@@ -443,7 +446,6 @@
   ;; Flanges + web red; bolts white.
   (setq w 360 h (if *PEB-COL-WEB* *PEB-COL-WEB* 700) tf 35 tw 45 boltR 25)
   (setq prevLayer (getvar "CLAYER"))
-  (peb-draw-baseplate x y)       ; anchor-bolt base plate (behind the section)
   (setvar "CLAYER" "COLUMNS")    ; red
   (command "RECTANG" (list (- x (/ w 2.0)) (- y (/ h 2.0))) (list (+ x (/ w 2.0)) (+ (- y (/ h 2.0)) tf)))
   (command "HATCH" "SOLID" "L" "")
@@ -465,7 +467,6 @@
   ;; Color now red; bolts white.
   (setq w 460 h 360 tf 35 tw 45 boltR 25)
   (setq prevLayer (getvar "CLAYER"))
-  (peb-draw-baseplate x y)       ; anchor-bolt base plate (behind the section)
   (setvar "CLAYER" "COLUMNS")    ; red
   (command "RECTANG" (list (- x (/ w 2.0)) (- y (/ h 2.0))) (list (+ (- x (/ w 2.0)) tf) (+ y (/ h 2.0))))
   (command "HATCH" "SOLID" "L" "")
@@ -500,18 +501,21 @@
         (setq i (1+ i)))
       braced)))
 
-;; Draw roof X cross-bracing in each braced bay (full-width X between the two
-;; adjacent frame lines) + a "BRACED BAY" tag.  ox/oy = area origin (0,0 single).
-(defun peb-draw-bracing (bayPts wid ox oy / braced prevLayer x0 x1 cx cy)
+;; Draw roof X cross-bracing in each braced bay — the X spans BETWEEN THE COLUMNS
+;; (inset top/bottom by web/2 = colOff, not the full sheeting width) + a clearly
+;; visible "BRACED BAY" tag.  ox/oy = area origin (0,0 single).
+(defun peb-draw-bracing (bayPts wid ox oy / braced prevLayer x0 x1 cx cy inset y0 y1)
   (setq braced (peb-braced-bays bayPts))
+  (setq inset (/ (if *PEB-COL-WEB* *PEB-COL-WEB* 600.0) 2.0))
   (setq prevLayer (getvar "CLAYER"))
   (setvar "CLAYER" "CROSS")
   (foreach b braced
     (setq x0 (+ ox (nth b bayPts)) x1 (+ ox (nth (1+ b) bayPts)))
-    (command "_.LINE" (list x0 oy)        (list x1 (+ oy wid)) "")
-    (command "_.LINE" (list x0 (+ oy wid)) (list x1 oy)        "")
+    (setq y0 (+ oy inset) y1 (+ oy (- wid inset)))
+    (command "_.LINE" (list x0 y0) (list x1 y1) "")
+    (command "_.LINE" (list x0 y1) (list x1 y0) "")
     (setq cx (/ (+ x0 x1) 2.0) cy (+ oy (/ wid 2.0)))
-    (txt "MC" (list cx (+ cy (* 700 *PEB-TEXT-SCALE*))) (* 260 *PEB-TEXT-SCALE*) 0 "BRACED BAY"))
+    (txt "MC" (list cx cy) (* 280 *PEB-TEXT-SCALE*) 0 "BRACED BAY"))
   (setvar "CLAYER" prevLayer))
 
 ;; 0-based bay index containing position `at` (mm along length).
@@ -1017,7 +1021,8 @@
   (foreach r (list
        (list "LIVE LOAD ON ROOF"      (tb-get "LL_ROOF")  "KN/SQ.M.")
        (list "LIVE LOAD ON FRAME"     (tb-get "LL_FRAME") "KN/SQ.M.")
-       (list "WIND SPEED"             (tb-get "WIND")     "KPH")
+       (list "WIND SPEED (3-SEC GUST)" (tb-get "WIND")    "KPH")
+       (list "EXPOSURE CATEGORY"      (tb-get "EXPOSURE") "")
        (list "ADD'L. COLLATERAL LOAD" (tb-get "COLL")     "")
        (list "ROOF SNOW LOAD"         (tb-get "SNOW")     "KN/SQ.M.")
        (list "SEISMIC LOAD"           (tb-get "SEISMIC")  "")
@@ -1028,10 +1033,12 @@
     (tb-mtext vx (+ yCur (* rh 0.5)) (tb-fith (cadr r) (* W 0.19) val) 0 4 (cadr r) green)
     (if (/= (caddr r) "")
       (tb-mtext ux (+ yCur (* rh 0.5)) sm 0 4 (caddr r) grey)))
-  (setq rh (* H 0.024) yCur (- yCur rh))
-  (tb-mtext (+ X0 (* W 0.04)) (+ yCur (* rh 0.4))
+  ;; code note — taller row + smaller fit so the 2-line text stays INSIDE the box
+  ;; (above the divider), never overwriting the rule below.
+  (setq rh (* H 0.044) yCur (- yCur rh))
+  (tb-mtext (+ X0 (* W 0.04)) (+ yCur (* rh 0.74))
     (tb-fith (strcat "AS PER " (tb-get "CODE") " METAL BUILDING SYSTEMS MANUAL")
-             cw (* H 0.0100)) cw 1
+             (* cw 1.02) (* H 0.0092)) cw 1
     (strcat "{\\fArial|i1;AS PER " (tb-get "CODE")
             " METAL BUILDING SYSTEMS MANUAL}") green)
   (tb-hdiv yCur)
@@ -1058,10 +1065,11 @@
   (tb-line (+ X0 (* W 0.87)) (- yCur (* rh 2.0)) (+ X0 (* W 0.87)) yCur white)
   (setq yCur (- yCur (* rh 2.0)))
   (tb-hdiv yCur)
-  ;; PROJECT
-  (setq bt yCur rh (* H 0.058) yCur (- yCur rh))
-  (tb-mtext (+ X0 (* W 0.04)) (- bt (* lbl 1.3)) lbl cw 1 "PROJECT :" grey)
-  (tb-mtext midX (+ yCur (* rh 0.30)) (tb-fith (tb-get "PROJECT") (* 1.9 cw) bv) cw 5 (tb-get "PROJECT") green)
+  ;; PROJECT NAME — label on its own line, value left-aligned BELOW it (no overlap)
+  (setq bt yCur rh (* H 0.090) yCur (- yCur rh))
+  (tb-mtext (+ X0 (* W 0.04)) (- bt (* lbl 1.3)) lbl cw 1 "PROJECT NAME :" grey)
+  (tb-mtext (+ X0 (* W 0.06)) (- bt (* lbl 3.0))
+            (tb-fith (tb-get "PROJECT") (* 3.2 cw) (* bv 0.92)) (* cw 0.92) 1 (tb-get "PROJECT") green)
   (tb-hdiv yCur)
   ;; CUSTOMER
   (setq bt yCur rh (* H 0.048) yCur (- yCur rh))
@@ -1069,7 +1077,7 @@
   (tb-mtext midX (+ yCur (* rh 0.28)) (tb-fith (tb-get "CUSTOMER") (* 1.6 cw) bv) cw 5 (tb-get "CUSTOMER") green)
   (tb-hdiv yCur)
   ;; STEEL CONTRACTOR : real Maimaar logo + address
-  (setq bt yCur rh (* H 0.175) yCur (- yCur rh))
+  (setq bt yCur rh (* H 0.150) yCur (- yCur rh))
   (tb-mtext (+ X0 (* W 0.04)) (- bt (* lbl 1.3)) lbl cw 1 "STEEL CONTRACTOR :" grey)
   (peb-tb-place-logo (+ X0 (* W 0.10)) (+ yCur (* rh 0.52))
                      (+ X0 (* W 0.90)) (- bt (* lbl 2.4)))
@@ -1080,7 +1088,7 @@
                     (list "Bldg. No." (tb-get "BLDGNO"))
                     (list "Bldg. Name." (tb-get "BLDGNAME"))
                     (list "No. Of Identical Bldg." (tb-get "IDENTICAL")))
-    (setq rh (* H 0.024) yCur (- yCur rh))
+    (setq rh (* H 0.0240) yCur (- yCur rh))
     (tb-mtext (+ X0 (* W 0.05)) (+ yCur (* rh 0.50)) lbl 0 4 (car pr) grey)
     (tb-mtext (+ X0 (* W 0.52)) (+ yCur (* rh 0.50))
               (tb-fith (strcat ": " (cadr pr)) (* W 0.44) val) (* W 0.45) 4
@@ -1422,9 +1430,9 @@
   (setvar "CELTSCALE" 1.0)            ; reset for everything else
 
   ;; ── AREA marking (Mammut convention) ──────────────────────────────
-  ;; A clean boxed "AREA No. 01" tag at the centre.  (The old full-span corner
-  ;; diagonals were removed — Mammut identifies an area with a boxed tag, not a
-  ;; giant X, and the X competed visually with the real roof cross-bracing.)
+  ;; A boxed "AREA No. 01" tag at the centre + the FOUR area cross-lines running
+  ;; from the box corners out to the building corners (the area-identification X).
+  ;; The box masks the crossing so the lines do not pass through the label.
   (setq aCx (/ len 2.0) aCy (/ wid 2.0))
   (setq aTxH (if *PEB-TEXT-SCALE* (* 550.0 *PEB-TEXT-SCALE*) 550.0))
   (setq aBw  (+ (* (strlen "AREA No. 01") aTxH 0.34) aTxH))   ; box half-width to fit text
@@ -1433,6 +1441,11 @@
   (defun aLn (x1 y1 x2 y2)
     (entmake (list (cons 0 "LINE") (cons 8 "AREA-MARK")
                    (list 10 x1 y1 0.0) (list 11 x2 y2 0.0))))
+  ;; four area cross-lines: box corner -> nearest building corner
+  (aLn (- aCx aBw) (+ aCy aBh) 0.0 wid)     ; top-left
+  (aLn (+ aCx aBw) (+ aCy aBh) len wid)     ; top-right
+  (aLn (- aCx aBw) (- aCy aBh) 0.0 0.0)     ; bottom-left
+  (aLn (+ aCx aBw) (- aCy aBh) len 0.0)     ; bottom-right
   ;; centre box (4 lines)
   (aLn (- aCx aBw) (- aCy aBh) (+ aCx aBw) (- aCy aBh))
   (aLn (+ aCx aBw) (- aCy aBh) (+ aCx aBw) (+ aCy aBh))
@@ -1666,10 +1679,8 @@
   ;; ── Doors / windows at their offsets (+ braced-bay clash flag) ─
   (vl-catch-all-apply (function (lambda () (peb-draw-placements data 0.0 0.0 len wid bayPts))))
 
-  ;; ── Anchor-bolt schedule (below the building, bottom-left) ─────
-  (vl-catch-all-apply (function (lambda ()
-    (peb-draw-ab-schedule 0.0 (- 0.0 (* 5800 (if *PEB-DIM-SCALE* *PEB-DIM-SCALE* 1.0)))
-                          (peb-tb-or (MSPL-Get-Str data "ANCHORBOLTS") "")))))
+  ;; (Anchor-bolt base-plate schedule removed — this is the COLUMN LAYOUT PLAN;
+  ;;  columns show the I-section with their typical 4 anchor bolts, no schedule.)
 
   ;; ── Slope arrows (Phase-2A user rules) ────────────────────────
   ;; Column-count rule, start at bay 2 (between GL 2-3):
@@ -1742,6 +1753,12 @@
     (if (or (= rewFrameRaw "MAIN FRAME") (= rewFrameRaw "RIGID"))
       "MAIN FRAME"
       "BEARING FRAME"))
+  ;; Clear BEARING/MAIN FRAME word on BOTH end walls (owner requirement) — placed
+  ;; beside the LEW/REW wall labels.  (If an end is a Main Frame, its corner
+  ;; columns are already drawn lengthwise = interior main-frame size/direction.)
+  (setvar "CLAYER" "TEXT")
+  (txt-bold "MC" (list (- (* 7000 *PEB-DIM-SCALE*)) (/ wid 2.0)) 430 90 (strcat "(" lewFrameLabel ")"))
+  (txt-bold "MC" (list (+ len (* 7000 *PEB-DIM-SCALE*)) (/ wid 2.0)) 430 90 (strcat "(" rewFrameLabel ")"))
   (cond
     ;; Both ends same → ONE MLEADER, "BEARING FRAME / BOTH ENDS"
     ((= lewFrameLabel rewFrameLabel)
@@ -1855,9 +1872,9 @@
   ;;   Overall length dim → wid + 2400 * DS
   ;;   FSW label          → wid + 4500 * TS
   ;;   Subtitle           → wid + 6000 * TS
-  ;; (The big "COLUMN LAYOUT PLAN" heading was removed — it is now carried by
-  ;;  the title block's "Drawing Title" field, so it was redundant. The compact
-  ;;  dim/area/bays/slope info banner below is kept.)
+  ;; BIG "COLUMN LAYOUT PLAN" heading at the very top centre (owner: restore it),
+  ;; with the compact dim/area/bays/slope info banner below it.
+  (txt-bold "MC" (list (/ len 2.0) (+ wid (* 8400 *PEB-TEXT-SCALE*))) 1150 0 "COLUMN LAYOUT PLAN")
   (txt "MC" (list (/ len 2.0) (+ wid (* 6000 *PEB-TEXT-SCALE*))) 600 0
     (strcat (rtos (/ len 1000.0) 2 0) "×"
             (rtos (/ wid 1000.0) 2 0) " m"
@@ -2075,6 +2092,7 @@
       (cons "LL_ROOF"  (peb-tb-or (MSPL-Get-Str data "LIVEROOF")  "0.57"))
       (cons "LL_FRAME" (peb-tb-or (MSPL-Get-Str data "LIVEFRAME") "0.57"))
       (cons "WIND"     (if (= windspeed "") "AS PER CODE" (peb-num-only windspeed)))
+      (cons "EXPOSURE" (peb-tb-or exposure "B"))
       (cons "COLL"     (if (= collateral "") "0.0" (peb-num-only collateral)))
       (cons "SNOW"     (peb-tb-snow (MSPL-Get-Str data "SNOW")))
       (cons "SEISMIC"  (peb-tb-zone (MSPL-Get-Str data "SEISMIC")))
@@ -2093,7 +2111,7 @@
       (cons "BLDGNO"    tbBno)
       (cons "BLDGNAME"  tbBname)
       (cons "IDENTICAL" (peb-tb-or (MSPL-Get-Str data "IDENTICAL") "1"))
-      (cons "DRGTITLE"  "COLUMN LAYOUT & ANCHOR BOLT PLAN")
+      (cons "DRGTITLE"  "COLUMN LAYOUT PLAN")
       (cons "SCALE"     "N.T.S.")
       (cons "SHEETSIZE" "A1")
       (cons "SHEETNO"   (strcat "PRO-" tbBno))))
@@ -2197,13 +2215,14 @@
   ;;   100 m bldg → 900 mm at 1:240 = 3.8 mm on paper ✓
   ;;   200 m bldg → 1260 mm at 1:480 = 2.6 mm on paper ✓
   (setvar "DIMSCALE" (if *PEB-DIM-SCALE* *PEB-DIM-SCALE* 1.0))
-  ;; Dimension TEXT + ARROWS tuned to the Mammut look (extracted-DB parity):
-  ;;   DIMTXT 500 plots ~2.1 mm @1:240 .. ~4.2 mm @1:120 — clean, never bulky.
-  ;;   ARROWS = architectural TICK (DIMTSZ>0) — the professional structural-dim
-  ;;   slash, NOT a 600-tall filled head. Tick ~1/3 of text height.
+  ;; Dimension TEXT + ARROWS (owner: proper beautiful arrowheads, not ticks):
+  ;;   DIMTXT 500 (clean); proper small CLOSED-FILLED arrowhead at each end,
+  ;;   sitting on the dimension line (DIMTSZ 0 disables ticks; DIMBLK both ends).
   (setvar "DIMTXT"   500.0)
-  (setvar "DIMASZ"   180.0)        ; (ignored while DIMTSZ>0; kept as fallback)
-  (setvar "DIMTSZ"   170.0)        ; architectural oblique tick
+  (setvar "DIMTSZ"     0.0)        ; no ticks -> use arrowheads
+  (setvar "DIMASZ"   320.0)        ; proper small arrowhead (~0.6 x text)
+  (vl-catch-all-apply (function (lambda () (setvar "DIMBLK" "_CLOSEDFILLED"))))
+  (vl-catch-all-apply (function (lambda () (setvar "DIMSAH" 0))))
   (setvar "DIMEXE"   120.0)        ; extension beyond dim line
   (setvar "DIMEXO"   120.0)        ; extension offset from object
   (setvar "DIMGAP"    60.0)
@@ -2852,12 +2871,13 @@
   ;; (\\P = MText paragraph break — value on line 1, label on line 2).
   ;; ── Phase-2A v3: DIMSCALE auto-scales with building size ──────
   (peb-safe-setvar "DIMSCALE" (if *PEB-DIM-SCALE* *PEB-DIM-SCALE* 1.0))
-  ;; Mammut-parity (extracted-DB): smaller text + architectural TICK arrows,
-  ;; value sitting ABOVE a continuous dim line.
+  ;; Proper small CLOSED-FILLED arrowheads at each end (owner), value above line.
   (peb-safe-setvar "DIMTXT"   500.0)        ; clean, never bulky
   (peb-safe-setvar "DIMTXSTY" "PEB-TITLE")
-  (peb-safe-setvar "DIMASZ"   180.0)        ; fallback head (ignored while DIMTSZ>0)
-  (peb-safe-setvar "DIMTSZ"   170.0)        ; architectural oblique tick
+  (peb-safe-setvar "DIMTSZ"     0.0)        ; no ticks -> arrowheads
+  (peb-safe-setvar "DIMASZ"   320.0)        ; proper small arrowhead
+  (vl-catch-all-apply (function (lambda () (setvar "DIMBLK" "_CLOSEDFILLED"))))
+  (vl-catch-all-apply (function (lambda () (setvar "DIMSAH" 0))))
   (peb-safe-setvar "DIMEXE"   120.0)
   (peb-safe-setvar "DIMEXO"   120.0)
   (peb-safe-setvar "DIMGAP"    60.0)
