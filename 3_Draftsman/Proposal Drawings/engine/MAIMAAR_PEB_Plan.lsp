@@ -426,13 +426,14 @@
 ;; content of the combined COLUMN LAYOUT & ANCHOR BOLT PLAN.  Plate on PLATES,
 ;; bolts as clear circles on BOLTS at gauge ±g.  Drawn BEHIND the column section.
 (defun peb-draw-baseplate (x y / ph g prev)
-  (setq ph 280.0 g 150.0 prev (getvar "CLAYER"))
+  ;; enlarged so the TYPICAL 4 anchor bolts per plate read clearly at sheet scale.
+  (setq ph 360.0 g 230.0 prev (getvar "CLAYER"))
   (setvar "CLAYER" "PLATES")
   (command "_.RECTANG" (list (- x ph) (- y ph)) (list (+ x ph) (+ y ph)))
   (setvar "CLAYER" "BOLTS")
   (foreach pt (list (list (- x g) (- y g)) (list (+ x g) (- y g))
                     (list (- x g) (+ y g)) (list (+ x g) (+ y g)))
-    (command "_.CIRCLE" pt 24.0))
+    (command "_.CIRCLE" pt 42.0))
   (setvar "CLAYER" prev))
 
 (defun draw-I-column-lengthwise (x y / w h tf tw boltR prevLayer)
@@ -598,18 +599,14 @@
                               len wid ox oy bayPts)))
     (setq i (1+ i))))
 
-;; Anchor-bolt schedule (proposal-stage, indicative) — a compact table placed
-;; below the building.  Grade/size are indicative; finalised at design stage.
-(defun peb-draw-ab-schedule (x0 y0 abgrade / prev s rh cw)
+;; Base-plate note — at PROPOSAL stage the bolt size & count are NOT yet known,
+;; so we only state the typical arrangement (4 bolts per plate), no schedule.
+(defun peb-draw-ab-schedule (x0 y0 abgrade / prev s)
   (setq prev (getvar "CLAYER") s (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0))
-  (setq rh (* 520 s) cw (* 2400 s))
   (setvar "CLAYER" "TEXT")
-  (txt-bold "ML" (list x0 y0) (* 340 s) 0 "ANCHOR BOLT SCHEDULE")
-  (foreach c (list (list "MARK" 0) (list "SIZE / GRADE" 1) (list "NOS / COL" 2) (list "PROJECTION" 3))
-    (txt "ML" (list (+ x0 (* (cadr c) cw)) (- y0 rh)) (* 270 s) 0 (car c)))
-  (foreach c (list (list "AB-1" 0) (list (if (= abgrade "") "M24 (4.6)" abgrade) 1) (list "4" 2) (list "300 MM" 3))
-    (txt "ML" (list (+ x0 (* (cadr c) cw)) (- y0 (* 2 rh))) (* 270 s) 0 (car c)))
-  (txt "ML" (list x0 (- y0 (* 3 rh))) (* 220 s) 0 "(INDICATIVE - FINALISED AT DESIGN STAGE)")
+  (txt-bold "ML" (list x0 y0) (* 340 s) 0 "BASE PLATE & ANCHOR BOLTS")
+  (txt "ML" (list x0 (- y0 (* 520 s))) (* 260 s) 0 "TYPICAL 4 ANCHOR BOLTS PER BASE PLATE")
+  (txt "ML" (list x0 (- y0 (* 980 s))) (* 220 s) 0 "(SIZE & NUMBER FINALISED AT DESIGN STAGE)")
   (setvar "CLAYER" prev))
 
 (defun draw-RCC-column (x y / s prevLayer)
