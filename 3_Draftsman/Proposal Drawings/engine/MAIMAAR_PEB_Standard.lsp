@@ -204,5 +204,122 @@
   (princ "\nMAIMAAR PEB presentation standard ready (layers + colours + styles).")
   (princ))
 
-(princ "\nMAIMAAR_PEB_Standard.lsp loaded — Presentation Standards DB. Run (peb-std-setup).")
+;; ===========================================================================
+;; 7) PRIMITIVE DRAW LIBRARY  —  the UNIVERSAL toolkit (the foundation).
+;; ---------------------------------------------------------------------------
+;;  Every sheet engine (Plan/Section/Elevation/Framing/Cover) must draw ONLY
+;;  through these helpers — never raw entmake.  Each primitive places its entity
+;;  on the given STANDARD layer and draws BYLAYER (no colour/linetype override),
+;;  so *PEB-LAYERS* fully governs the look: fix a layer once, every sheet follows.
+;;  These are the proven batch-safe entmake patterns (entity props after
+;;  AcDbEntity, BYLAYER colour) promoted into one shared library.
+;;
+;;  Native AutoCAD object behind each primitive:
+;;    peb-line  -> LINE        peb-poly/-rect -> LWPOLYLINE   peb-circle -> CIRCLE
+;;    peb-arc   -> ARC         peb-solid      -> SOLID        peb-text   -> TEXT
+;;    peb-mtext -> MTEXT       peb-insert     -> INSERT       peb-pent/-bubble (poly+text)
+;;    peb-leader (LINE+SOLID+TEXT, an MLEADER stand-in)
+;; ===========================================================================
+
+(defun peb-d2r (d) (* d (/ pi 180.0)))            ; degrees -> radians
+
+;; LINE — straight line, BYLAYER.
+(defun peb-line (x1 y1 x2 y2 lay)
+  (entmake (list (cons 0 "LINE") (cons 8 lay)
+                 (list 10 x1 y1 0.0) (list 11 x2 y2 0.0))))
+
+;; LWPOLYLINE — pts = list of (x y); closed = T / nil.
+(defun peb-poly (pts lay closed)
+  (entmake (append
+    (list (cons 0 "LWPOLYLINE") (cons 100 "AcDbEntity") (cons 8 lay)
+          (cons 100 "AcDbPolyline") (cons 90 (length pts)) (cons 70 (if closed 1 0)))
+    (mapcar '(lambda (p) (list 10 (car p) (cadr p))) pts))))
+
+;; RECTANG — closed rectangle polyline.
+(defun peb-rect (x1 y1 x2 y2 lay)
+  (peb-poly (list (list x1 y1) (list x2 y1) (list x2 y2) (list x1 y2)) lay T))
+
+;; CIRCLE.
+(defun peb-circle (cx cy r lay)
+  (entmake (list (cons 0 "CIRCLE") (cons 8 lay) (list 10 cx cy 0.0) (cons 40 r))))
+
+;; ARC — a1,a2 in DEGREES (CCW).
+(defun peb-arc (cx cy r a1 a2 lay)
+  (entmake (list (cons 0 "ARC") (cons 8 lay) (list 10 cx cy 0.0) (cons 40 r)
+                 (cons 50 (peb-d2r a1)) (cons 51 (peb-d2r a2)))))
+
+;; SOLID — filled quad; pN = (x y). For a triangle pass p3 = p4.
+(defun peb-solid (p1 p2 p3 p4 lay)
+  (entmake (list (cons 0 "SOLID") (cons 8 lay)
+                 (list 10 (car p1)(cadr p1) 0.0) (list 11 (car p2)(cadr p2) 0.0)
+                 (list 12 (car p3)(cadr p3) 0.0) (list 13 (car p4)(cadr p4) 0.0))))
+
+;; TEXT — full control. jh = group-72 (0 L,1 C,2 R,4 M), jv = group-73 (0 base,2 mid,3 top).
+(defun peb-text-j (x y h rotdeg str lay sty jh jv)
+  (entmake (list (cons 0 "TEXT") (cons 8 lay)
+                 (list 10 x y 0.0) (list 11 x y 0.0) (cons 40 h) (cons 1 str)
+                 (cons 50 (peb-d2r rotdeg)) (cons 7 (if sty sty "PEB-BODY"))
+                 (cons 72 jh) (cons 73 jv))))
+
+;; TEXT — middle-centre, PEB-BODY style (the common case).
+(defun peb-text (x y h rotdeg str lay)
+  (peb-text-j x y h rotdeg str lay "PEB-BODY" 1 2))
+
+;; MTEXT — width wid (0 = auto), attach top-left.
+(defun peb-mtext (x y h wid rotdeg str lay sty)
+  (entmake (list (cons 0 "MTEXT") (cons 100 "AcDbEntity") (cons 8 lay)
+                 (cons 100 "AcDbMText") (list 10 x y 0.0) (cons 40 h)
+                 (cons 41 wid) (cons 71 1) (cons 7 (if sty sty "PEB-BODY"))
+                 (cons 50 (peb-d2r rotdeg)) (cons 1 str))))
+
+;; INSERT — block reference, uniform scale.
+(defun peb-insert (blk x y scl rotdeg lay)
+  (entmake (list (cons 0 "INSERT") (cons 8 lay) (cons 2 blk)
+                 (list 10 x y 0.0) (cons 41 scl) (cons 42 scl) (cons 43 scl)
+                 (cons 50 (peb-d2r rotdeg)))))
+
+;; PENTAGON grid-bubble OUTLINE, apex toward the building.
+;;   dir "D" apex down (top row) · "U" up · "L" left · "R" right (left column).
+(defun peb-pent (cx cy r dir lay / p)
+  (cond
+    ((= dir "D")
+     (setq p (list (list (- cx r)(+ cy (* r 0.45))) (list (+ cx r)(+ cy (* r 0.45)))
+                   (list (+ cx r)(- cy (* r 0.15))) (list cx (- cy r))
+                   (list (- cx r)(- cy (* r 0.15))))))
+    ((= dir "U")
+     (setq p (list (list (- cx r)(- cy (* r 0.45))) (list (+ cx r)(- cy (* r 0.45)))
+                   (list (+ cx r)(+ cy (* r 0.15))) (list cx (+ cy r))
+                   (list (- cx r)(+ cy (* r 0.15))))))
+    ((= dir "L")
+     (setq p (list (list (- cx (* r 0.45))(- cy r)) (list (- cx (* r 0.45))(+ cy r))
+                   (list (+ cx (* r 0.15))(+ cy r)) (list (+ cx r) cy)
+                   (list (+ cx (* r 0.15))(- cy r)))))
+    (T  ;; "R" apex right (default for left column)
+     (setq p (list (list (+ cx (* r 0.45))(- cy r)) (list (+ cx (* r 0.45))(+ cy r))
+                   (list (- cx (* r 0.15))(+ cy r)) (list (- cx r) cy)
+                   (list (- cx (* r 0.15))(- cy r))))))
+  (peb-poly p lay T))
+
+;; GRID BUBBLE = pentagon on GRID (green) + label on GRID-TEXT (red).
+;;   dir "D" = top row (numbers), "R" = left column (letters).
+(defun peb-bubble (cx cy r lab dir)
+  (peb-pent cx cy r dir "GRID")
+  (peb-text cx cy (* r 0.85) 0.0 lab "GRID-TEXT"))
+
+;; LEADER = line tip->elbow + filled arrowhead at the tip + text at the elbow.
+;; Batch-safe MLEADER stand-in, drawn entirely on the given layer.
+(defun peb-leader (tipx tipy elbx elby str lay / dx dy d ux uy bx by nx ny hl w)
+  (peb-line tipx tipy elbx elby lay)
+  (setq dx (- tipx elbx) dy (- tipy elby) d (sqrt (+ (* dx dx) (* dy dy))))
+  (if (> d 1.0)
+    (progn
+      (setq ux (/ dx d) uy (/ dy d) hl 400.0 w 130.0
+            bx (- tipx (* hl ux)) by (- tipy (* hl uy)) nx (- 0.0 uy) ny ux)
+      (peb-solid (list tipx tipy)
+                 (list (+ bx (* w nx)) (+ by (* w ny)))
+                 (list (- bx (* w nx)) (- by (* w ny)))
+                 (list tipx tipy) lay)))
+  (peb-text-j elbx (+ elby 250.0) (peb-th 'ANNOT) 0.0 str lay "PEB-BODY" 1 2))
+
+(princ "\nMAIMAAR_PEB_Standard.lsp loaded — Standards DB + primitive library. Run (peb-std-setup).")
 (princ)

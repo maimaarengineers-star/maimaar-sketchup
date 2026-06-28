@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>MAIMAAR PEB — LISP Visual Nomenclature Reference</title>
+<style>
+ :root{--navy:#16314f;--navy2:#1f4a73;--ink:#1a1a1a;--mut:#666;--line:#d8dee6;}
+ *{box-sizing:border-box} body{margin:0;font-family:"Segoe UI",Arial,sans-serif;color:var(--ink);background:#f4f6f8;}
+ header{background:var(--navy);color:#fff;text-align:center;padding:22px 10px 16px;}
+ header h1{margin:0;font-size:30px;letter-spacing:.5px;}
+ header .sub{font-style:italic;opacity:.9;margin-top:4px;font-size:15px;}
+ header .cols{font-size:12px;opacity:.75;margin-top:6px;letter-spacing:1px;}
+ .sec{background:var(--navy2);color:#fff;font-size:19px;font-weight:700;padding:8px 22px;margin-top:18px;letter-spacing:.5px;}
+ table{width:100%;border-collapse:collapse;background:#fff;}
+ tr{border-bottom:1px solid var(--line);} tr:nth-child(even){background:#f0f3f6;}
+ td{padding:10px 14px;vertical-align:middle;}
+ td.name{width:235px;} td.name b{font-family:Consolas,monospace;font-size:14px;color:var(--navy2);}
+ td.name .kind{display:block;color:var(--mut);font-style:italic;font-size:11px;}
+ td.name .nom{display:block;margin-top:5px;font-size:11px;color:#333;}
+ td.name .nom code{background:#eef1f4;padding:1px 5px;border-radius:3px;font-size:11px;}
+ td.desc{font-size:13.5px;color:#222;}
+ td.pic{width:330px;background:#000;text-align:center;}
+ td.pic img{max-width:320px;max-height:140px;background:#000;}
+ .dot{display:inline-block;width:11px;height:11px;border-radius:2px;vertical-align:middle;margin-right:4px;border:1px solid #0003;}
+ footer{padding:14px 22px;color:var(--mut);font-size:12px;}
+</style></head><body>
+<header>
+ <h1>MAIMAAR PEB — Column Layout Plan</h1>
+ <div class="sub">LISP Visual Nomenclature Reference — the STRICT rulebook for the dynamic IF → AutoCAD system</div>
+ <div class="cols">LISP NAME / LAYER &nbsp;·&nbsp; DESCRIPTION + STRICT RULE &nbsp;·&nbsp; REAL MAMMUT SAMPLE (target)</div>
+</header>
+
+<div class="sec">BUILDING OUTLINE</div>
+<table>
+ <tr><td class="name"><b>OUTLINE</b><span class="kind">(layer)</span><span class="nom"><span class="dot" style="background:#fff"></span><code>white 7</code> · Continuous · <code>0.35</code></span></td>
+   <td class="desc">Building outer rectangle at the steel line. <b>Rule:</b> (0,0)→(LENGTH, WIDTH) from IF <code>LENGTH</code>,<code>WIDTH</code>.</td>
+   <td class="pic"><img src="pics/04_building_outline_columns.png"></td></tr>
+</table>
+
+<div class="sec">GRID SYSTEM</div>
+<table>
+ <tr><td class="name"><b>GRID-LINES</b><span class="kind">(layer)</span><span class="nom"><span class="dot" style="background:#0c0"></span><code>green 3</code> · <b>CENTER</b> (dash-dot) · <code>0.09</code></span></td>
+   <td class="desc">Bay grid lines (vertical) + width lines at A &amp; B. <b>Rule:</b> one per bay station from <code>NUMBAYS/BAY1..n</code>; stops at the bubble.</td>
+   <td class="pic"><img src="pics/04_building_outline_columns.png"></td></tr>
+ <tr><td class="name"><b>grid-bubble</b><span class="kind">(function · GRID + GRID-TEXT)</span><span class="nom"><span class="dot" style="background:#0c0"></span><code>green 3</code> outline · <span class="dot" style="background:#e00"></span><code>red 1</code> number</span></td>
+   <td class="desc"><b>PENTAGON</b> (apex toward building) with number (top, 1..N) or letter (sides, A,B). <b>Rule:</b> one per grid station, r≈600.</td>
+   <td class="pic"><img src="pics/01_grid_bubble_number.png"></td></tr>
+ <tr><td class="name"><b>grid-bubble (letter)</b><span class="kind">(function)</span><span class="nom">apex points → toward building</span></td>
+   <td class="desc">Width grid identifiers A, B down the left edge.</td>
+   <td class="pic"><img src="pics/02_grid_bubble_letter.png"></td></tr>
+</table>
+
+<div class="sec">COLUMNS</div>
+<table>
+ <tr><td class="name"><b>COLUMN</b><span class="kind">(layer)</span><span class="nom"><span class="dot" style="background:#e00"></span><code>red 1</code> · Continuous · <b><code>0.50 heavy</code></b></span></td>
+   <td class="desc">I-section column symbol, red, heavy. <b>Rule:</b> at every grid node on A &amp; B walls (+ interior per <code>STYPE</code>); web depth ≈ span/30.</td>
+   <td class="pic"><img src="pics/04_building_outline_columns.png"></td></tr>
+</table>
+
+<div class="sec">CROSS-BRACING</div>
+<table>
+ <tr><td class="name"><b>CROSS</b><span class="kind">(layer · peb-draw-bracing)</span><span class="nom"><span class="dot" style="background:#0ce"></span><code>cyan 4</code> · DASHED/HIDDEN · <code>0.18</code></span></td>
+   <td class="desc"><b>SINGLE full corner-to-corner X</b> per braced bay (NSW↔FSW) — <i>not</i> a bowtie. <b>Rule:</b> braced bays = 2nd &amp; 2nd-last (<code>peb-braced-bays</code>).</td>
+   <td class="pic"><img src="pics/05_cross_bracing.png"></td></tr>
+ <tr><td class="name"><b>BRACED BAY label</b><span class="kind">(text · SECONDARY)</span><span class="nom"><span class="dot" style="background:#e0e"></span><code>magenta 6</code> · vertical</span></td>
+   <td class="desc">"B R A C E D  B A Y" centred in each braced bay.</td>
+   <td class="pic"><img src="pics/08_braced_bay_text.png"></td></tr>
+</table>
+
+<div class="sec">DIMENSIONS</div>
+<table>
+ <tr><td class="name"><b>Bay dim chain</b><span class="kind">(DIM)</span><span class="nom"><span class="dot" style="background:#e0e"></span><code>magenta 6</code> · arch tick · <code>0.13</code></span></td>
+   <td class="desc">Per-bay values + overall "BUILDING LENGTH : &lt;L&gt; CENTER TO CENTER OF STEEL COLUMN". Basis = C/C steel.</td>
+   <td class="pic"><img src="pics/03_dimension_chain.png"></td></tr>
+ <tr><td class="name"><b>Width dim chain</b><span class="kind">(DIM)</span><span class="nom"><span class="dot" style="background:#e0e"></span><code>magenta 6</code> · arch tick</span></td>
+   <td class="desc">Module values + "BUILDING WIDTH : &lt;W&gt; C/C OF STEEL COLUMN", left side (mirrored right).</td>
+   <td class="pic"><img src="pics/10_width_dim.png"></td></tr>
+</table>
+
+<div class="sec">ROOF INDICATORS</div>
+<table>
+ <tr><td class="name"><b>FALL marker</b><span class="kind">(symbol + text)</span><span class="nom"><span class="dot" style="background:#e00"></span><code>red 1</code> glyph + <span class="dot" style="background:#fff"></span>white text</span></td>
+   <td class="desc">Red pentagon-house glyph + vertical "FALL" + slope arrow. <b>Rule:</b> one per roof slope at each end zone.</td>
+   <td class="pic"><img src="pics/06_fall_marker.png"></td></tr>
+ <tr><td class="name"><b>RIDGE LINE / CL OF RAFTER</b><span class="kind">(MLEADER)</span><span class="nom"><code>LEADER</code> · white 7 · filled arrow</span></td>
+   <td class="desc">Native MLEADER labels on the ridge centreline / rafter. Single editable entities.</td>
+   <td class="pic"><img src="pics/09_crane_beam.png"></td></tr>
+</table>
+
+<div class="sec">AREA &amp; CRANE</div>
+<table>
+ <tr><td class="name"><b>Area tag</b><span class="kind">(AREA)</span><span class="nom"><span class="dot" style="background:#fff"></span>white box + text · red centre-line</span></td>
+   <td class="desc">Boxed "AREA-0N" at each area centre. <b>Rule:</b> one per IF area.</td>
+   <td class="pic"><img src="pics/07_area_tag.png"></td></tr>
+ <tr><td class="name"><b>Crane beam + symbol</b><span class="kind">(CRANE)</span><span class="nom">grey/white · only if IF crane</span></td>
+   <td class="desc">Runway line at mid-width + crane bridge symbol + "CRANE RUN : &lt;span&gt;" / "&lt;cap&gt; Crane".</td>
+   <td class="pic"><img src="pics/09_crane_beam.png"></td></tr>
+</table>
+
+<div class="sec">TITLE &amp; TOP</div>
+<table>
+ <tr><td class="name"><b>Plan title</b><span class="kind">(text)</span><span class="nom"><span class="dot" style="background:#36f"></span><code>blue 5</code> · large</span></td>
+   <td class="desc">"COLUMN LAY-OUT PLAN", centred under the plan.</td>
+   <td class="pic"><img src="pics/12_sheet_title.png"></td></tr>
+ <tr><td class="name"><b>Title-block strip</b><span class="kind">(TitleBlock)</span><span class="nom">white 7 · border 4 · <code>0.50</code></span></td>
+   <td class="desc">Vertical right-edge Mammut strip: General Notes · design loads · project/customer/quote — all IF-linked.</td>
+   <td class="pic"><img src="pics/11_title_block_strip.png"></td></tr>
+</table>
+
+<footer>
+ Source of truth: real Mammut parent <code>MAMMUT_07_Zealcon_MultiArea_Crane.dxf</code> · pictures cropped from <code>00_MASTER_real_zealcon_plan.png</code>.<br>
+ STRICT = fixed layer/colour/linetype/lineweight (this table). DYNAMIC = positions from IF data. Next: add an "engine-actual" picture column for target-vs-actual validation.
+</footer>
+</body></html>
