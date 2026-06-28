@@ -422,6 +422,19 @@
   (setq d (* 50.0 (fix (+ 0.5 (/ (/ widthMm 30.0) 50.0)))))
   (cond ((< d 400.0) 400.0) ((> d 1000.0) 1000.0) (T d)))
 
+;; Base-plate + 4 anchor-bolt holes at a column (top view) — the anchor-bolt
+;; content of the combined COLUMN LAYOUT & ANCHOR BOLT PLAN.  Plate on PLATES,
+;; bolts as clear circles on BOLTS at gauge ±g.  Drawn BEHIND the column section.
+(defun peb-draw-baseplate (x y / ph g prev)
+  (setq ph 280.0 g 150.0 prev (getvar "CLAYER"))
+  (setvar "CLAYER" "PLATES")
+  (command "_.RECTANG" (list (- x ph) (- y ph)) (list (+ x ph) (+ y ph)))
+  (setvar "CLAYER" "BOLTS")
+  (foreach pt (list (list (- x g) (- y g)) (list (+ x g) (- y g))
+                    (list (- x g) (+ y g)) (list (+ x g) (+ y g)))
+    (command "_.CIRCLE" pt 24.0))
+  (setvar "CLAYER" prev))
+
 (defun draw-I-column-lengthwise (x y / w h tf tw boltR prevLayer)
   ;; Phase-2A v18: MAIN FRAME column — Maimaar geometry restored.
   ;; FLANGE width (w) original 360.
@@ -429,6 +442,7 @@
   ;; Flanges + web red; bolts white.
   (setq w 360 h (if *PEB-COL-WEB* *PEB-COL-WEB* 700) tf 35 tw 45 boltR 25)
   (setq prevLayer (getvar "CLAYER"))
+  (peb-draw-baseplate x y)       ; anchor-bolt base plate (behind the section)
   (setvar "CLAYER" "COLUMNS")    ; red
   (command "RECTANG" (list (- x (/ w 2.0)) (- y (/ h 2.0))) (list (+ x (/ w 2.0)) (+ (- y (/ h 2.0)) tf)))
   (command "HATCH" "SOLID" "L" "")
@@ -450,6 +464,7 @@
   ;; Color now red; bolts white.
   (setq w 460 h 360 tf 35 tw 45 boltR 25)
   (setq prevLayer (getvar "CLAYER"))
+  (peb-draw-baseplate x y)       ; anchor-bolt base plate (behind the section)
   (setvar "CLAYER" "COLUMNS")    ; red
   (command "RECTANG" (list (- x (/ w 2.0)) (- y (/ h 2.0))) (list (+ (- x (/ w 2.0)) tf) (+ y (/ h 2.0))))
   (command "HATCH" "SOLID" "L" "")
@@ -582,6 +597,20 @@
                               (if (member bayIdx braced) T nil)
                               len wid ox oy bayPts)))
     (setq i (1+ i))))
+
+;; Anchor-bolt schedule (proposal-stage, indicative) — a compact table placed
+;; below the building.  Grade/size are indicative; finalised at design stage.
+(defun peb-draw-ab-schedule (x0 y0 abgrade / prev s rh cw)
+  (setq prev (getvar "CLAYER") s (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0))
+  (setq rh (* 520 s) cw (* 2400 s))
+  (setvar "CLAYER" "TEXT")
+  (txt-bold "ML" (list x0 y0) (* 340 s) 0 "ANCHOR BOLT SCHEDULE")
+  (foreach c (list (list "MARK" 0) (list "SIZE / GRADE" 1) (list "NOS / COL" 2) (list "PROJECTION" 3))
+    (txt "ML" (list (+ x0 (* (cadr c) cw)) (- y0 rh)) (* 270 s) 0 (car c)))
+  (foreach c (list (list "AB-1" 0) (list (if (= abgrade "") "M24 (4.6)" abgrade) 1) (list "4" 2) (list "300 MM" 3))
+    (txt "ML" (list (+ x0 (* (cadr c) cw)) (- y0 (* 2 rh))) (* 270 s) 0 (car c)))
+  (txt "ML" (list x0 (- y0 (* 3 rh))) (* 220 s) 0 "(INDICATIVE - FINALISED AT DESIGN STAGE)")
+  (setvar "CLAYER" prev))
 
 (defun draw-RCC-column (x y / s prevLayer)
   (setq s 520)
@@ -1623,6 +1652,11 @@
   ;; ── Doors / windows at their offsets (+ braced-bay clash flag) ─
   (vl-catch-all-apply (function (lambda () (peb-draw-placements data 0.0 0.0 len wid bayPts))))
 
+  ;; ── Anchor-bolt schedule (below the building, bottom-left) ─────
+  (vl-catch-all-apply (function (lambda ()
+    (peb-draw-ab-schedule 0.0 (- 0.0 (* 5800 (if *PEB-DIM-SCALE* *PEB-DIM-SCALE* 1.0)))
+                          (peb-tb-or (MSPL-Get-Str data "ANCHORBOLTS") "")))))
+
   ;; ── Slope arrows (Phase-2A user rules) ────────────────────────
   ;; Column-count rule, start at bay 2 (between GL 2-3):
   ;;   1 bay        → 1 column at centre of bay 1
@@ -1945,7 +1979,7 @@
       (strcat "CLIENT: " client)
       (strcat "REV: " revno "    DRN: M.H    CHK: YEA")
       (strcat "DATE: " fulldate "    BLDG NO.: " bldgno)
-      "{\\fArial|b1;COLUMN LAYOUT PLAN}"
+      "{\\fArial|b1;COLUMN LAYOUT & ANCHOR BOLT PLAN}"
       "SHEET NO.  PRO-01"))
   ;; Body matrix: 7 rows × 6 cols.  Row 1 (the first body row) has
   ;; the merged-column content; subsequent rows for non-project cols
@@ -2041,7 +2075,7 @@
       (cons "BLDGNO"    tbBno)
       (cons "BLDGNAME"  tbBname)
       (cons "IDENTICAL" (peb-tb-or (MSPL-Get-Str data "IDENTICAL") "1"))
-      (cons "DRGTITLE"  "COLUMN LAY-OUT PLAN")
+      (cons "DRGTITLE"  "COLUMN LAYOUT & ANCHOR BOLT PLAN")
       (cons "SCALE"     "N.T.S.")
       (cons "SHEETSIZE" "A1")
       (cons "SHEETNO"   (strcat "PRO-" tbBno))))
