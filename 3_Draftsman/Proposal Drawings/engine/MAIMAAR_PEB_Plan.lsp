@@ -406,12 +406,20 @@
   (command "LINE" (list x (- y arm)) (list x (+ y arm)) "")
 )
 
+;; Maimaar-typical built-up MAIN column web depth, sized BY SPAN (owner rule).
+;; Rule of thumb ~ span/30, rounded to 50 mm, clamped 400..1000.  Drives both the
+;; drawn column symbol and the sidewall inset colOff = web/2 (flange flush on grid).
+(defun peb-col-web-depth (widthMm / d)
+  (if (or (null widthMm) (<= widthMm 0.0)) (setq widthMm 18000.0))
+  (setq d (* 50.0 (fix (+ 0.5 (/ (/ widthMm 30.0) 50.0)))))
+  (cond ((< d 400.0) 400.0) ((> d 1000.0) 1000.0) (T d)))
+
 (defun draw-I-column-lengthwise (x y / w h tf tw boltR prevLayer)
   ;; Phase-2A v18: MAIN FRAME column — Maimaar geometry restored.
   ;; FLANGE width (w) original 360.
-  ;; WEB depth (h) bumped 460 → 700 per user.
+  ;; WEB depth (h) now Maimaar-typical BY SPAN via *PEB-COL-WEB* (fallback 700).
   ;; Flanges + web red; bolts white.
-  (setq w 360 h 700 tf 35 tw 45 boltR 25)
+  (setq w 360 h (if *PEB-COL-WEB* *PEB-COL-WEB* 700) tf 35 tw 45 boltR 25)
   (setq prevLayer (getvar "CLAYER"))
   (setvar "CLAYER" "COLUMNS")    ; red
   (command "RECTANG" (list (- x (/ w 2.0)) (- y (/ h 2.0))) (list (+ x (/ w 2.0)) (+ (- y (/ h 2.0)) tf)))
@@ -1175,9 +1183,11 @@
   ;; Phase-2A v23: column placement so OUTER flange sits ON the grid
   ;; line (Mammut convention).  Sidewall columns inset h/2 = 350 from
   ;; NSW/FSW grid; end-wall columns inset w/2 = 230 from LEW/REW grid.
-  (setq colOff  350.0
-        botY    350.0
-        topY    (- wid 350.0)
+  ;; Maimaar-typical column web depth BY SPAN → drives the symbol + the inset.
+  (setq *PEB-COL-WEB* (peb-col-web-depth wid))
+  (setq colOff  (/ *PEB-COL-WEB* 2.0)
+        botY    (/ *PEB-COL-WEB* 2.0)
+        topY    (- wid (/ *PEB-COL-WEB* 2.0))
         leftX   230.0
         rightX  (- len 230.0))
 

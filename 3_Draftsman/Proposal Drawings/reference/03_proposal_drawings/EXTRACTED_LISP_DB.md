@@ -47,11 +47,12 @@ BRICK-WALL 30/0.25 · RCC-COLUMN 8/0.35 · GROUND 7/0.50 · GROUND-HATCH 8/0.09 
   NOT a 600-tall filled head. Value sits ABOVE a continuous dim line (`DIMTAD 1`).
 - Spacing chains print the IF grouping verbatim (mm); overall dims carry the basis text.
 
-## Columns — size matching Maimaar
-Plan columns are drawn from the engine's section depth (main web `h`, sidewall inset
-`colOff = h/2`). These should reflect Maimaar's actual built-up section depth; where
-the estimation section is available it should drive `h`, else a Maimaar-typical default.
-(Tracked under Phase P / Phase M.)
+## Columns — size matching Maimaar (IMPLEMENTED)
+Plan main-column web depth is **Maimaar-typical BY SPAN**: `peb-col-web-depth` ≈
+span/30, rounded to 50 mm, clamped 400..1000 (`*PEB-COL-WEB*`). It drives both the
+drawn column symbol (`draw-I-column-lengthwise`) and the sidewall inset
+`colOff = web/2` (outer flange flush on the grid). Refine to exact estimation
+sections later when an estimation run feeds the frame.
 
 ## How it's used
 Load order **Standard → Section → Plan → Cover**; `peb-std-setup` lays the layer/colour/
