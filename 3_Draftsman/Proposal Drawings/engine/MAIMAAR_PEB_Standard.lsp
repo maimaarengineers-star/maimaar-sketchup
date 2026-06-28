@@ -32,46 +32,52 @@
 ;;    Plan/Section divergences are reconciled here (RIDGE 0.18, ARROWS cyan,
 ;;    COL-CENTER == CL).  New corpus layers: HATCHR, HATCH, GRID-TEXT, COLUMN-HATCH.
 ;; ---------------------------------------------------------------------------
+;; Lineweights below are the EXACT values extracted from the best competitor
+;; exemplars (proposals/10,12,14,18 = Template-A "Izhar clean"; 33,35 = Template-B
+;; Mammut/Karren). Key facts from that extraction:
+;;   * the pervasive working line is 0.09 (code 9) — most geometry sits here;
+;;   * BORDER 0.50; heavy RED COLUMN 0.50 (Template-B, owner-approved);
+;;   * RCC HATCHR = ACI 32 @ 0.30; CROSS bracing = 0.13 HIDDEN; dims/text thin.
 (setq *PEB-LAYERS*
   '(;; --- sheet / title block ---
-    ("BORDER"       7   "Continuous" 0.70)
+    ("BORDER"       7   "Continuous" 0.50)   ; exemplars: 0.50 (cyan in Mammut; kept white for our TB)
     ("TITLEBLOCK"   1   "Continuous" 0.35)
     ("TB-HEADER"    1   "Continuous" 0.50)
-    ;; --- grid system (Roshan sub-scheme) ---
-    ("GRID"         150 "Continuous" 0.25)   ; grid bubbles + chain frame
+    ;; --- grid system (green grid + Roshan thin sub-scheme @ 0.09) ---
+    ("GRID"         3   "Continuous" 0.13)   ; grid bubbles + chain frame (Mammut grid = green)
     ("GRID-LINES"   8   "DASHDOT"    0.09)   ; grid centre-lines
     ("GRID-TEXT"    1   "Continuous" 0.09)   ; grid bubble numbers (red)
     ("COLUMN-HATCH" 8   "Continuous" 0.09)   ; column poché (thin grey)
     ;; --- primary steel ---
-    ("STRUCTURE"    7   "Continuous" 0.50)
+    ("STRUCTURE"    7   "Continuous" 0.25)   ; rafters/members (was 0.50 — exemplars are lighter)
     ("COLUMNS"      1   "Continuous" 0.50)   ; Template-B heavy RED columns
     ("COL-CENTER"   1   "CENTER"     0.09)   ; plan column centre-line
     ("CL"           1   "CENTER"     0.09)   ; section alias of COL-CENTER
     ("BOLTS"        7   "Continuous" 0.09)
     ("PLATES"       7   "Continuous" 0.35)
-    ("FRAME"        7   "Continuous" 0.50)
+    ("FRAME"        7   "Continuous" 0.50)   ; section main-frame outline (heavy)
     ("FRAME-FILL"   8   "Continuous" 0.09)
     ("RIDGE"        5   "HIDDEN"     0.18)   ; reconciled (was 0.09 plan / 0.18 sec)
-    ("RAFTER"       8   "HIDDEN"     0.05)
-    ;; --- secondary / envelope ---
-    ("PURLINS"      6   "Continuous" 0.18)
-    ("GIRTS"        6   "Continuous" 0.18)
-    ("SHEETING"     4   "Continuous" 0.09)   ; plan sheeting-face line
-    ("CLADDING"     5   "Continuous" 0.25)   ; section cladding
+    ("RAFTER"       8   "HIDDEN"     0.09)
+    ;; --- secondary / envelope (thin) ---
+    ("PURLINS"      6   "Continuous" 0.13)
+    ("GIRTS"        6   "Continuous" 0.13)
+    ("SHEETING"     5   "Continuous" 0.09)   ; sheeting-face line (Mammut SHEETING = blue)
+    ("CLADDING"     5   "Continuous" 0.18)
     ("COL-OUTER"    4   "DASHDOT"    0.09)
-    ("GUTTER"       4   "Continuous" 0.25)
-    ;; --- annotation ---
-    ("DIMENSIONS"   3   "Continuous" 0.18)   ; corpus DIM = green
-    ("ARROWS"       4   "Continuous" 0.25)   ; reconciled cyan ticks
-    ("TEXT"         7   "Continuous" 0.25)
-    ("AREA-MARK"    8   "Continuous" 0.05)
+    ("GUTTER"       4   "Continuous" 0.18)
+    ;; --- annotation (thin, legible) ---
+    ("DIMENSIONS"   3   "Continuous" 0.13)   ; dim lines green @ 0.13
+    ("ARROWS"       3   "Continuous" 0.13)   ; dim ticks/arrows match dim colour
+    ("TEXT"         7   "Continuous" 0.13)
+    ("AREA-MARK"    8   "Continuous" 0.09)
     ;; --- masonry / RCC / fills ---
     ("BRICK-WALL"   30  "Continuous" 0.25)
     ("RCC-COLUMN"   8   "Continuous" 0.35)
     ("GROUND"       7   "Continuous" 0.50)
     ("GROUND-HATCH" 8   "Continuous" 0.09)
-    ("HATCHR"       32  "Continuous" 0.30)   ; NEW: RCC / concrete poché (orange)
-    ("HATCH"        8   "Continuous" 0.05)   ; NEW: light fill (existing / future)
+    ("HATCHR"       32  "Continuous" 0.30)   ; RCC / concrete poché (orange) — exemplar-exact
+    ("HATCH"        8   "Continuous" 0.05)   ; light fill (existing / future)
    ))
 
 ;; ---------------------------------------------------------------------------

@@ -2006,11 +2006,16 @@
   ;;   100 m bldg → 900 mm at 1:240 = 3.8 mm on paper ✓
   ;;   200 m bldg → 1260 mm at 1:480 = 2.6 mm on paper ✓
   (setvar "DIMSCALE" (if *PEB-DIM-SCALE* *PEB-DIM-SCALE* 1.0))
-  (setvar "DIMTXT"   600.0)
-  (setvar "DIMASZ"   600.0)
-  (setvar "DIMEXE"   100.0)
-  (setvar "DIMEXO"   100.0)
-  (setvar "DIMGAP"    10.0)
+  ;; Dimension TEXT + ARROWS tuned to the Mammut look (extracted-DB parity):
+  ;;   DIMTXT 500 plots ~2.1 mm @1:240 .. ~4.2 mm @1:120 — clean, never bulky.
+  ;;   ARROWS = architectural TICK (DIMTSZ>0) — the professional structural-dim
+  ;;   slash, NOT a 600-tall filled head. Tick ~1/3 of text height.
+  (setvar "DIMTXT"   500.0)
+  (setvar "DIMASZ"   180.0)        ; (ignored while DIMTSZ>0; kept as fallback)
+  (setvar "DIMTSZ"   170.0)        ; architectural oblique tick
+  (setvar "DIMEXE"   120.0)        ; extension beyond dim line
+  (setvar "DIMEXO"   120.0)        ; extension offset from object
+  (setvar "DIMGAP"    60.0)
   (setvar "DIMTAD"      1)
   (setvar "DIMTOH"      0)
   (setvar "DIMTIH"      0)
@@ -2656,13 +2661,16 @@
   ;; (\\P = MText paragraph break — value on line 1, label on line 2).
   ;; ── Phase-2A v3: DIMSCALE auto-scales with building size ──────
   (peb-safe-setvar "DIMSCALE" (if *PEB-DIM-SCALE* *PEB-DIM-SCALE* 1.0))
-  (peb-safe-setvar "DIMTXT"   600.0)        ; Phase-2A v4: 600 base
+  ;; Mammut-parity (extracted-DB): smaller text + architectural TICK arrows,
+  ;; value sitting ABOVE a continuous dim line.
+  (peb-safe-setvar "DIMTXT"   500.0)        ; clean, never bulky
   (peb-safe-setvar "DIMTXSTY" "PEB-TITLE")
-  (peb-safe-setvar "DIMASZ"   600.0)        ; Phase-2A v4: 600 base
-  (peb-safe-setvar "DIMEXE"   100.0)
-  (peb-safe-setvar "DIMEXO"   100.0)
-  (peb-safe-setvar "DIMGAP"    10.0)
-  (peb-safe-setvar "DIMTAD"      0)         ; centered on dim line per ref
+  (peb-safe-setvar "DIMASZ"   180.0)        ; fallback head (ignored while DIMTSZ>0)
+  (peb-safe-setvar "DIMTSZ"   170.0)        ; architectural oblique tick
+  (peb-safe-setvar "DIMEXE"   120.0)
+  (peb-safe-setvar "DIMEXO"   120.0)
+  (peb-safe-setvar "DIMGAP"    60.0)
+  (peb-safe-setvar "DIMTAD"      1)         ; value above the dim/tick line
   (peb-safe-setvar "DIMTOFL"     1)         ; force line inside (On)
   (peb-safe-setvar "DIMTIH"      0)         ; text aligned with dim line
   (peb-safe-setvar "DIMTOH"      0)
