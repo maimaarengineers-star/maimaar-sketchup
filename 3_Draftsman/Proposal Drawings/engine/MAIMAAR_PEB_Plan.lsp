@@ -510,19 +510,16 @@
 ;; (inset top/bottom by web/2 = colOff, not the full sheeting width) + a clearly
 ;; visible "BRACED BAY" tag.  ox/oy = area origin (0,0 single).
 (defun peb-draw-bracing (bayPts wid ox oy / braced prevLayer x0 x1 cx ymid first)
-  ;; Cross-bracing on the COLUMN LAYOUT PLAN, Zealcon style: a cyan DOTTED (DASHED)
-  ;; BOWTIE per braced bay — ONE X per roof slope, pinching at the ridge centreline
-  ;; (ymid).  This is the true roof-bracing representation (X in each roof plane),
-  ;; not a single full-width X.  Vertical magenta "BRACED BAY" + "CROSS BRACING (TYP.)".
+  ;; Cross-bracing on the COLUMN LAYOUT PLAN (OWNER RULE — real Mammut): a cyan DASHED
+  ;; FULL corner-to-corner X across each braced bay (NSW corner <-> FSW corner) — a
+  ;; SINGLE X, not a bowtie.  Vertical magenta "BRACED BAY" + "CROSS BRACING (TYP.)".
   (setq braced (peb-braced-bays bayPts))
   (setq prevLayer (getvar "CLAYER") ymid (+ oy (/ wid 2.0)) first T)
   (foreach b braced
     (setq x0 (+ ox (nth b bayPts)) x1 (+ ox (nth (1+ b) bayPts)) cx (/ (+ x0 x1) 2.0))
     (setvar "CLAYER" "CROSS")
-    (command "_.LINE" (list x0 oy)         (list x1 ymid)       "")   ; lower slope /
-    (command "_.LINE" (list x0 ymid)       (list x1 oy)         "")   ; lower slope \
-    (command "_.LINE" (list x0 ymid)       (list x1 (+ oy wid)) "")   ; upper slope /
-    (command "_.LINE" (list x0 (+ oy wid)) (list x1 ymid)       "")   ; upper slope \
+    (command "_.LINE" (list x0 oy)         (list x1 (+ oy wid)) "")   ; NSW corner -> FSW corner
+    (command "_.LINE" (list x0 (+ oy wid)) (list x1 oy)         "")   ; FSW corner -> NSW corner
     ;; "BRACED BAY" marking — vertical, magenta (Zealcon)
     (setvar "CLAYER" "SECONDARY")
     (txt-bold "MC" (list cx ymid) (* 320 *PEB-TEXT-SCALE*) 90 "BRACED BAY")
@@ -788,66 +785,18 @@
   (if *PEB-ROOF-SLOPE* *PEB-ROOF-SLOPE* "1:10")
 )
 
-(defun arrow-up-big (x y / s headW headH stemW stemH labY)
-  ;; Phase-2A v10: redesigned slope arrow — more professional shape.
-  ;;   Taller, sharper triangular head with wider base.
-  ;;   Slim rectangular stem (~1/3 head width) for clean visual hierarchy.
-  ;;   Both filled SOLID on ARROWS layer (cyan).
-  ;;   Size still auto-scales with building via *PEB-TEXT-SCALE* × 1.25.
+;; FALL marker (OWNER RULE — real Mammut): a red pentagon glyph (apex = fall
+;; direction) + vertical "FALL" text.  Replaces the old green slope arrows; the
+;; 1:10 slope ratio is dropped from the plan (it belongs in the Section).
+;; Drawn via the shared primitives on FALL (red) + TEXT (white).
+(defun peb-fall-marker (x y dir / s r gy)
   (if (not *PEB-TEXT-SCALE*) (setq *PEB-TEXT-SCALE* 1.0))
-  (setq s (* *PEB-TEXT-SCALE* 1.25))
-  (setq headW (* 700 s))          ; head base half-width  (was 480)
-  (setq headH (* 1400 s))          ; head height           (was 1050-100=950)
-  (setq stemW (* 280 s))           ; stem half-width       (Phase-2A v11: expanded tail)
-  (setq stemH (* 700 s))           ; stem height
-  (setq labY  (- y stemH (* 250 s))) ; slope-ratio text below stem
-  (setvar "CLAYER" "ARROWS")
-  ;; Filled triangular head — apex up, base meets stem-top at y+300s
-  (command "PLINE"
-    (list x         (+ y headH (* 300 s)))     ; apex
-    (list (- x headW) (+ y (* 300 s)))         ; base-left
-    (list (+ x headW) (+ y (* 300 s)))         ; base-right
-    "C")
-  (command "HATCH" "SOLID" "L" "")
-  ;; Slim rectangular stem (= same width as head's stem connector)
-  (command "PLINE"
-    (list (- x stemW) (+ y (* 300 s)))         ; top-left
-    (list (+ x stemW) (+ y (* 300 s)))         ; top-right
-    (list (+ x stemW) (- y stemH))             ; bottom-right
-    (list (- x stemW) (- y stemH))             ; bottom-left
-    "C")
-  (command "HATCH" "SOLID" "L" "")
-  ;; Slope-ratio text just below the stem
-  (txt "MC" (list x labY) 600 0 (peb-slope-text))
-)
+  (setq s *PEB-TEXT-SCALE* r (* 300.0 s) gy (+ y (* dir (* 1050.0 s))))
+  (peb-pent x gy r (if (> dir 0) "U" "D") "FALL")          ; red pentagon, apex = fall direction
+  (peb-text-j x y (* 540.0 s) 90.0 "FALL" "TEXT" "PEB-BODY" 1 2))
 
-(defun arrow-down-big (x y / s headW headH stemW stemH labY)
-  ;; Phase-2A v11: mirror of arrow-up-big, expanded tail.
-  (if (not *PEB-TEXT-SCALE*) (setq *PEB-TEXT-SCALE* 1.0))
-  (setq s (* *PEB-TEXT-SCALE* 1.25))
-  (setq headW (* 700 s))           ; head base half-width
-  (setq headH (* 1400 s))          ; head height (downward)
-  (setq stemW (* 280 s))           ; stem half-width — expanded
-  (setq stemH (* 700 s))           ; stem height
-  (setq labY  (+ y stemH (* 250 s)))
-  (setvar "CLAYER" "ARROWS")
-  ;; Filled triangular head — apex DOWN, base meets stem-bottom at y-300s
-  (command "PLINE"
-    (list x         (- y headH (* 300 s)))     ; apex (down)
-    (list (- x headW) (- y (* 300 s)))         ; base-left
-    (list (+ x headW) (- y (* 300 s)))         ; base-right
-    "C")
-  (command "HATCH" "SOLID" "L" "")
-  ;; Slim rectangular stem (tail goes UP from head base)
-  (command "PLINE"
-    (list (- x stemW) (- y (* 300 s)))         ; bottom-left
-    (list (+ x stemW) (- y (* 300 s)))         ; bottom-right
-    (list (+ x stemW) (+ y stemH))             ; top-right
-    (list (- x stemW) (+ y stemH))             ; top-left
-    "C")
-  (command "HATCH" "SOLID" "L" "")
-  (txt "MC" (list x labY) 600 0 (peb-slope-text))
-)
+(defun arrow-up-big   (x y) (peb-fall-marker x y  1.0))    ; fall toward FSW / ridge (up)
+(defun arrow-down-big (x y) (peb-fall-marker x y -1.0))    ; fall toward NSW (down)
 
 (defun draw-north-arrow (cx cy / s)
   (if (not *PEB-TEXT-SCALE*) (setq *PEB-TEXT-SCALE* 1.0))

@@ -70,6 +70,7 @@
     ;; --- annotation (thin, legible) ---
     ("DIMENSIONS"   6   "Continuous" 0.13)   ; dim chain — MAGENTA (OWNER RULE — real Mammut)
     ("ARROWS"       3   "Continuous" 0.13)   ; dim ticks/arrows match dim colour
+    ("FALL"         1   "Continuous" 0.18)   ; FALL roof-drainage glyph — RED (OWNER RULE)
     ("TEXT"         7   "Continuous" 0.13)
     ("AREA-MARK"    8   "Continuous" 0.18)   ; thick area-identification cross lines
     ("OPEN"         6   "Continuous" 0.18)   ; doors / windows / openings (magenta)

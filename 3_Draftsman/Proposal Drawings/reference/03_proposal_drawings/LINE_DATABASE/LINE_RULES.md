@@ -15,6 +15,9 @@ Status key: **🔒 OWNER-SET** = Nasir decided · **✓ settled** = old / new / 
 | Element | RULE (locked) | Why |
 |---|---|---|
 | **MS Column** | 🔒 **Built-up I-SECTION** (Phase-2: flanges + web + 4 bolts, web sized by span) | shows the real steel member; the square repro was only a placeholder. Already the production `draw-I-column-lengthwise` — no change. |
+| **Cross-bracing** | 🔒 **FULL corner-to-corner X** (one X per braced bay) | real Mammut; reverts the bowtie. ENGINE FIX: `peb-draw-bracing`. |
+| **FALL marker** | 🔒 **red glyph + "FALL"** + slope arrow (no 1:10 on plan) | real Mammut; the 1:10 slope ratio lives in the Section. ENGINE FIX: replace green arrow. |
+| **Base plate** | 🔒 **plate + 4 anchor bolts** (Phase-2) | shows the real anchor detail. Already in engine (`peb-draw-baseplate`). |
 
 ## Full locked rule set (every brick)
 | Brick (layer) | Colour | Linetype | LW mm | Shape / object | Status |
