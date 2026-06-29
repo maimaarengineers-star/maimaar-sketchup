@@ -44,9 +44,9 @@
     ("TITLEBLOCK"   1   "Continuous" 0.35)
     ("TB-HEADER"    1   "Continuous" 0.50)
     ;; --- grid system (green grid + Roshan thin sub-scheme @ 0.09) ---
-    ("GRID"         3   "Continuous" 0.13)   ; grid bubbles + chain frame (Mammut grid = green)
-    ("GRID-LINES"   3   "DASHED"     0.09)   ; grid axis lines — green dashed (Zealcon)
-    ("GRID-TEXT"    1   "Continuous" 0.09)   ; grid bubble numbers (red)
+    ("GRID"         150 "Continuous" 0.13)   ; grid bubble = CIRCLE, ACI 150 (OWNER RULE — original)
+    ("GRID-LINES"   8   "CENTER"     0.09)   ; grid axis lines — grey CENTER dash-dot (OWNER RULE — real Mammut)
+    ("GRID-TEXT"    150 "Continuous" 0.09)   ; grid bubble number — ACI 150 (OWNER RULE — original)
     ("COLUMN-HATCH" 8   "Continuous" 0.09)   ; column poché (thin grey)
     ;; --- primary steel ---
     ("STRUCTURE"    7   "Continuous" 0.25)   ; rafters/members (was 0.50 — exemplars are lighter)
@@ -63,12 +63,12 @@
     ;; --- secondary / envelope (thin) ---
     ("PURLINS"      6   "Continuous" 0.13)
     ("GIRTS"        6   "Continuous" 0.13)
-    ("SHEETING"     5   "Continuous" 0.09)   ; sheeting-face line (Mammut SHEETING = blue)
+    ("SHEETING"     4   "Continuous" 0.09)   ; building outline — CYAN (OWNER RULE — original)
     ("CLADDING"     5   "Continuous" 0.18)
     ("COL-OUTER"    4   "DASHDOT"    0.09)
     ("GUTTER"       4   "Continuous" 0.18)
     ;; --- annotation (thin, legible) ---
-    ("DIMENSIONS"   3   "Continuous" 0.13)   ; dim lines green @ 0.13
+    ("DIMENSIONS"   6   "Continuous" 0.13)   ; dim chain — MAGENTA (OWNER RULE — real Mammut)
     ("ARROWS"       3   "Continuous" 0.13)   ; dim ticks/arrows match dim colour
     ("TEXT"         7   "Continuous" 0.13)
     ("AREA-MARK"    8   "Continuous" 0.18)   ; thick area-identification cross lines
@@ -300,10 +300,11 @@
                    (list (- cx (* r 0.15))(- cy r))))))
   (peb-poly p lay T))
 
-;; GRID BUBBLE = pentagon on GRID (green) + label on GRID-TEXT (red).
-;;   dir "D" = top row (numbers), "R" = left column (letters).
+;; GRID BUBBLE = CIRCLE on GRID (ACI 150) + label on GRID-TEXT (ACI 150).
+;;   OWNER RULE: circle bubble (not pentagon).  `dir` kept for call compatibility.
+;;   (peb-pent remains available for any sheet that wants the pentagon variant.)
 (defun peb-bubble (cx cy r lab dir)
-  (peb-pent cx cy r dir "GRID")
+  (peb-circle cx cy r "GRID")
   (peb-text cx cy (* r 0.85) 0.0 lab "GRID-TEXT"))
 
 ;; LEADER = line tip->elbow + filled arrowhead at the tip + text at the elbow.

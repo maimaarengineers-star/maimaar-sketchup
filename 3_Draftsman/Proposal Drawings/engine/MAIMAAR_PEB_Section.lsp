@@ -5382,29 +5382,12 @@
   ;; Prefer the shared Presentation Standards DB when MAIMAAR_PEB_Standard.lsp
   ;; is loaded (single source of truth for the whole proposal set); otherwise
   ;; fall back to this inline block.
+  ;; SINGLE SOURCE (29-Jun): layers come ONLY from MAIMAAR_PEB_Standard.lsp.
+  ;; The old inline Phase-2 fallback block was DROPPED so stale brick values can
+  ;; never mix with the owner-locked standard.  Standard must be loaded first.
   (if (boundp 'peb-std-setup)
     (vl-catch-all-apply (function (lambda () (peb-std-setup))))
-   (progn
-    (make-layer "BORDER"       "7"   "Continuous" "0.70")
-    (make-layer "FRAME"        "7"   "Continuous" "0.50")
-    (make-layer "FRAME-FILL"   "8"   "Continuous" "0.09")
-    (make-layer "PLATES"       "7"   "Continuous" "0.35")  ; white = MS material colour
-    (make-layer "GROUND"       "7"   "Continuous" "0.50")
-    (make-layer "GROUND-HATCH" "8"   "Continuous" "0.09")
-    (make-layer "RIDGE"        "5"   "HIDDEN"     "0.18")
-    (make-layer "TEXT"         "7"   "Continuous" "0.25")
-    (make-layer "DIMENSIONS"   "3"   "Continuous" "0.18")
-    (make-layer "ARROWS"       "7"   "Continuous" "0.25")
-    (make-layer "CL"           "1"   "CENTER"     "0.09")
-    (make-layer "TITLEBLOCK"   "1"   "Continuous" "0.35")
-    (make-layer "TB-HEADER"    "1"   "Continuous" "0.50")
-    (make-layer "BRICK-WALL"   "30"  "Continuous" "0.25")  ; brown
-    (make-layer "RCC-COLUMN"   "8"   "Continuous" "0.35")  ; grey - RCC concrete
-    (make-layer "CLADDING"     "5"   "Continuous" "0.25")  ; blue
-    (make-layer "PURLINS"      "6"   "Continuous" "0.18")  ; magenta
-    (make-layer "GIRTS"        "6"   "Continuous" "0.18")  ; magenta
-    (make-layer "GUTTER"       "4"   "Continuous" "0.25")  ; cyan
-    (make-layer "GRID"         "150" "Continuous" "0.25")))
+    (princ "\n** MAIMAAR_PEB_Standard.lsp NOT loaded — load it FIRST; it is the single source of every line brick. **"))
 
   ;; ── Compute section layout (cols + ridges) based on stype ───
   (setq layout (compute-section-layout data stype wid))

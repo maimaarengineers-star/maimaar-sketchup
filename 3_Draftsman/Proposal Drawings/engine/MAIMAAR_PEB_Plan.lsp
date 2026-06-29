@@ -1407,27 +1407,12 @@
   ;; Layers: prefer the shared Presentation Standards DB (already laid by
   ;; peb-std-setup above when MAIMAAR_PEB_Standard.lsp is loaded).  Fall back
   ;; to this inline block only when the standard module is NOT present.
+  ;; SINGLE SOURCE (29-Jun): every brick/layer now comes ONLY from
+  ;; MAIMAAR_PEB_Standard.lsp (peb-ensure-layers, run by peb-std-setup above).
+  ;; The old inline Phase-2 layer definitions were DROPPED so stale brick values
+  ;; can never mix with the owner-locked standard.  Standard must be loaded first.
   (if (not (boundp 'peb-ensure-layers))
-   (progn
-    (make-layer "BORDER"     "7"   "Continuous" "0.70")
-    (make-layer "GRID"       "150" "Continuous" "0.25")
-    (make-layer "GRID-LINES" "8"   "DASHDOT"    "0.09")
-    (make-layer "STRUCTURE"  "7"   "Continuous" "0.50")
-    (make-layer "COLUMNS"    "1"   "Continuous" "0.35")   ; Phase-2A v15: red
-    (make-layer "BOLTS"      "7"   "Continuous" "0.09")   ; Phase-2A v15: white
-    (make-layer "COL-CENTER" "1"   "CENTER"     "0.09")
-    ;; Phase-2A: thinner ridge + dotted RAFTER layer (per user — looks beautiful)
-    (make-layer "RIDGE"      "5"   "HIDDEN"     "0.09")   ; thin dotted blue
-    (make-layer "RAFTER"     "8"   "HIDDEN"     "0.05")   ; thin dotted grey
-    (make-layer "AREA-MARK"  "8"   "Continuous" "0.05")   ; thin diagonal AREA cross-marks (grey)
-    (make-layer "TEXT"       "7"   "Continuous" "0.25")
-    (make-layer "DIMENSIONS" "3"   "Continuous" "0.18")
-    (make-layer "ARROWS"     "4"   "Continuous" "0.25")   ; Phase-2A v9: cyan
-    ;; Phase-2A v14: Mammut-style column-face + sheeting-face lines
-    (make-layer "COL-OUTER"  "4"   "DASHDOT"    "0.09")   ; cyan DASHDOT line @ column outer face
-    (make-layer "SHEETING"   "4"   "Continuous" "0.09")   ; outer cyan line @ sheeting face
-    (make-layer "TITLEBLOCK" "1"   "Continuous" "0.35")
-    (make-layer "TB-HEADER"  "1"   "Continuous" "0.50")))
+    (princ "\n** MAIMAAR_PEB_Standard.lsp NOT loaded — load it FIRST; it is the single source of every line brick. **"))
 
   ;; ── Building outline (Phase-2A v23: column-flange flush) ─────────
   ;; Now that columns are placed with outer flange ON the grid line

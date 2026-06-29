@@ -1,0 +1,112 @@
+<!DOCTYPE html><html><head><meta charset=utf-8>
+<title>MAIMAAR PEB — Basic Line Units (the bricks)</title><style>
+*{box-sizing:border-box}body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:#f4f6f8;color:#1a1a1a}
+header{background:#16314f;color:#fff;text-align:center;padding:20px}
+header h1{margin:0;font-size:26px}header .sub{font-style:italic;opacity:.9;margin-top:4px}
+table{width:100%;border-collapse:collapse;background:#fff}
+tr{border-bottom:1px solid #dde3ea}tr:nth-child(even){background:#eef2f6}
+td{padding:8px 14px;vertical-align:middle}
+td.n{width:240px}td.n b{font-family:Consolas,monospace;font-size:15px;color:#1f4a73}
+td.n .d{display:block;color:#666;font-size:12px;margin-top:2px}
+td.s{width:230px;font-size:12.5px}td.s code{background:#eef1f4;padding:1px 5px;border-radius:3px}
+td.p{width:160px;font-size:12px}td.p code{background:#eef1f4;padding:1px 5px;border-radius:3px}
+td.img{background:#000;width:430px;text-align:center}td.img img{max-width:420px;max-height:120px;background:#000}
+th{background:#1f4a73;color:#fff;padding:8px 14px;text-align:left;font-size:13px}
+footer{padding:12px 16px;color:#666;font-size:12px}
+</style></head><body>
+<header><h1>MAIMAAR PEB — BASIC LINE UNITS (the bricks)</h1>
+<div class=sub>Each basic line/unit drawn in ISOLATION by the LISP primitives — the universal building blocks.<br>Define the rules to assemble these bricks into bodies (Plan, Section, …).</div></header>
+<table><tr><th>UNIT / NAME</th><th>STYLE (colour · linetype · weight)</th><th>PRIMITIVE</th><th>REAL SAMPLE (drawn by our LISP)</th></tr>
+<tr>
+ <td class=n><b>SHEETING</b><span class=d>building outline</span></td>
+ <td class=s><code>blue 5</code> · Continuous · <code>0.09</code></td>
+ <td class=p><code>peb-rect</code></td>
+ <td class=img><img src="units/01_SHEETING.png"></td></tr>
+<tr>
+ <td class=n><b>BORDER</b><span class=d>sheet border</span></td>
+ <td class=s><code>white 7</code> · Continuous · <code>0.50</code></td>
+ <td class=p><code>peb-rect</code></td>
+ <td class=img><img src="units/02_BORDER.png"></td></tr>
+<tr>
+ <td class=n><b>GRID-LINES</b><span class=d>grid axis line</span></td>
+ <td class=s><code>green 3</code> · CENTER (dash-dot) · <code>0.09</code></td>
+ <td class=p><code>peb-line</code></td>
+ <td class=img><img src="units/03_GRID-LINES.png"></td></tr>
+<tr>
+ <td class=n><b>GRID / GRID-TEXT</b><span class=d>grid bubble (pentagon + number)</span></td>
+ <td class=s><code>green 3 / red 1</code> · Continuous · <code>0.13</code></td>
+ <td class=p><code>peb-bubble / peb-pent</code></td>
+ <td class=img><img src="units/04_GRID.png"></td></tr>
+<tr>
+ <td class=n><b>COLUMNS</b><span class=d>column I-section</span></td>
+ <td class=s><code>red 1</code> · Continuous · <code>0.50</code></td>
+ <td class=p><code>peb-rect / peb-solid</code></td>
+ <td class=img><img src="units/05_COLUMNS.png"></td></tr>
+<tr>
+ <td class=n><b>COL-CENTER</b><span class=d>column centre-line</span></td>
+ <td class=s><code>red 1</code> · CENTER · <code>0.09</code></td>
+ <td class=p><code>peb-line</code></td>
+ <td class=img><img src="units/06_COL-CENTER.png"></td></tr>
+<tr>
+ <td class=n><b>PLATES</b><span class=d>base plate</span></td>
+ <td class=s><code>white 7</code> · Continuous · <code>0.35</code></td>
+ <td class=p><code>peb-rect</code></td>
+ <td class=img><img src="units/07_PLATES.png"></td></tr>
+<tr>
+ <td class=n><b>BOLTS</b><span class=d>anchor bolts</span></td>
+ <td class=s><code>white 7</code> · Continuous · <code>0.09</code></td>
+ <td class=p><code>peb-circle</code></td>
+ <td class=img><img src="units/08_BOLTS.png"></td></tr>
+<tr>
+ <td class=n><b>CROSS</b><span class=d>cross-bracing X</span></td>
+ <td class=s><code>cyan 4</code> · DASHED · <code>0.18</code></td>
+ <td class=p><code>peb-line</code></td>
+ <td class=img><img src="units/09_CROSS.png"></td></tr>
+<tr>
+ <td class=n><b>RIDGE</b><span class=d>ridge line</span></td>
+ <td class=s><code>blue 5</code> · HIDDEN · <code>0.18</code></td>
+ <td class=p><code>peb-line</code></td>
+ <td class=img><img src="units/10_RIDGE.png"></td></tr>
+<tr>
+ <td class=n><b>RAFTER</b><span class=d>rafter centre-line</span></td>
+ <td class=s><code>grey 8</code> · HIDDEN · <code>0.09</code></td>
+ <td class=p><code>peb-line</code></td>
+ <td class=img><img src="units/11_RAFTER.png"></td></tr>
+<tr>
+ <td class=n><b>ARROWS</b><span class=d>slope / FALL arrow</span></td>
+ <td class=s><code>green 3</code> · Continuous + SOLID head · <code>0.13</code></td>
+ <td class=p><code>peb-line / peb-solid</code></td>
+ <td class=img><img src="units/12_ARROWS.png"></td></tr>
+<tr>
+ <td class=n><b>DIMENSIONS</b><span class=d>dimension chain</span></td>
+ <td class=s><code>green 3 *</code> · Continuous + tick · <code>0.13</code></td>
+ <td class=p><code>peb-line / peb-dim</code></td>
+ <td class=img><img src="units/13_DIMENSIONS.png"></td></tr>
+<tr>
+ <td class=n><b>TEXT</b><span class=d>wall labels / notes</span></td>
+ <td class=s><code>white 7</code> · Continuous · <code>0.13</code></td>
+ <td class=p><code>peb-text / peb-mtext</code></td>
+ <td class=img><img src="units/14_TEXT.png"></td></tr>
+<tr>
+ <td class=n><b>peb-leader</b><span class=d>leader callout</span></td>
+ <td class=s><code>white 7</code> · Continuous · <code>0.13</code></td>
+ <td class=p><code>peb-leader</code></td>
+ <td class=img><img src="units/15_LEADER.png"></td></tr>
+<tr>
+ <td class=n><b>AREA-MARK</b><span class=d>area tag (boxed)</span></td>
+ <td class=s><code>grey 8</code> · Continuous · <code>0.18</code></td>
+ <td class=p><code>peb-rect / peb-text</code></td>
+ <td class=img><img src="units/16_AREA-MARK.png"></td></tr>
+<tr>
+ <td class=n><b>OPEN</b><span class=d>door / window / opening</span></td>
+ <td class=s><code>magenta 6</code> · Continuous · <code>0.18</code></td>
+ <td class=p><code>peb-poly / peb-arc</code></td>
+ <td class=img><img src="units/17_OPEN.png"></td></tr>
+<tr>
+ <td class=n><b>GUTTER</b><span class=d>eave gutter line</span></td>
+ <td class=s><code>cyan 4</code> · Continuous · <code>0.18</code></td>
+ <td class=p><code>peb-line</code></td>
+ <td class=img><img src="units/18_GUTTER.png"></td></tr>
+</table>
+<footer>* DIMENSIONS brick currently green 3 — real Mammut chain is MAGENTA; decide & set in Standard.lsp. Samples rendered from <code>_render/swatches.dxf</code> (drawn via the <code>peb-*</code> primitives on the standard layers).</footer>
+</body></html>
