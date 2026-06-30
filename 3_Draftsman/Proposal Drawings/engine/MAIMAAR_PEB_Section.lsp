@@ -244,6 +244,19 @@
   (setq out (cons (cons "OW_FSW" (peb-alist-get v3 "OW_FSW")) out))
   (setq out (cons (cons "OW_LEW" (peb-alist-get v3 "OW_LEW")) out))
   (setq out (cons (cons "OW_REW" (peb-alist-get v3 "OW_REW")) out))
+  ;; SYNC WITH PLAN (one-truth-from-IF): the Section reader must map the SAME IF
+  ;; keys as the Plan's peb-v3-to-legacy so any value filled in the IF reaches
+  ;; EVERY sheet identically, regardless of engine load order.  Previously missing
+  ;; here: dim-display mode, end-wall frame types, and the placement (PL*) +
+  ;; bracing (BR*) passthrough (doors/windows + braced bays for sections).
+  (setq out (cons (cons "DIM_DISPLAY"    (peb-alist-get v3 "BP_DIM_DISPLAY"))    out))
+  (setq out (cons (cons "EW_LEFT_FRAME"  (peb-alist-get v3 "BP_EW_LEFT_FRAME"))  out))
+  (setq out (cons (cons "EW_RIGHT_FRAME" (peb-alist-get v3 "BP_EW_RIGHT_FRAME")) out))
+  (foreach kv v3
+    (if (and (car kv)
+             (or (wcmatch (strcase (car kv)) "PL*")
+                 (wcmatch (strcase (car kv)) "BR*")))
+      (setq out (cons kv out))))
   (reverse out))
 
 ;; ============================================================================
