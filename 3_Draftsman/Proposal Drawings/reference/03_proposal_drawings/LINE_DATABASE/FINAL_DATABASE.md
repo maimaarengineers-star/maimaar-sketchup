@@ -19,7 +19,7 @@ Source codes: **[P2]** Phase-2 engine · **[MAM]** real Mammut (measured) · **[
 | `GRID-LINES` (axes) | **grey 8 · CENTER** dash-dot · 0.09 | **[MAM]** |
 | `COLUMNS` | **red 1** · Continuous · **0.50** | **[BOTH]** colour · **[MAM]** lw |
 | `COL-CENTER` / `CL` | red 1 · CENTER · 0.09 | **[BOTH]** |
-| `CROSS` (bracing) | **cyan 4 · DASHED · 0.18** — **FULL X** (one per bay) | **[MAM]** |
+| `CROSS` (bracing) | **cyan 4 · DOT (dotted) · 0.18** — sidewall-pair X (NSW + FSW, between adjacent columns in the column-depth band) per braced bay | **[OWN]** Zealcon Eng. |
 | `RIDGE` | blue 5 · HIDDEN · 0.18 | **[BOTH]** |
 | `RAFTER` | grey 8 · HIDDEN · 0.09 | **[BOTH]** |
 | `DIMENSIONS` | **magenta 6** · Continuous · 0.13 + arch tick | **[MAM]** |

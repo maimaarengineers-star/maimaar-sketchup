@@ -509,17 +509,23 @@
 ;; Draw roof X cross-bracing in each braced bay — the X spans BETWEEN THE COLUMNS
 ;; (inset top/bottom by web/2 = colOff, not the full sheeting width) + a clearly
 ;; visible "BRACED BAY" tag.  ox/oy = area origin (0,0 single).
-(defun peb-draw-bracing (bayPts wid ox oy / braced prevLayer x0 x1 cx ymid first)
-  ;; Cross-bracing on the COLUMN LAYOUT PLAN (OWNER RULE — real Mammut): a cyan DASHED
-  ;; FULL corner-to-corner X across each braced bay (NSW corner <-> FSW corner) — a
-  ;; SINGLE X, not a bowtie.  Vertical magenta "BRACED BAY" + "CROSS BRACING (TYP.)".
+(defun peb-draw-bracing (bayPts wid ox oy / braced prevLayer x0 x1 cx ymid first coX coY yB0 yB1 yT0 yT1)
+  ;; Cross-bracing on the COLUMN LAYOUT PLAN (OWNER RULE — as marked at Zealcon): SIDEWALL
+  ;; bracing.  Within each braced bay, an X between the two ADJACENT columns ON THE SAME
+  ;; WALL — one X on NSW, one on FSW — connecting the columns' web/flange INNER-face
+  ;; junctions in a cross.  Each X sits inside the column-depth band (coY) along the wall.
   (setq braced (peb-braced-bays bayPts))
-  (setq prevLayer (getvar "CLAYER") ymid (+ oy (/ wid 2.0)) first T)
+  (setq prevLayer (getvar "CLAYER") ymid (+ oy (/ wid 2.0)) first T
+        coY (if *PEB-COL-WEB* *PEB-COL-WEB* 700.0)    ; column depth = inner-face offset from the wall
+        coX 180.0)                                    ; half-flange clear in the bay direction
+  (setq yB0 oy yB1 (+ oy coY) yT0 (+ oy wid) yT1 (- (+ oy wid) coY))
   (foreach b braced
     (setq x0 (+ ox (nth b bayPts)) x1 (+ ox (nth (1+ b) bayPts)) cx (/ (+ x0 x1) 2.0))
     (setvar "CLAYER" "CROSS")
-    (command "_.LINE" (list x0 oy)         (list x1 (+ oy wid)) "")   ; NSW corner -> FSW corner
-    (command "_.LINE" (list x0 (+ oy wid)) (list x1 oy)         "")   ; FSW corner -> NSW corner
+    (command "_.LINE" (list (+ x0 coX) yB0) (list (- x1 coX) yB1) "")   ; NSW wall: column A -> column B (cross)
+    (command "_.LINE" (list (+ x0 coX) yB1) (list (- x1 coX) yB0) "")   ; NSW wall: cross back
+    (command "_.LINE" (list (+ x0 coX) yT0) (list (- x1 coX) yT1) "")   ; FSW wall: column A -> column B (cross)
+    (command "_.LINE" (list (+ x0 coX) yT1) (list (- x1 coX) yT0) "")   ; FSW wall: cross back
     ;; "BRACED BAY" marking — vertical, magenta (Zealcon)
     (setvar "CLAYER" "SECONDARY")
     (txt-bold "MC" (list cx ymid) (* 320 *PEB-TEXT-SCALE*) 90 "BRACED BAY")
