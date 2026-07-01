@@ -46,7 +46,7 @@
     ;; --- grid system (green grid + Roshan thin sub-scheme @ 0.09) ---
     ("GRID"         150 "Continuous" 0.13)   ; grid bubble = CIRCLE, ACI 150 (OWNER RULE — original)
     ("GRID-LINES"   8   "CENTER"     0.09)   ; grid axis lines — grey CENTER dash-dot (OWNER RULE — real Mammut)
-    ("GRID-TEXT"    150 "Continuous" 0.09)   ; grid bubble number — ACI 150 (OWNER RULE — original)
+    ("GRID-TEXT"    1   "Continuous" 0.09)   ; grid bubble number/letter — RED (ACI 1) on the blue circle (G17); matches PEB_LAYERS.csv
     ("COLUMN-HATCH" 8   "Continuous" 0.09)   ; column poché (thin grey)
     ;; --- primary steel ---
     ("STRUCTURE"    7   "Continuous" 0.25)   ; rafters/members (was 0.50 — exemplars are lighter)
