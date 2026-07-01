@@ -268,7 +268,10 @@
              (or (wcmatch (strcase (car kv)) "PL*")
                  (wcmatch (strcase (car kv)) "BR*")))
       (setq out (cons kv out))))
-  (reverse out))
+  ;; AR0 enabler: append EVERY raw IF key AFTER the mapped legacy keys (assoc finds the mapped
+  ;; ones first, so nothing changes for them) — makes AREA_NUM, AR_*, and future component blocks
+  ;; (MZ_/CR_/PT_/ST_/RX_/CN_/FA_/RM_/LN_) readable by the plan via MSPL-Get-*.
+  (append (reverse out) v3))
 
 ;; ============================================================================
 ;; FILE READER (v3-aware)
