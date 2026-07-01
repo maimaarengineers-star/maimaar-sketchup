@@ -435,6 +435,20 @@
   (setq d (* 50.0 (fix (+ 0.5 (/ (/ widthMm 30.0) 50.0)))))
   (cond ((< d 400.0) 400.0) ((> d 1000.0) 1000.0) (T d)))
 
+;; Concise open-wall condition suffix for a wall label (from the IF OW_* field).
+;; Returns " \U+00B7 <TAG>" (mid-dot + short tag) so it appends cleanly to the wall
+;; direction label, or "" when blank/plain-sheeted. Keeps the plan readable.
+(defun peb-ow-suffix (s / u)
+  (setq u (strcase (if s s "")))
+  (cond
+    ((= u "")                                    "")
+    ((wcmatch u "*OPEN*")                        "  -  OPEN FOR ACCESS")
+    ((wcmatch u "*LOUVER*")                      "  -  LOUVERED")
+    ((wcmatch u "*ROLL*")                        "  -  ROLL-UP DOOR(S)")
+    ((wcmatch u "*MASONRY*,*BLOCK*,*BRICK*")     "  -  MASONRY DADO")
+    ((wcmatch u "*SHEET*")                       "")   ; fully sheeted = the default; no clutter
+    (T (strcat "  -  " (strcase s)))))
+
 ;; Base-plate + 4 anchor-bolt holes at a column (top view) — the anchor-bolt
 ;; content of the combined COLUMN LAYOUT & ANCHOR BOLT PLAN.  Plate on PLATES,
 ;; bolts as clear circles on BOLTS at gauge ±g.  Drawn BEHIND the column section.
@@ -1425,8 +1439,12 @@
   ;; area is identified by the box; the only X on the plan is the cross-bracing
   ;; in the braced bays (Zealcon master).
   (setq aCx (/ len 2.0) aCy (/ wid 2.0))
+  ;; Real area number from the IF (META AREA_NUM); defaults to 1 → "01" if absent (unchanged).
+  (setq aNo (MSPL-Get-Int data "AREA_NUM"))
+  (if (or (null aNo) (< aNo 1)) (setq aNo 1))
+  (setq aLbl (strcat "AREA No. " (if (< aNo 10) (strcat "0" (itoa aNo)) (itoa aNo))))
   (setq aTxH (if *PEB-TEXT-SCALE* (* 550.0 *PEB-TEXT-SCALE*) 550.0))
-  (setq aBw  (+ (* (strlen "AREA No. 01") aTxH 0.34) aTxH))   ; box half-width to fit text
+  (setq aBw  (+ (* (strlen aLbl) aTxH 0.34) aTxH))            ; box half-width to fit text
   (setq aBh  (* aTxH 0.95))                                   ; box half-height
   ;; Geometry via ENTMAKE (no command-line prompts → batch-safe).
   (defun aLn (x1 y1 x2 y2)
@@ -1437,9 +1455,9 @@
   (aLn (+ aCx aBw) (- aCy aBh) (+ aCx aBw) (+ aCy aBh))
   (aLn (+ aCx aBw) (+ aCy aBh) (- aCx aBw) (+ aCy aBh))
   (aLn (- aCx aBw) (+ aCy aBh) (- aCx aBw) (- aCy aBh))
-  ;; centred "AREA No. 01" label inside the box
+  ;; centred area label inside the box (real number)
   (setvar "CLAYER" "TEXT")
-  (txt-bold "MC" (list aCx aCy) 550 0 "AREA No. 01")
+  (txt-bold "MC" (list aCx aCy) 550 0 aLbl)
 
   ;; ── Grid lines (Phase-2A v19 — extend to sheeting outer lines) ──
   ;; Bay lines run from NSW sheeting outer to FSW sheeting outer.
@@ -1739,10 +1757,10 @@
   ;; Phase-2A v12: pushed FSW/NSW further from building (was 2800,
   ;; now 4500) to clear the bay+overall dim chain underneath.
   (setvar "CLAYER" "TEXT")
-  (txt-bold "MC" (list (/ len 2.0) yFsw) 560 0 "FSW - FAR SIDE WALL")
-  (txt-bold "MC" (list (/ len 2.0) (- (* 4500 *PEB-TEXT-SCALE*))) 560 0 "NSW - NEAR SIDE WALL")
-  (txt-bold "MC" (list (- (* 5500 *PEB-DIM-SCALE*)) (/ wid 2.0)) 560 90 "LEW - LEFT END WALL")
-  (txt-bold "MC" (list (+ len (* 5500 *PEB-DIM-SCALE*)) (/ wid 2.0)) 560 90 "REW - RIGHT END WALL")
+  (txt-bold "MC" (list (/ len 2.0) yFsw) 560 0 (strcat "FSW - FAR SIDE WALL" (peb-ow-suffix (MSPL-Get-Str data "OW_FSW"))))
+  (txt-bold "MC" (list (/ len 2.0) (- (* 4500 *PEB-TEXT-SCALE*))) 560 0 (strcat "NSW - NEAR SIDE WALL" (peb-ow-suffix (MSPL-Get-Str data "OW_NSW"))))
+  (txt-bold "MC" (list (- (* 5500 *PEB-DIM-SCALE*)) (/ wid 2.0)) 560 90 (strcat "LEW - LEFT END WALL" (peb-ow-suffix (MSPL-Get-Str data "OW_LEW"))))
+  (txt-bold "MC" (list (+ len (* 5500 *PEB-DIM-SCALE*)) (/ wid 2.0)) 560 90 (strcat "REW - RIGHT END WALL" (peb-ow-suffix (MSPL-Get-Str data "OW_REW"))))
 
   ;; ── End-frame type MLEADERs (Phase-2A v12) ─────────────────────
   ;; Replaces the old "END FRAME" / "BEARING FRAME (TYP.)" txt labels.
