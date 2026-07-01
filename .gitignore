@@ -16,3 +16,6 @@ sketchup_study/geom_out/batch.log
 !sketchup_generator/seed_template.skp   # keep the bundled seed for the orchestrator
 !sketchup_generator/parts/*.skp          # real components placed by the generator
 !sketchup_study/components_lib/*.skp     # the extracted real-parts library
+
+# Local cold storage — archived old files, not part of the repo
+_ARCHIVE/
