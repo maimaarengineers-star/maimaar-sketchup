@@ -213,15 +213,7 @@
   (setq *PEB-DATA-FILE* path)
   (C:PEB-WALL-FRAMING)
   (setq *PEB-DATA-FILE* nil)
-  (if prev-max-x
-    (progn
-      (setq new-set (ssadd) e prev-last)
-      (while (setq e (entnext e)) (ssadd e new-set))
-      (if (> (sslength new-set) 0)
-        (progn
-          (setq offset (+ prev-max-x (if (boundp 'peb-tile-gap) (peb-tile-gap) 5000.0)))
-          (command "_.MOVE" new-set "" "0,0,0" (list offset 0.0 0.0))
-          (command "_.ZOOM" "_E")))))
+  (peb-tile-place prev-last prev-max-x)   ; left→right tile, fixed gap, no box overlap
   (princ))
 
 (defun C:PEB-ROOF-FRAMING ( / data)
@@ -244,15 +236,7 @@
   (setq *PEB-DATA-FILE* path)
   (C:PEB-ROOF-FRAMING)
   (setq *PEB-DATA-FILE* nil)
-  (if prev-max-x
-    (progn
-      (setq new-set (ssadd) e prev-last)
-      (while (setq e (entnext e)) (ssadd e new-set))
-      (if (> (sslength new-set) 0)
-        (progn
-          (setq offset (+ prev-max-x (if (boundp 'peb-tile-gap) (peb-tile-gap) 5000.0)))
-          (command "_.MOVE" new-set "" "0,0,0" (list offset 0.0 0.0))
-          (command "_.ZOOM" "_E")))))
+  (peb-tile-place prev-last prev-max-x)   ; left→right tile, fixed gap, no box overlap
   (princ))
 
 (princ "\nMAIMAAR_PEB_Framing.lsp loaded — run (peb-roof-framing-from-file ...).")

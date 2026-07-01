@@ -402,17 +402,22 @@
   (command "TEXT" "J" just pt (* h *PEB-TEXT-SCALE*) rot str)
 )
 
-(defun grid-bubble (x y label / r prev)
-  ;; Clean single circle (green GRID layer) with a red GRID-TEXT number — the
+(defun grid-bubble (x y label / r h prev)
+  ;; Clean single circle (GRID layer) with a centred GRID-TEXT label — the
   ;; Mammut grid-bubble look.  Caller places (x,y) clear outside the building so
   ;; the bubble never overlaps a column; the grid line stops at the bubble.
+  ;; RULE G2: text AUTO-FITS inside the circle — sized by label length so a
+  ;; single digit fills the bubble and 2-3 chars still sit clean inside it.
   (if (not *PEB-TEXT-SCALE*) (setq *PEB-TEXT-SCALE* 1.0))
-  (setq r (* 460 *PEB-TEXT-SCALE*) prev (getvar "CLAYER"))
+  (setq r (if *PEB-BUBRAD* *PEB-BUBRAD* (* 620 *PEB-TEXT-SCALE*)) prev (getvar "CLAYER"))  ; RULE: flexible bubble radius (clamped so bubbles never touch); text auto-fits to r
+  (setq h (* r (cond ((<= (strlen label) 1) 0.95)   ; 1 char  -> fills the circle
+                     ((= (strlen label) 2) 0.66)    ; 2 chars -> fit
+                     (T 0.48))))                    ; 3+ chars -> fit
   (setvar "CLAYER" "GRID")
   (command "_.CIRCLE" (list x y) r)
   (setvar "CLAYER" "GRID-TEXT")
   (setvar "TEXTSTYLE" "PEB-TITLE")
-  (command "_.TEXT" "_J" "_MC" (list x y) (* 300 *PEB-TEXT-SCALE*) 0 label)
+  (command "_.TEXT" "_J" "_MC" (list x y) h 0 label)
   (setvar "CLAYER" prev))
 
 (defun col-crosshair (x y / arm)
@@ -1090,7 +1095,9 @@
   ( / dataFile data
     project client propinput propno fulldate
     len wid btype rooftype stype widthPts windspeed exposure collateral bldgno revno
-    bays baysp bayPts x1 x2 baylen ewcols ewsp
+    bays baysp bayPts x1 x2 baylen ewcols ewsp gridWpts ewStations ewY
+    minSp prevp yBayDim yOvrDim yFsw ySub yTtl yFrmTop
+    ewExpr ewSpans ewSum ewScale ewAcc
     x y i j colOff botY topY leftX rightX
     xdraw idx ypt prevY currY
     c0 c1 c2 c3 c4 c5 c6
@@ -1210,7 +1217,7 @@
   ;; ── Bay points ───────────────────────────────────────────────
   (setq numBays (MSPL-Get-Int data "NUMBAYS"))
   (if (or (null numBays) (< numBays 1)) (setq numBays 1))
-  (if (> numBays 20) (setq numBays 20))
+  (if (> numBays 60) (setq numBays 60))   ; RULE(STRICT): honour ALL bays (was capped at 20 → broke equal auto-division on long buildings)
 
   (setq bayPts (list 0.0))
   (setq cum 0.0)
@@ -1329,6 +1336,29 @@
   (if (< ewsp 6000) (progn (setq ewcols (1- ewcols)) (if (< ewcols 1) (setq ewcols 1)) (setq ewsp (/ wid ewcols))))
   (if (> ewsp 6500) (progn (setq ewcols (1+ ewcols)) (setq ewsp (/ wid ewcols))))
 
+  ;; RULE (owner, deviation from Zealcon): EVERY end-wall column gets a grid line
+  ;; + letter.  Build the end-wall column stations (0, ewsp, 2*ewsp, … , wid) and
+  ;; merge them with the main-frame width stations (widthPts) into gridWpts, so the
+  ;; intermediate end-wall column (e.g. the red one between A & B) is gridded too.
+  ;; End-wall stations STRICTLY from the IF (BP_EW_LEFT_SPACING) if provided; else the auto rule.
+  (setq ewExpr (MSPL-Get-Str data "EWLEXPR"))
+  (setq ewSpans (if (and ewExpr (/= ewExpr "")) (peb-parse-mod-expression ewExpr) nil))
+  (if ewSpans
+    (progn                                             ; positions from the IF spans, scaled to close exactly on wid
+      (setq ewSum 0.0) (foreach s ewSpans (setq ewSum (+ ewSum s)))
+      (setq ewScale (if (> ewSum 0.0) (/ wid ewSum) 1.0) ewAcc 0.0 ewStations (list 0.0))
+      (foreach s ewSpans
+        (setq ewAcc (+ ewAcc (* s ewScale)) ewStations (append ewStations (list ewAcc)))))
+    (progn                                             ; fallback: engine auto ewsp rule
+      (setq ewStations (list 0.0) ewY ewsp)
+      (repeat ewcols (setq ewStations (append ewStations (list ewY)) ewY (+ ewY ewsp)))))
+  (setq ewcols (1- (length ewStations)))               ; keep ewcols in step with the IF stations
+  (setq gridWpts widthPts)
+  (foreach s ewStations
+    (if (not (vl-some '(lambda (p) (< (abs (- p s)) 1.0)) gridWpts))
+      (setq gridWpts (append gridWpts (list s)))))
+  (setq gridWpts (vl-sort gridWpts '<))
+
   (setq areaM2 (/ (* len wid) 1000000.0))
   ;; Phase-2A v23: column placement so OUTER flange sits ON the grid
   ;; line (Mammut convention).  Sidewall columns inset h/2 = 350 from
@@ -1420,15 +1450,33 @@
   ;; bubble, stopping at the bubble edge.  Bay bubbles go above the overall-length
   ;; dim (wid + 2400 DS); width bubbles go left of the overall-width dim (-3500 DS).
   (setq gridY1 (- 0.0 mainHalfY sheetGap))            ; near (NSW) end of axis
-  (setq gridY2 (+ wid (* 3300.0 *PEB-DIM-SCALE*)))    ; FSW bubble, clear of dims
-  (setq gridX1 (- 0.0 (* 4300.0 *PEB-DIM-SCALE*)))    ; LEW bubble, clear of dims
   (setq gridX2 (+ len endHalfX sheetGap))             ; near (REW) end of axis
-  (setq bubR (* 520.0 *PEB-TEXT-SCALE*))              ; gap so line stops at bubble
+  ;; ── FLEXIBLE GRID STACK (running cursor) — auto-adjusts, NEVER mingles 20x15..150x100 m.
+  ;;    Each band is placed from the one below it + its height + a gap (all x scale), so
+  ;;    overlap is impossible at any size.  Bubble radius is clamped so bubbles never touch
+  ;;    sideways on narrow-bay buildings (the number keeps auto-fitting inside — G2).
+  (setq minSp len prevp nil)
+  (foreach p bayPts   (if prevp (setq minSp (min minSp (- p prevp)))) (setq prevp p))
+  (setq prevp nil)
+  (foreach p gridWpts (if prevp (setq minSp (min minSp (- p prevp)))) (setq prevp p))
+  (setq *PEB-BUBRAD* (max 250.0 (min (* 620.0 *PEB-TEXT-SCALE*) (* 0.275 minSp))))
+  (setq bubR (+ *PEB-BUBRAD* (* 60.0 *PEB-TEXT-SCALE*)))       ; stem stops just outside the bubble
+  ;; TOP stack (upward from the FSW edge y=wid): dim -> dim -> bubble -> label -> subtitle -> title -> frame
+  (setq yBayDim (+ wid (* 900.0 *PEB-DIM-SCALE*)))                       ; per-bay dim chain
+  (setq yOvrDim (+ yBayDim (* 1500.0 *PEB-DIM-SCALE*)))                  ; overall-length dim
+  (setq gridY2  (+ yOvrDim (* 1200.0 *PEB-DIM-SCALE*) *PEB-BUBRAD*))     ; grid bubble CENTRE
+  (setq yFsw    (+ gridY2 *PEB-BUBRAD* (* 900.0 *PEB-TEXT-SCALE*)))      ; FSW wall label
+  (setq ySub    (+ yFsw (* 1300.0 *PEB-TEXT-SCALE*)))                    ; subtitle banner
+  (setq yTtl    (+ ySub (* 1600.0 *PEB-TEXT-SCALE*)))                    ; title
+  (setq yFrmTop (+ yTtl (* 1400.0 *PEB-TEXT-SCALE*)))                    ; frame / border top
+  ;; LEFT stack (leftward from the LEW edge x=0): overall-width dim (-3500 DS) then letter bubbles
+  (setq gridX1  (- 0.0 (* 4700.0 *PEB-DIM-SCALE*) *PEB-BUBRAD*))         ; letter bubble CENTRE
 
   (setq i 1)
   (foreach x bayPts
     (setvar "CLAYER" "GRID-LINES")
-    (command "LINE" (list x gridY1) (list x (- gridY2 bubR)) "")
+    ;; RULE: grid line runs from the BUILDING EDGE (top sheeting) to the bubble (stem, no cross)
+    (command "LINE" (list x (+ wid sheetGap)) (list x (- gridY2 bubR)) "")
     (setvar "CLAYER" "GRID")
     (grid-bubble x gridY2 (itoa i))
     (setq i (1+ i))
@@ -1438,14 +1486,15 @@
   ;; — they're redundant with the COL-OUTER / SHEETING rectangle
   ;; horizontals right above/below.  Bubbles still drawn so letters
   ;; A (NSW) and last (FSW) remain visible.
-  (setq j 0)
-  (foreach y widthPts
-    (if (and (> y 0.5) (< y (- wid 0.5)))
-      (progn
-        (setvar "CLAYER" "GRID-LINES")
-        (command "LINE" (list (+ gridX1 bubR) y) (list gridX2 y) "")))
+  ;; RULE: grid letter A at the TOP (FSW), then B, C… downward.  widthPts is
+  ;; ascending (y=0 NSW bottom → y=wid FSW top), so letter index counts DOWN.
+  (setq j 0 nWid (length gridWpts))
+  (foreach y gridWpts
+    (setvar "CLAYER" "GRID-LINES")
+    ;; RULE: grid line runs from the BUILDING EDGE (left sheeting) to the bubble (stem, no cross)
+    (command "LINE" (list (- 0.0 sheetGap) y) (list (+ gridX1 bubR) y) "")
     (setvar "CLAYER" "GRID")
-    (grid-bubble gridX1 y (chr (+ 65 j)))
+    (grid-bubble gridX1 y (chr (+ 65 (- nWid 1 j))))
     (setq j (1+ j))
   )
 
@@ -1605,11 +1654,11 @@
             (T
               (progn (draw-I-column-lengthwise xdraw botY) (draw-I-column-lengthwise xdraw topY))))
         )
-        (setq y ewsp)
-        (repeat (- ewcols 1)
-          (draw-I-column-widthwise leftX y)
-          (draw-I-column-widthwise rightX y)
-          (setq y (+ y ewsp))
+        ;; intermediate end-wall columns at the IF stations (exclude the two corners)
+        (foreach y ewStations
+          (if (and (> y 0.5) (< y (- wid 0.5)))
+            (progn (draw-I-column-widthwise leftX y)
+                   (draw-I-column-widthwise rightX y)))
         )
         (if (member stype '("MS" "MG"))
           (progn
@@ -1690,7 +1739,7 @@
   ;; Phase-2A v12: pushed FSW/NSW further from building (was 2800,
   ;; now 4500) to clear the bay+overall dim chain underneath.
   (setvar "CLAYER" "TEXT")
-  (txt-bold "MC" (list (/ len 2.0) (+ wid (* 4500 *PEB-TEXT-SCALE*))) 560 0 "FSW - FAR SIDE WALL")
+  (txt-bold "MC" (list (/ len 2.0) yFsw) 560 0 "FSW - FAR SIDE WALL")
   (txt-bold "MC" (list (/ len 2.0) (- (* 4500 *PEB-TEXT-SCALE*))) 560 0 "NSW - NEAR SIDE WALL")
   (txt-bold "MC" (list (- (* 5500 *PEB-DIM-SCALE*)) (/ wid 2.0)) 560 90 "LEW - LEFT END WALL")
   (txt-bold "MC" (list (+ len (* 5500 *PEB-DIM-SCALE*)) (/ wid 2.0)) 560 90 "REW - RIGHT END WALL")
@@ -1764,17 +1813,17 @@
   ;; 7500+4@8365+7500 would never match and silently fall back to derived groups.
   (if (and bayExpr (/= bayExpr "") (vl-string-search "@" bayExpr))
     (progn
-      (peb-dim-h-stretch 0 len (+ wid (* 900 *PEB-DIM-SCALE*)) (peb-fmt-expr bayExpr))
+      (peb-dim-h-stretch 0 len yBayDim (peb-fmt-expr bayExpr))
       (peb-recolor-last-dim 0))
     (foreach grp (peb-group-equal-spans bayPts)
       (peb-dim-h-stretch (nth 0 grp) (nth 1 grp)
-                         (+ wid (* 900 *PEB-DIM-SCALE*))
+                         yBayDim
                          (peb-fmt-group (nth 2 grp) (nth 3 grp)))
       (peb-recolor-last-dim 0)))            ; ByBlock
   ;; Overall length dim — witness lines shifted to the chosen basis plane.
   (setq bofs (peb-basis-offsets (peb-tb-or (MSPL-Get-Str data "LENGTH_REF")
                                            (MSPL-Get-Str data "BAY_REF")) 230.0))
-  (peb-dim-h-stretch (car bofs) (+ len (cadr bofs)) (+ wid (* 2400 *PEB-DIM-SCALE*))
+  (peb-dim-h-stretch (car bofs) (+ len (cadr bofs)) yOvrDim
                      (peb-fmt-labelled "BUILDING LENGTH" len
                        (peb-basis-suffix (peb-tb-or (MSPL-Get-Str data "LENGTH_REF")
                                                     (MSPL-Get-Str data "BAY_REF")))))
@@ -1834,8 +1883,8 @@
   ;;   Subtitle           → wid + 6000 * TS
   ;; BIG "COLUMN LAYOUT PLAN" heading at the very top centre (owner: restore it),
   ;; with the compact dim/area/bays/slope info banner below it.
-  (txt-bold "MC" (list (/ len 2.0) (+ wid (* 8400 *PEB-TEXT-SCALE*))) 1150 0 "COLUMN LAYOUT PLAN")
-  (txt "MC" (list (/ len 2.0) (+ wid (* 6000 *PEB-TEXT-SCALE*))) 600 0
+  (txt-bold "MC" (list (/ len 2.0) yTtl) 1150 0 "COLUMN LAYOUT PLAN")
+  (txt "MC" (list (/ len 2.0) ySub) 600 0
     (strcat (rtos (/ len 1000.0) 2 0) "×"
             (rtos (/ wid 1000.0) 2 0) " m"
             "  |  " (rtos areaM2 2 0) " m\U+00B2"
@@ -2013,7 +2062,7 @@
   ;; building-area extents (margins for dims + LEW/REW labels)
   (setq tbBldgL (- (* 6500.0 *PEB-DIM-SCALE*)))               ; left margin
   (setq tbBldgR (+ len (* 6800.0 *PEB-DIM-SCALE*)))           ; right of REW label
-  (setq tbFrmT  (+ wid (* 8200.0 *PEB-TEXT-SCALE*)))          ; above the title
+  (setq tbFrmT  yFrmTop)          ; RULE: frame top from the flexible stack (title always inside the border)
   (setq tbFrmB  (min -5200.0 (- 0.0 (* 6000.0 *PEB-DIM-SCALE*)))) ; below NSW label
   ;; strip geometry
   (setq tbStripH (- tbFrmT tbFrmB))
@@ -2488,7 +2537,7 @@
 
 (defun peb-label-with-leader (text labelPos arrowPt leaderDir
                               fallbackTextHeight /
-                              mlResult mtResult ptList elbow tX tY aX aY)
+                              tX tY aX aY sgn baseY ah w s p prev)
   ;;  Draw a labelled leader as a SINGLE MLEADER object (text + leader
   ;;  + arrow are one entity — drag any part and the rest follows).
   ;;
@@ -2505,40 +2554,25 @@
   ;;    intermediate = elbow corners
   ;;
   ;;  If MLEADER fails, falls back to MTEXT label + hand-rolled L-arrow.
-  (setq tX (car  labelPos))
-  (setq tY (cadr labelPos))
-  (setq aX (car  arrowPt))
-  (setq aY (cadr arrowPt))
-  (cond
-    ((= leaderDir "S")
-      ;; Straight 2-vertex leader — no elbow.
-      (setq ptList (list arrowPt labelPos)))
-    ((= leaderDir "V")
-      ;; Vertical primary: vertical leg from arrow at (aX, aY) to
-      ;; (aX, tY), then shoulder horizontal to (tX, tY).
-      (setq elbow (list aX tY))
-      (setq ptList (list arrowPt elbow labelPos)))
-    (T
-      ;; "H" or default — horizontal primary: horizontal leg to (tX, aY)
-      ;; then vertical landing to (tX, tY).
-      (setq elbow (list tX aY))
-      (setq ptList (list arrowPt elbow labelPos)))
-  )
-  (setq mlResult
-    (vl-catch-all-apply 'peb-make-mleader
-                        (list ptList text)))
-  (if (vl-catch-all-error-p mlResult)
-    (progn
-      ;; --- Fallback: MTEXT + L-leader (old behaviour) ---
-      (setq mtResult
-        (vl-catch-all-apply 'peb-make-mtext-line
-                            (list labelPos fallbackTextHeight 0 "ML" text)))
-      (if (vl-catch-all-error-p mtResult)
-        (txt "ML" labelPos fallbackTextHeight 0 text))
-      (draw-l-leader (car labelPos) (cadr labelPos)
-                     (car arrowPt)  (cadr arrowPt)
-                     leaderDir))
-  )
+  (setq tX (car labelPos) tY (cadr labelPos) aX (car arrowPt) aY (cadr arrowPt))
+  (setq s (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0) ah (* 260.0 s) w (* 100.0 s))
+  (if (or (null fallbackTextHeight) (<= fallbackTextHeight 0)) (setq fallbackTextHeight (* 500.0 s)))
+  ;; flatten any MTEXT paragraph break (\P) to a space (single-line TEXT)
+  (while (setq p (vl-string-search "\\P" text))
+    (setq text (strcat (substr text 1 p) " " (substr text (+ p 3)))))
+  (setq prev (getvar "CLAYER"))
+  (setvar "CLAYER" "TEXT")
+  ;; RULE (Nasir): CLEAN 90-degree leader — vertical leg from the arrow tip to the text
+  ;; level, then a horizontal shoulder to the text; FILLED arrowhead at the tip.  No
+  ;; native MLEADER (rendered garbled) — hand-rolled LINE + SOLID + TEXT, same points.
+  (command "_.LINE" arrowPt (list aX tY) (list tX tY) "")
+  (setq sgn (if (>= tY aY) 1.0 -1.0) baseY (+ aY (* sgn ah)))
+  ;; filled arrowhead (entmake SOLID — no command prompts): base behind the tip, apex at the tip
+  (entmake (list (cons 0 "SOLID") (cons 8 "TEXT")
+                 (list 10 (- aX w) baseY 0.0) (list 11 (+ aX w) baseY 0.0)
+                 (list 12 aX aY 0.0) (list 13 aX aY 0.0)))
+  (txt (if (>= tX aX) "ML" "MR") (list tX tY) fallbackTextHeight 0 text)
+  (setvar "CLAYER" prev)
 )
 
 (defun peb-label-no-leader (text labelPos textHeight rotation justify /
@@ -3036,19 +3070,7 @@
   (C:PEB-PLAN)
   (setq *PEB-DATA-FILE* nil)
 
-  (if prev-max-x
-    (progn
-      (setq new-set (ssadd))
-      (setq e prev-last)
-      (while (setq e (entnext e))
-        (ssadd e new-set))
-      (if (> (sslength new-set) 0)
-        (progn
-          (setq offset (+ prev-max-x (peb-tile-gap)))
-          (command "_.MOVE" new-set "" "0,0,0" (list offset 0.0 0.0))
-          (princ (strcat "\nTiled new drawing at X = "
-                         (rtos offset 2 0) " mm"))
-          (command "_.ZOOM" "_E")))))
+  (peb-tile-place prev-last prev-max-x)   ; left→right tile, fixed gap, no box overlap
   (princ))
 
 ;; ============================================================================

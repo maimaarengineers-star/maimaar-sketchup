@@ -6090,20 +6090,7 @@
 
   ;; ── Post-draw: if there was previous content, tile the new entities
   ;; to the right of the rightmost existing X ──
-  (if prev-max-x
-    (progn
-      (setq new-set (ssadd))
-      (setq e prev-last)
-      (while (setq e (entnext e))
-        (ssadd e new-set))
-      (if (> (sslength new-set) 0)
-        (progn
-          (setq offset (+ prev-max-x (peb-tile-gap)))
-          (command "_.MOVE" new-set "" "0,0,0"
-                   (list offset 0.0 0.0))
-          (princ (strcat "\nTiled new drawing at X = "
-                         (rtos offset 2 0) " mm"))
-          (command "_.ZOOM" "_E")))))
+  (peb-tile-place prev-last prev-max-x)   ; left→right tile, fixed gap, no box overlap
 
   (princ))
 
