@@ -547,43 +547,79 @@
 ;; Draw roof X cross-bracing in each braced bay — the X spans BETWEEN THE COLUMNS
 ;; (inset top/bottom by web/2 = colOff, not the full sheeting width) + a clearly
 ;; visible "BRACED BAY" tag.  ox/oy = area origin (0,0 single).
-(defun peb-draw-bracing (bayPts widthPts wid ox oy lewBrace rewBrace extDiag intDiag
-                         / braced prevLayer x0 x1 cx ymid first nB drewX yLines yp yy yc2 d)
-  ;; Cross-bracing on the COLUMN LAYOUT PLAN — connects the COLUMN WEBS ONLY (owner rule 2-Jul):
-  ;;   • BP_BRACING_INT = Diagonal → X per width-MODULE: sidewall AND every intermediate column web
-  ;;     is braced (the interior columns get bracing).
-  ;;   • BP_BRACING_INT ≠ Diagonal (Portal / Minor-axis / Not-Applicable) → the middle columns are
-  ;;     NOT braced: draw ONE X between the two SIDEWALL column webs only (full width), gated by
-  ;;     BP_BRACING_EXT = Diagonal.  (Portal frames are provided at the interior instead — TODO symbol.)
-  ;; PLACEMENT (strict = geometryRules.bracingPlan): braced bays = 2nd from each end + interior so no
-  ;; unbraced run > 27 m; end bays never (unless end-wall By-Framed, below). On CROSS (cyan DASHED)
-  ;; + a vertical "BRACED BAY" tag; endpoints land exactly on the grid intersections (web centres).
+;; A small asterisk "star" (3 crossing lines) centred at (cx,cy), radius r — the Portal-height marker.
+(defun peb-star (cx cy r)
+  (command "_.LINE" (list (- cx r) cy) (list (+ cx r) cy) "")
+  (command "_.LINE" (list cx (- cy r)) (list cx (+ cy r)) "")
+  (command "_.LINE" (list (- cx (* r 0.7)) (- cy (* r 0.7))) (list (+ cx (* r 0.7)) (+ cy (* r 0.7))) "")
+  (command "_.LINE" (list (- cx (* r 0.7)) (+ cy (* r 0.7))) (list (+ cx (* r 0.7)) (- cy (* r 0.7))) ""))
+
+;; digits/decimal pulled from a bracing string → "<n>m", else nil (the "Portal up to X m" height).
+(defun peb-brace-num (s / i c out)
+  (setq i 1 out "")
+  (repeat (strlen s)
+    (setq c (substr s i 1))
+    (if (or (and (>= c "0") (<= c "9")) (= c ".")) (setq out (strcat out c)))
+    (setq i (1+ i)))
+  (if (> (strlen out) 0) (strcat out "m") nil))
+
+;; Draw the bracing symbol for ONE column line (adjacent bay columns x0..x1, on the line y=yy),
+;; per the IF bracing TYPE string (owner spec 2-Jul).  d = bowtie half-height.  Returns T if drawn.
+;;   • Diagonal / X-Bracing  → BOWTIE = 2 cross lines (full-height cross brace, web to web).
+;;   • Portal up to X m, Cross above → bowtie + 2 stars in the middle + "<X>m PORTAL" above.
+;;   • Portal (full height)  → thick beam top-plan line + "PORTAL BRACING" / "FULL HEIGHT".
+;;   • Not Applicable / Minor-axis / blank → nothing.
+(defun peb-brace-line (x0 x1 yy d btype / bt cx hs m)
+  (setq bt (strcase btype) cx (/ (+ x0 x1) 2.0))
+  (cond
+    ((or (= btype "") (wcmatch bt "*NOT*APPLICABLE*") (wcmatch bt "*MINOR*AXIS*")) nil)
+    ;; Full-height Portal (no "cross above") → thick beam top-plan line + labels
+    ((and (wcmatch bt "*PORTAL*") (not (wcmatch bt "*CROSS*")))
+      (setvar "CLAYER" "COLUMNS")
+      (command "_.PLINE" (list x0 yy) "_W" 130.0 130.0 (list x1 yy) "")
+      (setvar "CLAYER" "TEXT")
+      (txt "MC" (list cx (+ yy (* 520 *PEB-TEXT-SCALE*))) (* 210 *PEB-TEXT-SCALE*) 0 "PORTAL BRACING")
+      (txt "MC" (list cx (- yy (* 520 *PEB-TEXT-SCALE*))) (* 210 *PEB-TEXT-SCALE*) 0 "FULL HEIGHT")
+      T)
+    ;; Diagonal cross, OR Portal-up-to-X-Cross-above → bowtie (2 cross lines)
+    (T
+      (setvar "CLAYER" "CROSS")
+      (command "_.LINE" (list x0 (- yy d)) (list x1 (+ yy d)) "")
+      (command "_.LINE" (list x0 (+ yy d)) (list x1 (- yy d)) "")
+      (if (wcmatch bt "*PORTAL*")        ; portal-up-to-X + cross above → 2 stars + "<X>m PORTAL"
+        (progn
+          (setq hs (* 220 *PEB-TEXT-SCALE*))
+          (peb-star (- cx (* 1.7 hs)) yy hs)
+          (peb-star (+ cx (* 1.7 hs)) yy hs)
+          (setq m (peb-brace-num btype))
+          (setvar "CLAYER" "TEXT")
+          (txt "MC" (list cx (+ yy (* 620 *PEB-TEXT-SCALE*))) (* 200 *PEB-TEXT-SCALE*) 0
+               (strcat (if m m "") " PORTAL"))))
+      T)))
+
+(defun peb-draw-bracing (bayPts widthPts wid ox oy lewBrace rewBrace extType intType
+                         / braced prevLayer x0 x1 cx ymid first nB drewX yp d)
+  ;; Cross-bracing on the COLUMN LAYOUT PLAN. Each braced column LINE carries the symbol for its
+  ;; bracing TYPE (owner spec 2-Jul): sidewalls (NSW+FSW) use BP_BRACING_EXT; interior column lines
+  ;; use BP_BRACING_INT (so when interior is N/A the middle columns get NOTHING). Symbols per line
+  ;; drawn by peb-brace-line: Diagonal→bowtie, Portal-up-cross→bowtie+stars+"Xm PORTAL", Portal→thick
+  ;; beam line + labels. PLACEMENT (strict = geometryRules.bracingPlan): 2nd + 2nd-last + even interior
+  ;; ≤27 m; end bays only when the end wall is By-Framed.
   (if (or (null widthPts) (< (length widthPts) 2)) (setq widthPts (list 0.0 wid)))
   (setq braced (peb-braced-bays bayPts))
-  (setq nB (1- (length bayPts)))                        ; number of bays
-  ;; END-WALL bracing: when an end wall's girts are By-Framed (+ end-wall columns), brace its END bay.
+  (setq nB (1- (length bayPts)))
   (if (and lewBrace (>= nB 1) (not (member 0 braced)))        (setq braced (cons 0 braced)))
   (if (and rewBrace (>= nB 1) (not (member (1- nB) braced)))  (setq braced (cons (1- nB) braced)))
-  (setq prevLayer (getvar "CLAYER") ymid (+ oy (/ wid 2.0)) first T)
+  (setq prevLayer (getvar "CLAYER") ymid (+ oy (/ wid 2.0)) first T d 350.0)
   (foreach b braced
     (setq x0 (+ ox (nth b bayPts)) x1 (+ ox (nth (1+ b) bayPts)) cx (/ (+ x0 x1) 2.0) drewX nil)
-    (setvar "CLAYER" "CROSS")
-    ;; The X-bracing is a NARROW BOWTIE between the two adjacent columns on EACH braced column LINE
-    ;; (Zealcon BRACING_sidewall_zoom), NOT a full-width X. Sidewalls (NSW+FSW) carry it when exterior
-    ;; bracing is Diagonal; the interior column lines carry it too when interior bracing is Diagonal.
-    (setq yLines nil)
-    (if extDiag (setq yLines (list oy (+ oy wid))))                 ; NSW + FSW
-    (if intDiag                                                     ; + interior column lines
-      (foreach yp widthPts
-        (if (and (> yp 1.0) (< yp (- wid 1.0))) (setq yLines (cons (+ oy yp) yLines)))))
-    (setq d 350.0)                                                  ; bowtie half-height (narrow)
-    (foreach yy yLines
-      (setq yc2 yy)                                                 ; keep the wall bowties INSIDE
-      (if (< yy (+ oy 1.0))            (setq yc2 (+ oy d)))
-      (if (> yy (- (+ oy wid) 1.0))    (setq yc2 (- (+ oy wid) d)))
-      (command "_.LINE" (list x0 (- yc2 d)) (list x1 (+ yc2 d)) "") ; bowtie /
-      (command "_.LINE" (list x0 (+ yc2 d)) (list x1 (- yc2 d)) "") ; bowtie \
-      (setq drewX T))
+    ;; sidewalls NSW + FSW (kept inside the wall) → EXTERIOR bracing type
+    (if (peb-brace-line x0 x1 (+ oy d) d extType)             (setq drewX T))
+    (if (peb-brace-line x0 x1 (- (+ oy wid) d) d extType)     (setq drewX T))
+    ;; interior column lines → INTERIOR bracing type
+    (foreach yp widthPts
+      (if (and (> yp 1.0) (< yp (- wid 1.0)))
+        (if (peb-brace-line x0 x1 (+ oy yp) d intType) (setq drewX T))))
     (if drewX
       (progn
         (setvar "CLAYER" "DIMENSIONS")   ; magenta (exists)
@@ -1150,7 +1186,7 @@
     project client propinput propno fulldate
     len wid btype rooftype stype widthPts windspeed exposure collateral bldgno revno
     bays baysp bayPts x1 x2 baylen ewcols ewsp gridWpts ewStations ewY
-    lewBrace rewBrace extDiag intDiag
+    lewBrace rewBrace extType intType
     minSp prevp yBayDim yOvrDim yFsw ySub yTtl yFrmTop
     ewExpr ewSpans ewSum ewScale ewAcc
     x y i j colOff botY topY leftX rightX
@@ -1748,11 +1784,12 @@
                       (/= "" (MSPL-Get-Str data "BP_EW_LEFT_SPACING")))
         rewBrace (and (wcmatch (strcase (MSPL-Get-Str data "BP_EW_RIGHT_GIRTS")) "*BY*FRAMED*")
                       (/= "" (MSPL-Get-Str data "BP_EW_RIGHT_SPACING"))))
-  ;; Bracing TYPE (IF): interior columns get X-bracing only when BP_BRACING_INT is "Diagonal";
-  ;; otherwise (Portal / Minor-axis / Not-Applicable) only the sidewall columns are X-braced.
-  (setq extDiag (wcmatch (strcase (MSPL-Get-Str data "BP_BRACING_EXT")) "*DIAGONAL*")
-        intDiag (wcmatch (strcase (MSPL-Get-Str data "BP_BRACING_INT")) "*DIAGONAL*"))
-  (vl-catch-all-apply (function (lambda () (peb-draw-bracing bayPts widthPts wid 0.0 0.0 lewBrace rewBrace extDiag intDiag))))
+  ;; Bracing TYPE strings (IF): the sidewalls use BP_BRACING_EXT, the interior columns BP_BRACING_INT.
+  ;; peb-brace-line maps each to its plan symbol (Diagonal→bowtie, Portal-up-cross→bowtie+stars, Portal
+  ;; →thick beam line, N/A→nothing).
+  (setq extType (MSPL-Get-Str data "BP_BRACING_EXT")
+        intType (MSPL-Get-Str data "BP_BRACING_INT"))
+  (vl-catch-all-apply (function (lambda () (peb-draw-bracing bayPts widthPts wid 0.0 0.0 lewBrace rewBrace extType intType))))
 
   ;; ── Doors / windows at their offsets (+ braced-bay clash flag) ─
   (vl-catch-all-apply (function (lambda () (peb-draw-placements data 0.0 0.0 len wid bayPts))))
