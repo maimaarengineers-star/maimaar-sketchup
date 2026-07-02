@@ -430,6 +430,18 @@
   (command "LINE" (list x (- y arm)) (list x (+ y arm)) "")
 )
 
+;; RIDGE-LINE callout — Roshan symbol (owner 2-Jul): a small CURL/loop (pig-tail) sitting on the ridge
+;; line + a short leader up to the "RIDGE LINE" text (no arrowhead).  tgtX,tgtY = point on the ridge.
+(defun peb-ridge-callout (txtStr tgtX tgtY / s r cx cy prev)
+  (setq s (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0) r (* 260.0 s)
+        cx tgtX cy (+ tgtY r) prev (getvar "CLAYER"))
+  (setvar "CLAYER" "TEXT")
+  (command "_.CIRCLE" (list cx cy) r)                                             ; the curl loop on the ridge
+  (command "_.LINE" (list (+ cx (* 0.7 r)) (+ cy (* 0.7 r)))
+                    (list (+ cx (* 4.0 r)) (+ cy (* 4.0 r))) "")                  ; leader up-right to the text
+  (txt "ML" (list (+ cx (* 4.4 r)) (+ cy (* 4.0 r))) (* 500.0 s) 0 txtStr)
+  (setvar "CLAYER" prev))
+
 ;; Maimaar-typical built-up MAIN column web depth, sized BY SPAN (owner rule).
 ;; Rule of thumb ~ span/30, rounded to 50 mm, clamped 400..1000.  Drives both the
 ;; drawn column symbol and the sidewall inset colOff = web/2 (flange flush on grid).
@@ -1614,10 +1626,7 @@
         ;; MLEADER: arrow tip on ridge at x=0.72*len; text label above
         (vl-catch-all-apply
           (function (lambda ()
-            (peb-label-with-leader "RIDGE LINE"
-                                   (list (* len 0.80) (+ (/ wid 2.0) (* 1500 *PEB-TEXT-SCALE*)))
-                                   (list (* len 0.72) (/ wid 2.0))
-                                   "S" 600.0))))
+            (peb-ridge-callout "RIDGE LINE" (* len 0.72) (/ wid 2.0)))))
       )
     )
     ((= stype "MG")
@@ -1630,10 +1639,7 @@
         (foreach mgY mgRidgePts
           (vl-catch-all-apply
             (function (lambda ()
-              (peb-label-with-leader "RIDGE LINE"
-                                     (list (* len 0.80) (+ mgY (* 1200 *PEB-TEXT-SCALE*)))
-                                     (list (* len 0.75) mgY)
-                                     "S" 600.0)))))
+              (peb-ridge-callout "RIDGE LINE" (* len 0.75) mgY)))))
         (foreach mgY mgValleyPts
           (vl-catch-all-apply
             (function (lambda ()
