@@ -492,8 +492,9 @@
 
 (defun draw-I-column-widthwise (x y / D fw tf tw br bx by hf xl xr prevLayer)
   ;; END-WALL / BEARING column — the SAME Rule Book body, rotated 90° (deep D along X for the end wall).
+  ;; HALF depth of the main column (owner 2-Jul: end-wall/bearing columns are the lighter posts).
   ;;   flange width = 0.40 D (along Y) · flange thick = 0.04 D · web thick = 0.026 D · 4 circle-cross bolts.
-  (setq D (if *PEB-COL-WEB* *PEB-COL-WEB* 700.0))
+  (setq D (* 0.5 (if *PEB-COL-WEB* *PEB-COL-WEB* 700.0)))
   (setq fw (* 0.40 D) tf (* 0.04 D) tw (* 0.026 D)
         br (* 0.0385 D) bx (* 0.18 D) by (* 0.105 D)
         hf (/ fw 2.0) xl (- x (/ D 2.0)) xr (+ x (/ D 2.0)))
@@ -1534,6 +1535,12 @@
   (aLn (+ aCx aBw) (- aCy aBh) (+ aCx aBw) (+ aCy aBh))
   (aLn (+ aCx aBw) (+ aCy aBh) (- aCx aBw) (+ aCy aBh))
   (aLn (- aCx aBw) (+ aCy aBh) (- aCx aBw) (- aCy aBh))
+  ;; AREA CROSS LINES (Roshan, owner 2-Jul): 2 mirrored diagonals corner-to-corner of the area,
+  ;; broken at the tag box so the label stays clean — each building corner -> the nearest box corner.
+  (aLn 0.0  0.0  (- aCx aBw) (- aCy aBh))   ; SW corner -> box
+  (aLn len  0.0  (+ aCx aBw) (- aCy aBh))   ; SE corner -> box
+  (aLn len  wid  (+ aCx aBw) (+ aCy aBh))   ; NE corner -> box
+  (aLn 0.0  wid  (- aCx aBw) (+ aCy aBh))   ; NW corner -> box
   ;; centred area label inside the box (real number)
   (setvar "CLAYER" "TEXT")
   (txt-bold "MC" (list aCx aCy) 550 0 aLbl)
@@ -1687,6 +1694,13 @@
                                (list (nth i bayPts) (/ wid 4.0))
                                "S" 600.0))))
     (setq i (+ i rafterStep)))
+
+  ;; End-frame TYPE — computed HERE (before the columns) so a MAIN-FRAME end wall draws its outer
+  ;; columns like the interior (full-size, lengthwise); a BEARING end wall uses the half-size posts.
+  (setq lewFrameRaw (strcase (MSPL-Get-Str data "EW_LEFT_FRAME"))
+        rewFrameRaw (strcase (MSPL-Get-Str data "EW_RIGHT_FRAME"))
+        lewFrameLabel (if (or (= lewFrameRaw "MAIN FRAME") (= lewFrameRaw "RIGID")) "MAIN FRAME" "BEARING FRAME")
+        rewFrameLabel (if (or (= rewFrameRaw "MAIN FRAME") (= rewFrameRaw "RIGID")) "MAIN FRAME" "BEARING FRAME"))
 
   ;; ── Columns ───────────────────────────────────────────────────
   (cond
