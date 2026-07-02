@@ -570,9 +570,10 @@
     (setq j 0)
     (while (< (1+ j) (length widthPts))                 ; one X per span MODULE (interior + exterior)
       (setq ya (+ oy (nth j widthPts)) yc (+ oy (nth (1+ j) widthPts)))
-      (setq mi (max 120.0 (min 500.0 (* 0.12 (- yc ya)))))  ; inset within the module
-      (command "_.LINE" (list (+ x0 mx) (+ ya mi)) (list (- x1 mx) (- yc mi)) "")   ; diagonal /
-      (command "_.LINE" (list (- x1 mx) (+ ya mi)) (list (+ x0 mx) (- yc mi)) "")   ; diagonal \
+      ;; X connects the COLUMN WEBS ONLY (owner rule 2-Jul) — endpoints exactly at the grid
+      ;; intersections (column web centres), corner-to-corner of the module, NO inset to sheeting.
+      (command "_.LINE" (list x0 ya) (list x1 yc) "")   ; web-to-web diagonal /
+      (command "_.LINE" (list x1 ya) (list x0 yc) "")   ; web-to-web diagonal \
       (setq j (1+ j)))
     ;; "BRACED BAY" vertical magenta tag at the bay centre (over the X — Zealcon)
     (setvar "CLAYER" "DIMENSIONS")   ; magenta, exists — "SECONDARY" was never created and aborted the loop
