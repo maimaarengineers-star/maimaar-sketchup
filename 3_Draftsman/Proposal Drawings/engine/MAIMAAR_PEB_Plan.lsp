@@ -569,31 +569,31 @@
 ;;   • Portal up to X m, Cross above → bowtie + 2 stars in the middle + "<X>m PORTAL" above.
 ;;   • Portal (full height)  → thick beam top-plan line + "PORTAL BRACING" / "FULL HEIGHT".
 ;;   • Not Applicable / Minor-axis / blank → nothing.
-(defun peb-brace-line (x0 x1 yy d btype / bt cx hs m)
+(defun peb-brace-line (x0 x1 yy d inward btype / bt cx sr so m)
   (setq bt (strcase btype) cx (/ (+ x0 x1) 2.0))
   (cond
     ((or (= btype "") (wcmatch bt "*NOT*APPLICABLE*") (wcmatch bt "*MINOR*AXIS*")) nil)
-    ;; Full-height Portal (no "cross above") → thick beam top-plan line + labels
+    ;; Full-height Portal → CYAN thick beam line (half thickness), centred on the column-web line + labels
     ((and (wcmatch bt "*PORTAL*") (not (wcmatch bt "*CROSS*")))
-      (setvar "CLAYER" "COLUMNS")
-      (command "_.PLINE" (list x0 yy) "_W" 130.0 130.0 (list x1 yy) "")
+      (setvar "CLAYER" "CROSS")                                  ; cyan, matches the cross-bracing colour
+      (command "_.PLINE" (list x0 yy) "_W" 65.0 65.0 (list x1 yy) "")   ; half thickness, on the web centre
       (setvar "CLAYER" "TEXT")
-      (txt "MC" (list cx (+ yy (* 520 *PEB-TEXT-SCALE*))) (* 210 *PEB-TEXT-SCALE*) 0 "PORTAL BRACING")
-      (txt "MC" (list cx (- yy (* 520 *PEB-TEXT-SCALE*))) (* 210 *PEB-TEXT-SCALE*) 0 "FULL HEIGHT")
+      (txt "MC" (list cx (+ yy (* 480 *PEB-TEXT-SCALE*))) (* 200 *PEB-TEXT-SCALE*) 0 "PORTAL BRACING")
+      (txt "MC" (list cx (- yy (* 480 *PEB-TEXT-SCALE*))) (* 200 *PEB-TEXT-SCALE*) 0 "FULL HEIGHT")
       T)
-    ;; Diagonal cross, OR Portal-up-to-X-Cross-above → bowtie (2 cross lines)
+    ;; Diagonal cross, OR Portal-up-to-X-Cross-above → bowtie (2 cross lines) within the column webs
     (T
       (setvar "CLAYER" "CROSS")
       (command "_.LINE" (list x0 (- yy d)) (list x1 (+ yy d)) "")
       (command "_.LINE" (list x0 (+ yy d)) (list x1 (- yy d)) "")
-      (if (wcmatch bt "*PORTAL*")        ; portal-up-to-X + cross above → 2 stars + "<X>m PORTAL"
+      (if (wcmatch bt "*PORTAL*")        ; portal-up-to-X + cross above → 2 stars at the crossing + "<X>m PORTAL"
         (progn
-          (setq hs (* 220 *PEB-TEXT-SCALE*))
-          (peb-star (- cx (* 1.7 hs)) yy hs)
-          (peb-star (+ cx (* 1.7 hs)) yy hs)
+          (setq sr (* 150 *PEB-TEXT-SCALE*) so (+ sr (* 120 *PEB-TEXT-SCALE*)))
+          (peb-star cx (+ yy so) sr)     ; star JUST ABOVE the crossing point
+          (peb-star cx (- yy so) sr)     ; star JUST BELOW the crossing point
           (setq m (peb-brace-num btype))
-          (setvar "CLAYER" "TEXT")
-          (txt "MC" (list cx (+ yy (* 620 *PEB-TEXT-SCALE*))) (* 200 *PEB-TEXT-SCALE*) 0
+          (setvar "CLAYER" "TEXT")       ; label toward the building interior
+          (txt "MC" (list cx (+ yy (* inward (+ d (* 420 *PEB-TEXT-SCALE*))))) (* 190 *PEB-TEXT-SCALE*) 0
                (strcat (if m m "") " PORTAL"))))
       T)))
 
@@ -610,16 +610,16 @@
   (setq nB (1- (length bayPts)))
   (if (and lewBrace (>= nB 1) (not (member 0 braced)))        (setq braced (cons 0 braced)))
   (if (and rewBrace (>= nB 1) (not (member (1- nB) braced)))  (setq braced (cons (1- nB) braced)))
-  (setq prevLayer (getvar "CLAYER") ymid (+ oy (/ wid 2.0)) first T d 350.0)
+  (setq prevLayer (getvar "CLAYER") ymid (+ oy (/ wid 2.0)) first T d 200.0)
   (foreach b braced
     (setq x0 (+ ox (nth b bayPts)) x1 (+ ox (nth (1+ b) bayPts)) cx (/ (+ x0 x1) 2.0) drewX nil)
-    ;; sidewalls NSW + FSW (kept inside the wall) → EXTERIOR bracing type
-    (if (peb-brace-line x0 x1 (+ oy d) d extType)             (setq drewX T))
-    (if (peb-brace-line x0 x1 (- (+ oy wid) d) d extType)     (setq drewX T))
+    ;; sidewalls NSW + FSW — bracing CENTRED on the column-web line (owner rule) → EXTERIOR type
+    (if (peb-brace-line x0 x1 oy d 1.0 extType)              (setq drewX T))   ; NSW, label inward +y
+    (if (peb-brace-line x0 x1 (+ oy wid) d -1.0 extType)     (setq drewX T))   ; FSW, label inward -y
     ;; interior column lines → INTERIOR bracing type
     (foreach yp widthPts
       (if (and (> yp 1.0) (< yp (- wid 1.0)))
-        (if (peb-brace-line x0 x1 (+ oy yp) d intType) (setq drewX T))))
+        (if (peb-brace-line x0 x1 (+ oy yp) d 1.0 intType) (setq drewX T))))
     (if drewX
       (progn
         (setvar "CLAYER" "DIMENSIONS")   ; magenta (exists)
