@@ -547,42 +547,51 @@
 ;; Draw roof X cross-bracing in each braced bay — the X spans BETWEEN THE COLUMNS
 ;; (inset top/bottom by web/2 = colOff, not the full sheeting width) + a clearly
 ;; visible "BRACED BAY" tag.  ox/oy = area origin (0,0 single).
-(defun peb-draw-bracing (bayPts widthPts wid ox oy lewBrace rewBrace / braced prevLayer x0 x1 cx ymid first mx j ya yc mi nB)
-  ;; Cross-bracing on the COLUMN LAYOUT PLAN — ZEALCON STANDARD (owner rule 2-Jul): a PROMINENT
-  ;; ROOF X in each braced bay, drawn PER WIDTH-MODULE (between adjacent column lines in widthPts)
-  ;; so BOTH exterior AND interior spans are braced (multi-span gets an X per module, clear-span
-  ;; gets one full-width X). On CROSS (cyan DASHED) + a vertical "BRACED BAY" tag at the bay centre.
-  ;; PLACEMENT RULE (strict): braced bays = 2nd from each end + interior so no unbraced run > 27 m;
-  ;; end bays never (peb-braced-bays / geometryRules.bracingPlan).
+(defun peb-draw-bracing (bayPts widthPts wid ox oy lewBrace rewBrace extDiag intDiag
+                         / braced prevLayer x0 x1 cx ymid first j ya yc nB drewX)
+  ;; Cross-bracing on the COLUMN LAYOUT PLAN — connects the COLUMN WEBS ONLY (owner rule 2-Jul):
+  ;;   • BP_BRACING_INT = Diagonal → X per width-MODULE: sidewall AND every intermediate column web
+  ;;     is braced (the interior columns get bracing).
+  ;;   • BP_BRACING_INT ≠ Diagonal (Portal / Minor-axis / Not-Applicable) → the middle columns are
+  ;;     NOT braced: draw ONE X between the two SIDEWALL column webs only (full width), gated by
+  ;;     BP_BRACING_EXT = Diagonal.  (Portal frames are provided at the interior instead — TODO symbol.)
+  ;; PLACEMENT (strict = geometryRules.bracingPlan): braced bays = 2nd from each end + interior so no
+  ;; unbraced run > 27 m; end bays never (unless end-wall By-Framed, below). On CROSS (cyan DASHED)
+  ;; + a vertical "BRACED BAY" tag; endpoints land exactly on the grid intersections (web centres).
   (if (or (null widthPts) (< (length widthPts) 2)) (setq widthPts (list 0.0 wid)))
   (setq braced (peb-braced-bays bayPts))
   (setq nB (1- (length bayPts)))                        ; number of bays
-  ;; END-WALL bracing (owner rule 2-Jul): when an end wall's girts are By-Framed (+ end-wall columns
-  ;; present), that end wall carries bracing too — so brace its END BAY (which the sidewall rule
-  ;; never braces). LEW = first bay (index 0); REW = last bay (index nB-1).
+  ;; END-WALL bracing: when an end wall's girts are By-Framed (+ end-wall columns), brace its END bay.
   (if (and lewBrace (>= nB 1) (not (member 0 braced)))        (setq braced (cons 0 braced)))
   (if (and rewBrace (>= nB 1) (not (member (1- nB) braced)))  (setq braced (cons (1- nB) braced)))
-  (setq prevLayer (getvar "CLAYER") ymid (+ oy (/ wid 2.0)) first T
-        mx 180.0)                                       ; x inset — clear the column flange
+  (setq prevLayer (getvar "CLAYER") ymid (+ oy (/ wid 2.0)) first T)
   (foreach b braced
-    (setq x0 (+ ox (nth b bayPts)) x1 (+ ox (nth (1+ b) bayPts)) cx (/ (+ x0 x1) 2.0))
+    (setq x0 (+ ox (nth b bayPts)) x1 (+ ox (nth (1+ b) bayPts)) cx (/ (+ x0 x1) 2.0) drewX nil)
     (setvar "CLAYER" "CROSS")
-    (setq j 0)
-    (while (< (1+ j) (length widthPts))                 ; one X per span MODULE (interior + exterior)
-      (setq ya (+ oy (nth j widthPts)) yc (+ oy (nth (1+ j) widthPts)))
-      ;; X connects the COLUMN WEBS ONLY (owner rule 2-Jul) — endpoints exactly at the grid
-      ;; intersections (column web centres), corner-to-corner of the module, NO inset to sheeting.
-      (command "_.LINE" (list x0 ya) (list x1 yc) "")   ; web-to-web diagonal /
-      (command "_.LINE" (list x1 ya) (list x0 yc) "")   ; web-to-web diagonal \
-      (setq j (1+ j)))
-    ;; "BRACED BAY" vertical magenta tag at the bay centre (over the X — Zealcon)
-    (setvar "CLAYER" "DIMENSIONS")   ; magenta, exists — "SECONDARY" was never created and aborted the loop
-    (txt-bold "MC" (list cx ymid) (* 320 *PEB-TEXT-SCALE*) 90 "BRACED BAY")
-    (if first
+    (cond
+      ;; interior bracing = Diagonal → X per module (sidewall + intermediate column webs)
+      (intDiag
+        (setq j 0)
+        (while (< (1+ j) (length widthPts))
+          (setq ya (+ oy (nth j widthPts)) yc (+ oy (nth (1+ j) widthPts)))
+          (command "_.LINE" (list x0 ya) (list x1 yc) "")   ; web-to-web diagonal /
+          (command "_.LINE" (list x1 ya) (list x0 yc) "")   ; web-to-web diagonal \
+          (setq j (1+ j)))
+        (setq drewX T))
+      ;; interior NOT Diagonal → ONE X between the SIDEWALL column webs only (no interior bracing)
+      (extDiag
+        (command "_.LINE" (list x0 oy) (list x1 (+ oy wid)) "")
+        (command "_.LINE" (list x1 oy) (list x0 (+ oy wid)) "")
+        (setq drewX T)))
+    (if drewX
       (progn
-        (setq first nil)
-        (setvar "CLAYER" "TEXT")
-        (txt "MC" (list cx (- oy (* 1500 *PEB-TEXT-SCALE*))) (* 260 *PEB-TEXT-SCALE*) 0 "CROSS BRACING (TYP.)"))))
+        (setvar "CLAYER" "DIMENSIONS")   ; magenta (exists)
+        (txt-bold "MC" (list cx ymid) (* 320 *PEB-TEXT-SCALE*) 90 "BRACED BAY")
+        (if first
+          (progn
+            (setq first nil)
+            (setvar "CLAYER" "TEXT")
+            (txt "MC" (list cx (- oy (* 1500 *PEB-TEXT-SCALE*))) (* 260 *PEB-TEXT-SCALE*) 0 "CROSS BRACING (TYP.)"))))))
   (setvar "CLAYER" prevLayer))
 
 ;; 0-based bay index containing position `at` (mm along length).
@@ -1140,7 +1149,7 @@
     project client propinput propno fulldate
     len wid btype rooftype stype widthPts windspeed exposure collateral bldgno revno
     bays baysp bayPts x1 x2 baylen ewcols ewsp gridWpts ewStations ewY
-    lewBrace rewBrace
+    lewBrace rewBrace extDiag intDiag
     minSp prevp yBayDim yOvrDim yFsw ySub yTtl yFrmTop
     ewExpr ewSpans ewSum ewScale ewAcc
     x y i j colOff botY topY leftX rightX
@@ -1738,7 +1747,11 @@
                       (/= "" (MSPL-Get-Str data "BP_EW_LEFT_SPACING")))
         rewBrace (and (wcmatch (strcase (MSPL-Get-Str data "BP_EW_RIGHT_GIRTS")) "*BY*FRAMED*")
                       (/= "" (MSPL-Get-Str data "BP_EW_RIGHT_SPACING"))))
-  (vl-catch-all-apply (function (lambda () (peb-draw-bracing bayPts widthPts wid 0.0 0.0 lewBrace rewBrace))))
+  ;; Bracing TYPE (IF): interior columns get X-bracing only when BP_BRACING_INT is "Diagonal";
+  ;; otherwise (Portal / Minor-axis / Not-Applicable) only the sidewall columns are X-braced.
+  (setq extDiag (wcmatch (strcase (MSPL-Get-Str data "BP_BRACING_EXT")) "*DIAGONAL*")
+        intDiag (wcmatch (strcase (MSPL-Get-Str data "BP_BRACING_INT")) "*DIAGONAL*"))
+  (vl-catch-all-apply (function (lambda () (peb-draw-bracing bayPts widthPts wid 0.0 0.0 lewBrace rewBrace extDiag intDiag))))
 
   ;; ── Doors / windows at their offsets (+ braced-bay clash flag) ─
   (vl-catch-all-apply (function (lambda () (peb-draw-placements data 0.0 0.0 len wid bayPts))))
