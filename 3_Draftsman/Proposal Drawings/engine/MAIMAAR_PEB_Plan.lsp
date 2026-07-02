@@ -547,7 +547,7 @@
 ;; Draw roof X cross-bracing in each braced bay — the X spans BETWEEN THE COLUMNS
 ;; (inset top/bottom by web/2 = colOff, not the full sheeting width) + a clearly
 ;; visible "BRACED BAY" tag.  ox/oy = area origin (0,0 single).
-(defun peb-draw-bracing (bayPts widthPts wid ox oy / braced prevLayer x0 x1 cx ymid first mx j ya yc mi)
+(defun peb-draw-bracing (bayPts widthPts wid ox oy lewBrace rewBrace / braced prevLayer x0 x1 cx ymid first mx j ya yc mi nB)
   ;; Cross-bracing on the COLUMN LAYOUT PLAN — ZEALCON STANDARD (owner rule 2-Jul): a PROMINENT
   ;; ROOF X in each braced bay, drawn PER WIDTH-MODULE (between adjacent column lines in widthPts)
   ;; so BOTH exterior AND interior spans are braced (multi-span gets an X per module, clear-span
@@ -556,6 +556,12 @@
   ;; end bays never (peb-braced-bays / geometryRules.bracingPlan).
   (if (or (null widthPts) (< (length widthPts) 2)) (setq widthPts (list 0.0 wid)))
   (setq braced (peb-braced-bays bayPts))
+  (setq nB (1- (length bayPts)))                        ; number of bays
+  ;; END-WALL bracing (owner rule 2-Jul): when an end wall's girts are By-Framed (+ end-wall columns
+  ;; present), that end wall carries bracing too — so brace its END BAY (which the sidewall rule
+  ;; never braces). LEW = first bay (index 0); REW = last bay (index nB-1).
+  (if (and lewBrace (>= nB 1) (not (member 0 braced)))        (setq braced (cons 0 braced)))
+  (if (and rewBrace (>= nB 1) (not (member (1- nB) braced)))  (setq braced (cons (1- nB) braced)))
   (setq prevLayer (getvar "CLAYER") ymid (+ oy (/ wid 2.0)) first T
         mx 180.0)                                       ; x inset — clear the column flange
   (foreach b braced
@@ -1133,6 +1139,7 @@
     project client propinput propno fulldate
     len wid btype rooftype stype widthPts windspeed exposure collateral bldgno revno
     bays baysp bayPts x1 x2 baylen ewcols ewsp gridWpts ewStations ewY
+    lewBrace rewBrace
     minSp prevp yBayDim yOvrDim yFsw ySub yTtl yFrmTop
     ewExpr ewSpans ewSum ewScale ewAcc
     x y i j colOff botY topY leftX rightX
@@ -1724,7 +1731,13 @@
   ;; ── Roof cross-bracing (X) in the braced bays ────────────────
   ;; Mammut convention: brace the 2nd & 2nd-last bay (never end bays) + interior
   ;; braces so no unbraced run > 27 m.  Drawn on the CROSS layer (hidden, 0.13).
-  (vl-catch-all-apply (function (lambda () (peb-draw-bracing bayPts widthPts wid 0.0 0.0))))
+  ;; End-wall bracing (owner rule): an end wall carries bracing (its end bay is braced) when its
+  ;; girts are "By Framed" AND it has end-wall columns — matches geometryRules.endwallBracePlan.
+  (setq lewBrace (and (wcmatch (strcase (MSPL-Get-Str data "BP_EW_LEFT_GIRTS"))  "*BY*FRAMED*")
+                      (/= "" (MSPL-Get-Str data "BP_EW_LEFT_SPACING")))
+        rewBrace (and (wcmatch (strcase (MSPL-Get-Str data "BP_EW_RIGHT_GIRTS")) "*BY*FRAMED*")
+                      (/= "" (MSPL-Get-Str data "BP_EW_RIGHT_SPACING"))))
+  (vl-catch-all-apply (function (lambda () (peb-draw-bracing bayPts widthPts wid 0.0 0.0 lewBrace rewBrace))))
 
   ;; ── Doors / windows at their offsets (+ braced-bay clash flag) ─
   (vl-catch-all-apply (function (lambda () (peb-draw-placements data 0.0 0.0 len wid bayPts))))
