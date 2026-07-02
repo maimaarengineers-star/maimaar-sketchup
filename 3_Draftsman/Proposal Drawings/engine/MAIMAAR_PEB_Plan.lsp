@@ -512,44 +512,64 @@
 ;; Braced-bay selection — port of geometryRules bracingPlan: never brace the END
 ;; bays; brace the 2nd and 2nd-last bay; add interior braces so no unbraced run
 ;; exceeds 27 m. Returns 0-based bay indices. bayPts = grid x-stations (len+1 pts).
-(defun peb-braced-bays (bayPts / n braced i x1 lastX)
-  (setq n (1- (length bayPts)))
+(defun peb-braced-bays (bayPts / n cum braced unbraced nSeg s target best bd bb mid)
+  ;; EXACT port of geometryRules.bracingPlan (the IF's rule — STRICT, owner 2-Jul). bayPts = grid
+  ;; x-stations (n+1 cumulative points, mm). Returns 0-based braced-bay indices.
+  ;;   • brace the 2nd bay + the 2nd-last bay (near-end); the very end bays are NEVER braced;
+  ;;   • interior braces so each unbraced sub-run <= 27 m, distributed EVENLY across bays 3..n-2
+  ;;     (nSeg = ceil(unbraced / 27 m); targets at even fractions; snap to the nearest interior bay).
+  (setq n (1- (length bayPts)) cum bayPts braced nil)
   (cond
     ((<= n 0) nil)
     ((= n 1) (list 0))
-    ((= n 2) (list 0 1))
     (T
-      (setq braced (list 1 (- n 2)))
-      (setq i 2 lastX (nth 2 bayPts))           ; right edge of the braced 2nd bay
-      (while (< i (- n 2))
-        (setq x1 (nth (1+ i) bayPts))
-        (if (> (- x1 lastX) 27000.0)
-          (progn (setq braced (cons i braced)) (setq lastX x1)))
-        (setq i (1+ i)))
+      (setq braced (list 1))                                       ; 2nd bay  (1-based 2 -> 0-based 1)
+      (if (not (member (- n 2) braced)) (setq braced (cons (- n 2) braced)))  ; 2nd-last (1-based n-1)
+      (if (> (- n 1) 2)
+        (progn
+          (setq unbraced (- (nth (- n 2) cum) (nth 2 cum)))        ; mm run between the two near-end braces
+          (if (> unbraced 27000.0)
+            (progn
+              (setq nSeg (fix (+ (/ unbraced 27000.0) 0.999999)))  ; ceil
+              (setq s 1)
+              (while (< s nSeg)
+                (setq target (+ (nth 2 cum) (/ (* unbraced (float s)) nSeg)))
+                (setq best -1 bd 1e18 bb 3)
+                (while (<= bb (- n 2))
+                  (setq mid (/ (+ (nth (1- bb) cum) (nth bb cum)) 2.0))
+                  (if (< (abs (- mid target)) bd) (progn (setq bd (abs (- mid target)) best bb)))
+                  (setq bb (1+ bb)))
+                (if (and (> best 0) (not (member (1- best) braced)))
+                  (setq braced (cons (1- best) braced)))
+                (setq s (1+ s)))))))
       braced)))
 
 ;; Draw roof X cross-bracing in each braced bay — the X spans BETWEEN THE COLUMNS
 ;; (inset top/bottom by web/2 = colOff, not the full sheeting width) + a clearly
 ;; visible "BRACED BAY" tag.  ox/oy = area origin (0,0 single).
-(defun peb-draw-bracing (bayPts wid ox oy / braced prevLayer x0 x1 cx ymid first coX coY yB0 yB1 yT0 yT1)
-  ;; Cross-bracing on the COLUMN LAYOUT PLAN (OWNER RULE — as marked at Zealcon): SIDEWALL
-  ;; bracing.  Within each braced bay, an X between the two ADJACENT columns ON THE SAME
-  ;; WALL — one X on NSW, one on FSW — connecting the columns' web/flange INNER-face
-  ;; junctions in a cross.  Each X sits inside the column-depth band (coY) along the wall.
+(defun peb-draw-bracing (bayPts widthPts wid ox oy / braced prevLayer x0 x1 cx ymid first mx j ya yc mi)
+  ;; Cross-bracing on the COLUMN LAYOUT PLAN — ZEALCON STANDARD (owner rule 2-Jul): a PROMINENT
+  ;; ROOF X in each braced bay, drawn PER WIDTH-MODULE (between adjacent column lines in widthPts)
+  ;; so BOTH exterior AND interior spans are braced (multi-span gets an X per module, clear-span
+  ;; gets one full-width X). On CROSS (cyan DASHED) + a vertical "BRACED BAY" tag at the bay centre.
+  ;; PLACEMENT RULE (strict): braced bays = 2nd from each end + interior so no unbraced run > 27 m;
+  ;; end bays never (peb-braced-bays / geometryRules.bracingPlan).
+  (if (or (null widthPts) (< (length widthPts) 2)) (setq widthPts (list 0.0 wid)))
   (setq braced (peb-braced-bays bayPts))
   (setq prevLayer (getvar "CLAYER") ymid (+ oy (/ wid 2.0)) first T
-        coY (if *PEB-COL-WEB* *PEB-COL-WEB* 700.0)    ; column depth = inner-face offset from the wall
-        coX 180.0)                                    ; half-flange clear in the bay direction
-  (setq yB0 oy yB1 (+ oy coY) yT0 (+ oy wid) yT1 (- (+ oy wid) coY))
+        mx 180.0)                                       ; x inset — clear the column flange
   (foreach b braced
     (setq x0 (+ ox (nth b bayPts)) x1 (+ ox (nth (1+ b) bayPts)) cx (/ (+ x0 x1) 2.0))
     (setvar "CLAYER" "CROSS")
-    (command "_.LINE" (list (+ x0 coX) yB0) (list (- x1 coX) yB1) "")   ; NSW wall: column A -> column B (cross)
-    (command "_.LINE" (list (+ x0 coX) yB1) (list (- x1 coX) yB0) "")   ; NSW wall: cross back
-    (command "_.LINE" (list (+ x0 coX) yT0) (list (- x1 coX) yT1) "")   ; FSW wall: column A -> column B (cross)
-    (command "_.LINE" (list (+ x0 coX) yT1) (list (- x1 coX) yT0) "")   ; FSW wall: cross back
-    ;; "BRACED BAY" marking — vertical, magenta (Zealcon)
-    (setvar "CLAYER" "SECONDARY")
+    (setq j 0)
+    (while (< (1+ j) (length widthPts))                 ; one X per span MODULE (interior + exterior)
+      (setq ya (+ oy (nth j widthPts)) yc (+ oy (nth (1+ j) widthPts)))
+      (setq mi (max 120.0 (min 500.0 (* 0.12 (- yc ya)))))  ; inset within the module
+      (command "_.LINE" (list (+ x0 mx) (+ ya mi)) (list (- x1 mx) (- yc mi)) "")   ; diagonal /
+      (command "_.LINE" (list (- x1 mx) (+ ya mi)) (list (+ x0 mx) (- yc mi)) "")   ; diagonal \
+      (setq j (1+ j)))
+    ;; "BRACED BAY" vertical magenta tag at the bay centre (over the X — Zealcon)
+    (setvar "CLAYER" "DIMENSIONS")   ; magenta, exists — "SECONDARY" was never created and aborted the loop
     (txt-bold "MC" (list cx ymid) (* 320 *PEB-TEXT-SCALE*) 90 "BRACED BAY")
     (if first
       (progn
@@ -1704,7 +1724,7 @@
   ;; ── Roof cross-bracing (X) in the braced bays ────────────────
   ;; Mammut convention: brace the 2nd & 2nd-last bay (never end bays) + interior
   ;; braces so no unbraced run > 27 m.  Drawn on the CROSS layer (hidden, 0.13).
-  (vl-catch-all-apply (function (lambda () (peb-draw-bracing bayPts wid 0.0 0.0))))
+  (vl-catch-all-apply (function (lambda () (peb-draw-bracing bayPts widthPts wid 0.0 0.0))))
 
   ;; ── Doors / windows at their offsets (+ braced-bay clash flag) ─
   (vl-catch-all-apply (function (lambda () (peb-draw-placements data 0.0 0.0 len wid bayPts))))
