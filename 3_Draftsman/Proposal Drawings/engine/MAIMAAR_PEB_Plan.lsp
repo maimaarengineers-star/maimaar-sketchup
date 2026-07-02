@@ -2145,7 +2145,10 @@
       (cons "SCALE"     "N.T.S.")
       (cons "SHEETSIZE" "A1")
       (cons "SHEETNO"   (strcat "PRO-" tbBno))))
-  (peb-titleblock-mammut tbStripX tbFrmB tbStripW tbStripH tbData)
+  ;; Multi-area: suppress the per-area title block (only ONE AcDbTable title block per sheet — a
+  ;; 2nd in the same session crashes acad). Default nil → single-area behaviour unchanged.
+  (if (not *PEB-SUPPRESS-TB*)
+    (peb-titleblock-mammut tbStripX tbFrmB tbStripW tbStripH tbData))
 
   ;; Restore drawing scales (title block done)
   (setq *PEB-TEXT-SCALE* *PEB-OLD-TEXT-SCALE*)
@@ -2156,7 +2159,8 @@
         borderB tbFrmB
         borderR (+ tbStripX tbStripW (* 1000.0 *PEB-DIM-SCALE*))
         borderT tbFrmT)
-  (draw-border borderL borderB borderR borderT)
+  (if (not *PEB-SUPPRESS-TB*)
+    (draw-border borderL borderB borderR borderT))
 
   (command "UNDO" "END")
   (setvar "GRIDMODE" 0)
