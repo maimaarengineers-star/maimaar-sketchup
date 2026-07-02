@@ -435,8 +435,8 @@
 ;; drawn column symbol and the sidewall inset colOff = web/2 (flange flush on grid).
 (defun peb-col-web-depth (widthMm / d)
   (if (or (null widthMm) (<= widthMm 0.0)) (setq widthMm 18000.0))
-  (setq d (* 50.0 (fix (+ 0.5 (/ (/ widthMm 30.0) 50.0)))))
-  (cond ((< d 400.0) 400.0) ((> d 1000.0) 1000.0) (T d)))
+  (setq d (* 50.0 (fix (+ 0.5 (/ (/ widthMm 27.0) 50.0)))))   ; ROSHAN ratio: D = span/27 (1200 @ 32.28 m span)
+  (cond ((< d 400.0) 400.0) ((> d 1400.0) 1400.0) (T d)))      ; capped 400..1400 (Rule Book / Roshan column)
 
 ;; Concise open-wall condition suffix for a wall label (from the IF OW_* field).
 ;; Returns " \U+00B7 <TAG>" (mid-dot + short tag) so it appends cleanly to the wall
@@ -466,46 +466,48 @@
     (command "_.CIRCLE" pt 42.0))
   (setvar "CLAYER" prev))
 
-(defun draw-I-column-lengthwise (x y / w h tf tw boltR prevLayer)
-  ;; Phase-2A v18: MAIN FRAME column — Maimaar geometry restored.
-  ;; FLANGE width (w) original 360.
-  ;; WEB depth (h) now Maimaar-typical BY SPAN via *PEB-COL-WEB* (fallback 700).
-  ;; Flanges + web red; bolts white.
-  (setq w 360 h (if *PEB-COL-WEB* *PEB-COL-WEB* 700) tf 35 tw 45 boltR 25)
+(defun draw-I-column-lengthwise (x y / D w tf tw br bx by hw ytop ybot prevLayer)
+  ;; MAIN-FRAME column BODY — the Rule Book sample (owner 2-Jul). One flexible body: the section
+  ;; DEPTH D = span/30 (*PEB-COL-WEB*) and everything follows its ratios, so the column scales with
+  ;; the building. Web runs along the frame (y); flanges across (x). Outline (no poche), like the sample.
+  ;;   flange width = 0.40 D · flange thickness = 0.04 D · web thickness = 0.026 D
+  ;;   4 bolts (circle + cross) at (+-0.105 D, +-0.18 D), dia 0.077 D
+  (setq D (if *PEB-COL-WEB* *PEB-COL-WEB* 700.0))
+  (setq w (* 0.40 D) tf (* 0.04 D) tw (* 0.026 D)
+        br (* 0.0385 D) bx (* 0.105 D) by (* 0.18 D)
+        hw (/ w 2.0) ytop (+ y (/ D 2.0)) ybot (- y (/ D 2.0)))
   (setq prevLayer (getvar "CLAYER"))
-  (setvar "CLAYER" "COLUMNS")    ; red
-  (command "RECTANG" (list (- x (/ w 2.0)) (- y (/ h 2.0))) (list (+ x (/ w 2.0)) (+ (- y (/ h 2.0)) tf)))
-  (command "HATCH" "SOLID" "L" "")
-  (command "RECTANG" (list (- x (/ w 2.0)) (- (+ y (/ h 2.0)) tf)) (list (+ x (/ w 2.0)) (+ y (/ h 2.0))))
-  (command "HATCH" "SOLID" "L" "")
-  (command "RECTANG" (list (- x (/ tw 2.0)) (- y (/ h 2.0))) (list (+ x (/ tw 2.0)) (+ y (/ h 2.0))))
-  (setvar "CLAYER" "BOLTS")      ; white
-  (command "DONUT" 0 (* boltR 2) (list (- x 115) (- y 115)) "")
-  (command "DONUT" 0 (* boltR 2) (list (+ x 115) (- y 115)) "")
-  (command "DONUT" 0 (* boltR 2) (list (- x 115) (+ y 115)) "")
-  (command "DONUT" 0 (* boltR 2) (list (+ x 115) (+ y 115)) "")
-  ;; col-crosshair removed v19 — grid line already passes through column.
+  (setvar "CLAYER" "COLUMNS")    ; red outline
+  (command "_.RECTANG" (list (- x hw) ybot) (list (+ x hw) (+ ybot tf)))          ; bottom flange
+  (command "_.RECTANG" (list (- x hw) (- ytop tf)) (list (+ x hw) ytop))          ; top flange
+  (command "_.RECTANG" (list (- x (/ tw 2.0)) (+ ybot tf)) (list (+ x (/ tw 2.0)) (- ytop tf)))  ; web (between flanges)
+  (setvar "CLAYER" "BOLTS")      ; 4 bolts = circle + cross
+  (foreach p (list (list (- x bx) (- y by)) (list (+ x bx) (- y by))
+                   (list (- x bx) (+ y by)) (list (+ x bx) (+ y by)))
+    (command "_.CIRCLE" p br)
+    (command "_.LINE" (list (- (car p) br) (cadr p)) (list (+ (car p) br) (cadr p)) "")
+    (command "_.LINE" (list (car p) (- (cadr p) br)) (list (car p) (+ (cadr p) br)) ""))
   (setvar "CLAYER" prevLayer)
 )
 
-(defun draw-I-column-widthwise (x y / w h tf tw boltR prevLayer)
-  ;; Phase-2A v16: BEARING / END WALL column — Maimaar original sizes
-  ;; UNCHANGED from original (per user — keep same for bearing).
-  ;; Color now red; bolts white.
-  (setq w 460 h 360 tf 35 tw 45 boltR 25)
+(defun draw-I-column-widthwise (x y / D fw tf tw br bx by hf xl xr prevLayer)
+  ;; END-WALL / BEARING column — the SAME Rule Book body, rotated 90° (deep D along X for the end wall).
+  ;;   flange width = 0.40 D (along Y) · flange thick = 0.04 D · web thick = 0.026 D · 4 circle-cross bolts.
+  (setq D (if *PEB-COL-WEB* *PEB-COL-WEB* 700.0))
+  (setq fw (* 0.40 D) tf (* 0.04 D) tw (* 0.026 D)
+        br (* 0.0385 D) bx (* 0.18 D) by (* 0.105 D)
+        hf (/ fw 2.0) xl (- x (/ D 2.0)) xr (+ x (/ D 2.0)))
   (setq prevLayer (getvar "CLAYER"))
-  (setvar "CLAYER" "COLUMNS")    ; red
-  (command "RECTANG" (list (- x (/ w 2.0)) (- y (/ h 2.0))) (list (+ (- x (/ w 2.0)) tf) (+ y (/ h 2.0))))
-  (command "HATCH" "SOLID" "L" "")
-  (command "RECTANG" (list (- (+ x (/ w 2.0)) tf) (- y (/ h 2.0))) (list (+ x (/ w 2.0)) (+ y (/ h 2.0))))
-  (command "HATCH" "SOLID" "L" "")
-  (command "RECTANG" (list (- x (/ w 2.0)) (- y (/ tw 2.0))) (list (+ x (/ w 2.0)) (+ y (/ tw 2.0))))
-  (setvar "CLAYER" "BOLTS")      ; white
-  (command "DONUT" 0 (* boltR 2) (list (- x 115) (- y 115)) "")
-  (command "DONUT" 0 (* boltR 2) (list (+ x 115) (- y 115)) "")
-  (command "DONUT" 0 (* boltR 2) (list (- x 115) (+ y 115)) "")
-  (command "DONUT" 0 (* boltR 2) (list (+ x 115) (+ y 115)) "")
-  ;; col-crosshair removed v19 — grid line already passes through column.
+  (setvar "CLAYER" "COLUMNS")    ; red outline
+  (command "_.RECTANG" (list xl (- y hf)) (list (+ xl tf) (+ y hf)))              ; left flange
+  (command "_.RECTANG" (list (- xr tf) (- y hf)) (list xr (+ y hf)))              ; right flange
+  (command "_.RECTANG" (list (+ xl tf) (- y (/ tw 2.0))) (list (- xr tf) (+ y (/ tw 2.0))))  ; web (between flanges)
+  (setvar "CLAYER" "BOLTS")      ; 4 bolts = circle + cross
+  (foreach p (list (list (- x bx) (- y by)) (list (+ x bx) (- y by))
+                   (list (- x bx) (+ y by)) (list (+ x bx) (+ y by)))
+    (command "_.CIRCLE" p br)
+    (command "_.LINE" (list (- (car p) br) (cadr p)) (list (+ (car p) br) (cadr p)) "")
+    (command "_.LINE" (list (car p) (- (cadr p) br)) (list (car p) (+ (cadr p) br)) ""))
   (setvar "CLAYER" prevLayer)
 )
 
