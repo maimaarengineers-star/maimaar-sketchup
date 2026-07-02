@@ -548,7 +548,7 @@
 ;; (inset top/bottom by web/2 = colOff, not the full sheeting width) + a clearly
 ;; visible "BRACED BAY" tag.  ox/oy = area origin (0,0 single).
 (defun peb-draw-bracing (bayPts widthPts wid ox oy lewBrace rewBrace extDiag intDiag
-                         / braced prevLayer x0 x1 cx ymid first j ya yc nB drewX)
+                         / braced prevLayer x0 x1 cx ymid first nB drewX yLines yp yy yc2 d)
   ;; Cross-bracing on the COLUMN LAYOUT PLAN — connects the COLUMN WEBS ONLY (owner rule 2-Jul):
   ;;   • BP_BRACING_INT = Diagonal → X per width-MODULE: sidewall AND every intermediate column web
   ;;     is braced (the interior columns get bracing).
@@ -568,21 +568,22 @@
   (foreach b braced
     (setq x0 (+ ox (nth b bayPts)) x1 (+ ox (nth (1+ b) bayPts)) cx (/ (+ x0 x1) 2.0) drewX nil)
     (setvar "CLAYER" "CROSS")
-    (cond
-      ;; interior bracing = Diagonal → X per module (sidewall + intermediate column webs)
-      (intDiag
-        (setq j 0)
-        (while (< (1+ j) (length widthPts))
-          (setq ya (+ oy (nth j widthPts)) yc (+ oy (nth (1+ j) widthPts)))
-          (command "_.LINE" (list x0 ya) (list x1 yc) "")   ; web-to-web diagonal /
-          (command "_.LINE" (list x1 ya) (list x0 yc) "")   ; web-to-web diagonal \
-          (setq j (1+ j)))
-        (setq drewX T))
-      ;; interior NOT Diagonal → ONE X between the SIDEWALL column webs only (no interior bracing)
-      (extDiag
-        (command "_.LINE" (list x0 oy) (list x1 (+ oy wid)) "")
-        (command "_.LINE" (list x1 oy) (list x0 (+ oy wid)) "")
-        (setq drewX T)))
+    ;; The X-bracing is a NARROW BOWTIE between the two adjacent columns on EACH braced column LINE
+    ;; (Zealcon BRACING_sidewall_zoom), NOT a full-width X. Sidewalls (NSW+FSW) carry it when exterior
+    ;; bracing is Diagonal; the interior column lines carry it too when interior bracing is Diagonal.
+    (setq yLines nil)
+    (if extDiag (setq yLines (list oy (+ oy wid))))                 ; NSW + FSW
+    (if intDiag                                                     ; + interior column lines
+      (foreach yp widthPts
+        (if (and (> yp 1.0) (< yp (- wid 1.0))) (setq yLines (cons (+ oy yp) yLines)))))
+    (setq d 350.0)                                                  ; bowtie half-height (narrow)
+    (foreach yy yLines
+      (setq yc2 yy)                                                 ; keep the wall bowties INSIDE
+      (if (< yy (+ oy 1.0))            (setq yc2 (+ oy d)))
+      (if (> yy (- (+ oy wid) 1.0))    (setq yc2 (- (+ oy wid) d)))
+      (command "_.LINE" (list x0 (- yc2 d)) (list x1 (+ yc2 d)) "") ; bowtie /
+      (command "_.LINE" (list x0 (+ yc2 d)) (list x1 (- yc2 d)) "") ; bowtie \
+      (setq drewX T))
     (if drewX
       (progn
         (setvar "CLAYER" "DIMENSIONS")   ; magenta (exists)
