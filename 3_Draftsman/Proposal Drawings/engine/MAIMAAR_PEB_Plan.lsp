@@ -605,23 +605,28 @@
 ;;   • Portal up to X m, Cross above → bowtie + 2 stars in the middle + "<X>m PORTAL" above.
 ;;   • Portal (full height)  → thick beam top-plan line + "PORTAL BRACING" / "FULL HEIGHT".
 ;;   • Not Applicable / Minor-axis / blank → nothing.
-(defun peb-brace-line (x0 x1 yy d inward btype / bt cx sr so m)
-  (setq bt (strcase btype) cx (/ (+ x0 x1) 2.0))
+(defun peb-brace-line (x0 x1 yy d inward btype / bt cx sr so m wt xa xb)
+  ;; Endpoints attach to the bay-facing WEB FACE (owner 3-Jul, Rule Book brace sample = "web to web"),
+  ;; NOT the web centreline: shift the left endpoints +half-web toward the bay and the right endpoints
+  ;; -half-web, so each cross line springs from the near web-flange junction (measured RB sample = 0.013 D).
+  (setq bt (strcase btype) cx (/ (+ x0 x1) 2.0)
+        wt (* 0.013 (if *PEB-COL-WEB* *PEB-COL-WEB* 700.0))
+        xa (+ x0 wt) xb (- x1 wt))
   (cond
     ((or (= btype "") (wcmatch bt "*NOT*APPLICABLE*") (wcmatch bt "*MINOR*AXIS*")) nil)
     ;; Full-height Portal → FULL-HEIGHT X: corner-to-corner cross between the two columns (owner 3-Jul)
     ((and (wcmatch bt "*PORTAL*") (not (wcmatch bt "*CROSS*")))
       (setvar "CLAYER" "CROSS")                                  ; cyan, matches the cross-bracing colour
-      (command "_.LINE" (list x0 (- yy d)) (list x1 (+ yy d)) "")   ; full-height X, corner to corner
-      (command "_.LINE" (list x0 (+ yy d)) (list x1 (- yy d)) "")
+      (command "_.LINE" (list xa (- yy d)) (list xb (+ yy d)) "")   ; full-height X, web face to web face
+      (command "_.LINE" (list xa (+ yy d)) (list xb (- yy d)) "")
       (setvar "CLAYER" "TEXT")
       (txt "MC" (list cx (+ yy (* inward (+ d (* 420 *PEB-TEXT-SCALE*))))) (* 190 *PEB-TEXT-SCALE*) 0 "FULL HEIGHT")
       T)
-    ;; Diagonal cross, OR Portal-up-to-X-Cross-above → bowtie (2 cross lines) within the column webs
+    ;; Diagonal cross, OR Portal-up-to-X-Cross-above → bowtie (2 cross lines) web-face to web-face
     (T
       (setvar "CLAYER" "CROSS")
-      (command "_.LINE" (list x0 (- yy d)) (list x1 (+ yy d)) "")
-      (command "_.LINE" (list x0 (+ yy d)) (list x1 (- yy d)) "")
+      (command "_.LINE" (list xa (- yy d)) (list xb (+ yy d)) "")
+      (command "_.LINE" (list xa (+ yy d)) (list xb (- yy d)) "")
       (if (wcmatch bt "*PORTAL*")        ; portal-up-to-X + cross above → 2 stars at the crossing + "<X>m PORTAL"
         (progn
           (setq sr (* 150 *PEB-TEXT-SCALE*) so (+ sr (* 120 *PEB-TEXT-SCALE*)))
