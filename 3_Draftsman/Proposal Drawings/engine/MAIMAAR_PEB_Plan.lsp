@@ -625,9 +625,10 @@
   (if (or (null widthPts) (< (length widthPts) 2)) (setq widthPts (list 0.0 wid)))
   (setq braced (peb-braced-bays bayPts))
   (setq nB (1- (length bayPts)))
-  (if (and lewBrace (>= nB 1) (not (member 0 braced)))        (setq braced (cons 0 braced)))
-  (if (and rewBrace (>= nB 1) (not (member (1- nB) braced)))  (setq braced (cons (1- nB) braced)))
-  (setq prevLayer (getvar "CLAYER") ymid (+ oy (/ wid 2.0)) first T d 200.0
+  ;; END BAYS ARE NEVER BRACED (owner 3-Jul) — the By-Framed end-bay bracing was against the rule; removed.
+  ;; (lewBrace / rewBrace kept in the signature but no longer force the end bays.)
+  (setq prevLayer (getvar "CLAYER") ymid (+ oy (/ wid 2.0)) first T
+        d (* 0.46 (if *PEB-COL-WEB* *PEB-COL-WEB* 700.0))        ; bowtie reaches the WEB-FLANGE junction (owner 3-Jul), not the bolts
         colOff (/ (if *PEB-COL-WEB* *PEB-COL-WEB* 700.0) 2.0))   ; sidewall column-web inset (= botY / topY)
   (foreach b braced
     (setq x0 (+ ox (nth b bayPts)) x1 (+ ox (nth (1+ b) bayPts)) cx (/ (+ x0 x1) 2.0) drewX nil)
