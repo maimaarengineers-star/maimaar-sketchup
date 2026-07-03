@@ -338,29 +338,42 @@
 ;; is shifted so its actual LEFT EDGE (min-X — which sits far left of the drawing origin:
 ;; grid letters + width dims) lands at prevMaxX + gap.  (The old code placed the ORIGIN
 ;; there, so the negative overhang overran the previous sheet.)
-;;   prev-last  = (entlast) captured BEFORE drawing the new sheet
-;;   prev-max-x = (car (getvar "EXTMAX")) captured BEFORE drawing (nil if drawing was empty)
-(defun peb-tile-place (prev-last prev-max-x / e new-set nmin lo hi obj gap off)
+;;   prev-last  = (entlast) captured BEFORE drawing the new sheet (nil if drawing was empty)
+;;   prev-max-x = fallback only; the TRUE right edge is measured here from bounding boxes.
+;; Fix (owner 3-Jul): EXTMAX under-reports the Mammut titleblock (AcDbTable / wide MTEXT) on a
+;; sheet's right edge, so the next sheet was placed too far left and OVERLAPPED. We now scan the
+;; actual bounding boxes of every existing entity for the true prevMaxX — a guaranteed clear gap.
+(defun peb-tile-place (prev-last prev-max-x / e new-set nmin pmax lo hi obj gap off)
   (vl-load-com)
-  (if prev-max-x
+  (if prev-last
     (progn
-      (setq new-set (ssadd) e prev-last)
-      (while (setq e (entnext e)) (ssadd e new-set))
-      (if (> (sslength new-set) 0)
+      ;; TRUE max-X of ALL existing sheets (entities up to and including prev-last)
+      (setq pmax nil e (entnext))
+      (while e
+        (setq obj (vlax-ename->vla-object e))
+        (if (not (vl-catch-all-error-p
+                   (vl-catch-all-apply 'vla-getboundingbox (list obj 'lo 'hi))))
+          (progn
+            (setq hi (vlax-safearray->list hi))
+            (if (or (null pmax) (> (car hi) pmax)) (setq pmax (car hi)))))
+        (if (equal e prev-last) (setq e nil) (setq e (entnext e))))
+      (if (null pmax) (setq pmax (cond (prev-max-x prev-max-x) (t 0.0))))
+      ;; the newly drawn sheet = entities AFTER prev-last: collect + find its true min-X
+      (setq nmin nil new-set (ssadd) e prev-last)
+      (while (setq e (entnext e))
+        (ssadd e new-set)
+        (setq obj (vlax-ename->vla-object e))
+        (if (not (vl-catch-all-error-p
+                   (vl-catch-all-apply 'vla-getboundingbox (list obj 'lo 'hi))))
+          (progn
+            (setq lo (vlax-safearray->list lo))
+            (if (or (null nmin) (< (car lo) nmin)) (setq nmin (car lo))))))
+      (if (and nmin (> (sslength new-set) 0))
         (progn
-          (setq nmin nil e prev-last)
-          (while (setq e (entnext e))
-            (setq obj (vlax-ename->vla-object e))
-            (if (not (vl-catch-all-error-p
-                       (vl-catch-all-apply 'vla-getboundingbox (list obj 'lo 'hi))))
-              (progn
-                (setq lo (vlax-safearray->list lo))
-                (if (or (null nmin) (< (car lo) nmin)) (setq nmin (car lo))))))
-          (if (null nmin) (setq nmin 0.0))
           (setq gap (if (boundp 'peb-tile-gap) (peb-tile-gap) 5000.0))
-          (setq off (- (+ prev-max-x gap) nmin))   ; new drawing's LEFT edge → prevMaxX + gap
+          (setq off (- (+ pmax gap) nmin))   ; new drawing's LEFT edge → true prevMaxX + gap
           (command "_.MOVE" new-set "" "0,0,0" (list off 0.0 0.0))
-          (princ (strcat "\nTiled new drawing: left edge at X = " (rtos (+ prev-max-x gap) 2 0) " mm (gap " (rtos gap 2 0) ")"))
+          (princ (strcat "\nTiled new drawing: left edge at X = " (rtos (+ pmax gap) 2 0) " mm (gap " (rtos gap 2 0) ")"))
           (command "_.ZOOM" "_E")))))
   (princ))
 
