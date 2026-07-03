@@ -669,7 +669,7 @@
   ;; END BAYS ARE NEVER BRACED (owner 3-Jul) — the By-Framed end-bay bracing was against the rule; removed.
   ;; (lewBrace / rewBrace kept in the signature but no longer force the end bays.)
   (setq prevLayer (getvar "CLAYER") ymid (+ oy (/ wid 2.0)) first T
-        d (* (peb-rule "brace_reach_xD" 0.46) (if *PEB-COL-WEB* *PEB-COL-WEB* 700.0))        ; bowtie reach = inner flange (compiler)
+        d (* (- 0.5 (peb-rule "flange_thick_xD" 0.04)) (if *PEB-COL-WEB* *PEB-COL-WEB* 700.0))  ; reach = inner flange = D/2 - flange_thick (always meets the flange)
         colOff (/ (if *PEB-COL-WEB* *PEB-COL-WEB* 700.0) 2.0))   ; sidewall column-web inset (= botY / topY)
   (foreach b braced
     (setq x0 (+ ox (nth b bayPts)) x1 (+ ox (nth (1+ b) bayPts)) cx (/ (+ x0 x1) 2.0) drewX nil)
