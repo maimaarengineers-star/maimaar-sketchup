@@ -590,13 +590,13 @@
   (setq bt (strcase btype) cx (/ (+ x0 x1) 2.0))
   (cond
     ((or (= btype "") (wcmatch bt "*NOT*APPLICABLE*") (wcmatch bt "*MINOR*AXIS*")) nil)
-    ;; Full-height Portal → CYAN thick beam line (half thickness), centred on the column-web line + labels
+    ;; Full-height Portal → FULL-HEIGHT X: corner-to-corner cross between the two columns (owner 3-Jul)
     ((and (wcmatch bt "*PORTAL*") (not (wcmatch bt "*CROSS*")))
       (setvar "CLAYER" "CROSS")                                  ; cyan, matches the cross-bracing colour
-      (command "_.PLINE" (list x0 yy) "_W" 65.0 65.0 (list x1 yy) "")   ; half thickness, on the web centre
+      (command "_.LINE" (list x0 (- yy d)) (list x1 (+ yy d)) "")   ; full-height X, corner to corner
+      (command "_.LINE" (list x0 (+ yy d)) (list x1 (- yy d)) "")
       (setvar "CLAYER" "TEXT")
-      (txt "MC" (list cx (+ yy (* 480 *PEB-TEXT-SCALE*))) (* 200 *PEB-TEXT-SCALE*) 0 "PORTAL BRACING")
-      (txt "MC" (list cx (- yy (* 480 *PEB-TEXT-SCALE*))) (* 200 *PEB-TEXT-SCALE*) 0 "FULL HEIGHT")
+      (txt "MC" (list cx (+ yy (* inward (+ d (* 420 *PEB-TEXT-SCALE*))))) (* 190 *PEB-TEXT-SCALE*) 0 "FULL HEIGHT")
       T)
     ;; Diagonal cross, OR Portal-up-to-X-Cross-above → bowtie (2 cross lines) within the column webs
     (T
