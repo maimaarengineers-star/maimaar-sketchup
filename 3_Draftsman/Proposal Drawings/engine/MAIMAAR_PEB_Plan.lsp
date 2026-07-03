@@ -430,30 +430,18 @@
   (command "LINE" (list x (- y arm)) (list x (+ y arm)) "")
 )
 
-;; RIDGE-LINE label — owner 3-Jul: the LADDER (peb-ridge-ladder) now marks the ridge line, so the old
-;; curl/loop callout is REMOVED. This just places a clean "RIDGE LINE" text label sitting above the
-;; ladder — no loop, no leader, no arrowhead.  tgtX,tgtY = point on the ridge.
-(defun peb-ridge-callout (txtStr tgtX tgtY / s prev)
-  (setq s (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0) prev (getvar "CLAYER"))
+;; RIDGE-LINE callout = Roshan curl/hook "ladder" symbol (owner 3-Jul): a small LOOP sitting ON the
+;; ridge line + a short leader up to the "RIDGE LINE" text (no arrowhead).  This curl is the SOLE ridge
+;; marker; the ridge LINE itself stays a dotted/broken line (RIDGE layer).  Matches the symbol Nasir
+;; inserted from MAMMUT_09_Roshan.  tgtX,tgtY = point on the ridge line.
+(defun peb-ridge-callout (txtStr tgtX tgtY / s r cx cy prev)
+  (setq s (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0) r (* 300.0 s)
+        cx tgtX cy tgtY prev (getvar "CLAYER"))
   (setvar "CLAYER" "TEXT")
-  (txt "MC" (list tgtX (+ tgtY (* 900.0 s))) (* 500.0 s) 0 txtStr)               ; clean label above the ladder
-  (setvar "CLAYER" prev))
-
-;; RIDGE-LINE LADDER — owner rule 3-Jul (from MAMMUT_09_Roshan): the ridge line is marked with a
-;; LADDER — two thin rails a small offset either side of the ridge line + regular rungs between them,
-;; running the FULL ridge length and centred EXACTLY on the ridge line ("must exactly mark ridge line").
-;; The central ridge LINE stays (the spine); this ladder rides on top of it.  widMm scales the rail gap.
-(defun peb-ridge-ladder (x0 x1 ridgeY widMm / off pitch xx prev)
-  (setq off (* widMm 0.010))                                  ; half the rail spacing (rails at ridgeY +/- off)
-  (cond ((< off 120.0) (setq off 120.0)) ((> off 350.0) (setq off 350.0)))
-  (setq pitch (* off 5.0) prev (getvar "CLAYER"))             ; rung pitch = ladder look
-  (setvar "CLAYER" "RIDGE")
-  (command "_.LINE" (list x0 (+ ridgeY off)) (list x1 (+ ridgeY off)) "")   ; upper rail
-  (command "_.LINE" (list x0 (- ridgeY off)) (list x1 (- ridgeY off)) "")   ; lower rail
-  (setq xx x0)
-  (while (< xx (+ x1 (* pitch 0.5)))
-    (command "_.LINE" (list xx (- ridgeY off)) (list xx (+ ridgeY off)) "") ; rung
-    (setq xx (+ xx pitch)))
+  (command "_.CIRCLE" (list cx cy) r)                                             ; the curl loop ON the ridge
+  (command "_.LINE" (list (+ cx (* 0.7 r)) (+ cy (* 0.7 r)))
+                    (list (+ cx (* 5.0 r)) (+ cy (* 5.0 r))) "")                  ; short leader up-right (no arrow)
+  (txt "ML" (list (+ cx (* 5.4 r)) (+ cy (* 5.0 r))) (peb-th 'ANNOT) 0 txtStr)   ; "RIDGE LINE" label (engine text)
   (setvar "CLAYER" prev))
 
 ;; Maimaar-typical built-up MAIN column web depth, sized BY SPAN (owner rule).
@@ -1637,7 +1625,6 @@
       (progn
         (setvar "CLAYER" "RIDGE")
         (command "LINE" (list 0 (/ wid 2.0)) (list len (/ wid 2.0)) "")
-        (peb-ridge-ladder 0 len (/ wid 2.0) wid)            ; ladder marks the ridge line (owner 3-Jul)
         ;; MLEADER: arrow tip on ridge at x=0.72*len; text label above
         (vl-catch-all-apply
           (function (lambda ()
@@ -1647,8 +1634,7 @@
     ((= stype "MG")
       (progn
         (setvar "CLAYER" "RIDGE")
-        (foreach mgY mgRidgePts (command "LINE" (list 0 mgY) (list len mgY) "")
-                                (peb-ridge-ladder 0 len mgY wid))   ; ladder on each gable ridge (owner 3-Jul)
+        (foreach mgY mgRidgePts (command "LINE" (list 0 mgY) (list len mgY) ""))
         (setvar "CLAYER" "GRID-LINES")
         (foreach mgY mgValleyPts (command "LINE" (list 0 mgY) (list len mgY) ""))
         ;; Native MLEADERs on each ridge + valley line
