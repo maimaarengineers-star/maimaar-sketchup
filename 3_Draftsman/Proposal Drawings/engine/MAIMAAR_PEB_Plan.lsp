@@ -442,6 +442,23 @@
   (txt "ML" (list (+ cx (* 4.4 r)) (+ cy (* 4.0 r))) (* 500.0 s) 0 txtStr)
   (setvar "CLAYER" prev))
 
+;; RIDGE-LINE LADDER — owner rule 3-Jul (from MAMMUT_09_Roshan): the ridge line is marked with a
+;; LADDER — two thin rails a small offset either side of the ridge line + regular rungs between them,
+;; running the FULL ridge length and centred EXACTLY on the ridge line ("must exactly mark ridge line").
+;; The central ridge LINE stays (the spine); this ladder rides on top of it.  widMm scales the rail gap.
+(defun peb-ridge-ladder (x0 x1 ridgeY widMm / off pitch xx prev)
+  (setq off (* widMm 0.010))                                  ; half the rail spacing (rails at ridgeY +/- off)
+  (cond ((< off 120.0) (setq off 120.0)) ((> off 350.0) (setq off 350.0)))
+  (setq pitch (* off 5.0) prev (getvar "CLAYER"))             ; rung pitch = ladder look
+  (setvar "CLAYER" "RIDGE")
+  (command "_.LINE" (list x0 (+ ridgeY off)) (list x1 (+ ridgeY off)) "")   ; upper rail
+  (command "_.LINE" (list x0 (- ridgeY off)) (list x1 (- ridgeY off)) "")   ; lower rail
+  (setq xx x0)
+  (while (< xx (+ x1 (* pitch 0.5)))
+    (command "_.LINE" (list xx (- ridgeY off)) (list xx (+ ridgeY off)) "") ; rung
+    (setq xx (+ xx pitch)))
+  (setvar "CLAYER" prev))
+
 ;; Maimaar-typical built-up MAIN column web depth, sized BY SPAN (owner rule).
 ;; Rule of thumb ~ span/30, rounded to 50 mm, clamped 400..1000.  Drives both the
 ;; drawn column symbol and the sidewall inset colOff = web/2 (flange flush on grid).
@@ -1623,6 +1640,7 @@
       (progn
         (setvar "CLAYER" "RIDGE")
         (command "LINE" (list 0 (/ wid 2.0)) (list len (/ wid 2.0)) "")
+        (peb-ridge-ladder 0 len (/ wid 2.0) wid)            ; ladder marks the ridge line (owner 3-Jul)
         ;; MLEADER: arrow tip on ridge at x=0.72*len; text label above
         (vl-catch-all-apply
           (function (lambda ()
@@ -1632,7 +1650,8 @@
     ((= stype "MG")
       (progn
         (setvar "CLAYER" "RIDGE")
-        (foreach mgY mgRidgePts (command "LINE" (list 0 mgY) (list len mgY) ""))
+        (foreach mgY mgRidgePts (command "LINE" (list 0 mgY) (list len mgY) "")
+                                (peb-ridge-ladder 0 len mgY wid))   ; ladder on each gable ridge (owner 3-Jul)
         (setvar "CLAYER" "GRID-LINES")
         (foreach mgY mgValleyPts (command "LINE" (list 0 mgY) (list len mgY) ""))
         ;; Native MLEADERs on each ridge + valley line
