@@ -463,12 +463,29 @@
     (setq xx (+ xx pitch)))
   (setvar "CLAYER" prev))
 
+;; ── COMPILER BRIDGE (owner 3-Jul) ───────────────────────────────────────────
+;; Numbers measured from the Rule Book by compile_rulebook.py live in _peb_rules.lsp
+;; (an assoc list bound to *PEB-RULES*).  `peb-rule` looks a number up by key; if the
+;; file is missing OR the key absent, it returns the built-in DEFAULT — so the engine
+;; behaves EXACTLY as before when the rules file is not present (zero-risk fallback).
+(defun peb-load-rules ( / f)
+  (foreach c (list "_peb_rules.lsp"
+                   "D:/maimaar-os/3_Draftsman/Proposal Drawings/engine/_peb_rules.lsp"
+                   "D:/maimaar-os/3_Draftsman/AutoCAD_Drawings/Multi_Area_Development/Compiler/_peb_rules.lsp")
+    (if (and (null *PEB-RULES*) (setq f (findfile c)))
+      (vl-catch-all-apply (function (lambda () (load f))))))
+  *PEB-RULES*)
+(defun peb-rule (key dflt / v)
+  (if (and (null *PEB-RULES*) (null *PEB-RULES-TRIED*))
+    (progn (setq *PEB-RULES-TRIED* T) (peb-load-rules)))
+  (if (setq v (assoc key *PEB-RULES*)) (cdr v) dflt))
+
 ;; Maimaar-typical built-up MAIN column web depth, sized BY SPAN (owner rule).
 ;; Rule of thumb ~ span/30, rounded to 50 mm, clamped 400..1000.  Drives both the
 ;; drawn column symbol and the sidewall inset colOff = web/2 (flange flush on grid).
 (defun peb-col-web-depth (widthMm / d)
   (if (or (null widthMm) (<= widthMm 0.0)) (setq widthMm 18000.0))
-  (setq d (* 50.0 (fix (+ 0.5 (/ (/ widthMm 27.0) 50.0)))))   ; ROSHAN ratio: D = span/27 (1200 @ 32.28 m span)
+  (setq d (* 50.0 (fix (+ 0.5 (/ (/ widthMm (peb-rule "col_depth_div" 27.0)) 50.0)))))   ; ROSHAN ratio: D = span/27 (compiler)
   (cond ((< d 400.0) 400.0) ((> d 1400.0) 1400.0) (T d)))      ; capped 400..1400 (Rule Book / Roshan column)
 
 ;; Concise open-wall condition suffix for a wall label (from the IF OW_* field).
@@ -506,8 +523,8 @@
   ;;   flange width = 0.40 D · flange thickness = 0.04 D · web thickness = 0.026 D
   ;;   4 bolts (circle + cross) at (+-0.105 D, +-0.18 D), dia 0.077 D
   (setq D (if *PEB-COL-WEB* *PEB-COL-WEB* 700.0))
-  (setq w (* 0.40 D) tf (* 0.04 D) tw (* 0.026 D)
-        br (* 0.0385 D) bx (* 0.105 D) by (* 0.18 D)
+  (setq w (* (peb-rule "flange_width_xD" 0.40) D) tf (* (peb-rule "flange_thick_xD" 0.04) D) tw (* (peb-rule "web_thick_xD" 0.026) D)
+        br (* (/ (peb-rule "bolt_dia_xD" 0.077) 2.0) D) bx (* (peb-rule "bolt_x_xD" 0.105) D) by (* (peb-rule "bolt_y_xD" 0.18) D)
         hw (/ w 2.0) ytop (+ y (/ D 2.0)) ybot (- y (/ D 2.0)))
   (setq prevLayer (getvar "CLAYER"))
   (setvar "CLAYER" "COLUMNS")    ; red outline
@@ -527,9 +544,9 @@
   ;; END-WALL / BEARING column — the SAME Rule Book body, rotated 90° (deep D along X for the end wall).
   ;; HALF depth of the main column (owner 2-Jul: end-wall/bearing columns are the lighter posts).
   ;;   flange width = 0.40 D (along Y) · flange thick = 0.04 D · web thick = 0.026 D · 4 circle-cross bolts.
-  (setq D (* 0.5 (if *PEB-COL-WEB* *PEB-COL-WEB* 700.0)))
-  (setq fw (* 0.40 D) tf (* 0.04 D) tw (* 0.026 D)
-        br (* 0.0385 D) bx (* 0.18 D) by (* 0.105 D)
+  (setq D (* (peb-rule "endwall_depth_x_main" 0.5) (if *PEB-COL-WEB* *PEB-COL-WEB* 700.0)))
+  (setq fw (* (peb-rule "flange_width_xD" 0.40) D) tf (* (peb-rule "flange_thick_xD" 0.04) D) tw (* (peb-rule "web_thick_xD" 0.026) D)
+        br (* (/ (peb-rule "bolt_dia_xD" 0.077) 2.0) D) bx (* (peb-rule "bolt_y_xD" 0.18) D) by (* (peb-rule "bolt_x_xD" 0.105) D)
         hf (/ fw 2.0) xl (- x (/ D 2.0)) xr (+ x (/ D 2.0)))
   (setq prevLayer (getvar "CLAYER"))
   (setvar "CLAYER" "COLUMNS")    ; red outline
@@ -610,7 +627,7 @@
   ;; NOT the web centreline: shift the left endpoints +half-web toward the bay and the right endpoints
   ;; -half-web, so each cross line springs from the near web-flange junction (measured RB sample = 0.013 D).
   (setq bt (strcase btype) cx (/ (+ x0 x1) 2.0)
-        wt (* 0.013 (if *PEB-COL-WEB* *PEB-COL-WEB* 700.0))
+        wt (* (peb-rule "brace_web_offset_xD" 0.013) (if *PEB-COL-WEB* *PEB-COL-WEB* 700.0))
         xa (+ x0 wt) xb (- x1 wt))
   (cond
     ((or (= btype "") (wcmatch bt "*NOT*APPLICABLE*") (wcmatch bt "*MINOR*AXIS*")) nil)
@@ -652,7 +669,7 @@
   ;; END BAYS ARE NEVER BRACED (owner 3-Jul) — the By-Framed end-bay bracing was against the rule; removed.
   ;; (lewBrace / rewBrace kept in the signature but no longer force the end bays.)
   (setq prevLayer (getvar "CLAYER") ymid (+ oy (/ wid 2.0)) first T
-        d (* 0.46 (if *PEB-COL-WEB* *PEB-COL-WEB* 700.0))        ; bowtie reaches the WEB-FLANGE junction (owner 3-Jul), not the bolts
+        d (* (peb-rule "brace_reach_xD" 0.46) (if *PEB-COL-WEB* *PEB-COL-WEB* 700.0))        ; bowtie reach = inner flange (compiler)
         colOff (/ (if *PEB-COL-WEB* *PEB-COL-WEB* 700.0) 2.0))   ; sidewall column-web inset (= botY / topY)
   (foreach b braced
     (setq x0 (+ ox (nth b bayPts)) x1 (+ ox (nth (1+ b) bayPts)) cx (/ (+ x0 x1) 2.0) drewX nil)
