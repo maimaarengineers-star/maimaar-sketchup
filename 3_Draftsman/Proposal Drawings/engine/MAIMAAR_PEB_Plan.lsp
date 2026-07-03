@@ -615,7 +615,7 @@
       T)))
 
 (defun peb-draw-bracing (bayPts widthPts wid ox oy lewBrace rewBrace extType intType
-                         / braced prevLayer x0 x1 cx ymid first nB drewX yp d)
+                         / braced prevLayer x0 x1 cx ymid first nB drewX yp d colOff)
   ;; Cross-bracing on the COLUMN LAYOUT PLAN. Each braced column LINE carries the symbol for its
   ;; bracing TYPE (owner spec 2-Jul): sidewalls (NSW+FSW) use BP_BRACING_EXT; interior column lines
   ;; use BP_BRACING_INT (so when interior is N/A the middle columns get NOTHING). Symbols per line
@@ -627,12 +627,13 @@
   (setq nB (1- (length bayPts)))
   (if (and lewBrace (>= nB 1) (not (member 0 braced)))        (setq braced (cons 0 braced)))
   (if (and rewBrace (>= nB 1) (not (member (1- nB) braced)))  (setq braced (cons (1- nB) braced)))
-  (setq prevLayer (getvar "CLAYER") ymid (+ oy (/ wid 2.0)) first T d 200.0)
+  (setq prevLayer (getvar "CLAYER") ymid (+ oy (/ wid 2.0)) first T d 200.0
+        colOff (/ (if *PEB-COL-WEB* *PEB-COL-WEB* 700.0) 2.0))   ; sidewall column-web inset (= botY / topY)
   (foreach b braced
     (setq x0 (+ ox (nth b bayPts)) x1 (+ ox (nth (1+ b) bayPts)) cx (/ (+ x0 x1) 2.0) drewX nil)
-    ;; sidewalls NSW + FSW — bracing CENTRED on the column-web line (owner rule) → EXTERIOR type
-    (if (peb-brace-line x0 x1 oy d 1.0 extType)              (setq drewX T))   ; NSW, label inward +y
-    (if (peb-brace-line x0 x1 (+ oy wid) d -1.0 extType)     (setq drewX T))   ; FSW, label inward -y
+    ;; sidewalls NSW + FSW — bracing ON THE COLUMN-WEB line (inset by colOff, NOT the grid line) → EXTERIOR
+    (if (peb-brace-line x0 x1 (+ oy colOff) d 1.0 extType)          (setq drewX T))   ; NSW web, label inward +y
+    (if (peb-brace-line x0 x1 (+ oy (- wid colOff)) d -1.0 extType) (setq drewX T))   ; FSW web, label inward -y
     ;; interior column lines → INTERIOR bracing type
     (foreach yp widthPts
       (if (and (> yp 1.0) (< yp (- wid 1.0)))
