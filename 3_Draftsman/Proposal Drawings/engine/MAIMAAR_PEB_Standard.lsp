@@ -364,16 +364,14 @@
           (command "_.ZOOM" "_E")))))
   (princ))
 
-;; ── Generate ALL sheets for one PEB_Data, in the OWNER'S left→right order ──
-;; Order (owner, 2-Jul): Cover · Column Layout Plan · Section · Roof Framing · Wall Framing.
-;; (Roof Sheeting Plan + Wall Sheeting Plan are not built yet — appended here once they exist.)
+;; ── Generate the STRICT proposal drawing SET for one PEB_Data, left→right ──
+;; STRICT (owner 3-Jul): exactly THREE sheets — Cover · Column Layout Plan · Section.
+;; NO framing plans, NO elevations — those are REMOVED from the proposal drawing set.
 ;; Each sheet tiles to the right of the previous via peb-tile-place (fixed gap, no overlap).
 (defun peb-all-sheets (path)
   (if (boundp 'peb-cover-from-file)        (peb-cover-from-file path))
   (if (boundp 'peb-plan-from-file)         (peb-plan-from-file path))
   (if (boundp 'peb-section-from-file)      (peb-section-from-file path))
-  (if (boundp 'peb-roof-framing-from-file) (peb-roof-framing-from-file path))
-  (if (boundp 'peb-wall-framing-from-file) (peb-wall-framing-from-file path))
   (command "_.ZOOM" "_E")
   (princ))
 
