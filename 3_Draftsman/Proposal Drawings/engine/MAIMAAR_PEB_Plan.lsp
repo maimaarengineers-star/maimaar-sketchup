@@ -744,15 +744,17 @@
   (txt "ML" (list x0 (- y0 (* 980 s))) (* 220 s) 0 "(SIZE & NUMBER FINALISED AT DESIGN STAGE)")
   (setvar "CLAYER" prev))
 
-(defun draw-RCC-column (x y / s prevLayer)
-  (setq s 520)
-  (setq prevLayer (getvar "CLAYER"))
+;; RCC column (owner 3-Jul): steel columns ALWAYS rest ON existing RCC columns, so the symbol is the
+;; RCC concrete column (square outline) with the RED steel I-column drawn WITHIN it (the I-column may be
+;; a MAIN or an END-WALL column).  Frame type = Roof on RCC Columns.
+(defun draw-RCC-column (x y / D s prevLayer)
+  (setq D (if *PEB-COL-WEB* *PEB-COL-WEB* 700.0)
+        s (* D 1.40)                       ; RCC concrete column side (bigger than the steel column)
+        prevLayer (getvar "CLAYER"))
   (setvar "CLAYER" "COLUMNS")
-  (command "RECTANG" (list (- x (/ s 2.0)) (- y (/ s 2.0))) (list (+ x (/ s 2.0)) (+ y (/ s 2.0))))
-  (command "LINE" (list (- x (/ s 2.0)) (- y (/ s 2.0))) (list (+ x (/ s 2.0)) (+ y (/ s 2.0))) "")
-  (command "LINE" (list (- x (/ s 2.0)) (+ y (/ s 2.0))) (list (+ x (/ s 2.0)) (- y (/ s 2.0))) "")
-  ;; col-crosshair removed v19 — grid line already passes through column.
+  (command "_.RECTANG" (list (- x (/ s 2.0)) (- y (/ s 2.0))) (list (+ x (/ s 2.0)) (+ y (/ s 2.0))))  ; RCC square
   (setvar "CLAYER" prevLayer)
+  (draw-I-column-lengthwise x y)           ; the steel I-column resting WITHIN the RCC
 )
 
 (defun peb-group-equal-spans (pts / lengths groups currLen currCount currStart i sp tol)
