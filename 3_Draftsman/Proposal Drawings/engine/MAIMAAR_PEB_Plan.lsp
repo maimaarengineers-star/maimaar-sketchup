@@ -430,16 +430,13 @@
   (command "LINE" (list x (- y arm)) (list x (+ y arm)) "")
 )
 
-;; RIDGE-LINE callout — Roshan symbol (owner 2-Jul): a small CURL/loop (pig-tail) sitting on the ridge
-;; line + a short leader up to the "RIDGE LINE" text (no arrowhead).  tgtX,tgtY = point on the ridge.
-(defun peb-ridge-callout (txtStr tgtX tgtY / s r cx cy prev)
-  (setq s (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0) r (* 260.0 s)
-        cx tgtX cy (+ tgtY r) prev (getvar "CLAYER"))
+;; RIDGE-LINE label — owner 3-Jul: the LADDER (peb-ridge-ladder) now marks the ridge line, so the old
+;; curl/loop callout is REMOVED. This just places a clean "RIDGE LINE" text label sitting above the
+;; ladder — no loop, no leader, no arrowhead.  tgtX,tgtY = point on the ridge.
+(defun peb-ridge-callout (txtStr tgtX tgtY / s prev)
+  (setq s (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0) prev (getvar "CLAYER"))
   (setvar "CLAYER" "TEXT")
-  (command "_.CIRCLE" (list cx cy) r)                                             ; the curl loop on the ridge
-  (command "_.LINE" (list (+ cx (* 0.7 r)) (+ cy (* 0.7 r)))
-                    (list (+ cx (* 4.0 r)) (+ cy (* 4.0 r))) "")                  ; leader up-right to the text
-  (txt "ML" (list (+ cx (* 4.4 r)) (+ cy (* 4.0 r))) (* 500.0 s) 0 txtStr)
+  (txt "MC" (list tgtX (+ tgtY (* 900.0 s))) (* 500.0 s) 0 txtStr)               ; clean label above the ladder
   (setvar "CLAYER" prev))
 
 ;; RIDGE-LINE LADDER — owner rule 3-Jul (from MAMMUT_09_Roshan): the ridge line is marked with a
