@@ -1982,21 +1982,14 @@
   ;; returns (startX endX count spacing) tuples; we draw one
   ;; peb-dim-h-stretch per group with override text via peb-fmt-group.
 
-  ;; HORIZONTAL (bay) chain — print the IF grouped expression VERBATIM (mm) when
-  ;; available (exact IF match, no re-collapse); else fall back to derived groups.
-  (setq bayExpr (MSPL-Get-Str data "BAYEXPR"))
-  ;; NOTE: test for a literal "@" with vl-string-search, NOT wcmatch — in AutoLISP
-  ;; wcmatch "@" is a wildcard ("any alpha char"), so a digit-only expression like
-  ;; 7500+4@8365+7500 would never match and silently fall back to derived groups.
-  (if (and bayExpr (/= bayExpr "") (vl-string-search "@" bayExpr))
-    (progn
-      (peb-dim-h-stretch 0 len yBayDim (peb-fmt-expr bayExpr))
-      (peb-recolor-last-dim 0))
-    (foreach grp (peb-group-equal-spans bayPts)
-      (peb-dim-h-stretch (nth 0 grp) (nth 1 grp)
-                         yBayDim
-                         (peb-fmt-group (nth 2 grp) (nth 3 grp)))
-      (peb-recolor-last-dim 0)))            ; ByBlock
+  ;; HORIZONTAL (bay) chain — GROUPED per the Rule Book PEB-DIMENSION idea: each equal run
+  ;; is its own dim segment labelled "N @ S = total" (peb-fmt-group); singletons show the
+  ;; bare value (owner 3-Jul: apply the Rule Book format to length AND width).
+  (foreach grp (peb-group-equal-spans bayPts)
+    (peb-dim-h-stretch (nth 0 grp) (nth 1 grp)
+                       yBayDim
+                       (peb-fmt-group (nth 2 grp) (nth 3 grp)))
+    (peb-recolor-last-dim 0))              ; ByBlock
   ;; Overall length dim — witness lines shifted to the chosen basis plane.
   (setq bofs (peb-basis-offsets (peb-tb-or (MSPL-Get-Str data "LENGTH_REF")
                                            (MSPL-Get-Str data "BAY_REF")) 230.0))
@@ -2006,28 +1999,20 @@
                                                     (MSPL-Get-Str data "BAY_REF")))))
   (peb-recolor-last-dim 0)                   ; ByBlock for overall length
 
-  ;; VERTICAL (width-module) chain — print the IF expression VERBATIM (mm) when
-  ;; available; else fall back to derived groups. Drawn both sides for big plans.
-  ;; Skip entirely for clear-span (no interior columns → overall width is enough).
-  (setq modExpr (MSPL-Get-Str data "MODEXPR"))
+  ;; VERTICAL (width-module) chain — GROUPED "N @ S = total" (Rule Book PEB-DIMENSION format),
+  ;; both sides. Only when there are interior columns (clear-span → overall width dim is enough).
   (if (> (length widthPts) 2)
-    (if (and modExpr (/= modExpr "") (vl-string-search "@" modExpr))
-      (progn
-        (peb-dim-height-stretch 0.0 (- (* 1200 *PEB-DIM-SCALE*)) 0 wid (peb-fmt-expr modExpr))
-        (peb-recolor-last-dim 0)            ; ByBlock left
-        (peb-dim-height-stretch len (+ len (* 1200 *PEB-DIM-SCALE*)) 0 wid (peb-fmt-expr modExpr))
-        (peb-recolor-last-dim 0))           ; ByBlock right
-      (progn
-        (foreach grp (peb-group-equal-spans widthPts)
-          (peb-dim-height-stretch 0.0 (- (* 1200 *PEB-DIM-SCALE*))
-                                  (nth 0 grp) (nth 1 grp)
-                                  (peb-fmt-group (nth 2 grp) (nth 3 grp)))
-          (peb-recolor-last-dim 0))         ; ByBlock left
-        (foreach grp (peb-group-equal-spans widthPts)
-          (peb-dim-height-stretch len (+ len (* 1200 *PEB-DIM-SCALE*))
-                                  (nth 0 grp) (nth 1 grp)
-                                  (peb-fmt-group (nth 2 grp) (nth 3 grp)))
-          (peb-recolor-last-dim 0)))))      ; ByBlock right
+    (progn
+      (foreach grp (peb-group-equal-spans widthPts)
+        (peb-dim-height-stretch 0.0 (- (* 1200 *PEB-DIM-SCALE*))
+                                (nth 0 grp) (nth 1 grp)
+                                (peb-fmt-group (nth 2 grp) (nth 3 grp)))
+        (peb-recolor-last-dim 0))           ; ByBlock left
+      (foreach grp (peb-group-equal-spans widthPts)
+        (peb-dim-height-stretch len (+ len (* 1200 *PEB-DIM-SCALE*))
+                                (nth 0 grp) (nth 1 grp)
+                                (peb-fmt-group (nth 2 grp) (nth 3 grp)))
+        (peb-recolor-last-dim 0))))         ; ByBlock right
   ;; Overall width dims — witness lines shifted to the chosen basis plane.
   (setq wofs (peb-basis-offsets (peb-tb-or (MSPL-Get-Str data "WIDTH_REF")
                                            (MSPL-Get-Str data "WIDTH_MOD_REF")) colOff))
