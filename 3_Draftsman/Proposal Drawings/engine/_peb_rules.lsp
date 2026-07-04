@@ -12,7 +12,5 @@
   (cons "endwall_depth_x_main" 0.5)
   (cons "rcc_square_mm" 520.0)
   (cons "bubble_radius_mm" 620.0)
-  (cons "fall_width_mm" 600.0)
-  (cons "brace_reach_xD" 0.456)
-  (cons "brace_web_offset_xD" 0.013)))
+  (cons "fall_width_mm" 600.0)))
 (princ)

@@ -465,14 +465,27 @@
 
 ;; RIDGE LINE = dash-dot CENTERX2 (owner 4-Jul, Rule Book: "it just shows the line of the ridge").
 ;; Loads CENTERX2 once if absent; falls back to the layer linetype if it can't load. widMm unused.
-(defun peb-ridge-line (x0 x1 y / prev)
-  (if (not (tblsearch "LTYPE" "CENTERX2"))
-    (vl-catch-all-apply (function (lambda () (command "_.-LINETYPE" "_Load" "CENTERX2" "acad.lin" "")))))
+(defun peb-ridge-line (x0 x1 y / prev pcs lts)
+  ;; RIDGE LINE = dotted centre line (rule F6, "dotted like Roshan").  ROBUST FIX: create a mm-based
+  ;; dash-dot linetype if absent (works headless without acad.lin) AND neutralise the drawing's global
+  ;; LTSCALE via CELTSCALE = 1/LTSCALE so the pattern renders at TRUE size instead of being stretched
+  ;; into a solid line (the old CENTERX2-from-acad.lin path showed solid at LTSCALE ~98).
+  (if (not (tblsearch "LTYPE" "PEBRIDGE"))
+    (vl-catch-all-apply (function (lambda ()
+      (entmake (list '(0 . "LTYPE") '(100 . "AcDbSymbolTableRecord")
+                     '(100 . "AcDbLinetypeTableRecord") '(2 . "PEBRIDGE") '(70 . 0)
+                     '(3 . "Ridge __ . __ . __") '(72 . 65) '(73 . 4) '(40 . 2400.0)
+                     '(49 . 1400.0) '(74 . 0) '(49 . -500.0) '(74 . 0)
+                     '(49 . 0.0)    '(74 . 0) '(49 . -500.0) '(74 . 0)))))))
   (setvar "CLAYER" "RIDGE")
-  (setq prev (getvar "CELTYPE"))
-  (vl-catch-all-apply (function (lambda () (setvar "CELTYPE" "CENTERX2"))))
+  (setq prev (getvar "CELTYPE") pcs (getvar "CELTSCALE") lts (getvar "LTSCALE"))
+  (vl-catch-all-apply (function (lambda ()
+    (setvar "CELTYPE" (if (tblsearch "LTYPE" "PEBRIDGE") "PEBRIDGE" "CENTERX2")))))
+  (vl-catch-all-apply (function (lambda ()
+    (setvar "CELTSCALE" (if (> lts 0.0) (/ 1.0 lts) 1.0)))))
   (command "_.LINE" (list x0 y) (list x1 y) "")
-  (vl-catch-all-apply (function (lambda () (setvar "CELTYPE" prev)))))
+  (vl-catch-all-apply (function (lambda () (setvar "CELTYPE" prev))))
+  (vl-catch-all-apply (function (lambda () (setvar "CELTSCALE" pcs)))))
 
 ;; RIDGE-LINE SYMBOL — the EXACT shape Nasir drew in the Rule Book (owner 4-Jul): a shelf + vertical
 ;; drop + small tail (an L-leader), anchored at the ridge point, with the "RIDGE LINE" label.  Coords
@@ -1025,6 +1038,17 @@
 ;;   witLo/witHi = DRAWN-column offsets (drawnHalf-based)      -> witness/arrow lines, so they sit on the
 ;;                 drawn WEB CENTRE / faces (owner 4-Jul: columns are drawn oversized for presentation,
 ;;                 so the C/C line must cross the drawn web centre, not the real 200 plane / the bolts).
+;; A11 FIX: grid letters must continue past Z as AA, AB, … (was (chr (+ 65 idx))
+;; which produced '[', '\\', ']' for the 27th+ station on large multi-span buildings).
+;; 0-based index -> Excel-style column letters. Safe: identical to old output for idx 0..25.
+(defun peb-num-to-alpha (n / s)
+  (setq s "" n (1+ n))
+  (while (> n 0)
+    (setq n (1- n)
+          s (strcat (chr (+ 65 (rem n 26))) s)
+          n (/ n 26)))
+  s)
+
 (defun peb-basis-dim (basis dir gridVal drawnHalf / u hw fw brick d dc)
   (setq u (strcase (if basis basis ""))
         hw (if (eq dir 'W) 200.0 100.0)
@@ -1688,8 +1712,12 @@
       (repeat ewcols (setq ewStations (append ewStations (list ewY)) ewY (+ ewY ewsp)))))
   (setq ewcols (1- (length ewStations)))               ; keep ewcols in step with the IF stations
   (setq gridWpts widthPts)
+  ;; A3 FIX: 1 mm dedupe was too tight — endwall-station float rounding could leave a
+  ;; station 1-3 mm off a real module line, producing a DOUBLED grid letter/line. Merge
+  ;; anything within ~1% of the smallest bay so a near-coincident station collapses to one.
+  (setq ewTol (max 25.0 (* 0.01 (if (and wid (> wid 0.0)) (/ wid (max 1 (length gridWpts))) 25.0))))
   (foreach s ewStations
-    (if (not (vl-some '(lambda (p) (< (abs (- p s)) 1.0)) gridWpts))
+    (if (not (vl-some '(lambda (p) (< (abs (- p s)) ewTol)) gridWpts))
       (setq gridWpts (append gridWpts (list s)))))
   (setq gridWpts (vl-sort gridWpts '<))
 
@@ -1782,8 +1810,10 @@
   (aLn len  wid  (+ aCx aBw) (+ aCy aBh))   ; NE corner -> NE box corner
   (aLn 0.0  wid  (- aCx aBw) (+ aCy aBh))   ; NW corner -> NW box corner
   ;; centred area label inside the box (real number)
+  ;; FIX: use aTxH (scales with the building) — was hardcoded 550, so on non-unity scales the text
+  ;; overflowed the box (box is sized from aTxH). Now text and box scale together.
   (setvar "CLAYER" "TEXT")
-  (txt-bold "MC" (list aCx aCy) 550 0 aLbl)
+  (txt-bold "MC" (list aCx aCy) aTxH 0 aLbl)
 
   ;; ── Grid lines (Phase-2A v19 — extend to sheeting outer lines) ──
   ;; Bay lines run from NSW sheeting outer to FSW sheeting outer.
@@ -1845,7 +1875,7 @@
     ;; RULE (owner 4-Jul): grid marking line from the OUTER width dimension line (-3*dimGap) to the bubble.
     (command "LINE" (list (- 0.0 (* 3.0 dimGap)) y) (list (+ gridX1 bubR) y) "")
     (setvar "CLAYER" "GRID")
-    (grid-bubble gridX1 y (chr (+ 65 (- nWid 1 j))))
+    (grid-bubble gridX1 y (peb-num-to-alpha (- nWid 1 j)))
     (setq j (1+ j))
   )
 
