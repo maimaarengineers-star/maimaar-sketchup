@@ -931,6 +931,16 @@
        (list (+ gridVal (* 2.0 brick)) (- brick) brick))
     (T (list gridVal 0.0 0.0))))
 
+;; Shift a chain's END grid points to the IF basis plane (owner 4-Jul): first point += loOff,
+;; last point += hiOff, interior points unchanged — so a chain's outer edges land on the same
+;; plane as its overall dim and the end segments absorb the offset (chain sum = overall value).
+(defun peb-shift-ends (pts lo hi / n i out)
+  (setq n (length pts) i 0 out '())
+  (foreach p pts
+    (setq out (cons (cond ((= i 0) (+ p lo)) ((= i (1- n)) (+ p hi)) (T p)) out)
+          i   (1+ i)))
+  (reverse out))
+
 ;; render a raw IF grouped spacing expression verbatim (mm): "1@7620+5@8200" ->
 ;; "1@7620 + 5@8200" (just spaces the + separators; values untouched = exact IF).
 (defun peb-fmt-expr (s / r ch i)
@@ -2013,21 +2023,20 @@
   ;; returns (startX endX count spacing) tuples; we draw one
   ;; peb-dim-h-stretch per group with override text via peb-fmt-group.
 
-  ;; HORIZONTAL (bay) chain — GROUPED per the Rule Book PEB-DIMENSION idea: each equal run
-  ;; is its own dim segment labelled "N @ S = total" (peb-fmt-group); singletons show the
-  ;; bare value (owner 3-Jul: apply the Rule Book format to length AND width).
-  (foreach grp (peb-group-equal-spans bayPts)
-    (peb-dim-h-stretch (nth 0 grp) (nth 1 grp)
-                       yBayDim
-                       (peb-fmt-group (nth 2 grp) (nth 3 grp)))
-    (peb-recolor-last-dim 0))              ; ByBlock
   ;; Length By-Flush only when BOTH end walls' girts are Flush; else By-Framed (owner 4-Jul).
   (setq *PEB-EW-BYFLUSH*
         (and (wcmatch (strcase (MSPL-Get-Str data "BP_EW_LEFT_GIRTS"))  "*FLUSH*")
              (wcmatch (strcase (MSPL-Get-Str data "BP_EW_RIGHT_GIRTS")) "*FLUSH*")))
-  ;; Overall length dim — VALUE + witness/arrows on the IF basis plane (peb-basis-dim).
   (setq lref (peb-tb-or (MSPL-Get-Str data "LENGTH_REF") (MSPL-Get-Str data "BAY_REF")))
   (setq ldim (peb-basis-dim lref 'L len))
+  ;; HORIZONTAL (bay) chain — GROUPED "N @ S = total"; END points shifted to the IF basis plane so
+  ;; the chain is FULLY in sync with the overall (owner 4-Jul). Singletons show the bare value.
+  (foreach grp (peb-group-equal-spans (peb-shift-ends bayPts (nth 1 ldim) (nth 2 ldim)))
+    (peb-dim-h-stretch (nth 0 grp) (nth 1 grp)
+                       yBayDim
+                       (peb-fmt-group (nth 2 grp) (nth 3 grp)))
+    (peb-recolor-last-dim 0))              ; ByBlock
+  ;; Overall length dim — VALUE + witness/arrows on the IF basis plane (peb-basis-dim).
   (peb-dim-h-stretch (nth 1 ldim) (+ len (nth 2 ldim)) yOvrDim
                      (peb-fmt-labelled "BUILDING LENGTH" (nth 0 ldim) (peb-basis-suffix lref)))
   (peb-recolor-last-dim 0)                   ; ByBlock for overall length
@@ -2039,22 +2048,22 @@
   ;; All GROUPED "N @ S = total" + the O/O / C/C basis on EVERY chain (owner 4-Jul).
   (setq wmSuffix (peb-basis-suffix (peb-tb-or (MSPL-Get-Str data "WIDTH_MOD_REF")
                                               (MSPL-Get-Str data "WIDTH_REF"))))
-  ;; (1) END-WALL COLUMN SPACING — most right (REW), inner offset. Always (every building has EW posts).
-  (foreach grp (peb-group-equal-spans ewStations)
+  (setq wref (peb-tb-or (MSPL-Get-Str data "WIDTH_REF") (MSPL-Get-Str data "WIDTH_MOD_REF")))
+  (setq wdim (peb-basis-dim wref 'W wid))
+  ;; (1) END-WALL COLUMN SPACING — most right (REW); ends shifted to the IF basis plane (in sync).
+  (foreach grp (peb-group-equal-spans (peb-shift-ends ewStations (nth 1 wdim) (nth 2 wdim)))
     (peb-dim-height-stretch len (+ len (* 1200 *PEB-DIM-SCALE*))
                             (nth 0 grp) (nth 1 grp)
                             (strcat (peb-fmt-group (nth 2 grp) (nth 3 grp)) " " wmSuffix))
     (peb-recolor-last-dim 0))                 ; REW end-wall column spacing
-  ;; (2) WIDTH MODULE — next left (LEW inner). Only when interior columns exist.
+  ;; (2) WIDTH MODULE — next left (LEW inner); ends shifted to the IF basis plane. Interior cols only.
   (if (> (length widthPts) 2)
-    (foreach grp (peb-group-equal-spans widthPts)
+    (foreach grp (peb-group-equal-spans (peb-shift-ends widthPts (nth 1 wdim) (nth 2 wdim)))
       (peb-dim-height-stretch 0.0 (- (* 1200 *PEB-DIM-SCALE*))
                               (nth 0 grp) (nth 1 grp)
                               (strcat (peb-fmt-group (nth 2 grp) (nth 3 grp)) " " wmSuffix))
       (peb-recolor-last-dim 0)))              ; LEW width module
   ;; (3) OVERALL WIDTH — most left (LEW outer). VALUE + witness/arrows on the IF basis plane.
-  (setq wref (peb-tb-or (MSPL-Get-Str data "WIDTH_REF") (MSPL-Get-Str data "WIDTH_MOD_REF")))
-  (setq wdim (peb-basis-dim wref 'W wid))
   (peb-dim-height-stretch 0.0 (- (* 3500 *PEB-DIM-SCALE*)) (nth 1 wdim) (+ wid (nth 2 wdim))
                           (peb-fmt-labelled "BUILDING WIDTH" (nth 0 wdim) (peb-basis-suffix wref)))
   (peb-recolor-last-dim 0)                    ; LEW overall width
