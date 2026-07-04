@@ -901,6 +901,36 @@
     ((wcmatch u "*KNEE*,*BASE*")                               (list (* 2.0 half) (* -2.0 half)))
     (T                                                         (list 0.0 0.0))))
 
+;; Haunch (knee) web depth for the WIDTH In/In basis: Span/20, clamped 300..1200 (owner 4-Jul).
+(defun peb-haunch-web-depth (spanMm / d)
+  (setq d (/ (if (and spanMm (> spanMm 0.0)) spanMm 18000.0) 20.0))
+  (cond ((< d 300.0) 300.0) ((> d 1200.0) 1200.0) (T d)))
+
+;; BASIS-DRIVEN overall dimension (owner 4-Jul). Model grid = O/O STEEL (column outer faces on the
+;; building edge). Returns (VALUE loOff hiOff): the number to show + the witness/arrow offsets added
+;; to the two endpoints, so the ARROWS MOVE to whichever plane the IF basis (BP_*_REF) selects.
+;;   dir 'W (width, main cols) / 'L (length, end-wall cols).  Fixed per-side offsets:
+;;     half-web  W 200 / L 100 ; full-web@base W 400 / L 200 ; brick/girt 200 (0 if By-Flush).
+;;   WIDTH always By-Framed (side-wall girts, default).  LENGTH By-Flush when *PEB-EW-BYFLUSH*.
+;;   C/C = centres (−half-web) · In/In@base = inner faces (−full-web) · In/In@knee = −haunch web
+;;   · O/O sheeting/brick = cladding (+brick) · else O/O steel = grid.
+(defun peb-basis-dim (basis dir gridVal / u hw fw brick d)
+  (setq u (strcase (if basis basis ""))
+        hw (if (eq dir 'W) 200.0 100.0)
+        fw (if (eq dir 'W) 400.0 200.0)
+        brick (if (eq dir 'W) 200.0 (if *PEB-EW-BYFLUSH* 0.0 200.0)))
+  (cond
+    ((wcmatch u "*CENTER TO CENTER*,*CENTRE TO CENTRE*,*C/C*")
+       (list (- gridVal (* 2.0 hw)) hw (- hw)))
+    ((wcmatch u "*KNEE*")
+       (setq d (peb-haunch-web-depth gridVal))
+       (list (- gridVal (* 2.0 d)) d (- d)))
+    ((wcmatch u "*BASE*")
+       (list (- gridVal (* 2.0 fw)) fw (- fw)))
+    ((wcmatch u "*SHEET*,*BRICK*,*MASON*,*GIRT*")
+       (list (+ gridVal (* 2.0 brick)) (- brick) brick))
+    (T (list gridVal 0.0 0.0))))
+
 ;; render a raw IF grouped spacing expression verbatim (mm): "1@7620+5@8200" ->
 ;; "1@7620 + 5@8200" (just spaces the + separators; values untouched = exact IF).
 (defun peb-fmt-expr (s / r ch i)
@@ -1991,13 +2021,15 @@
                        yBayDim
                        (peb-fmt-group (nth 2 grp) (nth 3 grp)))
     (peb-recolor-last-dim 0))              ; ByBlock
-  ;; Overall length dim — witness lines shifted to the chosen basis plane.
-  (setq bofs (peb-basis-offsets (peb-tb-or (MSPL-Get-Str data "LENGTH_REF")
-                                           (MSPL-Get-Str data "BAY_REF")) 230.0))
-  (peb-dim-h-stretch (car bofs) (+ len (cadr bofs)) yOvrDim
-                     (peb-fmt-labelled "BUILDING LENGTH" len
-                       (peb-basis-suffix (peb-tb-or (MSPL-Get-Str data "LENGTH_REF")
-                                                    (MSPL-Get-Str data "BAY_REF")))))
+  ;; Length By-Flush only when BOTH end walls' girts are Flush; else By-Framed (owner 4-Jul).
+  (setq *PEB-EW-BYFLUSH*
+        (and (wcmatch (strcase (MSPL-Get-Str data "BP_EW_LEFT_GIRTS"))  "*FLUSH*")
+             (wcmatch (strcase (MSPL-Get-Str data "BP_EW_RIGHT_GIRTS")) "*FLUSH*")))
+  ;; Overall length dim — VALUE + witness/arrows on the IF basis plane (peb-basis-dim).
+  (setq lref (peb-tb-or (MSPL-Get-Str data "LENGTH_REF") (MSPL-Get-Str data "BAY_REF")))
+  (setq ldim (peb-basis-dim lref 'L len))
+  (peb-dim-h-stretch (nth 1 ldim) (+ len (nth 2 ldim)) yOvrDim
+                     (peb-fmt-labelled "BUILDING LENGTH" (nth 0 ldim) (peb-basis-suffix lref)))
   (peb-recolor-last-dim 0)                   ; ByBlock for overall length
 
   ;; ── WIDTH DIMENSIONS: 3 NESTED CHAINS (owner 4-Jul) ─────────────────────────────
@@ -2020,13 +2052,11 @@
                               (nth 0 grp) (nth 1 grp)
                               (strcat (peb-fmt-group (nth 2 grp) (nth 3 grp)) " " wmSuffix))
       (peb-recolor-last-dim 0)))              ; LEW width module
-  ;; (3) OVERALL WIDTH — most left (LEW outer). Witness lines on the chosen basis plane.
-  (setq wofs (peb-basis-offsets (peb-tb-or (MSPL-Get-Str data "WIDTH_REF")
-                                           (MSPL-Get-Str data "WIDTH_MOD_REF")) colOff))
-  (peb-dim-height-stretch 0.0 (- (* 3500 *PEB-DIM-SCALE*)) (car wofs) (+ wid (cadr wofs))
-                          (peb-fmt-labelled "BUILDING WIDTH" wid
-                            (peb-basis-suffix (peb-tb-or (MSPL-Get-Str data "WIDTH_REF")
-                                                         (MSPL-Get-Str data "WIDTH_MOD_REF")))))
+  ;; (3) OVERALL WIDTH — most left (LEW outer). VALUE + witness/arrows on the IF basis plane.
+  (setq wref (peb-tb-or (MSPL-Get-Str data "WIDTH_REF") (MSPL-Get-Str data "WIDTH_MOD_REF")))
+  (setq wdim (peb-basis-dim wref 'W wid))
+  (peb-dim-height-stretch 0.0 (- (* 3500 *PEB-DIM-SCALE*)) (nth 1 wdim) (+ wid (nth 2 wdim))
+                          (peb-fmt-labelled "BUILDING WIDTH" (nth 0 wdim) (peb-basis-suffix wref)))
   (peb-recolor-last-dim 0)                    ; LEW overall width
 
   ;; ── Title (Phase-2A: compact dim × dim with area) ────────────
