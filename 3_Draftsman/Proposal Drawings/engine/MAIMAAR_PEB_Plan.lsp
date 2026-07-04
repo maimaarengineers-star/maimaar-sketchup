@@ -1417,7 +1417,7 @@
     len wid btype rooftype stype widthPts windspeed exposure collateral bldgno revno
     bays baysp bayPts x1 x2 baylen ewcols ewsp gridWpts ewStations ewY
     lewBrace rewBrace extType intType
-    minSp prevp yBayDim yOvrDim yFsw ySub yTtl yFrmTop
+    minSp prevp yBayDim yOvrDim yFsw ySub yTtl yFrmTop dimGap txtGap
     ewExpr ewSpans ewSum ewScale ewAcc
     x y i j colOff botY topY leftX rightX
     xdraw idx ypt prevY currY
@@ -1797,14 +1797,18 @@
   ;; only shrink if bays are tight (0.42*minSp so bubbles still never touch).
   (setq *PEB-BUBRAD* (max 650.0 (min (* 620.0 *PEB-TEXT-SCALE*) (* 0.42 minSp))))
   (setq bubR (+ *PEB-BUBRAD* (* 60.0 *PEB-TEXT-SCALE*)))       ; stem stops just outside the bubble
-  ;; TOP stack (upward from the FSW edge y=wid): dim -> dim -> bubble -> label -> subtitle -> title -> frame
-  (setq yBayDim (+ wid (* 900.0 *PEB-DIM-SCALE*)))                       ; per-bay dim chain
-  (setq yOvrDim (+ yBayDim (* 1500.0 *PEB-DIM-SCALE*)))                  ; overall-length dim
-  (setq gridY2  (+ yOvrDim (* 1200.0 *PEB-DIM-SCALE*) *PEB-BUBRAD*))     ; grid bubble CENTRE
-  (setq yFsw    (+ gridY2 *PEB-BUBRAD* (* 900.0 *PEB-TEXT-SCALE*)))      ; FSW wall label
-  (setq ySub    (+ yFsw (* 1300.0 *PEB-TEXT-SCALE*)))                    ; subtitle banner
-  (setq yTtl    (+ ySub (* 1600.0 *PEB-TEXT-SCALE*)))                    ; title
-  (setq yFrmTop (+ yTtl (* 1400.0 *PEB-TEXT-SCALE*)))                    ; frame / border top
+  ;; TOP stack (upward from the FSW edge y=wid). owner 4-Jul: FIXED, UNIFORM gap between dimension rows
+  ;; (dimGap) so dim spacing is consistent everywhere; generous, equal spacing (txtGap) between the FSW
+  ;; label, the area-description banner, the "COLUMN LAYOUT PLAN" title, and the border.
+  (setq dimGap (* 1800.0 *PEB-DIM-SCALE*))                               ; FIXED gap between dim rows
+  (setq txtGap (* 2000.0 *PEB-TEXT-SCALE*))                              ; FIXED gap between text rows
+  (setq yBayDim (+ wid dimGap))                                         ; per-bay dim chain
+  (setq yOvrDim (+ yBayDim dimGap))                                     ; overall-length dim (same gap)
+  (setq gridY2  (+ yOvrDim dimGap *PEB-BUBRAD*))                        ; grid bubble CENTRE
+  (setq yFsw    (+ gridY2 *PEB-BUBRAD* txtGap))                         ; FSW wall label
+  (setq ySub    (+ yFsw txtGap))                                        ; area-description banner
+  (setq yTtl    (+ ySub txtGap))                                        ; COLUMN LAYOUT PLAN title
+  (setq yFrmTop (+ yTtl txtGap))                                        ; frame / border top
   ;; LEFT stack (leftward from the LEW edge x=0): overall-width dim (-3500 DS) then letter bubbles
   (setq gridX1  (- 0.0 (* 6000.0 *PEB-DIM-SCALE*) *PEB-BUBRAD*))         ; letter bubble CENTRE (outside the 3 nested LEW width dims)
 
@@ -1828,8 +1832,8 @@
   (setq j 0 nWid (length gridWpts))
   (foreach y gridWpts
     (setvar "CLAYER" "GRID-LINES")
-    ;; RULE (owner 4-Jul): grid marking line from the OUTER width dimension line to the bubble.
-    (command "LINE" (list (- 0.0 (* 4800.0 *PEB-DIM-SCALE*)) y) (list (+ gridX1 bubR) y) "")
+    ;; RULE (owner 4-Jul): grid marking line from the OUTER width dimension line (-3*dimGap) to the bubble.
+    (command "LINE" (list (- 0.0 (* 3.0 dimGap)) y) (list (+ gridX1 bubR) y) "")
     (setvar "CLAYER" "GRID")
     (grid-bubble gridX1 y (chr (+ 65 (- nWid 1 j))))
     (setq j (1+ j))
@@ -2199,17 +2203,17 @@
   ;; ALL width dims on the LEFT (LEW), nested; NO dimension on the Right End Wall (owner 4-Jul).
   ;; (1) END-WALL COLUMN SPACING — LEW innermost (-1200); ONE dim MIRRORING the IF EW expression +
   ;; basis, no total. Arrows on the drawn web centre (nth 3/4).
-  (peb-dim-height-stretch 0.0 (- (* 1200 *PEB-DIM-SCALE*)) (nth 3 wdim) (+ wid (nth 4 wdim))
+  (peb-dim-height-stretch 0.0 (- dimGap) (nth 3 wdim) (+ wid (nth 4 wdim))
                           (strcat (peb-chain-text (MSPL-Get-Str data "EWLEXPR") ewStations) " " wmSuffix))
   (peb-recolor-last-dim 0)                 ; LEW end-wall column spacing (innermost)
   ;; (2) WIDTH MODULE — LEW middle (-3000). ONE dim MIRRORING the IF module expression + basis, no total.
   (if (> (length widthPts) 2)
     (progn
-      (peb-dim-height-stretch 0.0 (- (* 3000 *PEB-DIM-SCALE*)) (nth 3 wdim) (+ wid (nth 4 wdim))
+      (peb-dim-height-stretch 0.0 (- (* 2.0 dimGap)) (nth 3 wdim) (+ wid (nth 4 wdim))
                               (strcat (peb-chain-text (MSPL-Get-Str data "MODEXPR") widthPts) " " wmSuffix))
       (peb-recolor-last-dim 0)))              ; LEW width module (middle)
   ;; (3) OVERALL WIDTH — LEW outermost (-4800). Real VALUE (nth 0); witness on the DRAWN plane (nth 3/4).
-  (peb-dim-height-stretch 0.0 (- (* 4800 *PEB-DIM-SCALE*)) (nth 3 wdim) (+ wid (nth 4 wdim))
+  (peb-dim-height-stretch 0.0 (- (* 3.0 dimGap)) (nth 3 wdim) (+ wid (nth 4 wdim))
                           (peb-fmt-labelled "BUILDING WIDTH" (nth 0 wdim) (peb-basis-suffix wref)))
   (peb-recolor-last-dim 0)                    ; LEW overall width (outermost)
 
@@ -2291,11 +2295,13 @@
 
   ;; Border edges first — table is sized to span borderL..borderR so
   ;; bottom of table coincides with borderB (flush against border).
-  (setq borderL (min (- (* 6000 *PEB-OLD-DIM-SCALE*))
+  ;; owner 4-Jul: STRICT — the border must ENCLOSE every drawing element + text. Left/right reach past
+  ;; the LEW/REW (frame) labels; top reaches the full top stack (yFrmTop, above the title).
+  (setq borderL (min (- gridX1 (* 4000.0 *PEB-DIM-SCALE*))
                      (- c0 (* 800 *PEB-TEXT-SCALE*))))
-  (setq borderR (max (+ len (* 6000 *PEB-OLD-DIM-SCALE*))
+  (setq borderR (max (+ len (* 8000.0 *PEB-DIM-SCALE*))
                      (+ c6 (* 800 *PEB-TEXT-SCALE*))))
-  (setq borderT (+ wid (* 6500 *PEB-OLD-TEXT-SCALE*)))
+  (setq borderT (+ yFrmTop (* 400.0 *PEB-TEXT-SCALE*)))
 
   ;; Heights — same as Section (175 / 225, halved from earlier).
   (setq tblHeaderH  (* 175 tbScale))
