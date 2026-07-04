@@ -1785,8 +1785,9 @@
   (setq i 1)
   (foreach x bayPts
     (setvar "CLAYER" "GRID-LINES")
-    ;; RULE: grid line runs from the BUILDING EDGE (top sheeting) to the bubble (stem, no cross)
-    (command "LINE" (list x (+ wid sheetGap)) (list x (- gridY2 bubR)) "")
+    ;; RULE (owner 4-Jul): grid marking line comes from the OUTER FLANGE (y=wid) to the inner side of
+    ;; the bubble (gridY2 - bubR).
+    (command "LINE" (list x wid) (list x (- gridY2 bubR)) "")
     (setvar "CLAYER" "GRID")
     (grid-bubble x gridY2 (itoa i))
     (setq i (1+ i))
@@ -1801,12 +1802,23 @@
   (setq j 0 nWid (length gridWpts))
   (foreach y gridWpts
     (setvar "CLAYER" "GRID-LINES")
-    ;; RULE: grid line runs from the BUILDING EDGE (left sheeting) to the bubble (stem, no cross)
-    (command "LINE" (list (- 0.0 sheetGap) y) (list (+ gridX1 bubR) y) "")
+    ;; RULE (owner 4-Jul): grid marking line from the OUTER FLANGE (x=0) to the inner side of the bubble.
+    (command "LINE" (list 0.0 y) (list (+ gridX1 bubR) y) "")
     (setvar "CLAYER" "GRID")
     (grid-bubble gridX1 y (chr (+ 65 (- nWid 1 j))))
     (setq j (1+ j))
   )
+
+  ;; ── COLUMN CENTRE LINES (owner 4-Jul) ────────────────────────────────────────────
+  ;; At each frame (bay grid), a dash-dot CENTRE line crosses the building ALONG THE WIDTH,
+  ;; connecting the columns (NSW..FSW) through their centres. Drawn together with the grid lines.
+  (if (not (tblsearch "LTYPE" "CENTER"))
+    (vl-catch-all-apply (function (lambda () (command "_.-LINETYPE" "_Load" "CENTER" "acad.lin" "")))))
+  (foreach x bayPts
+    (setvar "CLAYER" "GRID-LINES")
+    (vl-catch-all-apply (function (lambda () (setvar "CELTYPE" "CENTER"))))
+    (command "_.LINE" (list x colOff) (list x (- wid colOff)) "")
+    (vl-catch-all-apply (function (lambda () (setvar "CELTYPE" "BYLAYER")))))
 
   ;; ── Ridge / roof type ─────────────────────────────────────────
   ;; Phase-2A: ridge lines kept on RIDGE layer (HIDDEN linetype, slim),
