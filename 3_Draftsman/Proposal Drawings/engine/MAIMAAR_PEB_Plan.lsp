@@ -948,6 +948,21 @@
           i   (1+ i)))
   (reverse out))
 
+;; Derived grouped expression "1@7150 + 5@8500 + 1@7150" from (startX endX count spacing) groups —
+;; NO total (the total is the overall dim above). Fallback when the IF gives no expression. Owner 4-Jul.
+(defun peb-fmt-chain (groups / s first)
+  (setq s "" first T)
+  (foreach g groups
+    (setq s (strcat s (if first "" " + ") (itoa (nth 2 g)) "@" (rtos (nth 3 g) 2 0)) first nil))
+  s)
+
+;; Inner-chain label = MIRROR the IF spacing expression verbatim (owner 4-Jul: "dimensions must be a
+;; mirror of the IF, the way it is presented in the IF"); derive from the grid only when the IF has none.
+(defun peb-chain-text (ifExpr pts)
+  (if (and ifExpr (/= ifExpr "") (vl-string-search "@" ifExpr))
+    (peb-fmt-expr ifExpr)
+    (peb-fmt-chain (peb-group-equal-spans pts))))
+
 ;; render a raw IF grouped spacing expression verbatim (mm): "1@7620+5@8200" ->
 ;; "1@7620 + 5@8200" (just spaces the + separators; values untouched = exact IF).
 (defun peb-fmt-expr (s / r ch i)
@@ -2036,13 +2051,11 @@
              (wcmatch (strcase (MSPL-Get-Str data "BP_EW_RIGHT_GIRTS")) "*FLUSH*")))
   (setq lref (peb-tb-or (MSPL-Get-Str data "LENGTH_REF") (MSPL-Get-Str data "BAY_REF")))
   (setq ldim (peb-basis-dim lref 'L len leftX))     ; drawnHalf = leftX (drawn end-column centre)
-  ;; HORIZONTAL (bay) chain — GROUPED "N @ S = total"; END points shifted by the exact value offset
-  ;; (nth 1/2) so the chain stays in sync with the overall value (owner 4-Jul). Singletons bare.
-  (foreach grp (peb-group-equal-spans (peb-shift-ends bayPts (nth 1 ldim) (nth 2 ldim)))
-    (peb-dim-h-stretch (nth 0 grp) (nth 1 grp)
-                       yBayDim
-                       (peb-fmt-group (nth 2 grp) (nth 3 grp)))
-    (peb-recolor-last-dim 0))              ; ByBlock
+  ;; HORIZONTAL (bay) chain — ONE dim MIRRORING the IF bay expression + basis; NO total (the total is
+  ;; the overall length dim). Arrows on the drawn web centre (nth 3/4). Owner 4-Jul.
+  (peb-dim-h-stretch (nth 3 ldim) (+ len (nth 4 ldim)) yBayDim
+                     (strcat (peb-chain-text (MSPL-Get-Str data "BAYEXPR") bayPts) " " (peb-basis-suffix lref)))
+  (peb-recolor-last-dim 0)              ; ByBlock
   ;; Overall length dim — real VALUE (nth 0); witness/arrows on the DRAWN plane (nth 3/4) so the
   ;; C/C line crosses the drawn web centre, not the bolts (owner 4-Jul).
   (peb-dim-h-stretch (nth 3 ldim) (+ len (nth 4 ldim)) yOvrDim
@@ -2059,18 +2072,16 @@
   (setq wref (peb-tb-or (MSPL-Get-Str data "WIDTH_REF") (MSPL-Get-Str data "WIDTH_MOD_REF")))
   (setq wdim (peb-basis-dim wref 'W wid colOff))    ; drawnHalf = colOff (drawn side-wall web centre)
   ;; ALL width dims on the LEFT (LEW), nested; NO dimension on the Right End Wall (owner 4-Jul).
-  ;; (1) END-WALL COLUMN SPACING — LEW innermost (-1200); ends shifted by exact value offset (in sync).
-  (foreach grp (peb-group-equal-spans (peb-shift-ends ewStations (nth 1 wdim) (nth 2 wdim)))
-    (peb-dim-height-stretch 0.0 (- (* 1200 *PEB-DIM-SCALE*))
-                            (nth 0 grp) (nth 1 grp)
-                            (strcat (peb-fmt-group (nth 2 grp) (nth 3 grp)) " " wmSuffix))
-    (peb-recolor-last-dim 0))                 ; LEW end-wall column spacing (innermost)
-  ;; (2) WIDTH MODULE — LEW middle (-3000). Interior columns only.
+  ;; (1) END-WALL COLUMN SPACING — LEW innermost (-1200); ONE dim MIRRORING the IF EW expression +
+  ;; basis, no total. Arrows on the drawn web centre (nth 3/4).
+  (peb-dim-height-stretch 0.0 (- (* 1200 *PEB-DIM-SCALE*)) (nth 3 wdim) (+ wid (nth 4 wdim))
+                          (strcat (peb-chain-text (MSPL-Get-Str data "EWLEXPR") ewStations) " " wmSuffix))
+  (peb-recolor-last-dim 0)                 ; LEW end-wall column spacing (innermost)
+  ;; (2) WIDTH MODULE — LEW middle (-3000). ONE dim MIRRORING the IF module expression + basis, no total.
   (if (> (length widthPts) 2)
-    (foreach grp (peb-group-equal-spans (peb-shift-ends widthPts (nth 1 wdim) (nth 2 wdim)))
-      (peb-dim-height-stretch 0.0 (- (* 3000 *PEB-DIM-SCALE*))
-                              (nth 0 grp) (nth 1 grp)
-                              (strcat (peb-fmt-group (nth 2 grp) (nth 3 grp)) " " wmSuffix))
+    (progn
+      (peb-dim-height-stretch 0.0 (- (* 3000 *PEB-DIM-SCALE*)) (nth 3 wdim) (+ wid (nth 4 wdim))
+                              (strcat (peb-chain-text (MSPL-Get-Str data "MODEXPR") widthPts) " " wmSuffix))
       (peb-recolor-last-dim 0)))              ; LEW width module (middle)
   ;; (3) OVERALL WIDTH — LEW outermost (-4800). Real VALUE (nth 0); witness on the DRAWN plane (nth 3/4).
   (peb-dim-height-stretch 0.0 (- (* 4800 *PEB-DIM-SCALE*)) (nth 3 wdim) (+ wid (nth 4 wdim))
