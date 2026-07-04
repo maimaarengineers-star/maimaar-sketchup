@@ -1805,7 +1805,7 @@
   (foreach p gridWpts (if prevp (setq minSp (min minSp (- p prevp)))) (setq prevp p))
   ;; owner 4-Jul: bubbles must be big enough to READ. Floor 650, grow with the building (620*scale),
   ;; only shrink if bays are tight (0.42*minSp so bubbles still never touch).
-  (setq *PEB-BUBRAD* (max 650.0 (min (* 620.0 *PEB-TEXT-SCALE*) (* 0.42 minSp))))
+  (setq *PEB-BUBRAD* (max 900.0 (min (* 720.0 *PEB-TEXT-SCALE*) (* 0.48 minSp))))
   (setq bubR (+ *PEB-BUBRAD* (* 60.0 *PEB-TEXT-SCALE*)))       ; stem stops just outside the bubble
   ;; TOP stack (upward from the FSW edge y=wid). owner 4-Jul: FIXED, UNIFORM gap between dimension rows
   ;; (dimGap) so dim spacing is consistent everywhere; generous, equal spacing (txtGap) between the FSW
