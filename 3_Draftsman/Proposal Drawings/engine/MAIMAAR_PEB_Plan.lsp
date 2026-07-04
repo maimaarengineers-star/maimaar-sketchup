@@ -729,7 +729,7 @@
       (peb-star cx (+ yy so) sr) (peb-star cx (- yy so) sr)
       (setq m (peb-brace-num btype))
       (setvar "CLAYER" "TEXT")
-      (txt "MC" (list cx (+ yy (* inward (+ d (* 420 *PEB-TEXT-SCALE*))))) (* 190 *PEB-TEXT-SCALE*) 0
+      (txt "MC" (list cx (+ yy (* inward (+ d (* 420 *PEB-TEXT-SCALE*))))) 190.0 0
            (strcat (if m m "") " PORTAL"))
       T)
     ;; PORTAL (full-height goal-post) → plan symbol: cyan half-thick BEAM line on the web centre +
@@ -739,7 +739,7 @@
       (command "_.PLINE" (list xa yy) "_W" (* 60.0 *PEB-DIM-SCALE*) (* 60.0 *PEB-DIM-SCALE*) (list xb yy) "")
       (setvar "PLINEWID" 0.0)
       (setvar "CLAYER" "TEXT")
-      (txt "MC" (list cx (+ yy (* inward (+ d (* 420 *PEB-TEXT-SCALE*))))) (* 190 *PEB-TEXT-SCALE*) 0 "PORTAL-FULL")
+      (txt "MC" (list cx (+ yy (* inward (+ d (* 420 *PEB-TEXT-SCALE*))))) 190.0 0 "PORTAL-FULL")
       T)
     (T nil)))
 
@@ -776,12 +776,22 @@
     (if drewX
       (progn
         (setvar "CLAYER" "DIMENSIONS")   ; magenta (exists)
-        (txt-bold "MC" (list cx ymid) (* 320 *PEB-TEXT-SCALE*) 90 "BRACED BAY")
+        (txt-bold "MC" (list cx ymid) 320.0 90 "BRACED BAY")
         (if first
           (progn
             (setq first nil)
+            ;; owner 4-Jul: SMALLER "CROSS BRACING (TYP.)" (was 260*scale which txt re-scaled -> huge) +
+            ;; a leader ARROW that TOUCHES the NSW bracing bowtie.
             (setvar "CLAYER" "TEXT")
-            (txt "MC" (list cx (- oy (* 1500 *PEB-TEXT-SCALE*))) (* 260 *PEB-TEXT-SCALE*) 0 "CROSS BRACING (TYP.)"))))))
+            (txt "MC" (list cx (- oy (* 900.0 *PEB-TEXT-SCALE*))) 180.0 0 "CROSS BRACING (TYP.)")
+            (setvar "CLAYER" "CROSS")
+            (command "_.PLINE"
+                     (list cx (- oy (* 500.0 *PEB-TEXT-SCALE*)))              ; start above the text
+                     (list cx (- (+ oy colOff) (* 300.0 *PEB-TEXT-SCALE*)))   ; shaft up to just below the bowtie
+                     "_W" (* 150.0 *PEB-TEXT-SCALE*) 0.0                       ; arrowhead taper
+                     (list cx (+ oy colOff))                                  ; tip TOUCHES the bracing
+                     "")
+            (setvar "PLINEWID" 0.0))))))
   (setvar "CLAYER" prevLayer))
 
 ;; 0-based bay index containing position `at` (mm along length).
@@ -827,8 +837,8 @@
     ;; MARK label just outside the wall
     (setvar "CLAYER" "TEXT")
     (if horiz
-      (txt "MC" (list px (- py (* inSign 600 *PEB-TEXT-SCALE*))) (* 280 *PEB-TEXT-SCALE*) 0 mark)
-      (txt "MC" (list (- px (* inSign 600 *PEB-TEXT-SCALE*)) py) (* 280 *PEB-TEXT-SCALE*) 0 mark))
+      (txt "MC" (list px (- py (* inSign 600 *PEB-TEXT-SCALE*))) 280.0 0 mark)
+      (txt "MC" (list (- px (* inSign 600 *PEB-TEXT-SCALE*)) py) 280.0 0 mark))
     ;; OFFSET dim from the nearest grid (so the draughtsman sees the location;
     ;; no cross-bracing may sit at an opening) — horizontal walls only (length axis).
     (if horiz
@@ -1919,21 +1929,15 @@
   ;;   4–7 bays  → every 4th rafter
   ;;   8–11 bays → every 5th rafter
   ;;   ≥ 12 bays → every 6th rafter
-  (setq rafterStep
-    (cond ((<= bays 3) (max 1 (fix (/ bays 2.0))))
-          ((<= bays 7) 4)
-          ((<= bays 11) 5)
-          (T 6)))
-  (setq i 1)   ; start at 2nd bay-line so the leftmost frame isn't always labelled
-  (while (< i (length bayPts))
-    (vl-catch-all-apply
-      (function (lambda ()
-        (peb-label-with-leader "RAFTER"
-                               (list (+ (nth i bayPts) (* 1200 *PEB-DIM-SCALE*))
-                                     (- (* 1200 *PEB-DIM-SCALE*)))
-                               (list (nth i bayPts) (/ wid 4.0))
-                               "S" 600.0))))
-    (setq i (+ i rafterStep)))
+  ;; owner 4-Jul: ONE RAFTER leader label only, at the middle bay-line (was one per rafterStep bays).
+  (setq i (fix (/ (length bayPts) 2)))
+  (vl-catch-all-apply
+    (function (lambda ()
+      (peb-label-with-leader "RAFTER"
+                             (list (+ (nth i bayPts) (* 1200 *PEB-DIM-SCALE*))
+                                   (- (* 1200 *PEB-DIM-SCALE*)))
+                             (list (nth i bayPts) (/ wid 4.0))
+                             "S" 600.0))))
 
   ;; End-frame TYPE — computed HERE (before the columns) so a MAIN-FRAME end wall draws its outer
   ;; columns like the interior (full-size, lengthwise); a BEARING end wall uses the half-size posts.
@@ -2058,7 +2062,7 @@
   ;; nearest UNBRACED bay (so the "BRACED BAY" text never overlaps). Autosized (fallU), placed MID-WAY
   ;; between the ridge line and the outer columns.
   (setq fallBraced (peb-braced-bays bayPts) fallUsed '() slopeXs '())
-  (setq nFall (cond ((<= bays 2) 1) ((<= bays 6) 2) (T 3)))
+  (setq nFall (if (<= bays 2) 1 2))   ; owner 4-Jul: FALL in 2 places only (1 on a tiny 1-2 bay building)
   (setq k 1)
   (while (<= k nFall)
     (setq tgt (fix (+ 0.5 (* bays (/ k (+ nFall 1.0))))) off 0 found nil)   ; target bay at k/(nFall+1)
