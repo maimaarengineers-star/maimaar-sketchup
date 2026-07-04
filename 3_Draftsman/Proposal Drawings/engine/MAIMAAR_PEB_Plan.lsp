@@ -2004,19 +2004,21 @@
   ;;   most RIGHT (REW)  : END-WALL COLUMN SPACING  (finest — every end-wall post)
   ;;   next LEFT (LEW in): WIDTH MODULE             (main-frame interior modules)
   ;;   most LEFT (LEW out): OVERALL WIDTH           (total)
-  ;; All GROUPED "N @ S = total" (Rule Book PEB-DIMENSION format).
+  ;; All GROUPED "N @ S = total" + the O/O / C/C basis on EVERY chain (owner 4-Jul).
+  (setq wmSuffix (peb-basis-suffix (peb-tb-or (MSPL-Get-Str data "WIDTH_MOD_REF")
+                                              (MSPL-Get-Str data "WIDTH_REF"))))
   ;; (1) END-WALL COLUMN SPACING — most right (REW), inner offset. Always (every building has EW posts).
   (foreach grp (peb-group-equal-spans ewStations)
     (peb-dim-height-stretch len (+ len (* 1200 *PEB-DIM-SCALE*))
                             (nth 0 grp) (nth 1 grp)
-                            (peb-fmt-group (nth 2 grp) (nth 3 grp)))
+                            (strcat (peb-fmt-group (nth 2 grp) (nth 3 grp)) " " wmSuffix))
     (peb-recolor-last-dim 0))                 ; REW end-wall column spacing
   ;; (2) WIDTH MODULE — next left (LEW inner). Only when interior columns exist.
   (if (> (length widthPts) 2)
     (foreach grp (peb-group-equal-spans widthPts)
       (peb-dim-height-stretch 0.0 (- (* 1200 *PEB-DIM-SCALE*))
                               (nth 0 grp) (nth 1 grp)
-                              (peb-fmt-group (nth 2 grp) (nth 3 grp)))
+                              (strcat (peb-fmt-group (nth 2 grp) (nth 3 grp)) " " wmSuffix))
       (peb-recolor-last-dim 0)))              ; LEW width module
   ;; (3) OVERALL WIDTH — most left (LEW outer). Witness lines on the chosen basis plane.
   (setq wofs (peb-basis-offsets (peb-tb-or (MSPL-Get-Str data "WIDTH_REF")
