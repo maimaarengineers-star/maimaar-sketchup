@@ -732,14 +732,14 @@
       (txt "MC" (list cx (+ yy (* inward (+ d (* 420 *PEB-TEXT-SCALE*))))) (* 190 *PEB-TEXT-SCALE*) 0
            (strcat (if m m "") " PORTAL"))
       T)
-    ;; PORTAL (full-height goal-post) → plan symbol: cyan half-thick beam line on the web centre +
-    ;; "PORTAL BRACING". The goal-post ELEVATION (2 verticals + haunched beam) is drawn on the Section.
+    ;; PORTAL (full-height goal-post) → plan symbol: cyan half-thick BEAM line on the web centre +
+    ;; "PORTAL-FULL" label (owner 4-Jul). The goal-post ELEVATION (2 verticals + haunched beam) → Section.
     ((wcmatch bt "*PORTAL*")
       (setvar "CLAYER" "CROSS")
       (command "_.PLINE" (list xa yy) "_W" (* 60.0 *PEB-DIM-SCALE*) (* 60.0 *PEB-DIM-SCALE*) (list xb yy) "")
       (setvar "PLINEWID" 0.0)
       (setvar "CLAYER" "TEXT")
-      (txt "MC" (list cx (+ yy (* inward (+ d (* 420 *PEB-TEXT-SCALE*))))) (* 190 *PEB-TEXT-SCALE*) 0 "PORTAL BRACING")
+      (txt "MC" (list cx (+ yy (* inward (+ d (* 420 *PEB-TEXT-SCALE*))))) (* 190 *PEB-TEXT-SCALE*) 0 "PORTAL-FULL")
       T)
     (T nil)))
 
