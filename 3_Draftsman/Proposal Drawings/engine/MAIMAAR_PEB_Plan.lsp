@@ -1434,7 +1434,7 @@
     c0 c1 c2 c3 c4 c5 c6
     tbTop tbBot tbW tbScale tbXShift
     maxSize areaM2
-    borderL borderR borderB borderT
+    borderL borderR borderB borderT bMarg
     logoX logoY logoScale
     endBayL endBayR roofSlope
     mgGableW mgSpanW mgRidgePts mgValleyPts mgColumnPts mgSpans mgGables mgY loadValX
@@ -2301,12 +2301,12 @@
 
   ;; Border edges first — table is sized to span borderL..borderR so
   ;; bottom of table coincides with borderB (flush against border).
-  ;; owner 4-Jul: STRICT — the border must ENCLOSE every drawing element + text. Left/right reach past
-  ;; the LEW/REW (frame) labels; top reaches the full top stack (yFrmTop, above the title).
-  (setq borderL (min (- gridX1 (* 4000.0 *PEB-DIM-SCALE*))
-                     (- c0 (* 800 *PEB-TEXT-SCALE*))))
-  (setq borderR (max (+ len (* 8000.0 *PEB-DIM-SCALE*))
-                     (+ c6 (* 800 *PEB-TEXT-SCALE*))))
+  ;; owner 4-Jul STRICT RULE: ALL drawings + labels MUST fit inside the border, and the plan is CENTRED
+  ;; (equal side margins). bMarg = symmetric side margin, past the far LEW frame label (gridX1-3000*DS =
+  ;; -(9000*DS + BUBRAD)); use 10500*DS + BUBRAD so there is a clear margin beyond it on BOTH sides.
+  (setq bMarg (+ (* 10500.0 *PEB-DIM-SCALE*) *PEB-BUBRAD*))
+  (setq borderL (- 0.0 bMarg))
+  (setq borderR (max (+ len bMarg) (+ c6 (* 800 *PEB-TEXT-SCALE*))))
   (setq borderT (+ yFrmTop (* 400.0 *PEB-TEXT-SCALE*)))
 
   ;; Heights — same as Section (175 / 225, halved from earlier).
