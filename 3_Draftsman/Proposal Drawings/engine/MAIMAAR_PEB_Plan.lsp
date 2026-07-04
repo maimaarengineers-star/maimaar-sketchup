@@ -706,31 +706,43 @@
   (setq bt (strcase btype) cx (/ (+ x0 x1) 2.0)
         wt (* (peb-rule "brace_web_offset_xD" 0.013) (if *PEB-COL-WEB* *PEB-COL-WEB* 700.0))
         xa (+ x0 wt) xb (- x1 wt))
+  ;; 5 IF bracing configs (estimation-terminal spec 4-Jul), plan symbols; portal/hybrid ELEVATION → Section.
   (cond
     ((or (= btype "") (wcmatch bt "*NOT*APPLICABLE*") (wcmatch bt "*MINOR*AXIS*")) nil)
-    ;; Full-height Portal → FULL-HEIGHT X: corner-to-corner cross between the two columns (owner 3-Jul)
-    ((and (wcmatch bt "*PORTAL*") (not (wcmatch bt "*CROSS*")))
-      (setvar "CLAYER" "CROSS")                                  ; cyan, matches the cross-bracing colour
-      (command "_.LINE" (list xa (- yy d)) (list xb (+ yy d)) "")   ; full-height X, web face to web face
-      (command "_.LINE" (list xa (+ yy d)) (list xb (- yy d)) "")
-      (setvar "CLAYER" "TEXT")
-      (txt "MC" (list cx (+ yy (* inward (+ d (* 420 *PEB-TEXT-SCALE*))))) (* 190 *PEB-TEXT-SCALE*) 0 "FULL HEIGHT")
+    ;; DIAGONAL (Cable / Rods / Angles) → full-height X (web-to-web). Angle = heavier line; Cable/Rod = thin.
+    ((wcmatch bt "*DIAGONAL*")
+      (setvar "CLAYER" "CROSS")
+      (if (wcmatch bt "*ANGLE*")
+        (progn                                              ; heavier line for angle bracing
+          (command "_.PLINE" (list xa (- yy d)) "_W" (* 40.0 *PEB-DIM-SCALE*) (* 40.0 *PEB-DIM-SCALE*) (list xb (+ yy d)) "")
+          (command "_.PLINE" (list xa (+ yy d)) (list xb (- yy d)) "")
+          (setvar "PLINEWID" 0.0))
+        (progn                                              ; thin single line for cable / rod
+          (command "_.LINE" (list xa (- yy d)) (list xb (+ yy d)) "")
+          (command "_.LINE" (list xa (+ yy d)) (list xb (- yy d)) "")))
       T)
-    ;; Diagonal cross, OR Portal-up-to-X-Cross-above → bowtie (2 cross lines) web-face to web-face
-    (T
+    ;; HYBRID (Portal up to X m + Cross above) → bowtie X + 2 stars + "Xm PORTAL"
+    ((and (wcmatch bt "*PORTAL*") (wcmatch bt "*CROSS*"))
       (setvar "CLAYER" "CROSS")
       (command "_.LINE" (list xa (- yy d)) (list xb (+ yy d)) "")
       (command "_.LINE" (list xa (+ yy d)) (list xb (- yy d)) "")
-      (if (wcmatch bt "*PORTAL*")        ; portal-up-to-X + cross above → 2 stars at the crossing + "<X>m PORTAL"
-        (progn
-          (setq sr (* 150 *PEB-TEXT-SCALE*) so (+ sr (* 120 *PEB-TEXT-SCALE*)))
-          (peb-star cx (+ yy so) sr)     ; star JUST ABOVE the crossing point
-          (peb-star cx (- yy so) sr)     ; star JUST BELOW the crossing point
-          (setq m (peb-brace-num btype))
-          (setvar "CLAYER" "TEXT")       ; label toward the building interior
-          (txt "MC" (list cx (+ yy (* inward (+ d (* 420 *PEB-TEXT-SCALE*))))) (* 190 *PEB-TEXT-SCALE*) 0
-               (strcat (if m m "") " PORTAL"))))
-      T)))
+      (setq sr (* 150 *PEB-TEXT-SCALE*) so (+ sr (* 120 *PEB-TEXT-SCALE*)))
+      (peb-star cx (+ yy so) sr) (peb-star cx (- yy so) sr)
+      (setq m (peb-brace-num btype))
+      (setvar "CLAYER" "TEXT")
+      (txt "MC" (list cx (+ yy (* inward (+ d (* 420 *PEB-TEXT-SCALE*))))) (* 190 *PEB-TEXT-SCALE*) 0
+           (strcat (if m m "") " PORTAL"))
+      T)
+    ;; PORTAL (full-height goal-post) → plan symbol: cyan half-thick beam line on the web centre +
+    ;; "PORTAL BRACING". The goal-post ELEVATION (2 verticals + haunched beam) is drawn on the Section.
+    ((wcmatch bt "*PORTAL*")
+      (setvar "CLAYER" "CROSS")
+      (command "_.PLINE" (list xa yy) "_W" (* 60.0 *PEB-DIM-SCALE*) (* 60.0 *PEB-DIM-SCALE*) (list xb yy) "")
+      (setvar "PLINEWID" 0.0)
+      (setvar "CLAYER" "TEXT")
+      (txt "MC" (list cx (+ yy (* inward (+ d (* 420 *PEB-TEXT-SCALE*))))) (* 190 *PEB-TEXT-SCALE*) 0 "PORTAL BRACING")
+      T)
+    (T nil)))
 
 (defun peb-draw-bracing (bayPts widthPts wid ox oy lewBrace rewBrace extType intType
                          / braced prevLayer x0 x1 cx ymid first nB drewX yp d colOff)
