@@ -1760,12 +1760,13 @@
   (aLn (+ aCx aBw) (- aCy aBh) (+ aCx aBw) (+ aCy aBh))
   (aLn (+ aCx aBw) (+ aCy aBh) (- aCx aBw) (+ aCy aBh))
   (aLn (- aCx aBw) (+ aCy aBh) (- aCx aBw) (- aCy aBh))
-  ;; AREA CROSS LINES (Roshan, owner 2-Jul): 2 mirrored diagonals corner-to-corner of the area,
-  ;; broken at the tag box so the label stays clean — each building corner -> the nearest box corner.
-  (aLn 0.0  0.0  (- aCx aBw) (- aCy aBh))   ; SW corner -> box
-  (aLn len  0.0  (+ aCx aBw) (- aCy aBh))   ; SE corner -> box
-  (aLn len  wid  (+ aCx aBw) (+ aCy aBh))   ; NE corner -> box
-  (aLn 0.0  wid  (- aCx aBw) (+ aCy aBh))   ; NW corner -> box
+  ;; AREA CROSS LINES (Rule-Book PEB-AREA-CROSS, owner 4-Jul): each building corner leadered inward but
+  ;; STOPPING at 1/3 of the way from the centre (the block stops the diagonals well short of the tag) —
+  ;; leaving a clean central-third gap around the AREA tag instead of a dominant full X.
+  (aLn 0.0  0.0  (/ len 3.0)         (/ wid 3.0))          ; SW corner -> 1/3
+  (aLn len  0.0  (/ (* 2.0 len) 3.0) (/ wid 3.0))          ; SE corner -> 1/3
+  (aLn len  wid  (/ (* 2.0 len) 3.0) (/ (* 2.0 wid) 3.0))  ; NE corner -> 1/3
+  (aLn 0.0  wid  (/ len 3.0)         (/ (* 2.0 wid) 3.0))  ; NW corner -> 1/3
   ;; centred area label inside the box (real number)
   (setvar "CLAYER" "TEXT")
   (txt-bold "MC" (list aCx aCy) 550 0 aLbl)
@@ -1788,7 +1789,9 @@
   (foreach p bayPts   (if prevp (setq minSp (min minSp (- p prevp)))) (setq prevp p))
   (setq prevp nil)
   (foreach p gridWpts (if prevp (setq minSp (min minSp (- p prevp)))) (setq prevp p))
-  (setq *PEB-BUBRAD* (max 250.0 (min (* 620.0 *PEB-TEXT-SCALE*) (* 0.275 minSp))))
+  ;; owner 4-Jul: cap bubble radius to the Rule-Book block size (r=620); still shrinks for tight bays
+  ;; (0.275*minSp) so bubbles never touch, and never balloons on big buildings (was 620*scale -> 898).
+  (setq *PEB-BUBRAD* (max 430.0 (min 650.0 (* 620.0 *PEB-TEXT-SCALE*) (* 0.275 minSp))))
   (setq bubR (+ *PEB-BUBRAD* (* 60.0 *PEB-TEXT-SCALE*)))       ; stem stops just outside the bubble
   ;; TOP stack (upward from the FSW edge y=wid): dim -> dim -> bubble -> label -> subtitle -> title -> frame
   (setq yBayDim (+ wid (* 900.0 *PEB-DIM-SCALE*)))                       ; per-bay dim chain
