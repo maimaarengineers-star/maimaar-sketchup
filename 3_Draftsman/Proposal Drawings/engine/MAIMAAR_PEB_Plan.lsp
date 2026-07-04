@@ -479,7 +479,9 @@
 ;; are from the Rule Book sample, relative to the drop-tip (the point that sits on the ridge), scaled
 ;; by *PEB-TEXT-SCALE*.  (When PEB-RIDGE-SYMBOL is saved as a block, the compiler migrates it exactly.)
 (defun peb-ridge-symbol (x y / s prev)
-  (setq s (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0) prev (getvar "CLAYER"))
+  ;; interim scale capped ~1.0 (was *PEB-TEXT-SCALE*, oversized on big plans). SUPERSEDED once the
+  ;; compiler converts your PEB-RIDGE-SYMBOL block and the engine draws it at your drawn size.
+  (setq s (min 1.0 (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) prev (getvar "CLAYER"))
   (setvar "CLAYER" "TEXT")
   (command "_.PLINE"
            (list (+ x (* 4929.0 s)) (+ y (* 1513.0 s)))   ; shelf right end
