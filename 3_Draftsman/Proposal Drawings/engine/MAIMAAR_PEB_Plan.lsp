@@ -1110,18 +1110,19 @@
 ;; triangular apex, block ratios half-width:base:apex = 300:217.5:217.5, mid-notch 37.5) with the apex
 ;; pointing in the FALL direction, and "FALL <slope>" text VERTICAL, BEHIND the symbol (opposite the
 ;; apex).  Autosized by u (building size, passed in).  Pentagon on FALL (red), text on TEXT.
-(defun peb-fall-marker (x y dir u / prev hw bh mn ah th)
-  ;; th (text height) is DECOUPLED from the pentagon size and clamped so it never blows up on big
-  ;; buildings (was 0.9*u -> huge). Text sits just BEHIND the apex (offset bh + 2.4*th).
+(defun peb-fall-marker (x y dir u / prev hw bh mn ah th thFin)
+  ;; thFin = FINAL text height (~0.5*u, clamped 500-1200 ~ Roshan). `txt` re-multiplies by
+  ;; *PEB-TEXT-SCALE*, so pass th = thFin / scale; position with thFin. (Was 0.9*u then ×scale -> huge.)
   (setq prev (getvar "CLAYER") hw u bh (* 0.725 u) mn (* 0.125 u) ah (* 0.725 u)
-        th (max 500.0 (min 1200.0 (* 0.5 u))))
+        thFin (max 500.0 (min 1200.0 (* 0.5 u)))
+        th (/ thFin (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)))
   (setvar "CLAYER" "FALL")
   (command "_.PLINE"
     (list (- x hw) (- y (* dir bh))) (list (+ x hw) (- y (* dir bh)))
     (list (+ x hw) (- y (* dir mn))) (list x (+ y (* dir ah))) (list (- x hw) (- y (* dir mn)))
     "_C")
   (setvar "CLAYER" "TEXT")                                  ; "FALL <slope>" behind the apex, vertical
-  (txt "MC" (list x (- y (* dir (+ bh (* 2.4 th))))) th 90.0 (strcat "FALL " (peb-slope-text)))
+  (txt "MC" (list x (- y (* dir (+ bh (* 2.4 thFin))))) th 90.0 (strcat "FALL " (peb-slope-text)))
   (setvar "CLAYER" prev))
 
 (defun arrow-up-big   (x y u) (peb-fall-marker x y  1.0 u)) ; fall toward FSW (up)
@@ -1760,13 +1761,12 @@
   (aLn (+ aCx aBw) (- aCy aBh) (+ aCx aBw) (+ aCy aBh))
   (aLn (+ aCx aBw) (+ aCy aBh) (- aCx aBw) (+ aCy aBh))
   (aLn (- aCx aBw) (+ aCy aBh) (- aCx aBw) (- aCy aBh))
-  ;; AREA CROSS LINES (Rule-Book PEB-AREA-CROSS, owner 4-Jul): each building corner leadered inward but
-  ;; STOPPING at 1/3 of the way from the centre (the block stops the diagonals well short of the tag) —
-  ;; leaving a clean central-third gap around the AREA tag instead of a dominant full X.
-  (aLn 0.0  0.0  (/ len 3.0)         (/ wid 3.0))          ; SW corner -> 1/3
-  (aLn len  0.0  (/ (* 2.0 len) 3.0) (/ wid 3.0))          ; SE corner -> 1/3
-  (aLn len  wid  (/ (* 2.0 len) 3.0) (/ (* 2.0 wid) 3.0))  ; NE corner -> 1/3
-  (aLn 0.0  wid  (/ len 3.0)         (/ (* 2.0 wid) 3.0))  ; NW corner -> 1/3
+  ;; AREA CROSS LINES (Roshan, owner): each building corner leadered to the NEAREST corner of the AREA
+  ;; tag box — the diagonals CONNECT to the tag box corners (owner 4-Jul: must touch the tag corners).
+  (aLn 0.0  0.0  (- aCx aBw) (- aCy aBh))   ; SW corner -> SW box corner
+  (aLn len  0.0  (+ aCx aBw) (- aCy aBh))   ; SE corner -> SE box corner
+  (aLn len  wid  (+ aCx aBw) (+ aCy aBh))   ; NE corner -> NE box corner
+  (aLn 0.0  wid  (- aCx aBw) (+ aCy aBh))   ; NW corner -> NW box corner
   ;; centred area label inside the box (real number)
   (setvar "CLAYER" "TEXT")
   (txt-bold "MC" (list aCx aCy) 550 0 aLbl)
@@ -2045,28 +2045,29 @@
   ;; (Anchor-bolt base-plate schedule removed — this is the COLUMN LAYOUT PLAN;
   ;;  columns show the I-section with their typical 4 anchor bolts, no schedule.)
 
-  ;; ── Slope arrows (Phase-2A user rules) ────────────────────────
-  ;; Column-count rule, start at bay 2 (between GL 2-3):
-  ;;   1 bay        → 1 column at centre of bay 1
-  ;;   2-4 bays     → 2 columns: bay 2 + last bay
-  ;;   5-7 bays     → every 3rd bay starting bay 2
-  ;;   8+ bays      → every 4th bay starting bay 2
-  ;; owner 4-Jul: FALL glyphs are spread across EVENLY-SPACED bays but SKIP braced bays (nudge to the
-  ;; next unbraced bay so the "BRACED BAY" text never overlaps them). Autosized by building size (fallU),
-  ;; placed MID-WAY between the ridge line and the outer columns.
+  ;; ── FALL glyphs (owner 4-Jul) ─────────────────────────────────
+  ;; MAXIMUM 2-3 fall symbols total (owner: "should be maximum 2 or 3"), evenly spaced, snapped to the
+  ;; nearest UNBRACED bay (so the "BRACED BAY" text never overlaps). Autosized (fallU), placed MID-WAY
+  ;; between the ridge line and the outer columns.
   (setq fallBraced (peb-braced-bays bayPts) fallUsed '() slopeXs '())
-  (if (<= bays 1)
-    (setq slopeXs (list (/ (+ (nth 0 bayPts) (nth 1 bayPts)) 2.0)))
-    (progn
-      (setq slopeStep (cond ((<= bays 4) 1) ((<= bays 8) 2) (T 3)) i 1)
-      (while (< i bays)
-        (setq b i g 0)                                        ; nudge past braced bays
-        (while (and (member b fallBraced) (< (+ i g 1) bays)) (setq g (1+ g) b (+ i g)))
-        (if (and (< b bays) (not (member b fallBraced)) (not (member b fallUsed)))
-          (setq slopeXs  (cons (/ (+ (nth b bayPts) (nth (1+ b) bayPts)) 2.0) slopeXs)
-                fallUsed (cons b fallUsed)))
-        (setq i (+ i slopeStep)))
-      (setq slopeXs (reverse slopeXs))))
+  (setq nFall (cond ((<= bays 2) 1) ((<= bays 6) 2) (T 3)))
+  (setq k 1)
+  (while (<= k nFall)
+    (setq tgt (fix (+ 0.5 (* bays (/ k (+ nFall 1.0))))) off 0 found nil)   ; target bay at k/(nFall+1)
+    (while (and (not found) (<= off bays))
+      (cond
+        ((and (>= (- tgt off) 0) (< (- tgt off) bays)
+              (not (member (- tgt off) fallBraced)) (not (member (- tgt off) fallUsed)))
+         (setq found (- tgt off)))
+        ((and (< (+ tgt off) bays)
+              (not (member (+ tgt off) fallBraced)) (not (member (+ tgt off) fallUsed)))
+         (setq found (+ tgt off))))
+      (setq off (1+ off)))
+    (if found
+      (setq slopeXs  (cons (/ (+ (nth found bayPts) (nth (1+ found) bayPts)) 2.0) slopeXs)
+            fallUsed (cons found fallUsed)))
+    (setq k (1+ k)))
+  (setq slopeXs (reverse slopeXs))
   (setq fallU (max 400.0 (min 3000.0 (/ (max len wid) 70.0))))
 
   ;; catch-wrap so a fall-glyph error can never abort the whole plan.
@@ -2099,7 +2100,9 @@
   ;; owner 4-Jul: wall labels are SIMPLE — the full name only, no open-wall condition suffix.
   (txt-bold "MC" (list (/ len 2.0) yFsw) 560 0 "FSW - FAR SIDE WALL")
   (txt-bold "MC" (list (/ len 2.0) (- (* 4500 *PEB-TEXT-SCALE*))) 560 0 "NSW - NEAR SIDE WALL")
-  (txt-bold "MC" (list (- (* 5500 *PEB-DIM-SCALE*)) (/ wid 2.0)) 560 90 "LEW - LEFT END WALL")
+  ;; owner 4-Jul: LEW label sits OUTSIDE the letter bubbles (was sandwiched between the width dims and
+  ;; the bubbles -> overlapped the dim text). REW side has no dims/bubbles, so it stays close.
+  (txt-bold "MC" (list (- gridX1 (* 1500.0 *PEB-DIM-SCALE*)) (/ wid 2.0)) 560 90 "LEW - LEFT END WALL")
   (txt-bold "MC" (list (+ len (* 5500 *PEB-DIM-SCALE*)) (/ wid 2.0)) 560 90 "REW - RIGHT END WALL")
 
   ;; ── End-frame type MLEADERs (Phase-2A v12) ─────────────────────
@@ -2124,7 +2127,7 @@
   ;; beside the LEW/REW wall labels.  (If an end is a Main Frame, its corner
   ;; columns are already drawn lengthwise = interior main-frame size/direction.)
   (setvar "CLAYER" "TEXT")
-  (txt-bold "MC" (list (- (* 7000 *PEB-DIM-SCALE*)) (/ wid 2.0)) 430 90 (strcat "(" lewFrameLabel ")"))
+  (txt-bold "MC" (list (- gridX1 (* 3000.0 *PEB-DIM-SCALE*)) (/ wid 2.0)) 430 90 (strcat "(" lewFrameLabel ")"))
   (txt-bold "MC" (list (+ len (* 7000 *PEB-DIM-SCALE*)) (/ wid 2.0)) 430 90 (strcat "(" rewFrameLabel ")"))
   (cond
     ;; Both ends same → ONE MLEADER, "BEARING FRAME / BOTH ENDS"
