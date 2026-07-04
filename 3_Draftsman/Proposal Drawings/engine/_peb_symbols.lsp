@@ -2,7 +2,7 @@
 ;; primitives (relative to the base = lowest point). DO NOT hand-edit; redraw + recompile.
 (setq *PEB-SYMBOLS* (list
   (cons "PEB-RIDGE-SYMBOL" (list
-    (list "TEXT" 414.3 1714.5 650.0 "RIDGE LINE")
+    (list "TEXT" 116.0 1714.5 650.0 "RIDGE LINE")
     (list "PLINE" (list (list 4929.4 1513.4) (list -6.5 1513.4) (list -0.7 221.7) (list -1.7 504.3) (list 0.0 0.0)))))
 ))
 (princ)
