@@ -1106,18 +1106,23 @@
   (if *PEB-ROOF-SLOPE* *PEB-ROOF-SLOPE* "1:10")
 )
 
-;; FALL marker (OWNER RULE — real Mammut): a red pentagon glyph (apex = fall
-;; direction) + vertical "FALL 1:NN" text.  The slope ratio (owner 4-Jul) comes
-;; from the IF (BP_ROOF_SLOPE -> *PEB-ROOF-SLOPE* -> peb-slope-text).
-;; Drawn via the shared primitives on FALL (red) + TEXT (white).
-(defun peb-fall-marker (x y dir / s r gy)
-  (if (not *PEB-TEXT-SCALE*) (setq *PEB-TEXT-SCALE* 1.0))
-  (setq s *PEB-TEXT-SCALE* r (* 300.0 s) gy (+ y (* dir (* 1050.0 s))))
-  (peb-pent x gy r (if (> dir 0) "U" "D") "FALL")          ; red pentagon, apex = fall direction
-  (peb-text-j x y (* 540.0 s) 90.0 (strcat "FALL " (peb-slope-text)) "TEXT" "PEB-BODY" 1 2))
+;; FALL marker (owner 4-Jul) = the PEB-FALL Rule-Book block: a HOUSE-PENTAGON (base rectangle +
+;; triangular apex, block ratios half-width:base:apex = 300:217.5:217.5, mid-notch 37.5) with the apex
+;; pointing in the FALL direction, and "FALL <slope>" text VERTICAL, BEHIND the symbol (opposite the
+;; apex).  Autosized by u (building size, passed in).  Pentagon on FALL (red), text on TEXT.
+(defun peb-fall-marker (x y dir u / prev hw bh mn ah)
+  (setq prev (getvar "CLAYER") hw u bh (* 0.725 u) mn (* 0.125 u) ah (* 0.725 u))
+  (setvar "CLAYER" "FALL")
+  (command "_.PLINE"
+    (list (- x hw) (- y (* dir bh))) (list (+ x hw) (- y (* dir bh)))
+    (list (+ x hw) (- y (* dir mn))) (list x (+ y (* dir ah))) (list (- x hw) (- y (* dir mn)))
+    "_C")
+  (setvar "CLAYER" "TEXT")                                  ; "FALL <slope>" behind the apex, vertical
+  (txt "MC" (list x (- y (* dir (+ bh (* 2.4 u))))) (* 0.9 u) 90.0 (strcat "FALL " (peb-slope-text)))
+  (setvar "CLAYER" prev))
 
-(defun arrow-up-big   (x y) (peb-fall-marker x y  1.0))    ; fall toward FSW / ridge (up)
-(defun arrow-down-big (x y) (peb-fall-marker x y -1.0))    ; fall toward NSW (down)
+(defun arrow-up-big   (x y u) (peb-fall-marker x y  1.0 u)) ; fall toward FSW (up)
+(defun arrow-down-big (x y u) (peb-fall-marker x y -1.0 u)) ; fall toward NSW (down)
 
 (defun draw-north-arrow (cx cy / s)
   (if (not *PEB-TEXT-SCALE*) (setq *PEB-TEXT-SCALE* 1.0))
@@ -2057,28 +2062,36 @@
         (setq i (+ i slopeStep)))
       (setq slopeXs (reverse slopeXs))))
 
-  ;; owner 4-Jul: catch-wrap so a fall-glyph error (e.g. peb-pent unavailable) can never abort the plan.
+  ;; owner 4-Jul: FALL glyphs SKIP BRACED bays (the "BRACED BAY" text would overlap them), are
+  ;; AUTOSIZED by building size (fallU), and sit MID-WAY between the ridge line and the outer columns.
+  (setq fallBraced (peb-braced-bays bayPts) fallKeep '())
+  (foreach sx slopeXs
+    (if (not (member (peb-bay-of sx bayPts) fallBraced)) (setq fallKeep (cons sx fallKeep))))
+  (setq slopeXs (reverse fallKeep))
+  (setq fallU (max 500.0 (/ (max len wid) 55.0)))
+
+  ;; catch-wrap so a fall-glyph error can never abort the whole plan.
   (vl-catch-all-apply (function (lambda ()
     (cond
       ((member stype '("CS" "MS" "RC"))
         (foreach sx slopeXs
-          (arrow-up-big   sx (* wid 0.64))
-          (arrow-down-big sx (* wid 0.36))))
+          (arrow-up-big   sx (* wid 0.75) fallU)     ; mid ridge <-> FSW
+          (arrow-down-big sx (* wid 0.25) fallU)))   ; mid ridge <-> NSW
       ((= stype "MG")
         (foreach mgY mgRidgePts
           (foreach sx slopeXs
-            (arrow-up-big   sx (+ mgY (* mgGableW 0.18)))
-            (arrow-down-big sx (- mgY (* mgGableW 0.18))))))
+            (arrow-up-big   sx (+ mgY (* mgGableW 0.25)) fallU)
+            (arrow-down-big sx (- mgY (* mgGableW 0.25)) fallU))))
       ((= stype "BF")
         (foreach sx slopeXs
-          (arrow-down-big sx (* wid 0.64))
-          (arrow-up-big   sx (* wid 0.36))))
+          (arrow-down-big sx (* wid 0.75) fallU)
+          (arrow-up-big   sx (* wid 0.25) fallU)))
       ((= stype "FR")
         (progn (setvar "CLAYER" "TEXT")
                (txt "MC" (list (* len 0.50) (* wid 0.57)) 600 0 "MINIMUM ROOF SLOPE / DRAINAGE AS PER DESIGN")))
       (T
         (foreach sx slopeXs
-          (arrow-down-big sx (* wid 0.55))))))))
+          (arrow-down-big sx (* wid 0.5) fallU)))))))
 
   ;; ── Wall labels ───────────────────────────────────────────────
   ;; Phase-2A v12: pushed FSW/NSW further from building (was 2800,
