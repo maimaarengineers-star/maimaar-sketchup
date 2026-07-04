@@ -1785,9 +1785,9 @@
   (setq i 1)
   (foreach x bayPts
     (setvar "CLAYER" "GRID-LINES")
-    ;; RULE (owner 4-Jul): grid marking line comes from the OUTER FLANGE (y=wid) to the inner side of
-    ;; the bubble (gridY2 - bubR).
-    (command "LINE" (list x wid) (list x (- gridY2 bubR)) "")
+    ;; RULE (owner 4-Jul): grid marking line runs from the OUTER dimension line (overall length dim,
+    ;; yOvrDim) up to the inner side of the bubble — not through the building.
+    (command "LINE" (list x yOvrDim) (list x (- gridY2 bubR)) "")
     (setvar "CLAYER" "GRID")
     (grid-bubble x gridY2 (itoa i))
     (setq i (1+ i))
@@ -1802,8 +1802,8 @@
   (setq j 0 nWid (length gridWpts))
   (foreach y gridWpts
     (setvar "CLAYER" "GRID-LINES")
-    ;; RULE (owner 4-Jul): grid marking line from the OUTER FLANGE (x=0) to the inner side of the bubble.
-    (command "LINE" (list 0.0 y) (list (+ gridX1 bubR) y) "")
+    ;; RULE (owner 4-Jul): grid marking line from the OUTER width dimension line to the bubble.
+    (command "LINE" (list (- 0.0 (* 4800.0 *PEB-DIM-SCALE*)) y) (list (+ gridX1 bubR) y) "")
     (setvar "CLAYER" "GRID")
     (grid-bubble gridX1 y (chr (+ 65 (- nWid 1 j))))
     (setq j (1+ j))
@@ -2071,10 +2071,11 @@
   ;; Phase-2A v12: pushed FSW/NSW further from building (was 2800,
   ;; now 4500) to clear the bay+overall dim chain underneath.
   (setvar "CLAYER" "TEXT")
-  (txt-bold "MC" (list (/ len 2.0) yFsw) 560 0 (strcat "FSW - FAR SIDE WALL" (peb-ow-suffix (MSPL-Get-Str data "OW_FSW"))))
-  (txt-bold "MC" (list (/ len 2.0) (- (* 4500 *PEB-TEXT-SCALE*))) 560 0 (strcat "NSW - NEAR SIDE WALL" (peb-ow-suffix (MSPL-Get-Str data "OW_NSW"))))
-  (txt-bold "MC" (list (- (* 5500 *PEB-DIM-SCALE*)) (/ wid 2.0)) 560 90 (strcat "LEW - LEFT END WALL" (peb-ow-suffix (MSPL-Get-Str data "OW_LEW"))))
-  (txt-bold "MC" (list (+ len (* 5500 *PEB-DIM-SCALE*)) (/ wid 2.0)) 560 90 (strcat "REW - RIGHT END WALL" (peb-ow-suffix (MSPL-Get-Str data "OW_REW"))))
+  ;; owner 4-Jul: wall labels are SIMPLE — the full name only, no open-wall condition suffix.
+  (txt-bold "MC" (list (/ len 2.0) yFsw) 560 0 "FSW - FAR SIDE WALL")
+  (txt-bold "MC" (list (/ len 2.0) (- (* 4500 *PEB-TEXT-SCALE*))) 560 0 "NSW - NEAR SIDE WALL")
+  (txt-bold "MC" (list (- (* 5500 *PEB-DIM-SCALE*)) (/ wid 2.0)) 560 90 "LEW - LEFT END WALL")
+  (txt-bold "MC" (list (+ len (* 5500 *PEB-DIM-SCALE*)) (/ wid 2.0)) 560 90 "REW - RIGHT END WALL")
 
   ;; ── End-frame type MLEADERs (Phase-2A v12) ─────────────────────
   ;; Replaces the old "END FRAME" / "BEARING FRAME (TYP.)" txt labels.
