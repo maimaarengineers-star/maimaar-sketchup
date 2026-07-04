@@ -479,18 +479,17 @@
 ;; are from the Rule Book sample, relative to the drop-tip (the point that sits on the ridge), scaled
 ;; by *PEB-TEXT-SCALE*.  (When PEB-RIDGE-SYMBOL is saved as a block, the compiler migrates it exactly.)
 (defun peb-ridge-symbol (x y / s prev)
-  ;; Draw the COMPILED symbol from the Rule Book (single source).  Fall back to the built-in coords
-  ;; only if the compiled _peb_symbols.lsp is absent.
-  (if (not (peb-draw-symbol "PEB-RIDGE-SYMBOL" x y))
-    (progn
-      (setq s (min 1.0 (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) prev (getvar "CLAYER"))
-      (setvar "CLAYER" "TEXT")
-      (command "_.PLINE"
-               (list (+ x (* 4929.0 s)) (+ y (* 1513.0 s))) (list (- x (* 6.0 s)) (+ y (* 1513.0 s)))
-               (list (- x (* 1.0 s)) (+ y (* 221.0 s))) (list (- x (* 2.0 s)) (+ y (* 504.0 s)))
-               (list x y) "")
-      (txt "ML" (list (+ x (* 414.0 s)) (+ y (* 1714.0 s))) (peb-th 'ANNOT) 0 "RIDGE LINE")
-      (setvar "CLAYER" prev))))
+  ;; Draw the ridge L-leader symbol DIRECTLY from the Rule-Book coordinates (owner 4-Jul).
+  ;; Procedural + reliable — all PLINE points fed in ONE command (no incremental point-feed, no
+  ;; compiled-file / peb-draw-symbol dependency that could silently swallow an error and draw nothing).
+  (setq s (min 1.0 (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) prev (getvar "CLAYER"))
+  (setvar "CLAYER" "TEXT")
+  (command "_.PLINE"
+           (list (+ x (* 4929.4 s)) (+ y (* 1513.4 s))) (list (- x (* 6.5 s)) (+ y (* 1513.4 s)))
+           (list (- x (* 0.7 s)) (+ y (* 221.7 s))) (list (- x (* 1.7 s)) (+ y (* 504.3 s)))
+           (list x y) "")
+  (txt "ML" (list (+ x (* 116.0 s)) (+ y (* 1714.5 s))) (peb-th 'ANNOT) 0 "RIDGE LINE")
+  (setvar "CLAYER" prev))
 
 ;; x-midpoint of the 3rd bay FROM THE RIGHT (owner rule); 2-3 bays -> 2nd bay; 1 bay -> centre.
 (defun peb-ridge-bay-x (bayPts / n)
@@ -1108,14 +1107,14 @@
 )
 
 ;; FALL marker (OWNER RULE — real Mammut): a red pentagon glyph (apex = fall
-;; direction) + vertical "FALL" text.  Replaces the old green slope arrows; the
-;; 1:10 slope ratio is dropped from the plan (it belongs in the Section).
+;; direction) + vertical "FALL 1:NN" text.  The slope ratio (owner 4-Jul) comes
+;; from the IF (BP_ROOF_SLOPE -> *PEB-ROOF-SLOPE* -> peb-slope-text).
 ;; Drawn via the shared primitives on FALL (red) + TEXT (white).
 (defun peb-fall-marker (x y dir / s r gy)
   (if (not *PEB-TEXT-SCALE*) (setq *PEB-TEXT-SCALE* 1.0))
   (setq s *PEB-TEXT-SCALE* r (* 300.0 s) gy (+ y (* dir (* 1050.0 s))))
   (peb-pent x gy r (if (> dir 0) "U" "D") "FALL")          ; red pentagon, apex = fall direction
-  (peb-text-j x y (* 540.0 s) 90.0 "FALL" "TEXT" "PEB-BODY" 1 2))
+  (peb-text-j x y (* 540.0 s) 90.0 (strcat "FALL " (peb-slope-text)) "TEXT" "PEB-BODY" 1 2))
 
 (defun arrow-up-big   (x y) (peb-fall-marker x y  1.0))    ; fall toward FSW / ridge (up)
 (defun arrow-down-big (x y) (peb-fall-marker x y -1.0))    ; fall toward NSW (down)
@@ -2058,26 +2057,28 @@
         (setq i (+ i slopeStep)))
       (setq slopeXs (reverse slopeXs))))
 
-  (cond
-    ((member stype '("CS" "MS" "RC"))
-      (foreach sx slopeXs
-        (arrow-up-big   sx (* wid 0.64))
-        (arrow-down-big sx (* wid 0.36))))
-    ((= stype "MG")
-      (foreach mgY mgRidgePts
+  ;; owner 4-Jul: catch-wrap so a fall-glyph error (e.g. peb-pent unavailable) can never abort the plan.
+  (vl-catch-all-apply (function (lambda ()
+    (cond
+      ((member stype '("CS" "MS" "RC"))
         (foreach sx slopeXs
-          (arrow-up-big   sx (+ mgY (* mgGableW 0.18)))
-          (arrow-down-big sx (- mgY (* mgGableW 0.18))))))
-    ((= stype "BF")
-      (foreach sx slopeXs
-        (arrow-down-big sx (* wid 0.64))
-        (arrow-up-big   sx (* wid 0.36))))
-    ((= stype "FR")
-      (progn (setvar "CLAYER" "TEXT")
-             (txt "MC" (list (* len 0.50) (* wid 0.57)) 600 0 "MINIMUM ROOF SLOPE / DRAINAGE AS PER DESIGN")))
-    (T
-      (foreach sx slopeXs
-        (arrow-down-big sx (* wid 0.55)))))
+          (arrow-up-big   sx (* wid 0.64))
+          (arrow-down-big sx (* wid 0.36))))
+      ((= stype "MG")
+        (foreach mgY mgRidgePts
+          (foreach sx slopeXs
+            (arrow-up-big   sx (+ mgY (* mgGableW 0.18)))
+            (arrow-down-big sx (- mgY (* mgGableW 0.18))))))
+      ((= stype "BF")
+        (foreach sx slopeXs
+          (arrow-down-big sx (* wid 0.64))
+          (arrow-up-big   sx (* wid 0.36))))
+      ((= stype "FR")
+        (progn (setvar "CLAYER" "TEXT")
+               (txt "MC" (list (* len 0.50) (* wid 0.57)) 600 0 "MINIMUM ROOF SLOPE / DRAINAGE AS PER DESIGN")))
+      (T
+        (foreach sx slopeXs
+          (arrow-down-big sx (* wid 0.55))))))))
 
   ;; ── Wall labels ───────────────────────────────────────────────
   ;; Phase-2A v12: pushed FSW/NSW further from building (was 2800,
