@@ -872,15 +872,16 @@
 
 ;; map an IF "Measured At" basis string -> the Mammut-style dim-label suffix.
 (defun peb-basis-suffix (b / u)
+  ;; Abbreviated to save space (owner 4-Jul): O/O = out to out, C/C = centre to centre, I/I = in to in.
   (setq u (strcase b))
   (cond
-    ((wcmatch u "*SHEET*")                              "OUT TO OUT OF SHEETING LINE")
-    ((wcmatch u "*CENTER TO CENTER*,*CENTRE TO CENTRE*,*C/C*") "CENTER TO CENTER OF STEEL COLUMNS")
-    ((wcmatch u "*BRICK*")                              "OUT TO OUT OF BRICKWORK")
-    ((wcmatch u "*KNEE*")                               "IN TO IN OF STEEL COLUMNS @ KNEE")
-    ((wcmatch u "*BASE*")                               "IN TO IN OF STEEL COLUMNS @ BASE")
-    ((wcmatch u "*STEEL LINE*,*OUT TO OUT OF STEEL*")   "OUT TO OUT OF STEEL")
-    ((= u "")                                           "OUT TO OUT OF STEEL")
+    ((wcmatch u "*SHEET*")                              "O/O SHEETING")
+    ((wcmatch u "*CENTER TO CENTER*,*CENTRE TO CENTRE*,*C/C*") "C/C STEEL")
+    ((wcmatch u "*BRICK*")                              "O/O BRICKWORK")
+    ((wcmatch u "*KNEE*")                               "I/I STEEL @ KNEE")
+    ((wcmatch u "*BASE*")                               "I/I STEEL @ BASE")
+    ((wcmatch u "*STEEL LINE*,*OUT TO OUT OF STEEL*")   "O/O STEEL")
+    ((= u "")                                           "O/O STEEL")
     (T u)))
 
 ;; Basis -> witness-line offsets (lo hi) in mm, so the dim/marking lines sit at
@@ -1999,33 +2000,32 @@
                                                     (MSPL-Get-Str data "BAY_REF")))))
   (peb-recolor-last-dim 0)                   ; ByBlock for overall length
 
-  ;; VERTICAL (width-module) chain — GROUPED "N @ S = total" (Rule Book PEB-DIMENSION format),
-  ;; both sides. Only when there are interior columns (clear-span → overall width dim is enough).
+  ;; ── WIDTH DIMENSIONS: 3 NESTED CHAINS (owner 4-Jul) ─────────────────────────────
+  ;;   most RIGHT (REW)  : END-WALL COLUMN SPACING  (finest — every end-wall post)
+  ;;   next LEFT (LEW in): WIDTH MODULE             (main-frame interior modules)
+  ;;   most LEFT (LEW out): OVERALL WIDTH           (total)
+  ;; All GROUPED "N @ S = total" (Rule Book PEB-DIMENSION format).
+  ;; (1) END-WALL COLUMN SPACING — most right (REW), inner offset. Always (every building has EW posts).
+  (foreach grp (peb-group-equal-spans ewStations)
+    (peb-dim-height-stretch len (+ len (* 1200 *PEB-DIM-SCALE*))
+                            (nth 0 grp) (nth 1 grp)
+                            (peb-fmt-group (nth 2 grp) (nth 3 grp)))
+    (peb-recolor-last-dim 0))                 ; REW end-wall column spacing
+  ;; (2) WIDTH MODULE — next left (LEW inner). Only when interior columns exist.
   (if (> (length widthPts) 2)
-    (progn
-      (foreach grp (peb-group-equal-spans widthPts)
-        (peb-dim-height-stretch 0.0 (- (* 1200 *PEB-DIM-SCALE*))
-                                (nth 0 grp) (nth 1 grp)
-                                (peb-fmt-group (nth 2 grp) (nth 3 grp)))
-        (peb-recolor-last-dim 0))           ; ByBlock left
-      (foreach grp (peb-group-equal-spans widthPts)
-        (peb-dim-height-stretch len (+ len (* 1200 *PEB-DIM-SCALE*))
-                                (nth 0 grp) (nth 1 grp)
-                                (peb-fmt-group (nth 2 grp) (nth 3 grp)))
-        (peb-recolor-last-dim 0))))         ; ByBlock right
-  ;; Overall width dims — witness lines shifted to the chosen basis plane.
+    (foreach grp (peb-group-equal-spans widthPts)
+      (peb-dim-height-stretch 0.0 (- (* 1200 *PEB-DIM-SCALE*))
+                              (nth 0 grp) (nth 1 grp)
+                              (peb-fmt-group (nth 2 grp) (nth 3 grp)))
+      (peb-recolor-last-dim 0)))              ; LEW width module
+  ;; (3) OVERALL WIDTH — most left (LEW outer). Witness lines on the chosen basis plane.
   (setq wofs (peb-basis-offsets (peb-tb-or (MSPL-Get-Str data "WIDTH_REF")
                                            (MSPL-Get-Str data "WIDTH_MOD_REF")) colOff))
   (peb-dim-height-stretch 0.0 (- (* 3500 *PEB-DIM-SCALE*)) (car wofs) (+ wid (cadr wofs))
                           (peb-fmt-labelled "BUILDING WIDTH" wid
                             (peb-basis-suffix (peb-tb-or (MSPL-Get-Str data "WIDTH_REF")
                                                          (MSPL-Get-Str data "WIDTH_MOD_REF")))))
-  (peb-recolor-last-dim 0)                   ; ByBlock for overall width (LEW)
-  (peb-dim-height-stretch len (+ len (* 3500 *PEB-DIM-SCALE*)) (car wofs) (+ wid (cadr wofs))
-                          (peb-fmt-labelled "BUILDING WIDTH" wid
-                            (peb-basis-suffix (peb-tb-or (MSPL-Get-Str data "WIDTH_REF")
-                                                         (MSPL-Get-Str data "WIDTH_MOD_REF")))))
-  (peb-recolor-last-dim 0)                   ; ByBlock for overall width (REW)
+  (peb-recolor-last-dim 0)                    ; LEW overall width
 
   ;; ── Title (Phase-2A: compact dim × dim with area) ────────────
   ;;   Line 1: COLUMN LAYOUT PLAN
@@ -2411,7 +2411,8 @@
   (setvar "DIMTXSTY"    txtStyle)
   (setvar "DIMDEC"      0)
   (setvar "DIMLUNIT"    2)
-  (setvar "DIMATFIT"    3)
+  (setvar "DIMATFIT"    0)        ; keep BOTH text+arrows together (don't split them out)
+  (setvar "DIMTIX"      1)        ; owner 4-Jul: force the label INSIDE the arrows (never outside)
   (setvar "DIMTMOVE"    0)
   (setvar "DIMALT"      1)
   (setvar "DIMALTF"     0.03937)         ; mm → inches
