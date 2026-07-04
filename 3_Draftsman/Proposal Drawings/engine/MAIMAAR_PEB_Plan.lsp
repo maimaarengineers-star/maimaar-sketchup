@@ -740,6 +740,11 @@
   ;; drawn by peb-brace-line: Diagonal→bowtie, Portal-up-cross→bowtie+stars+"Xm PORTAL", Portal→thick
   ;; beam line + labels. PLACEMENT (strict = geometryRules.bracingPlan): 2nd + 2nd-last + even interior
   ;; ≤27 m; end bays only when the end wall is By-Framed.
+  ;; owner 4-Jul: bracing cross lines = HIDDEN linetype — set it on the CROSS layer once (all brace
+  ;; lines are drawn BYLAYER on CROSS, so they inherit it). Loads HIDDEN if absent; caught if it can't.
+  (if (not (tblsearch "LTYPE" "HIDDEN"))
+    (vl-catch-all-apply (function (lambda () (command "_.-LINETYPE" "_Load" "HIDDEN" "acad.lin" "")))))
+  (vl-catch-all-apply (function (lambda () (command "_.-LAYER" "_LType" "HIDDEN" "CROSS" ""))))
   (if (or (null widthPts) (< (length widthPts) 2)) (setq widthPts (list 0.0 wid)))
   (setq braced (peb-braced-bays bayPts))
   (setq nB (1- (length bayPts)))
