@@ -914,22 +914,29 @@
 ;;   WIDTH always By-Framed (side-wall girts, default).  LENGTH By-Flush when *PEB-EW-BYFLUSH*.
 ;;   C/C = centres (−half-web) · In/In@base = inner faces (−full-web) · In/In@knee = −haunch web
 ;;   · O/O sheeting/brick = cladding (+brick) · else O/O steel = grid.
-(defun peb-basis-dim (basis dir gridVal / u hw fw brick d)
+;; Returns (VALUE valLo valHi witLo witHi):
+;;   VALUE  = the real dimension (fixed offsets)             -> the number shown
+;;   valLo/valHi = fixed value offsets                        -> inner-chain end shift (keeps values exact)
+;;   witLo/witHi = DRAWN-column offsets (drawnHalf-based)      -> witness/arrow lines, so they sit on the
+;;                 drawn WEB CENTRE / faces (owner 4-Jul: columns are drawn oversized for presentation,
+;;                 so the C/C line must cross the drawn web centre, not the real 200 plane / the bolts).
+(defun peb-basis-dim (basis dir gridVal drawnHalf / u hw fw brick d dc)
   (setq u (strcase (if basis basis ""))
         hw (if (eq dir 'W) 200.0 100.0)
         fw (if (eq dir 'W) 400.0 200.0)
-        brick (if (eq dir 'W) 200.0 (if *PEB-EW-BYFLUSH* 0.0 200.0)))
+        brick (if (eq dir 'W) 200.0 (if *PEB-EW-BYFLUSH* 0.0 200.0))
+        dc (if (and drawnHalf (> drawnHalf 0.0)) drawnHalf hw))     ; drawn web-centre offset
   (cond
     ((wcmatch u "*CENTER TO CENTER*,*CENTRE TO CENTRE*,*C/C*")
-       (list (- gridVal (* 2.0 hw)) hw (- hw)))
+       (list (- gridVal (* 2.0 hw)) hw (- hw) dc (- dc)))                   ; witness on drawn web centre
     ((wcmatch u "*KNEE*")
        (setq d (peb-haunch-web-depth gridVal))
-       (list (- gridVal (* 2.0 d)) d (- d)))
+       (list (- gridVal (* 2.0 d)) d (- d) (* 2.0 dc) (* -2.0 dc)))         ; witness on drawn inner face
     ((wcmatch u "*BASE*")
-       (list (- gridVal (* 2.0 fw)) fw (- fw)))
+       (list (- gridVal (* 2.0 fw)) fw (- fw) (* 2.0 dc) (* -2.0 dc)))      ; witness on drawn inner face
     ((wcmatch u "*SHEET*,*BRICK*,*MASON*,*GIRT*")
-       (list (+ gridVal (* 2.0 brick)) (- brick) brick))
-    (T (list gridVal 0.0 0.0))))
+       (list (+ gridVal (* 2.0 brick)) (- brick) brick 0.0 0.0))           ; witness on drawn outer face
+    (T (list gridVal 0.0 0.0 0.0 0.0))))                                    ; O/O steel = grid / outer face
 
 ;; Shift a chain's END grid points to the IF basis plane (owner 4-Jul): first point += loOff,
 ;; last point += hiOff, interior points unchanged — so a chain's outer edges land on the same
@@ -1674,7 +1681,7 @@
   (setq yTtl    (+ ySub (* 1600.0 *PEB-TEXT-SCALE*)))                    ; title
   (setq yFrmTop (+ yTtl (* 1400.0 *PEB-TEXT-SCALE*)))                    ; frame / border top
   ;; LEFT stack (leftward from the LEW edge x=0): overall-width dim (-3500 DS) then letter bubbles
-  (setq gridX1  (- 0.0 (* 4700.0 *PEB-DIM-SCALE*) *PEB-BUBRAD*))         ; letter bubble CENTRE
+  (setq gridX1  (- 0.0 (* 6000.0 *PEB-DIM-SCALE*) *PEB-BUBRAD*))         ; letter bubble CENTRE (outside the 3 nested LEW width dims)
 
   (setq i 1)
   (foreach x bayPts
@@ -2028,16 +2035,17 @@
         (and (wcmatch (strcase (MSPL-Get-Str data "BP_EW_LEFT_GIRTS"))  "*FLUSH*")
              (wcmatch (strcase (MSPL-Get-Str data "BP_EW_RIGHT_GIRTS")) "*FLUSH*")))
   (setq lref (peb-tb-or (MSPL-Get-Str data "LENGTH_REF") (MSPL-Get-Str data "BAY_REF")))
-  (setq ldim (peb-basis-dim lref 'L len))
-  ;; HORIZONTAL (bay) chain — GROUPED "N @ S = total"; END points shifted to the IF basis plane so
-  ;; the chain is FULLY in sync with the overall (owner 4-Jul). Singletons show the bare value.
+  (setq ldim (peb-basis-dim lref 'L len leftX))     ; drawnHalf = leftX (drawn end-column centre)
+  ;; HORIZONTAL (bay) chain — GROUPED "N @ S = total"; END points shifted by the exact value offset
+  ;; (nth 1/2) so the chain stays in sync with the overall value (owner 4-Jul). Singletons bare.
   (foreach grp (peb-group-equal-spans (peb-shift-ends bayPts (nth 1 ldim) (nth 2 ldim)))
     (peb-dim-h-stretch (nth 0 grp) (nth 1 grp)
                        yBayDim
                        (peb-fmt-group (nth 2 grp) (nth 3 grp)))
     (peb-recolor-last-dim 0))              ; ByBlock
-  ;; Overall length dim — VALUE + witness/arrows on the IF basis plane (peb-basis-dim).
-  (peb-dim-h-stretch (nth 1 ldim) (+ len (nth 2 ldim)) yOvrDim
+  ;; Overall length dim — real VALUE (nth 0); witness/arrows on the DRAWN plane (nth 3/4) so the
+  ;; C/C line crosses the drawn web centre, not the bolts (owner 4-Jul).
+  (peb-dim-h-stretch (nth 3 ldim) (+ len (nth 4 ldim)) yOvrDim
                      (peb-fmt-labelled "BUILDING LENGTH" (nth 0 ldim) (peb-basis-suffix lref)))
   (peb-recolor-last-dim 0)                   ; ByBlock for overall length
 
@@ -2049,24 +2057,25 @@
   (setq wmSuffix (peb-basis-suffix (peb-tb-or (MSPL-Get-Str data "WIDTH_MOD_REF")
                                               (MSPL-Get-Str data "WIDTH_REF"))))
   (setq wref (peb-tb-or (MSPL-Get-Str data "WIDTH_REF") (MSPL-Get-Str data "WIDTH_MOD_REF")))
-  (setq wdim (peb-basis-dim wref 'W wid))
-  ;; (1) END-WALL COLUMN SPACING — most right (REW); ends shifted to the IF basis plane (in sync).
+  (setq wdim (peb-basis-dim wref 'W wid colOff))    ; drawnHalf = colOff (drawn side-wall web centre)
+  ;; ALL width dims on the LEFT (LEW), nested; NO dimension on the Right End Wall (owner 4-Jul).
+  ;; (1) END-WALL COLUMN SPACING — LEW innermost (-1200); ends shifted by exact value offset (in sync).
   (foreach grp (peb-group-equal-spans (peb-shift-ends ewStations (nth 1 wdim) (nth 2 wdim)))
-    (peb-dim-height-stretch len (+ len (* 1200 *PEB-DIM-SCALE*))
+    (peb-dim-height-stretch 0.0 (- (* 1200 *PEB-DIM-SCALE*))
                             (nth 0 grp) (nth 1 grp)
                             (strcat (peb-fmt-group (nth 2 grp) (nth 3 grp)) " " wmSuffix))
-    (peb-recolor-last-dim 0))                 ; REW end-wall column spacing
-  ;; (2) WIDTH MODULE — next left (LEW inner); ends shifted to the IF basis plane. Interior cols only.
+    (peb-recolor-last-dim 0))                 ; LEW end-wall column spacing (innermost)
+  ;; (2) WIDTH MODULE — LEW middle (-3000). Interior columns only.
   (if (> (length widthPts) 2)
     (foreach grp (peb-group-equal-spans (peb-shift-ends widthPts (nth 1 wdim) (nth 2 wdim)))
-      (peb-dim-height-stretch 0.0 (- (* 1200 *PEB-DIM-SCALE*))
+      (peb-dim-height-stretch 0.0 (- (* 3000 *PEB-DIM-SCALE*))
                               (nth 0 grp) (nth 1 grp)
                               (strcat (peb-fmt-group (nth 2 grp) (nth 3 grp)) " " wmSuffix))
-      (peb-recolor-last-dim 0)))              ; LEW width module
-  ;; (3) OVERALL WIDTH — most left (LEW outer). VALUE + witness/arrows on the IF basis plane.
-  (peb-dim-height-stretch 0.0 (- (* 3500 *PEB-DIM-SCALE*)) (nth 1 wdim) (+ wid (nth 2 wdim))
+      (peb-recolor-last-dim 0)))              ; LEW width module (middle)
+  ;; (3) OVERALL WIDTH — LEW outermost (-4800). Real VALUE (nth 0); witness on the DRAWN plane (nth 3/4).
+  (peb-dim-height-stretch 0.0 (- (* 4800 *PEB-DIM-SCALE*)) (nth 3 wdim) (+ wid (nth 4 wdim))
                           (peb-fmt-labelled "BUILDING WIDTH" (nth 0 wdim) (peb-basis-suffix wref)))
-  (peb-recolor-last-dim 0)                    ; LEW overall width
+  (peb-recolor-last-dim 0)                    ; LEW overall width (outermost)
 
   ;; ── Title (Phase-2A: compact dim × dim with area) ────────────
   ;;   Line 1: COLUMN LAYOUT PLAN
