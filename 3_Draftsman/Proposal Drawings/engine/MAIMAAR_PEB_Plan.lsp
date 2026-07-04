@@ -474,21 +474,24 @@
   (command "_.LINE" (list x0 y) (list x1 y) "")
   (vl-catch-all-apply (function (lambda () (setvar "CELTYPE" prev)))))
 
-;; RIDGE-LINE SYMBOL — the EXACT shape Nasir drew in the Rule Book (owner 4-Jul): a shelf + vertical
-;; drop + small tail (an L-leader), anchored at the ridge point, with the "RIDGE LINE" label.  Coords
-;; are from the Rule Book sample, relative to the drop-tip (the point that sits on the ridge), scaled
-;; by *PEB-TEXT-SCALE*.  (When PEB-RIDGE-SYMBOL is saved as a block, the compiler migrates it exactly.)
+;; RIDGE-LINE SYMBOL — reproduced EXACTLY from the Roshan Packages reference (MAMMUT_09 DXF, owner 4-Jul):
+;; a horizontal shelf that turns down into a small CURL / PIGTAIL landing on the ridge line, with the
+;; "RIDGE LINE" label above the shelf.  Same 5 vertices as before (they already matched Roshan to the mm,
+;; relative to the tip (0,0) = the point on the ridge line) BUT drawn as a BULGED LWPOLYLINE — the arc
+;; bulges (1.066, 1.0, 1.0) on the bottom segments are what form the curl; the old version drew straight
+;; segments and so had no curl.  Built via entmake so the bulges are exact.  Scaled by *PEB-TEXT-SCALE*.
 (defun peb-ridge-symbol (x y / s prev)
-  ;; Draw the ridge L-leader symbol DIRECTLY from the Rule-Book coordinates (owner 4-Jul).
-  ;; Procedural + reliable — all PLINE points fed in ONE command (no incremental point-feed, no
-  ;; compiled-file / peb-draw-symbol dependency that could silently swallow an error and draw nothing).
   (setq s (min 1.0 (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) prev (getvar "CLAYER"))
   (setvar "CLAYER" "TEXT")
-  (command "_.PLINE"
-           (list (+ x (* 4929.4 s)) (+ y (* 1513.4 s))) (list (- x (* 6.5 s)) (+ y (* 1513.4 s)))
-           (list (- x (* 0.7 s)) (+ y (* 221.7 s))) (list (- x (* 1.7 s)) (+ y (* 504.3 s)))
-           (list x y) "")
-  (txt "ML" (list (+ x (* 116.0 s)) (+ y (* 1714.5 s))) (peb-th 'ANNOT) 0 "RIDGE LINE")
+  (entmake
+    (list '(0 . "LWPOLYLINE") '(100 . "AcDbEntity") (cons 8 "TEXT")
+          '(100 . "AcDbPolyline") (cons 90 5) (cons 70 0)
+          (cons 10 (list (+ x (* 4929.4 s)) (+ y (* 1513.4 s)))) (cons 42 0.0)    ; shelf right end
+          (cons 10 (list (- x (* 6.5 s))    (+ y (* 1513.4 s)))) (cons 42 1.066)  ; shelf left corner -> curl
+          (cons 10 (list (- x (* 0.7 s))    (+ y (* 221.7 s))))  (cons 42 1.0)    ; curl arc
+          (cons 10 (list (- x (* 1.7 s))    (+ y (* 504.3 s))))  (cons 42 1.0)    ; curl arc
+          (cons 10 (list x y))                                   (cons 42 0.0)))  ; tip on the ridge line
+  (txt "ML" (list (+ x (* 414.0 s)) (+ y (* 1714.5 s))) (peb-th 'ANNOT) 0 "RIDGE LINE")
   (setvar "CLAYER" prev))
 
 ;; x-midpoint of the 3rd bay FROM THE RIGHT (owner rule); 2-3 bays -> 2nd bay; 1 bay -> centre.
@@ -1434,7 +1437,7 @@
     c0 c1 c2 c3 c4 c5 c6
     tbTop tbBot tbW tbScale tbXShift
     maxSize areaM2
-    borderL borderR borderB borderT bMarg
+    borderL borderR borderB borderT bMarg bGap exmin exmax
     logoX logoY logoScale
     endBayL endBayR roofSlope
     mgGableW mgSpanW mgRidgePts mgValleyPts mgColumnPts mgSpans mgGables mgY loadValX
@@ -2495,11 +2498,19 @@
   (setq *PEB-TEXT-SCALE* *PEB-OLD-TEXT-SCALE*)
   (setq *PEB-DIM-SCALE*  *PEB-OLD-DIM-SCALE*)
 
-  ;; Drawing border wraps the building + the title strip.
-  (setq borderL tbBldgL
-        borderB tbFrmB
-        borderR (+ tbStripX tbStripW (* 1000.0 *PEB-DIM-SCALE*))
-        borderT tbFrmT)
+  ;; Drawing border — owner 4-Jul STRICT RULE: ALL drawings + labels sit INSIDE the cover lines with an
+  ;; EVEN gap all around.  ROBUST FIX (replaces the old formula borderL = -6500*DIMSCALE that the long /
+  ;; narrow multi-span 195 escaped on the LEW side by ~14600): derive the border from the TRUE drawn
+  ;; extents + ONE uniform margin, so every building self-fits.  ZOOM Extents forces EXTMIN/EXTMAX to the
+  ;; tight bounding box of everything already drawn (plan + dims + LEW/REW labels + title strip); the
+  ;; border is then that box grown by bGap on all four sides.  (bMarg/borderR-from-strip are retired.)
+  (setq bGap (max (* 3000.0 *PEB-DIM-SCALE*) *PEB-BUBRAD*))
+  (vl-catch-all-apply (function (lambda () (command "_.ZOOM" "_E"))))
+  (setq exmin (getvar "EXTMIN") exmax (getvar "EXTMAX"))
+  (setq borderL (- (car  exmin) bGap)
+        borderB (- (cadr exmin) bGap)
+        borderR (+ (car  exmax) bGap)
+        borderT (+ (cadr exmax) bGap))
   (if (not *PEB-SUPPRESS-TB*)
     (draw-border borderL borderB borderR borderT))
 
