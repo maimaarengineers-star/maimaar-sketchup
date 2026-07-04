@@ -479,19 +479,18 @@
 ;; are from the Rule Book sample, relative to the drop-tip (the point that sits on the ridge), scaled
 ;; by *PEB-TEXT-SCALE*.  (When PEB-RIDGE-SYMBOL is saved as a block, the compiler migrates it exactly.)
 (defun peb-ridge-symbol (x y / s prev)
-  ;; interim scale capped ~1.0 (was *PEB-TEXT-SCALE*, oversized on big plans). SUPERSEDED once the
-  ;; compiler converts your PEB-RIDGE-SYMBOL block and the engine draws it at your drawn size.
-  (setq s (min 1.0 (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) prev (getvar "CLAYER"))
-  (setvar "CLAYER" "TEXT")
-  (command "_.PLINE"
-           (list (+ x (* 4929.0 s)) (+ y (* 1513.0 s)))   ; shelf right end
-           (list (- x (*    6.0 s)) (+ y (* 1513.0 s)))   ; shelf left end
-           (list (- x (*    1.0 s)) (+ y (*  221.0 s)))   ; vertical drop
-           (list (- x (*    2.0 s)) (+ y (*  504.0 s)))   ; small tail (up)
-           (list x y)                                      ; drop tip — on the ridge
-           "")
-  (txt "ML" (list (+ x (* 414.0 s)) (+ y (* 1714.0 s))) (peb-th 'ANNOT) 0 "RIDGE LINE")
-  (setvar "CLAYER" prev))
+  ;; Draw the COMPILED symbol from the Rule Book (single source).  Fall back to the built-in coords
+  ;; only if the compiled _peb_symbols.lsp is absent.
+  (if (not (peb-draw-symbol "PEB-RIDGE-SYMBOL" x y))
+    (progn
+      (setq s (min 1.0 (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) prev (getvar "CLAYER"))
+      (setvar "CLAYER" "TEXT")
+      (command "_.PLINE"
+               (list (+ x (* 4929.0 s)) (+ y (* 1513.0 s))) (list (- x (* 6.0 s)) (+ y (* 1513.0 s)))
+               (list (- x (* 1.0 s)) (+ y (* 221.0 s))) (list (- x (* 2.0 s)) (+ y (* 504.0 s)))
+               (list x y) "")
+      (txt "ML" (list (+ x (* 414.0 s)) (+ y (* 1714.0 s))) (peb-th 'ANNOT) 0 "RIDGE LINE")
+      (setvar "CLAYER" prev))))
 
 ;; x-midpoint of the 3rd bay FROM THE RIGHT (owner rule); 2-3 bays -> 2nd bay; 1 bay -> centre.
 (defun peb-ridge-bay-x (bayPts / n)
@@ -512,11 +511,45 @@
                    "D:/maimaar-os/3_Draftsman/AutoCAD_Drawings/Multi_Area_Development/Compiler/_peb_rules.lsp")
     (if (and (null *PEB-RULES*) (setq f (findfile c)))
       (vl-catch-all-apply (function (lambda () (load f))))))
+  ;; also load the compiled SYMBOLS (loose Rule-Book geometry -> *PEB-SYMBOLS*, owner 4-Jul)
+  (foreach c (list "_peb_symbols.lsp"
+                   "D:/maimaar-os/3_Draftsman/Proposal Drawings/engine/_peb_symbols.lsp"
+                   "D:/maimaar-os/3_Draftsman/AutoCAD_Drawings/Multi_Area_Development/Compiler/_peb_symbols.lsp")
+    (if (and (null *PEB-SYMBOLS*) (setq f (findfile c)))
+      (vl-catch-all-apply (function (lambda () (load f))))))
   *PEB-RULES*)
 (defun peb-rule (key dflt / v)
   (if (and (null *PEB-RULES*) (null *PEB-RULES-TRIED*))
     (progn (setq *PEB-RULES-TRIED* T) (peb-load-rules)))
   (if (setq v (assoc key *PEB-RULES*)) (cdr v) dflt))
+
+;; Draw a COMPILED Rule-Book symbol (from *PEB-SYMBOLS*, written by compile_rulebook.py) at (x,y) —
+;; primitives are relative to the base = the point that lands on the drawing.  Returns T if drawn,
+;; nil if the symbol isn't available (caller falls back to its built-in shape).  (owner 4-Jul)
+(defun peb-draw-symbol (name x y / sym prev pl)
+  (if (and (null *PEB-SYMBOLS*) (null *PEB-RULES-TRIED*))
+    (progn (setq *PEB-RULES-TRIED* T) (peb-load-rules)))
+  (setq sym (cdr (assoc name *PEB-SYMBOLS*)) prev (getvar "CLAYER"))
+  (if sym
+    (progn
+      (setvar "CLAYER" "TEXT")
+      (foreach p sym
+        (cond
+          ((= (car p) "PLINE")
+             (command "_.PLINE")
+             (foreach pt (cadr p) (command (list (+ x (car pt)) (+ y (cadr pt)))))
+             (command ""))
+          ((= (car p) "LINE")
+             (setq pl (cadr p))
+             (command "_.LINE" (list (+ x (car (car pl)))  (+ y (cadr (car pl))))
+                               (list (+ x (car (cadr pl))) (+ y (cadr (cadr pl)))) ""))
+          ((= (car p) "TEXT")
+             (txt "ML" (list (+ x (nth 1 p)) (+ y (nth 2 p))) (nth 3 p) 0 (nth 4 p)))
+          ((= (car p) "CIRCLE")
+             (command "_.CIRCLE" (list (+ x (nth 1 p)) (+ y (nth 2 p))) (nth 3 p)))))
+      (setvar "CLAYER" prev)
+      T)
+    nil))
 
 ;; Maimaar-typical built-up MAIN column web depth, sized BY SPAN (owner rule).
 ;; Rule of thumb ~ span/30, rounded to 50 mm, clamped 400..1000.  Drives both the
