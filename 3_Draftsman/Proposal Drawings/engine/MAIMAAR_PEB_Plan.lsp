@@ -2111,11 +2111,11 @@
   (setvar "CLAYER" "TEXT")
   ;; owner 4-Jul: wall labels are SIMPLE — the full name only, no open-wall condition suffix.
   (txt-bold "MC" (list (/ len 2.0) yFsw) 560 0 "FSW - FAR SIDE WALL")
-  (txt-bold "MC" (list (/ len 2.0) (- (* 4500 *PEB-TEXT-SCALE*))) 560 0 "NSW - NEAR SIDE WALL")
+  (txt-bold "MC" (list (/ len 2.0) (- (* 3000 *PEB-TEXT-SCALE*))) 560 0 "NSW - NEAR SIDE WALL")
   ;; owner 4-Jul: LEW label sits OUTSIDE the letter bubbles (was sandwiched between the width dims and
   ;; the bubbles -> overlapped the dim text). REW side has no dims/bubbles, so it stays close.
   (txt-bold "MC" (list (- gridX1 (* 1500.0 *PEB-DIM-SCALE*)) (/ wid 2.0)) 560 90 "LEW - LEFT END WALL")
-  (txt-bold "MC" (list (+ len (* 5500 *PEB-DIM-SCALE*)) (/ wid 2.0)) 560 90 "REW - RIGHT END WALL")
+  (txt-bold "MC" (list (+ len (* 3000 *PEB-DIM-SCALE*)) (/ wid 2.0)) 560 90 "REW - RIGHT END WALL")
 
   ;; ── End-frame type MLEADERs (Phase-2A v12) ─────────────────────
   ;; Replaces the old "END FRAME" / "BEARING FRAME (TYP.)" txt labels.
@@ -2140,17 +2140,19 @@
   ;; columns are already drawn lengthwise = interior main-frame size/direction.)
   (setvar "CLAYER" "TEXT")
   (txt-bold "MC" (list (- gridX1 (* 3000.0 *PEB-DIM-SCALE*)) (/ wid 2.0)) 430 90 (strcat "(" lewFrameLabel ")"))
-  (txt-bold "MC" (list (+ len (* 7000 *PEB-DIM-SCALE*)) (/ wid 2.0)) 430 90 (strcat "(" rewFrameLabel ")"))
+  (txt-bold "MC" (list (+ len (* 4500 *PEB-DIM-SCALE*)) (/ wid 2.0)) 430 90 (strcat "(" rewFrameLabel ")"))
   (cond
     ;; Both ends same → ONE MLEADER, "BEARING FRAME / BOTH ENDS"
     ((= lewFrameLabel rewFrameLabel)
       (vl-catch-all-apply
         (function (lambda ()
-          (peb-label-with-leader (strcat lewFrameLabel "\\PBOTH ENDS")
-                                 (list (- (* 4500 *PEB-DIM-SCALE*))
-                                       (+ wid (* 2800 *PEB-TEXT-SCALE*)))
-                                 (list 0 wid)
-                                 "S" 600.0)))))
+          (peb-label-with-leader
+            (if (= lewFrameLabel "MAIN FRAME") "MAIN FRAME\\P(HALF BAY LOADING)"
+                (strcat lewFrameLabel "\\PBOTH ENDS"))               ; owner 4-Jul: sync w/ IF, 2 rows
+            (list (- (* 4500 *PEB-DIM-SCALE*))
+                  (+ wid (* 2800 *PEB-TEXT-SCALE*)))
+            (list 0 wid)                                              ; arrow points AT the LEW frame
+            "S" 600.0)))))
     ;; Different → TWO MLEADERs
     (T
       (vl-catch-all-apply
@@ -2900,7 +2902,7 @@
 
 (defun peb-label-with-leader (text labelPos arrowPt leaderDir
                               fallbackTextHeight /
-                              tX tY aX aY sgn baseY ah w s p prev)
+                              tX tY aX aY sgn baseY ah w s p prev lines ln L)
   ;;  Draw a labelled leader as a SINGLE MLEADER object (text + leader
   ;;  + arrow are one entity — drag any part and the rest follows).
   ;;
@@ -2920,9 +2922,11 @@
   (setq tX (car labelPos) tY (cadr labelPos) aX (car arrowPt) aY (cadr arrowPt))
   (setq s (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0) ah (* 260.0 s) w (* 100.0 s))
   (if (or (null fallbackTextHeight) (<= fallbackTextHeight 0)) (setq fallbackTextHeight (* 500.0 s)))
-  ;; flatten any MTEXT paragraph break (\P) to a space (single-line TEXT)
+  ;; owner 4-Jul: split on \P into 2+ ROWS (was flattened to one line) — stacked downward.
+  (setq lines '())
   (while (setq p (vl-string-search "\\P" text))
-    (setq text (strcat (substr text 1 p) " " (substr text (+ p 3)))))
+    (setq lines (cons (substr text 1 p) lines) text (substr text (+ p 3))))
+  (setq lines (reverse (cons text lines)))
   (setq prev (getvar "CLAYER"))
   (setvar "CLAYER" "TEXT")
   ;; RULE (Nasir): CLEAN 90-degree leader — vertical leg from the arrow tip to the text
@@ -2934,7 +2938,12 @@
   (entmake (list (cons 0 "SOLID") (cons 8 "TEXT")
                  (list 10 (- aX w) baseY 0.0) (list 11 (+ aX w) baseY 0.0)
                  (list 12 aX aY 0.0) (list 13 aX aY 0.0)))
-  (txt (if (>= tX aX) "ML" "MR") (list tX tY) fallbackTextHeight 0 text)
+  (setq ln 0)
+  (foreach L lines
+    (txt (if (>= tX aX) "ML" "MR")
+         (list tX (- tY (* ln fallbackTextHeight s 1.35)))     ; stack rows downward (s = *PEB-TEXT-SCALE*)
+         fallbackTextHeight 0 L)
+    (setq ln (1+ ln)))
   (setvar "CLAYER" prev)
 )
 
