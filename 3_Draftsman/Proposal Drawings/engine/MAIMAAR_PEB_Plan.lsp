@@ -1823,7 +1823,7 @@
   ;; TOP stack (upward from the FSW edge y=wid). owner 4-Jul: FIXED, UNIFORM gap between dimension rows
   ;; (dimGap) so dim spacing is consistent everywhere; generous, equal spacing (txtGap) between the FSW
   ;; label, the area-description banner, the "COLUMN LAYOUT PLAN" title, and the border.
-  (setq dimGap (* 1800.0 *PEB-DIM-SCALE*))                               ; FIXED gap between dim rows
+  (setq dimGap (* 2400.0 *PEB-DIM-SCALE*))                               ; FIXED gap between dim rows (owner 4-Jul: more air between nested chains)
   (setq txtGap (* 2000.0 *PEB-TEXT-SCALE*))                              ; FIXED gap between text rows
   (setq yBayDim (+ wid dimGap))                                         ; per-bay dim chain
   (setq yOvrDim (+ yBayDim dimGap))                                     ; overall-length dim (same gap)
@@ -1833,7 +1833,9 @@
   (setq yTtl    (+ ySub txtGap))                                        ; COLUMN LAYOUT PLAN title
   (setq yFrmTop (+ yTtl txtGap))                                        ; frame / border top
   ;; LEFT stack (leftward from the LEW edge x=0): overall-width dim (-3500 DS) then letter bubbles
-  (setq gridX1  (- 0.0 (* 6000.0 *PEB-DIM-SCALE*) *PEB-BUBRAD*))         ; letter bubble CENTRE (outside the 3 nested LEW width dims)
+  ;; letter bubble CENTRE — anchored 0.9*dimGap BEYOND the outermost (-3*dimGap) width dim, + bubble radius,
+  ;; so it FOLLOWS dimGap and can never collide with the overall-width chain no matter how wide the spacing.
+  (setq gridX1  (- (- 0.0 (* 3.9 dimGap)) *PEB-BUBRAD*))
 
   (setq i 1)
   (foreach x bayPts
@@ -2127,7 +2129,7 @@
   (txt-bold "MC" (list (/ len 2.0) (- (* 3000 *PEB-TEXT-SCALE*))) 560 0 "NSW - NEAR SIDE WALL")
   ;; owner 4-Jul: LEW label sits OUTSIDE the letter bubbles (was sandwiched between the width dims and
   ;; the bubbles -> overlapped the dim text). REW side has no dims/bubbles, so it stays close.
-  (txt-bold "MC" (list (- gridX1 (* 1500.0 *PEB-DIM-SCALE*)) (/ wid 2.0)) 560 90 "LEW - LEFT END WALL")
+  (txt-bold "MC" (list (- gridX1 (* 2200.0 *PEB-DIM-SCALE*)) (/ wid 2.0)) 560 90 "LEW - LEFT END WALL")
   (txt-bold "MC" (list (+ len (* 3000 *PEB-DIM-SCALE*)) (/ wid 2.0)) 560 90 "REW - RIGHT END WALL")
 
   ;; ── End-frame type MLEADERs (Phase-2A v12) ─────────────────────
@@ -2152,7 +2154,7 @@
   ;; beside the LEW/REW wall labels.  (If an end is a Main Frame, its corner
   ;; columns are already drawn lengthwise = interior main-frame size/direction.)
   (setvar "CLAYER" "TEXT")
-  (txt-bold "MC" (list (- gridX1 (* 3000.0 *PEB-DIM-SCALE*)) (/ wid 2.0)) 430 90 (strcat "(" lewFrameLabel ")"))
+  (txt-bold "MC" (list (- gridX1 (* 4400.0 *PEB-DIM-SCALE*)) (/ wid 2.0)) 430 90 (strcat "(" lewFrameLabel ")"))
   (txt-bold "MC" (list (+ len (* 4500 *PEB-DIM-SCALE*)) (/ wid 2.0)) 430 90 (strcat "(" rewFrameLabel ")"))
   (cond
     ;; Both ends same → ONE MLEADER, "BEARING FRAME / BOTH ENDS"
