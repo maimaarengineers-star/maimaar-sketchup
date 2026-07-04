@@ -463,16 +463,26 @@
     (setq xx (+ xx pitch)))
   (setvar "CLAYER" prev))
 
-;; RIDGE LINE = dash-dot CENTERX2 (owner 4-Jul, Rule Book: "it just shows the line of the ridge").
-;; Loads CENTERX2 once if absent; falls back to the layer linetype if it can't load. widMm unused.
-(defun peb-ridge-line (x0 x1 y / prev)
-  (if (not (tblsearch "LTYPE" "CENTERX2"))
-    (vl-catch-all-apply (function (lambda () (command "_.-LINETYPE" "_Load" "CENTERX2" "acad.lin" "")))))
+;; RIDGE LINE = dash-dot centre line (owner 4-Jul, Rule Book: "it just shows the line of the ridge").
+;; FIX (ridge showed SOLID): the stock CENTERX2 pattern is only ~a few drawing units long, so the huge
+;; global LTSCALE (~380 on big buildings) stretches each dash past the whole line and it renders solid.
+;; Define a mm-based dash-dot linetype PEBRIDGE (dash 1400, gap 500, DOT, gap 500 = 2400 mm) and draw the
+;; LINE with a PER-ENTITY linetype scale of 1/LTSCALE (DXF 48) so the pattern renders at TRUE mm size
+;; regardless of the drawing's global LTSCALE. No global state is touched. widMm unused.
+(defun peb-ridge-line (x0 x1 y / lts es)
+  (if (not (tblsearch "LTYPE" "PEBRIDGE"))
+    (vl-catch-all-apply (function (lambda ()
+      (entmake (list '(0 . "LTYPE") '(100 . "AcDbSymbolTableRecord")
+                     '(100 . "AcDbLinetypeTableRecord") '(2 . "PEBRIDGE") '(70 . 0)
+                     '(3 . "Ridge ____ . ____ . ____") '(72 . 65) '(73 . 4) '(40 . 2400.0)
+                     '(49 . 1400.0) '(74 . 0) '(49 . -500.0) '(74 . 0)
+                     '(49 . 0.0)    '(74 . 0) '(49 . -500.0) '(74 . 0)))))))
   (setvar "CLAYER" "RIDGE")
-  (setq prev (getvar "CELTYPE"))
-  (vl-catch-all-apply (function (lambda () (setvar "CELTYPE" "CENTERX2"))))
-  (command "_.LINE" (list x0 y) (list x1 y) "")
-  (vl-catch-all-apply (function (lambda () (setvar "CELTYPE" prev)))))
+  (setq lts (getvar "LTSCALE") es (if (> lts 0.0) (/ 1.0 lts) 1.0))
+  (if (tblsearch "LTYPE" "PEBRIDGE")
+    (entmake (list '(0 . "LINE") (cons 8 "RIDGE") '(6 . "PEBRIDGE") (cons 48 es)
+                   (cons 10 (list x0 y 0.0)) (cons 11 (list x1 y 0.0))))
+    (command "_.LINE" (list x0 y) (list x1 y) "")))
 
 ;; RIDGE-LINE SYMBOL — reproduced EXACTLY from the Roshan Packages reference (MAMMUT_09 DXF, owner 4-Jul):
 ;; a horizontal shelf that turns down into a small CURL / PIGTAIL landing on the ridge line, with the
