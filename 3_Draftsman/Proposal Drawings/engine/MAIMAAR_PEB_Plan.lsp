@@ -474,14 +474,21 @@
   (command "_.LINE" (list x0 y) (list x1 y) "")
   (vl-catch-all-apply (function (lambda () (setvar "CELTYPE" prev)))))
 
-;; RIDGE-LINE SYMBOL (owner 4-Jul, Rule Book): an L-leader — a vertical leader UP from the ridge to a
-;; horizontal shelf carrying the "RIDGE LINE" label.  Replaces the old curl callout + ladder.
+;; RIDGE-LINE SYMBOL — the EXACT shape Nasir drew in the Rule Book (owner 4-Jul): a shelf + vertical
+;; drop + small tail (an L-leader), anchored at the ridge point, with the "RIDGE LINE" label.  Coords
+;; are from the Rule Book sample, relative to the drop-tip (the point that sits on the ridge), scaled
+;; by *PEB-TEXT-SCALE*.  (When PEB-RIDGE-SYMBOL is saved as a block, the compiler migrates it exactly.)
 (defun peb-ridge-symbol (x y / s prev)
   (setq s (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0) prev (getvar "CLAYER"))
   (setvar "CLAYER" "TEXT")
-  (command "_.LINE" (list x y) (list x (+ y (* 1500.0 s))) "")                                    ; vertical leader up from the ridge
-  (command "_.LINE" (list x (+ y (* 1500.0 s))) (list (+ x (* 3200.0 s)) (+ y (* 1500.0 s))) "")  ; horizontal shelf to the right
-  (txt "ML" (list (+ x (* 250.0 s)) (+ y (* 1850.0 s))) (peb-th 'ANNOT) 0 "RIDGE LINE")            ; label above the shelf
+  (command "_.PLINE"
+           (list (+ x (* 4929.0 s)) (+ y (* 1513.0 s)))   ; shelf right end
+           (list (- x (*    6.0 s)) (+ y (* 1513.0 s)))   ; shelf left end
+           (list (- x (*    1.0 s)) (+ y (*  221.0 s)))   ; vertical drop
+           (list (- x (*    2.0 s)) (+ y (*  504.0 s)))   ; small tail (up)
+           (list x y)                                      ; drop tip — on the ridge
+           "")
+  (txt "ML" (list (+ x (* 414.0 s)) (+ y (* 1714.0 s))) (peb-th 'ANNOT) 0 "RIDGE LINE")
   (setvar "CLAYER" prev))
 
 ;; x-midpoint of the 3rd bay FROM THE RIGHT (owner rule); 2-3 bays -> 2nd bay; 1 bay -> centre.
