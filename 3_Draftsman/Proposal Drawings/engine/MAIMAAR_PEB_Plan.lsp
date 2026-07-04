@@ -1110,15 +1110,18 @@
 ;; triangular apex, block ratios half-width:base:apex = 300:217.5:217.5, mid-notch 37.5) with the apex
 ;; pointing in the FALL direction, and "FALL <slope>" text VERTICAL, BEHIND the symbol (opposite the
 ;; apex).  Autosized by u (building size, passed in).  Pentagon on FALL (red), text on TEXT.
-(defun peb-fall-marker (x y dir u / prev hw bh mn ah)
-  (setq prev (getvar "CLAYER") hw u bh (* 0.725 u) mn (* 0.125 u) ah (* 0.725 u))
+(defun peb-fall-marker (x y dir u / prev hw bh mn ah th)
+  ;; th (text height) is DECOUPLED from the pentagon size and clamped so it never blows up on big
+  ;; buildings (was 0.9*u -> huge). Text sits just BEHIND the apex (offset bh + 2.4*th).
+  (setq prev (getvar "CLAYER") hw u bh (* 0.725 u) mn (* 0.125 u) ah (* 0.725 u)
+        th (max 500.0 (min 1200.0 (* 0.5 u))))
   (setvar "CLAYER" "FALL")
   (command "_.PLINE"
     (list (- x hw) (- y (* dir bh))) (list (+ x hw) (- y (* dir bh)))
     (list (+ x hw) (- y (* dir mn))) (list x (+ y (* dir ah))) (list (- x hw) (- y (* dir mn)))
     "_C")
   (setvar "CLAYER" "TEXT")                                  ; "FALL <slope>" behind the apex, vertical
-  (txt "MC" (list x (- y (* dir (+ bh (* 2.4 u))))) (* 0.9 u) 90.0 (strcat "FALL " (peb-slope-text)))
+  (txt "MC" (list x (- y (* dir (+ bh (* 2.4 th))))) th 90.0 (strcat "FALL " (peb-slope-text)))
   (setvar "CLAYER" prev))
 
 (defun arrow-up-big   (x y u) (peb-fall-marker x y  1.0 u)) ; fall toward FSW (up)
@@ -2045,30 +2048,23 @@
   ;;   2-4 bays     → 2 columns: bay 2 + last bay
   ;;   5-7 bays     → every 3rd bay starting bay 2
   ;;   8+ bays      → every 4th bay starting bay 2
-  (setq slopeXs '())
-  (cond
-    ((<= bays 1)
-      (setq slopeXs (list (/ (+ (nth 0 bayPts) (nth 1 bayPts)) 2.0))))
-    ((<= bays 4)
-      ;; bay 2 (between bayPts[1] and bayPts[2]) + last bay
-      (setq slopeXs (list (/ (+ (nth 1 bayPts) (nth 2 bayPts)) 2.0)
-                          (/ (+ (nth (1- bays) bayPts) (nth bays bayPts)) 2.0))))
-    (T
-      (setq slopeStep (if (<= bays 7) 3 4))
-      (setq i 1)   ; start at bay 2 (zero-indexed bay 1 = between bayPts[1]+[2])
+  ;; owner 4-Jul: FALL glyphs are spread across EVENLY-SPACED bays but SKIP braced bays (nudge to the
+  ;; next unbraced bay so the "BRACED BAY" text never overlaps them). Autosized by building size (fallU),
+  ;; placed MID-WAY between the ridge line and the outer columns.
+  (setq fallBraced (peb-braced-bays bayPts) fallUsed '() slopeXs '())
+  (if (<= bays 1)
+    (setq slopeXs (list (/ (+ (nth 0 bayPts) (nth 1 bayPts)) 2.0)))
+    (progn
+      (setq slopeStep (cond ((<= bays 4) 1) ((<= bays 8) 2) (T 3)) i 1)
       (while (< i bays)
-        (setq slopeXs (cons (/ (+ (nth i bayPts) (nth (1+ i) bayPts)) 2.0)
-                            slopeXs))
+        (setq b i g 0)                                        ; nudge past braced bays
+        (while (and (member b fallBraced) (< (+ i g 1) bays)) (setq g (1+ g) b (+ i g)))
+        (if (and (< b bays) (not (member b fallBraced)) (not (member b fallUsed)))
+          (setq slopeXs  (cons (/ (+ (nth b bayPts) (nth (1+ b) bayPts)) 2.0) slopeXs)
+                fallUsed (cons b fallUsed)))
         (setq i (+ i slopeStep)))
       (setq slopeXs (reverse slopeXs))))
-
-  ;; owner 4-Jul: FALL glyphs SKIP BRACED bays (the "BRACED BAY" text would overlap them), are
-  ;; AUTOSIZED by building size (fallU), and sit MID-WAY between the ridge line and the outer columns.
-  (setq fallBraced (peb-braced-bays bayPts) fallKeep '())
-  (foreach sx slopeXs
-    (if (not (member (peb-bay-of sx bayPts) fallBraced)) (setq fallKeep (cons sx fallKeep))))
-  (setq slopeXs (reverse fallKeep))
-  (setq fallU (max 500.0 (/ (max len wid) 55.0)))
+  (setq fallU (max 400.0 (min 3000.0 (/ (max len wid) 70.0))))
 
   ;; catch-wrap so a fall-glyph error can never abort the whole plan.
   (vl-catch-all-apply (function (lambda ()
