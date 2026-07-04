@@ -463,6 +463,35 @@
     (setq xx (+ xx pitch)))
   (setvar "CLAYER" prev))
 
+;; RIDGE LINE = dash-dot CENTERX2 (owner 4-Jul, Rule Book: "it just shows the line of the ridge").
+;; Loads CENTERX2 once if absent; falls back to the layer linetype if it can't load. widMm unused.
+(defun peb-ridge-line (x0 x1 y / prev)
+  (if (not (tblsearch "LTYPE" "CENTERX2"))
+    (vl-catch-all-apply (function (lambda () (command "_.-LINETYPE" "_Load" "CENTERX2" "acad.lin" "")))))
+  (setvar "CLAYER" "RIDGE")
+  (setq prev (getvar "CELTYPE"))
+  (vl-catch-all-apply (function (lambda () (setvar "CELTYPE" "CENTERX2"))))
+  (command "_.LINE" (list x0 y) (list x1 y) "")
+  (vl-catch-all-apply (function (lambda () (setvar "CELTYPE" prev)))))
+
+;; RIDGE-LINE SYMBOL (owner 4-Jul, Rule Book): an L-leader — a vertical leader UP from the ridge to a
+;; horizontal shelf carrying the "RIDGE LINE" label.  Replaces the old curl callout + ladder.
+(defun peb-ridge-symbol (x y / s prev)
+  (setq s (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0) prev (getvar "CLAYER"))
+  (setvar "CLAYER" "TEXT")
+  (command "_.LINE" (list x y) (list x (+ y (* 1500.0 s))) "")                                    ; vertical leader up from the ridge
+  (command "_.LINE" (list x (+ y (* 1500.0 s))) (list (+ x (* 3200.0 s)) (+ y (* 1500.0 s))) "")  ; horizontal shelf to the right
+  (txt "ML" (list (+ x (* 250.0 s)) (+ y (* 1850.0 s))) (peb-th 'ANNOT) 0 "RIDGE LINE")            ; label above the shelf
+  (setvar "CLAYER" prev))
+
+;; x-midpoint of the 3rd bay FROM THE RIGHT (owner rule); 2-3 bays -> 2nd bay; 1 bay -> centre.
+(defun peb-ridge-bay-x (bayPts / n)
+  (setq n (1- (length bayPts)))
+  (cond
+    ((<= n 1) (/ (+ (car bayPts) (last bayPts)) 2.0))
+    ((<= n 3) (/ (+ (nth 1 bayPts) (nth 2 bayPts)) 2.0))
+    (T        (/ (+ (nth (- n 3) bayPts) (nth (- n 2) bayPts)) 2.0))))
+
 ;; ── COMPILER BRIDGE (owner 3-Jul) ───────────────────────────────────────────
 ;; Numbers measured from the Rule Book by compile_rulebook.py live in _peb_rules.lsp
 ;; (an assoc list bound to *PEB-RULES*).  `peb-rule` looks a number up by key; if the
@@ -1731,27 +1760,23 @@
   (cond
     ((member stype '("CS" "MS" "RC"))
       (progn
-        (setvar "CLAYER" "RIDGE")
-        (command "LINE" (list 0 (/ wid 2.0)) (list len (/ wid 2.0)) "")
-        (peb-ridge-ladder 0 len (/ wid 2.0) wid)               ; F5 ladder marks the ridge line (owner 3-Jul)
-        ;; MLEADER: arrow tip on ridge at x=0.72*len; text label above
+        ;; owner 4-Jul: ridge = dash-dot CENTERX2 line; L-leader symbol in the 3rd bay from the right.
+        (peb-ridge-line 0 len (/ wid 2.0))
         (vl-catch-all-apply
           (function (lambda ()
-            (peb-ridge-callout "RIDGE LINE" (* len 0.72) (/ wid 2.0)))))
+            (peb-ridge-symbol (peb-ridge-bay-x bayPts) (/ wid 2.0)))))
       )
     )
     ((= stype "MG")
       (progn
-        (setvar "CLAYER" "RIDGE")
-        (foreach mgY mgRidgePts (command "LINE" (list 0 mgY) (list len mgY) ""))
-        (foreach mgY mgRidgePts (peb-ridge-ladder 0 len mgY wid))   ; F5 ladder on each gable ridge (owner 3-Jul)
+        ;; owner 4-Jul: each gable ridge = dash-dot CENTERX2 line; L-leader symbol in the 3rd bay from right.
+        (foreach mgY mgRidgePts (peb-ridge-line 0 len mgY))
         (setvar "CLAYER" "GRID-LINES")
         (foreach mgY mgValleyPts (command "LINE" (list 0 mgY) (list len mgY) ""))
-        ;; Native MLEADERs on each ridge + valley line
         (foreach mgY mgRidgePts
           (vl-catch-all-apply
             (function (lambda ()
-              (peb-ridge-callout "RIDGE LINE" (* len 0.75) mgY)))))
+              (peb-ridge-symbol (peb-ridge-bay-x bayPts) mgY)))))
         (foreach mgY mgValleyPts
           (vl-catch-all-apply
             (function (lambda ()
