@@ -526,9 +526,15 @@
 ;; Draw a COMPILED Rule-Book symbol (from *PEB-SYMBOLS*, written by compile_rulebook.py) at (x,y) —
 ;; primitives are relative to the base = the point that lands on the drawing.  Returns T if drawn,
 ;; nil if the symbol isn't available (caller falls back to its built-in shape).  (owner 4-Jul)
-(defun peb-draw-symbol (name x y / sym prev pl)
-  (if (and (null *PEB-SYMBOLS*) (null *PEB-RULES-TRIED*))
-    (progn (setq *PEB-RULES-TRIED* T) (peb-load-rules)))
+(defun peb-draw-symbol (name x y / sym prev pl f)
+  ;; load the compiled symbols file directly (retry-able each call until *PEB-SYMBOLS* is set) — so it
+  ;; picks up _peb_symbols.lsp even if the engine was loaded before the compiler wrote it.
+  (if (null *PEB-SYMBOLS*)
+    (foreach c (list "_peb_symbols.lsp"
+                     "D:/maimaar-os/3_Draftsman/Proposal Drawings/engine/_peb_symbols.lsp"
+                     "D:/maimaar-os/3_Draftsman/AutoCAD_Drawings/Multi_Area_Development/Compiler/_peb_symbols.lsp")
+      (if (and (null *PEB-SYMBOLS*) (setq f (findfile c)))
+        (vl-catch-all-apply (function (lambda () (load f)))))))
   (setq sym (cdr (assoc name *PEB-SYMBOLS*)) prev (getvar "CLAYER"))
   (if sym
     (progn
@@ -946,13 +952,15 @@
   ;; Abbreviated to save space (owner 4-Jul): O/O = out to out, C/C = centre to centre, I/I = in to in.
   (setq u (strcase b))
   (cond
-    ((wcmatch u "*SHEET*")                              "O/O SHEETING")
+    ;; owner 4-Jul: the two "steel"/"steel line" planes renamed to the clearer, distinct
+    ;; O/O STEEL COLUMN (steel outer face) and O/O SHEETING LINE (cladding outer face).
+    ((wcmatch u "*SHEET*")                              "O/O SHEETING LINE")
     ((wcmatch u "*CENTER TO CENTER*,*CENTRE TO CENTRE*,*C/C*") "C/C STEEL")
-    ((wcmatch u "*BRICK*")                              "O/O BRICKWORK")
+    ((wcmatch u "*BRICK*,*MASON*")                      "O/O BRICKWORK")
     ((wcmatch u "*KNEE*")                               "I/I STEEL @ KNEE")
     ((wcmatch u "*BASE*")                               "I/I STEEL @ BASE")
-    ((wcmatch u "*STEEL LINE*,*OUT TO OUT OF STEEL*")   "O/O STEEL")
-    ((= u "")                                           "O/O STEEL")
+    ((wcmatch u "*STEEL*,*OUT TO OUT OF STEEL*")        "O/O STEEL COLUMN")
+    ((= u "")                                           "O/O STEEL COLUMN")
     (T u)))
 
 ;; Basis -> witness-line offsets (lo hi) in mm, so the dim/marking lines sit at
