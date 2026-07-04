@@ -2308,6 +2308,8 @@
   (setq borderL (- 0.0 bMarg))
   (setq borderR (max (+ len bMarg) (+ c6 (* 800 *PEB-TEXT-SCALE*))))
   (setq borderT (+ yFrmTop (* 400.0 *PEB-TEXT-SCALE*)))
+  (princ (strcat "\n[BORDER-DEBUG R2] borderL=" (rtos borderL 2 0) " borderR=" (rtos borderR 2 0)
+                 " DIMSCALE=" (rtos *PEB-DIM-SCALE* 2 2) " BUBRAD=" (rtos *PEB-BUBRAD* 2 0)))
 
   ;; Heights — same as Section (175 / 225, halved from earlier).
   (setq tblHeaderH  (* 175 tbScale))
@@ -3656,7 +3658,7 @@
   (princ "\n────────────────────────────────────────────────────\n")
   (princ))
 
-(princ "\nMAIMAAR PEB-PLAN (Phase-2 standalone) loaded. Command: PEB-PLAN")
+(princ "\nMAIMAAR PEB-PLAN (Phase-2 standalone) loaded [BUILD 2026-07-04-R2 border-centre+bubble]. Command: PEB-PLAN")
 (princ "\nPDF helper:    type PEB-PDF  then pick window corners.")
 (princ "\nIdentify tool: type PEB-WHAT then pick any entity to see its LISP source.\n")
 (princ)
