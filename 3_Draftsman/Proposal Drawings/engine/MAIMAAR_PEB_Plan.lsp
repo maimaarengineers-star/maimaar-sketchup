@@ -1110,19 +1110,20 @@
 ;; triangular apex, block ratios half-width:base:apex = 300:217.5:217.5, mid-notch 37.5) with the apex
 ;; pointing in the FALL direction, and "FALL <slope>" text VERTICAL, BEHIND the symbol (opposite the
 ;; apex).  Autosized by u (building size, passed in).  Pentagon on FALL (red), text on TEXT.
-(defun peb-fall-marker (x y dir u / prev hw bh mn ah th thFin)
-  ;; thFin = FINAL text height (~0.5*u, clamped 500-1200 ~ Roshan). `txt` re-multiplies by
-  ;; *PEB-TEXT-SCALE*, so pass th = thFin / scale; position with thFin. (Was 0.9*u then ×scale -> huge.)
+(defun peb-fall-marker (x y dir u / prev hw bh mn ah thRaw thFin)
+  ;; thRaw = a normal label height (~480, like the wall labels); `txt` multiplies it by *PEB-TEXT-SCALE*
+  ;; so the FALL text scales up with the building (readable). thFin = the scaled height, used to
+  ;; position the text just behind the apex.
   (setq prev (getvar "CLAYER") hw u bh (* 0.725 u) mn (* 0.125 u) ah (* 0.725 u)
-        thFin (max 500.0 (min 1200.0 (* 0.5 u)))
-        th (/ thFin (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)))
+        thRaw 480.0
+        thFin (* thRaw (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)))
   (setvar "CLAYER" "FALL")
   (command "_.PLINE"
     (list (- x hw) (- y (* dir bh))) (list (+ x hw) (- y (* dir bh)))
     (list (+ x hw) (- y (* dir mn))) (list x (+ y (* dir ah))) (list (- x hw) (- y (* dir mn)))
     "_C")
   (setvar "CLAYER" "TEXT")                                  ; "FALL <slope>" behind the apex, vertical
-  (txt "MC" (list x (- y (* dir (+ bh (* 2.4 thFin))))) th 90.0 (strcat "FALL " (peb-slope-text)))
+  (txt "MC" (list x (- y (* dir (+ bh (* 2.4 thFin))))) thRaw 90.0 (strcat "FALL " (peb-slope-text)))
   (setvar "CLAYER" prev))
 
 (defun arrow-up-big   (x y u) (peb-fall-marker x y  1.0 u)) ; fall toward FSW (up)
@@ -1645,8 +1646,11 @@
   ;; bump in text/dim/leader size — finer-grained than the old 5-step
   ;; ladder, no sudden jumps.
   (setq maxSize (max len wid))
+  ;; owner 4-Jul: on large buildings text/bubbles were too small to read once plotted. Raised the cap
+  ;; 2.5 -> 4.0 and lowered the divisor 60000 -> 45000 so big buildings get larger, readable elements.
+  ;;   46 m -> 1.02   100 m -> 2.22   150 m -> 3.39   200 m -> 4.0 (cap)
   (setq *PEB-TEXT-SCALE*
-        (max 0.60 (min 2.50 (/ maxSize 60000.0))))
+        (max 0.80 (min 4.00 (/ maxSize 45000.0))))
   (setq *PEB-DIM-SCALE* *PEB-TEXT-SCALE*)
 
   ;; ── End wall columns ─────────────────────────────────────────
@@ -1789,9 +1793,9 @@
   (foreach p bayPts   (if prevp (setq minSp (min minSp (- p prevp)))) (setq prevp p))
   (setq prevp nil)
   (foreach p gridWpts (if prevp (setq minSp (min minSp (- p prevp)))) (setq prevp p))
-  ;; owner 4-Jul: cap bubble radius to the Rule-Book block size (r=620); still shrinks for tight bays
-  ;; (0.275*minSp) so bubbles never touch, and never balloons on big buildings (was 620*scale -> 898).
-  (setq *PEB-BUBRAD* (max 430.0 (min 650.0 (* 620.0 *PEB-TEXT-SCALE*) (* 0.275 minSp))))
+  ;; owner 4-Jul: bubbles must be big enough to READ. Floor 650, grow with the building (620*scale),
+  ;; only shrink if bays are tight (0.42*minSp so bubbles still never touch).
+  (setq *PEB-BUBRAD* (max 650.0 (min (* 620.0 *PEB-TEXT-SCALE*) (* 0.42 minSp))))
   (setq bubR (+ *PEB-BUBRAD* (* 60.0 *PEB-TEXT-SCALE*)))       ; stem stops just outside the bubble
   ;; TOP stack (upward from the FSW edge y=wid): dim -> dim -> bubble -> label -> subtitle -> title -> frame
   (setq yBayDim (+ wid (* 900.0 *PEB-DIM-SCALE*)))                       ; per-bay dim chain
