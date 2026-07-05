@@ -501,7 +501,8 @@
           (cons 10 (list (- x (* 0.7 s))    (+ y (* 221.7 s))))  (cons 42 1.0)    ; curl arc
           (cons 10 (list (- x (* 1.7 s))    (+ y (* 504.3 s))))  (cons 42 1.0)    ; curl arc
           (cons 10 (list x y))                                   (cons 42 0.0)))  ; tip on the ridge line
-  (txt-bold "ML" (list (+ x (* 414.0 s)) (+ y (* 1714.5 s))) (peb-th 'ANNOT) 0 "RIDGE LINE")
+  ;; owner 5-Jul: text sits ABOVE the shelf line (bottom-aligned above y+1513*s) — no overlap with the line.
+  (txt-bold "BL" (list (+ x (* 414.0 s)) (+ y (* 1720.0 s))) (peb-th 'ANNOT) 0 "RIDGE LINE")
   (setvar "CLAYER" prev))
 
 ;; x-midpoint of the 3rd bay FROM THE RIGHT (owner rule); 2-3 bays -> 2nd bay; 1 bay -> centre.
@@ -993,7 +994,7 @@
   (cond
     ;; owner 4-Jul: the two "steel"/"steel line" planes renamed to the clearer, distinct
     ;; O/O STEEL COLUMN (steel outer face) and O/O SHEETING LINE (cladding outer face).
-    ((wcmatch u "*SHEET*")                              "O/O SHEETING LINE")
+    ((wcmatch u "*SHEET*")                              "O/O SH. LINE")
     ((wcmatch u "*CENTER TO CENTER*,*CENTRE TO CENTRE*,*C/C*") "C/C STEEL")
     ((wcmatch u "*BRICK*,*MASON*")                      "O/O BRICKWORK")
     ((wcmatch u "*KNEE*")                               "I/I STEEL @ KNEE")
@@ -1149,8 +1150,11 @@
     (list (+ x (* 0.944 a)) (+ y (* dir 0.023 a)))          ; right wing
     "_C")
   (command "_.CIRCLE" (list x y) (* 0.595 a))               ; circle at the arrow centre
-  (setvar "CLAYER" "TEXT")                                   ; "FALL <slope>" behind the apex, vertical
-  (txt "MC" (list x (- y (* dir (+ (* 0.90 a) (* 1.6 thFin))))) thRaw 90.0 (strcat "FALL " (peb-slope-text)))
+  (setvar "CLAYER" "TEXT")
+  ;; owner 5-Jul (Fall Sample): "FALL" VERTICAL on the shaft; the slope ratio SMALL + HORIZONTAL just
+  ;; BEHIND the tail (opposite the arrowhead), not merged into the vertical text.
+  (txt "MC" (list x (- y (* dir 0.15 a))) (* thRaw 0.95) 90.0 "FALL")
+  (txt "MC" (list x (- y (* dir (+ (* 0.64 a) (* 1.05 thFin))))) (* thRaw 0.66) 0.0 (peb-slope-text))
   (setvar "CLAYER" prev))
 
 (defun arrow-up-big   (x y u) (peb-fall-marker x y  1.0 u)) ; fall toward FSW (up)
@@ -1406,7 +1410,7 @@
   (tb-mtext (+ X0 (* W 0.04)) (- bt (* lbl 1.3)) lbl cw 1 "STEEL CONTRACTOR :" grey)
   (peb-tb-place-logo (+ X0 (* W 0.10)) (+ yCur (* rh 0.52))
                      (+ X0 (* W 0.90)) (- bt (* lbl 2.4)))
-  (tb-mtext (+ X0 (* W 0.06)) (+ yCur (* rh 0.48)) sm cw 1 (tb-get "ADDR") white)
+  (tb-mtext (+ X0 (* W 0.06)) (+ yCur (* rh 0.62)) (* sm 0.84) cw 1 (tb-get "ADDR") white)  ; owner 5-Jul: raised + shrunk so the CELL line stays inside the cell (was crossing the divider)
   (tb-hdiv yCur)
   ;; quote / bldg rows
   (foreach pr (list (list "QUOTE NO." (tb-get "QUOTE"))
@@ -1787,16 +1791,17 @@
   (defun aLn (x1 y1 x2 y2)
     (entmake (list (cons 0 "LINE") (cons 8 "AREA-MARK")
                    (list 10 x1 y1 0.0) (list 11 x2 y2 0.0))))
-  (defun aLnS (x1 y1 x2 y2)                                   ; grey line for the drop-shadow
-    (entmake (list (cons 0 "LINE") (cons 8 "AREA-MARK") (cons 62 8)
-                   (list 10 x1 y1 0.0) (list 11 x2 y2 0.0))))
+  (defun aSol (x1 y1 x2 y2 x3 y3 x4 y4)                       ; FILLED grey quad (SOLID) for the drop-shadow
+    (entmake (list (cons 0 "SOLID") (cons 8 "AREA-MARK") (cons 62 8)
+                   (list 10 x1 y1 0.0) (list 11 x2 y2 0.0)   ; SOLID wants the 3rd/4th corner swapped
+                   (list 12 x4 y4 0.0) (list 13 x3 y3 0.0))))
   (setq aFL (- aCx aBw) aFR (+ aCx aBw) aFB (- aCy aBh) aFT (+ aCy aBh))  ; front box corners
-  ;; DROP SHADOW / raised-box (owner 5-Jul: match BUILDING-01 sample) — grey box offset DOWN-LEFT behind
-  ;; the tag + 4 corner connectors -> extruded/shadowed look.  Pure outlines (plot-safe).
-  (setq aSo (* aBh 0.60) aSL (- aFL aSo) aSR (- aFR aSo) aSB (- aFB aSo) aST (- aFT aSo))
-  (aLnS aSL aSB aSR aSB) (aLnS aSR aSB aSR aST) (aLnS aSR aST aSL aST) (aLnS aSL aST aSL aSB)  ; back box
-  (aLnS aFL aFB aSL aSB) (aLnS aFR aFB aSR aSB) (aLnS aFR aFT aSR aST) (aLnS aFL aFT aSL aST)  ; connectors
-  ;; centre box (4 lines) — front face, on top
+  ;; DROP SHADOW (owner 5-Jul: match the BUILDING-01 sample) — a FILLED grey L behind the tag, offset
+  ;; DOWN-LEFT (left strip + bottom strip only, so it never bleeds through the box interior). Plot-safe.
+  (setq aSo (* aBh 0.55))
+  (aSol (- aFL aSo) (- aFB aSo) aFL (- aFB aSo) aFL (- aFT aSo) (- aFL aSo) (- aFT aSo))  ; left strip
+  (aSol (- aFL aSo) (- aFB aSo) (- aFR aSo) (- aFB aSo) (- aFR aSo) aFB (- aFL aSo) aFB)  ; bottom strip
+  ;; centre box (4 lines) — front face, on top of the shadow
   (aLn aFL aFB aFR aFB) (aLn aFR aFB aFR aFT) (aLn aFR aFT aFL aFT) (aLn aFL aFT aFL aFB)
   ;; AREA CROSS LINES (Roshan, owner): each building corner leadered to the NEAREST corner of the AREA
   ;; tag box — the diagonals CONNECT to the tag box corners (owner 4-Jul: must touch the tag corners).
@@ -2113,17 +2118,17 @@
     (cond
       ((member stype '("CS" "MS" "RC"))
         (foreach sx slopeXs
-          (arrow-up-big   sx (* wid 0.75) fallU)     ; mid ridge <-> FSW
-          (arrow-down-big sx (* wid 0.25) fallU)))   ; mid ridge <-> NSW
+          (arrow-up-big   sx (* wid 0.875) fallU)    ; owner 5-Jul: 3/4 from ridge -> near FSW
+          (arrow-down-big sx (* wid 0.125) fallU)))  ; owner 5-Jul: 3/4 from ridge -> near NSW
       ((= stype "MG")
         (foreach mgY mgRidgePts
           (foreach sx slopeXs
-            (arrow-up-big   sx (+ mgY (* mgGableW 0.25)) fallU)
-            (arrow-down-big sx (- mgY (* mgGableW 0.25)) fallU))))
+            (arrow-up-big   sx (+ mgY (* mgGableW 0.375)) fallU)   ; owner 5-Jul: 3/4 from gable ridge
+            (arrow-down-big sx (- mgY (* mgGableW 0.375)) fallU))))
       ((= stype "BF")
         (foreach sx slopeXs
-          (arrow-down-big sx (* wid 0.75) fallU)
-          (arrow-up-big   sx (* wid 0.25) fallU)))
+          (arrow-down-big sx (* wid 0.875) fallU)   ; owner 5-Jul: 3/4 from ridge -> near wall
+          (arrow-up-big   sx (* wid 0.125) fallU)))
       ((= stype "FR")
         (progn (setvar "CLAYER" "TEXT")
                (txt "MC" (list (* len 0.50) (* wid 0.57)) 600 0 "MINIMUM ROOF SLOPE / DRAINAGE AS PER DESIGN")))
@@ -2220,7 +2225,7 @@
   ;; Overall length dim — real VALUE (nth 0); witness/arrows on the DRAWN plane (nth 3/4) so the
   ;; C/C line crosses the drawn web centre, not the bolts (owner 4-Jul).
   (peb-dim-h-stretch (nth 3 ldim) (+ len (nth 4 ldim)) yOvrDim
-                     (peb-fmt-labelled "BUILDING LENGTH" (nth 0 ldim) (peb-basis-suffix lref)))
+                     (peb-fmt-labelled "BLDG. LENGTH" (nth 0 ldim) (peb-basis-suffix lref)))
   (peb-recolor-last-dim 0)                   ; ByBlock for overall length
 
   ;; ── WIDTH DIMENSIONS: 3 NESTED CHAINS (owner 4-Jul) ─────────────────────────────
@@ -2246,7 +2251,7 @@
       (peb-recolor-last-dim 0)))              ; LEW width module (middle)
   ;; (3) OVERALL WIDTH — LEW outermost (-4800). Real VALUE (nth 0); witness on the DRAWN plane (nth 3/4).
   (peb-dim-height-stretch 0.0 (- (* 3.0 dimGap)) (nth 3 wdim) (+ wid (nth 4 wdim))
-                          (peb-fmt-labelled "BUILDING WIDTH" (nth 0 wdim) (peb-basis-suffix wref)))
+                          (peb-fmt-labelled "BLDG. WIDTH" (nth 0 wdim) (peb-basis-suffix wref)))
   (peb-recolor-last-dim 0)                    ; LEW overall width (outermost)
 
   ;; ── Title (Phase-2A: compact dim × dim with area) ────────────
