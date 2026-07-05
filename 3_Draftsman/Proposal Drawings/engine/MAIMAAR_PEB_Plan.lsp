@@ -2506,30 +2506,30 @@
       (cons "SCALE"     "N.T.S.")
       (cons "SHEETSIZE" "A1")
       (cons "SHEETNO"   (strcat "PRO-" tbBno))))
-  ;; Multi-area: suppress the per-area title block (only ONE AcDbTable title block per sheet — a
-  ;; 2nd in the same session crashes acad). Default nil → single-area behaviour unchanged.
-  (if (not *PEB-SUPPRESS-TB*)
-    (peb-titleblock-mammut tbStripX tbFrmB tbStripW tbStripH tbData))
+  ;; (The title block is drawn in the BORDER block below — sized to FILL the right side flush to the
+  ;;  border, no gap on 3 sides.  owner 5-Jul.  *PEB-SUPPRESS-TB* still governs multi-area suppression.)
 
   ;; Restore drawing scales (title block done)
   (setq *PEB-TEXT-SCALE* *PEB-OLD-TEXT-SCALE*)
   (setq *PEB-DIM-SCALE*  *PEB-OLD-DIM-SCALE*)
 
-  ;; Drawing border — owner 4-Jul STRICT RULE: ALL drawings + labels sit INSIDE the cover lines with an
-  ;; EVEN gap all around.  ROBUST FIX (replaces the old formula borderL = -6500*DIMSCALE that the long /
-  ;; narrow multi-span 195 escaped on the LEW side by ~14600): derive the border from the TRUE drawn
-  ;; extents + ONE uniform margin, so every building self-fits.  ZOOM Extents forces EXTMIN/EXTMAX to the
-  ;; tight bounding box of everything already drawn (plan + dims + LEW/REW labels + title strip); the
-  ;; border is then that box grown by bGap on all four sides.  (bMarg/borderR-from-strip are retired.)
+  ;; ── Border + AUTO-FILL title block (owner 5-Jul: the title panel FILLS the right side with NO gap on
+  ;; 3 sides, like the Cover table).  Order matters: grab the BUILDING-zone extents FIRST (title block not
+  ;; yet drawn) so the border top/left/bottom come from the plan + one uniform margin; then draw the title
+  ;; panel as a FULL-BORDER-HEIGHT strip on the right whose right edge IS the right border (flush).
+  ;; peb-titleblock-mammut is fully proportional to (W,H) so it auto-scales to fill — no separate resize.
   (setq bGap (max (* 3000.0 *PEB-DIM-SCALE*) *PEB-BUBRAD*))
   (vl-catch-all-apply (function (lambda () (command "_.ZOOM" "_E"))))
   (setq exmin (getvar "EXTMIN") exmax (getvar "EXTMAX"))
   (setq borderL (- (car  exmin) bGap)
         borderB (- (cadr exmin) bGap)
-        borderR (+ (car  exmax) bGap)
         borderT (+ (cadr exmax) bGap))
+  (setq tbStripX (+ (car exmax) (* 3500.0 *PEB-DIM-SCALE*))   ; gap right of the building content
+        borderR  (+ tbStripX tbStripW))                       ; right border = panel right edge (no gap)
   (if (not *PEB-SUPPRESS-TB*)
-    (draw-border borderL borderB borderR borderT))
+    (progn
+      (peb-titleblock-mammut tbStripX borderB tbStripW (- borderT borderB) tbData)  ; fills full height
+      (draw-border borderL borderB borderR borderT)))
 
   (command "UNDO" "END")
   (setvar "GRIDMODE" 0)
