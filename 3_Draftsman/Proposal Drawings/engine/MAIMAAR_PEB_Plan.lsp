@@ -1403,10 +1403,13 @@
             "MAIMAAR STEEL (PVT) LTD - NOT FOR CONSTRUCTION}") cyan)
   (tb-hdiv yCur)
   ;; ----- DESIGN-LOAD table (Mammut format) -----
-  (setq lx (+ X0 (* W 0.05)) vx (+ X0 (* W 0.60)) ux (+ X0 (* W 0.80)))
+  (setq lx (+ X0 (* W 0.05)) vx (+ X0 (* W 0.635)) ux (+ X0 (* W 0.82)))   ; owner 5-Jul: value col moved right so long labels (WIND SPEED (3-SEC GUST)) don't touch the value
   (setq rh (* H 0.052) bt yCur yCur (- yCur rh))
-  (tb-mtext (+ X0 (* W 0.04)) (- bt (* H 0.0150))
-    (tb-fith "SUPPORT IT'S OWN DEAD LOAD PLUS:" cw (* H 0.0120)) cw 1
+  ;; owner 5-Jul: the BOLD heading is wider than tb-fith's non-bold estimate, so it was wrapping to 3 lines
+  ;; and the 3rd overran the first load row.  Size it small enough that each half stays on ONE line (2 lines
+  ;; total) and give the wrap the full inner width.
+  (tb-mtext (+ X0 (* W 0.035)) (- bt (* H 0.0110))
+    (tb-fith "THE BUILDING HAS BEEN DESIGNED TO" (* cw 0.80) (* H 0.0086)) (* W 0.93) 1
     (strcat "{\\fArial|b1;THE BUILDING HAS BEEN DESIGNED TO\\P"
             "SUPPORT IT'S OWN DEAD LOAD PLUS:}") green)
   (foreach r (list
@@ -2245,12 +2248,14 @@
   ;; owner 4-Jul: wall labels are SIMPLE — the full name only, no open-wall condition suffix.
   ;; owner 5-Jul (multi-area): drop the wall label on the side SHARED with an attached area (avoids the
   ;; label piling onto the reference area at the join).
-  (if (not (peb-hide-wall-label-p "FSW")) (txt-bold "MC" (list (/ len 2.0) yFsw) 560 0 "FSW - FAR SIDE WALL"))
-  (if (not (peb-hide-wall-label-p "NSW")) (txt-bold "MC" (list (/ len 2.0) (- (* 3000 *PEB-TEXT-SCALE*))) 560 0 "NSW - NEAR SIDE WALL"))
+  ;; owner 5-Jul (multi-area): in multi-area mode NO area draws the outer wall labels — the FINALIZE draws
+  ;; the four labels ONCE around the whole combined building, so they never repeat per stacked/side area.
+  (if (and (not *PEB-MULTI-MODE*) (not (peb-hide-wall-label-p "FSW"))) (txt-bold "MC" (list (/ len 2.0) yFsw) 560 0 "FSW - FAR SIDE WALL"))
+  (if (and (not *PEB-MULTI-MODE*) (not (peb-hide-wall-label-p "NSW"))) (txt-bold "MC" (list (/ len 2.0) (- (* 3000 *PEB-TEXT-SCALE*))) 560 0 "NSW - NEAR SIDE WALL"))
   ;; owner 4-Jul: LEW label sits OUTSIDE the letter bubbles (was sandwiched between the width dims and
   ;; the bubbles -> overlapped the dim text). REW side has no dims/bubbles, so it stays close.
-  (if (not (peb-hide-wall-label-p "LEW")) (txt-bold "MC" (list (- gridX1 (* 2200.0 *PEB-DIM-SCALE*)) (/ wid 2.0)) 560 90 "LEW - LEFT END WALL"))
-  (if (not (peb-hide-wall-label-p "REW")) (txt-bold "MC" (list (+ len (* 3000 *PEB-DIM-SCALE*)) (/ wid 2.0)) 560 90 "REW - RIGHT END WALL"))
+  (if (and (not *PEB-MULTI-MODE*) (not (peb-hide-wall-label-p "LEW"))) (txt-bold "MC" (list (- gridX1 (* 2200.0 *PEB-DIM-SCALE*)) (/ wid 2.0)) 560 90 "LEW - LEFT END WALL"))
+  (if (and (not *PEB-MULTI-MODE*) (not (peb-hide-wall-label-p "REW"))) (txt-bold "MC" (list (+ len (* 3000 *PEB-DIM-SCALE*)) (/ wid 2.0)) 560 90 "REW - RIGHT END WALL"))
 
   ;; ── End-frame type MLEADERs (Phase-2A v12) ─────────────────────
   ;; Replaces the old "END FRAME" / "BEARING FRAME (TYP.)" txt labels.
@@ -2274,8 +2279,11 @@
   ;; beside the LEW/REW wall labels.  (If an end is a Main Frame, its corner
   ;; columns are already drawn lengthwise = interior main-frame size/direction.)
   (setvar "CLAYER" "TEXT")
-  (if (not (peb-hide-wall-label-p "LEW")) (txt-bold "MC" (list (- gridX1 (* 4400.0 *PEB-DIM-SCALE*)) (/ wid 2.0)) 430 90 (strcat "(" lewFrameLabel ")")))
-  (if (not (peb-hide-wall-label-p "REW")) (txt-bold "MC" (list (+ len (* 4500 *PEB-DIM-SCALE*)) (/ wid 2.0)) 430 90 (strcat "(" rewFrameLabel ")")))
+  ;; owner 5-Jul (multi-area): drop the per-end frame-type words + the BOTH-ENDS leader in multi-area — they
+  ;; repeat per stacked area and overprint the width dims.  (Single-area draws them normally.)
+  (if (and (not *PEB-MULTI-MODE*) (not (peb-hide-wall-label-p "LEW"))) (txt-bold "MC" (list (- gridX1 (* 4400.0 *PEB-DIM-SCALE*)) (/ wid 2.0)) 430 90 (strcat "(" lewFrameLabel ")")))
+  (if (and (not *PEB-MULTI-MODE*) (not (peb-hide-wall-label-p "REW"))) (txt-bold "MC" (list (+ len (* 4500 *PEB-DIM-SCALE*)) (/ wid 2.0)) 430 90 (strcat "(" rewFrameLabel ")")))
+  (if (not *PEB-MULTI-MODE*)
   (cond
     ;; Both ends same → ONE MLEADER, "BEARING FRAME / BOTH ENDS"
     ((= lewFrameLabel rewFrameLabel)
@@ -2303,7 +2311,7 @@
                                  (list (+ len (* 4500 *PEB-DIM-SCALE*))
                                        (+ wid (* 2800 *PEB-TEXT-SCALE*)))
                                  (list len wid)
-                                 "S" 600.0))))))
+                                 "S" 600.0)))))))   ; extra ) closes the (if (not *PEB-MULTI-MODE*) around the cond
 
   ;; ── Dimensions (Phase-2A v3 — Mammut-style group format) ─────
   ;; Bays + widths now grouped by runs of equal spacing.  A group of N
@@ -3709,7 +3717,7 @@
 ;; one border + title block around the whole placed set.  owner 5-Jul: size the margin + title-block strip
 ;; from the COMBINED extents (not the last/smallest area's params — that made the strip too narrow and the
 ;; title-block text squish).  Same proportions a single sheet would use for a building this size.
-(defun peb-draw-combined-frame ( / exmin exmax cw ch cds bGap sh tbW bL bB bT bR tbX)
+(defun peb-draw-combined-frame ( / exmin exmax cw ch cds bGap sh tbW bL bB bT bR tbX g0x g0y g1x g1y gcx gcy gof lh)
   (vl-catch-all-apply (function (lambda () (command "_.ZOOM" "_E"))))
   (setq exmin (getvar "EXTMIN") exmax (getvar "EXTMAX")
         cw (- (car exmax) (car exmin)) ch (- (cadr exmax) (cadr exmin))
@@ -3730,6 +3738,17 @@
   (setvar "CLAYER" "TEXT")
   (txt-bold "MC" (list (/ (+ (car exmin) (car exmax)) 2.0) (+ (cadr exmax) (* bGap 0.5)))
             (* sh 0.0072) 0 "COLUMN LAYOUT PLAN")
+  ;; owner 5-Jul (multi-area): the FOUR outer wall labels drawn ONCE around the whole combined building
+  ;; (bbox supplied by the driver as *PEB-MA-BLDG-BBOX* = (x0 y0 x1 y1)) — never repeated per stacked area.
+  (if *PEB-MA-BLDG-BBOX*
+    (progn
+      (setq g0x (nth 0 *PEB-MA-BLDG-BBOX*) g0y (nth 1 *PEB-MA-BLDG-BBOX*)
+            g1x (nth 2 *PEB-MA-BLDG-BBOX*) g1y (nth 3 *PEB-MA-BLDG-BBOX*)
+            gcx (/ (+ g0x g1x) 2.0) gcy (/ (+ g0y g1y) 2.0) gof (* 3200.0 cds) lh (* sh 0.0052))
+      (txt-bold "MC" (list gcx (+ g1y gof)) lh 0  "FSW - FAR SIDE WALL")
+      (txt-bold "MC" (list gcx (- g0y gof)) lh 0  "NSW - NEAR SIDE WALL")
+      (txt-bold "MC" (list (- g0x gof) gcy) lh 90 "LEW - LEFT END WALL")
+      (txt-bold "MC" (list (+ g1x gof) gcy) lh 90 "REW - RIGHT END WALL")))
   (command "_.ZOOM" "_E")
   (princ))
 
