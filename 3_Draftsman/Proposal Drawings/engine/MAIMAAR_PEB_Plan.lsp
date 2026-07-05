@@ -1135,26 +1135,32 @@
 ;; it.  Replaces the old house-pentagon.  Geometry reproduced (ratio-to-scale) from the Roshan reference
 ;; DXF (MAMMUT_09): apex 1.063a, wings ±0.944a, shaft ±0.678a x -0.640a, circle r 0.595a — where a = u
 ;; (building size, so it autosizes like before).  dir (+/-1) flips the arrow for the down-slope side.
-(defun peb-fall-marker (x y dir u / prev a thRaw thFin)
+(defun peb-fall-marker (x y dir u / prev a ts fh sh)
+  ;; Roshan "Fall Sample" style (owner 5-Jul): a hollow BLOCK ARROW (long rectangular shaft + chevron
+  ;; head) with a CIRCLE in the head, "FALL" VERTICAL on the SHAFT (clear of the circle), and the slope
+  ;; ratio SMALL + HORIZONTAL just behind the TAIL.  a = arrow scale (u).  dir (+/-1) points it in the
+  ;; fall direction.  KEY FIX: the text is sized PROPORTIONAL to the arrow (a), not to *PEB-TEXT-SCALE*
+  ;; independently — before, "FALL" (thRaw*TS) was ~= the whole arrow and buried it.  txt re-scales by TS,
+  ;; so the passed height is (world / TS).
   (setq prev (getvar "CLAYER") a u
-        thRaw 480.0
-        thFin (* thRaw (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)))
+        ts (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)
+        fh (/ (* 0.52 a) ts)          ; "FALL" world height ~0.52a
+        sh (/ (* 0.42 a) ts))         ; slope world height ~0.42a
   (setvar "CLAYER" "FALL")
+  ;; block-arrow outline (apex on the +dir side; long shaft + tail on the -dir side)
   (command "_.PLINE"
-    (list x                 (+ y (* dir 1.063 a)))          ; apex (arrow head tip)
-    (list (- x (* 0.944 a)) (+ y (* dir 0.023 a)))          ; left wing
-    (list (- x (* 0.678 a)) (+ y (* dir 0.023 a)))          ; left shoulder
-    (list (- x (* 0.678 a)) (- y (* dir 0.640 a)))          ; left shaft foot
-    (list (+ x (* 0.678 a)) (- y (* dir 0.640 a)))          ; right shaft foot
-    (list (+ x (* 0.678 a)) (+ y (* dir 0.023 a)))          ; right shoulder
-    (list (+ x (* 0.944 a)) (+ y (* dir 0.023 a)))          ; right wing
+    (list (- x (* 0.32 a)) (+ y (* dir -1.40 a)))   ; tail L
+    (list (+ x (* 0.32 a)) (+ y (* dir -1.40 a)))   ; tail R
+    (list (+ x (* 0.32 a)) (+ y (* dir  0.35 a)))   ; shaft R -> head base
+    (list (+ x (* 0.62 a)) (+ y (* dir  0.35 a)))   ; right wing
+    (list x                (+ y (* dir  1.40 a)))   ; apex (tip)
+    (list (- x (* 0.62 a)) (+ y (* dir  0.35 a)))   ; left wing
+    (list (- x (* 0.32 a)) (+ y (* dir  0.35 a)))   ; shaft L
     "_C")
-  (command "_.CIRCLE" (list x y) (* 0.595 a))               ; circle at the arrow centre
+  (command "_.CIRCLE" (list x (+ y (* dir 0.50 a))) (* 0.46 a))   ; circle in the arrow head
   (setvar "CLAYER" "TEXT")
-  ;; owner 5-Jul (Fall Sample): "FALL" VERTICAL on the shaft; the slope ratio SMALL + HORIZONTAL just
-  ;; BEHIND the tail (opposite the arrowhead), not merged into the vertical text.
-  (txt "MC" (list x (- y (* dir 0.15 a))) (* thRaw 0.95) 90.0 "FALL")
-  (txt "MC" (list x (- y (* dir (+ (* 0.64 a) (* 1.05 thFin))))) (* thRaw 0.66) 0.0 (peb-slope-text))
+  (txt "MC" (list x (+ y (* dir -0.45 a))) fh 90.0 "FALL")        ; FALL vertical on the shaft, clear of circle
+  (txt "MC" (list x (+ y (* dir -1.92 a))) sh  0.0 (peb-slope-text)) ; slope small + horizontal behind the tail
   (setvar "CLAYER" prev))
 
 (defun arrow-up-big   (x y u) (peb-fall-marker x y  1.0 u)) ; fall toward FSW (up)
