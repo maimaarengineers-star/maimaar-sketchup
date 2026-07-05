@@ -808,6 +808,57 @@
             (setvar "PLINEWID" 0.0))))))
   (setvar "CLAYER" prevLayer))
 
+;; Rotated (WIDTH-axis) bracing symbol — the bowtie X spans y0..y1 on the vertical line x=xx (for END-WALL
+;; bracing between adjacent end-wall columns).  Mirror of peb-brace-line with the axes swapped; d = half-width.
+(defun peb-brace-line-v (y0 y1 xx d btype / bt wt ya yb)
+  (setq bt (strcase btype)
+        wt (* (peb-rule "brace_web_offset_xD" 0.013) (if *PEB-COL-WEB* *PEB-COL-WEB* 700.0))
+        ya (+ y0 wt) yb (- y1 wt))
+  (cond
+    ((or (= btype "") (wcmatch bt "*NOT*APPLICABLE*") (wcmatch bt "*MINOR*AXIS*")) nil)
+    ((wcmatch bt "*DIAGONAL*")                                ; full X (web-to-web); Angle = heavier, else thin
+      (setvar "CLAYER" "CROSS")
+      (if (wcmatch bt "*ANGLE*")
+        (progn
+          (command "_.PLINE" (list (- xx d) ya) "_W" (* 40.0 *PEB-DIM-SCALE*) (* 40.0 *PEB-DIM-SCALE*) (list (+ xx d) yb) "")
+          (command "_.PLINE" (list (+ xx d) ya) (list (- xx d) yb) "")
+          (setvar "PLINEWID" 0.0))
+        (progn
+          (command "_.LINE" (list (- xx d) ya) (list (+ xx d) yb) "")
+          (command "_.LINE" (list (+ xx d) ya) (list (- xx d) yb) "")))
+      T)
+    ((wcmatch bt "*PORTAL*")                                  ; portal → thick beam line on the web centre
+      (setvar "CLAYER" "CROSS")
+      (command "_.PLINE" (list xx ya) "_W" (* 60.0 *PEB-DIM-SCALE*) (* 60.0 *PEB-DIM-SCALE*) (list xx yb) "")
+      (setvar "PLINEWID" 0.0)
+      T)
+    (T                                                        ; hybrid / other → basic rotated bowtie
+      (setvar "CLAYER" "CROSS")
+      (command "_.LINE" (list (- xx d) ya) (list (+ xx d) yb) "")
+      (command "_.LINE" (list (+ xx d) ya) (list (- xx d) yb) "")
+      T)))
+
+;; END-WALL column bracing (owner 5-Jul): X-bracing BETWEEN adjacent end-wall columns, in the LEW (x≈0)
+;; and REW (x≈len) planes, following the SAME braced-panel rule as the bays (peb-braced-bays applied to
+;; ewStations: end panels never, 2nd + 2nd-last, interior ≤27 m).  Drawn only when that end's girts are
+;; By-Framed (lewBrace/rewBrace).  Uses the exterior bracing type; inset by colOff so the X sits on the
+;; end-wall column web line (matching the sidewall convention).
+(defun peb-draw-endwall-bracing (ewStations len lewBrace rewBrace extType / braced d colOff prevLayer y0 y1)
+  (if (and ewStations (> (length ewStations) 2)
+           (or lewBrace rewBrace)
+           (/= extType "")
+           (not (wcmatch (strcase extType) "*NOT*APPLICABLE*")))
+    (progn
+      (setq prevLayer (getvar "CLAYER")
+            braced (peb-braced-bays ewStations)
+            d      (* (- 0.5 (peb-rule "flange_thick_xD" 0.04)) (if *PEB-COL-WEB* *PEB-COL-WEB* 700.0))
+            colOff (/ (if *PEB-COL-WEB* *PEB-COL-WEB* 700.0) 2.0))
+      (foreach b braced
+        (setq y0 (nth b ewStations) y1 (nth (1+ b) ewStations))
+        (if lewBrace (peb-brace-line-v y0 y1 colOff d extType))          ; LEW plane
+        (if rewBrace (peb-brace-line-v y0 y1 (- len colOff) d extType))) ; REW plane
+      (setvar "CLAYER" prevLayer))))
+
 ;; 0-based bay index containing position `at` (mm along length).
 (defun peb-bay-of (at bayPts / i)
   (setq i 0)
@@ -2091,6 +2142,9 @@
   (setq extType (MSPL-Get-Str data "BP_BRACING_EXT")
         intType (MSPL-Get-Str data "BP_BRACING_INT"))
   (vl-catch-all-apply (function (lambda () (peb-draw-bracing bayPts widthPts wid 0.0 0.0 lewBrace rewBrace extType intType))))
+  ;; End-wall column bracing (owner 5-Jul): X-bracing between the end-wall columns in the LEW/REW planes,
+  ;; same braced-panel rule as the bays, gated by lewBrace/rewBrace, exterior type.
+  (vl-catch-all-apply (function (lambda () (peb-draw-endwall-bracing ewStations len lewBrace rewBrace extType))))
 
   ;; ── Doors / windows at their offsets (+ braced-bay clash flag) ─
   (vl-catch-all-apply (function (lambda () (peb-draw-placements data 0.0 0.0 len wid bayPts))))
