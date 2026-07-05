@@ -2044,8 +2044,8 @@
         (foreach x bayPts
           (if (= x 0) (setq xdraw leftX) (if (> x (- len 1)) (setq xdraw rightX) (setq xdraw x)))
           (draw-RCC-column xdraw botY) (draw-RCC-column xdraw topY))
-        (setvar "CLAYER" "TEXT")
-        (txt-bold "MC" (list (/ len 2.0) (* wid 0.50)) 600 0 "ROOF RAFTERS FIXED ON RCC COLUMNS - NO STEEL COLUMNS")
+        ;; owner 5-Jul: centre "ROOF RAFTERS FIXED ON RCC COLUMNS" label removed — it overlapped the AREA
+        ;; tag and duplicated the "ROOF SYSTEM ON RCC COLUMNS" note already placed below the tag.
       )
     )
     ((= stype "CC")
