@@ -3385,11 +3385,30 @@
       (peb-group-entities newEnts "PEBDIMH")))
 )
 
+;; Longest line (char count) in an MText override, treating "\P" as a paragraph break (owner 5-Jul).
+(defun peb-longest-line-len (s / n best seg i c)
+  (setq best 0 seg 0 i 1 n (strlen s))
+  (while (<= i n)
+    (setq c (substr s i 1))
+    (if (and (= c "\\") (= (substr s (1+ i) 1) "P"))
+      (progn (if (> seg best) (setq best seg)) (setq seg 0 i (+ i 2)))
+      (setq seg (1+ seg) i (1+ i))))
+  (if (> seg best) (setq best seg))
+  (max best 1))
+
 (defun peb-dim-height-stretch (objX dimX y1 y2 override / lastBefore oldLayer newEnts result)
   ;;  Height dim — DIMLINEAR primary, grouped hand-rolled fallback.
   (setq lastBefore (entlast))
   (setq oldLayer   (getvar "CLAYER"))
   (peb-dim-set-vars)
+  ;; AUTOSIZE (owner 5-Jul): shrink the dim TEXT so the override label fits BETWEEN the arrows.  Caps at
+  ;; the default 500 (only shrinks when the longest line would overflow the dim span), floored at 200.
+  (if override
+    (peb-safe-setvar "DIMTXT"
+      (max 200.0 (min 500.0
+        (/ (* (abs (- y2 y1)) 0.88)
+           (* (peb-longest-line-len override) 0.62
+              (if *PEB-DIM-SCALE* *PEB-DIM-SCALE* 1.0)))))))
   (setvar "CLAYER" "DIMENSIONS")
   (setq result
     (vl-catch-all-apply
