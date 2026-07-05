@@ -501,7 +501,7 @@
           (cons 10 (list (- x (* 0.7 s))    (+ y (* 221.7 s))))  (cons 42 1.0)    ; curl arc
           (cons 10 (list (- x (* 1.7 s))    (+ y (* 504.3 s))))  (cons 42 1.0)    ; curl arc
           (cons 10 (list x y))                                   (cons 42 0.0)))  ; tip on the ridge line
-  (txt "ML" (list (+ x (* 414.0 s)) (+ y (* 1714.5 s))) (peb-th 'ANNOT) 0 "RIDGE LINE")
+  (txt-bold "ML" (list (+ x (* 414.0 s)) (+ y (* 1714.5 s))) (peb-th 'ANNOT) 0 "RIDGE LINE")
   (setvar "CLAYER" prev))
 
 ;; x-midpoint of the 3rd bay FROM THE RIGHT (owner rule); 2-3 bays -> 2nd bay; 1 bay -> centre.
@@ -796,7 +796,7 @@
             ;; owner 4-Jul: SMALLER "CROSS BRACING (TYP.)" (was 260*scale which txt re-scaled -> huge) +
             ;; a leader ARROW that TOUCHES the NSW bracing bowtie.
             (setvar "CLAYER" "TEXT")
-            (txt "MC" (list cx (- oy (* 900.0 *PEB-TEXT-SCALE*))) 180.0 0 "CROSS BRACING (TYP.)")
+            (txt "MC" (list cx (- oy (* 900.0 *PEB-TEXT-SCALE*))) 340.0 0 "CROSS BRACING (TYP.)")
             (setvar "CLAYER" "CROSS")
             (command "_.PLINE"
                      (list cx (- oy (* 500.0 *PEB-TEXT-SCALE*)))              ; start above the text
@@ -1129,24 +1129,28 @@
   (if *PEB-ROOF-SLOPE* *PEB-ROOF-SLOPE* "1:10")
 )
 
-;; FALL marker (owner 4-Jul) = the PEB-FALL Rule-Book block: a HOUSE-PENTAGON (base rectangle +
-;; triangular apex, block ratios half-width:base:apex = 300:217.5:217.5, mid-notch 37.5) with the apex
-;; pointing in the FALL direction, and "FALL <slope>" text VERTICAL, BEHIND the symbol (opposite the
-;; apex).  Autosized by u (building size, passed in).  Pentagon on FALL (red), text on TEXT.
-(defun peb-fall-marker (x y dir u / prev hw bh mn ah thRaw thFin)
-  ;; thRaw = a normal label height (~480, like the wall labels); `txt` multiplies it by *PEB-TEXT-SCALE*
-  ;; so the FALL text scales up with the building (readable). thFin = the scaled height, used to
-  ;; position the text just behind the apex.
-  (setq prev (getvar "CLAYER") hw u bh (* 0.725 u) mn (* 0.125 u) ah (* 0.725 u)
+;; FALL marker — Roshan Packages style (owner 5-Jul): a red ARROW (triangular head + rectangular shaft)
+;; with a CIRCLE at its centre, pointing in the FALL direction, and "FALL <slope>" text VERTICAL behind
+;; it.  Replaces the old house-pentagon.  Geometry reproduced (ratio-to-scale) from the Roshan reference
+;; DXF (MAMMUT_09): apex 1.063a, wings ±0.944a, shaft ±0.678a x -0.640a, circle r 0.595a — where a = u
+;; (building size, so it autosizes like before).  dir (+/-1) flips the arrow for the down-slope side.
+(defun peb-fall-marker (x y dir u / prev a thRaw thFin)
+  (setq prev (getvar "CLAYER") a u
         thRaw 480.0
         thFin (* thRaw (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)))
   (setvar "CLAYER" "FALL")
   (command "_.PLINE"
-    (list (- x hw) (- y (* dir bh))) (list (+ x hw) (- y (* dir bh)))
-    (list (+ x hw) (- y (* dir mn))) (list x (+ y (* dir ah))) (list (- x hw) (- y (* dir mn)))
+    (list x                 (+ y (* dir 1.063 a)))          ; apex (arrow head tip)
+    (list (- x (* 0.944 a)) (+ y (* dir 0.023 a)))          ; left wing
+    (list (- x (* 0.678 a)) (+ y (* dir 0.023 a)))          ; left shoulder
+    (list (- x (* 0.678 a)) (- y (* dir 0.640 a)))          ; left shaft foot
+    (list (+ x (* 0.678 a)) (- y (* dir 0.640 a)))          ; right shaft foot
+    (list (+ x (* 0.678 a)) (+ y (* dir 0.023 a)))          ; right shoulder
+    (list (+ x (* 0.944 a)) (+ y (* dir 0.023 a)))          ; right wing
     "_C")
-  (setvar "CLAYER" "TEXT")                                  ; "FALL <slope>" behind the apex, vertical
-  (txt "MC" (list x (- y (* dir (+ bh (* 2.4 thFin))))) thRaw 90.0 (strcat "FALL " (peb-slope-text)))
+  (command "_.CIRCLE" (list x y) (* 0.595 a))               ; circle at the arrow centre
+  (setvar "CLAYER" "TEXT")                                   ; "FALL <slope>" behind the apex, vertical
+  (txt "MC" (list x (- y (* dir (+ (* 0.90 a) (* 1.6 thFin))))) thRaw 90.0 (strcat "FALL " (peb-slope-text)))
   (setvar "CLAYER" prev))
 
 (defun arrow-up-big   (x y u) (peb-fall-marker x y  1.0 u)) ; fall toward FSW (up)
@@ -1440,7 +1444,7 @@
     len wid btype rooftype stype widthPts windspeed exposure collateral bldgno revno
     bays baysp bayPts x1 x2 baylen ewcols ewsp gridWpts ewStations ewY
     lewBrace rewBrace extType intType
-    minSp prevp yBayDim yOvrDim yFsw ySub yTtl yFrmTop dimGap txtGap
+    minSp prevp yBayDim yOvrDim yFsw ySub yTtl yFrmTop dimGap topGap txtGap
     ewExpr ewSpans ewSum ewScale ewAcc
     x y i j colOff botY topY leftX rightX
     xdraw idx ypt prevY currY
@@ -1823,11 +1827,12 @@
   ;; TOP stack (upward from the FSW edge y=wid). owner 4-Jul: FIXED, UNIFORM gap between dimension rows
   ;; (dimGap) so dim spacing is consistent everywhere; generous, equal spacing (txtGap) between the FSW
   ;; label, the area-description banner, the "COLUMN LAYOUT PLAN" title, and the border.
-  (setq dimGap (* 2400.0 *PEB-DIM-SCALE*))                               ; FIXED gap between dim rows (owner 4-Jul: more air between nested chains)
+  (setq dimGap (* 2000.0 *PEB-DIM-SCALE*))                               ; gap between the NESTED LEFT width chains (owner 5-Jul: eased back from 2400)
+  (setq topGap (* 1300.0 *PEB-DIM-SCALE*))                               ; TOP stack gap — TIGHTER than dimGap (owner 5-Jul PNG: reduce top gap)
   (setq txtGap (* 2000.0 *PEB-TEXT-SCALE*))                              ; FIXED gap between text rows
-  (setq yBayDim (+ wid dimGap))                                         ; per-bay dim chain
-  (setq yOvrDim (+ yBayDim dimGap))                                     ; overall-length dim (same gap)
-  (setq gridY2  (+ yOvrDim dimGap *PEB-BUBRAD*))                        ; grid bubble CENTRE
+  (setq yBayDim (+ wid topGap))                                         ; per-bay dim chain
+  (setq yOvrDim (+ yBayDim topGap))                                     ; overall-length dim (same gap)
+  (setq gridY2  (+ yOvrDim topGap *PEB-BUBRAD*))                        ; grid bubble CENTRE
   (setq yFsw    (+ gridY2 *PEB-BUBRAD* txtGap))                         ; FSW wall label
   (setq ySub    (+ yFsw txtGap))                                        ; area-description banner
   (setq yTtl    (+ ySub txtGap))                                        ; COLUMN LAYOUT PLAN title
@@ -2164,10 +2169,10 @@
           (peb-label-with-leader
             (if (= lewFrameLabel "MAIN FRAME") "MAIN FRAME\\P(HALF BAY LOADING)"
                 (strcat lewFrameLabel "\\PBOTH ENDS"))               ; owner 4-Jul: sync w/ IF, 2 rows
-            (list (- (* 4500 *PEB-DIM-SCALE*))
-                  (+ wid (* 2800 *PEB-TEXT-SCALE*)))
+            (list (- (* 1500 *PEB-DIM-SCALE*))                        ; owner 5-Jul: moved RIGHT (was -4500*DS)
+                  (+ wid (* 2200 *PEB-TEXT-SCALE*)))
             (list 0 wid)                                              ; arrow points AT the LEW frame
-            "S" 600.0)))))
+            "S" 430.0)))))                                            ; owner 5-Jul: smaller (was 600)
     ;; Different → TWO MLEADERs
     (T
       (vl-catch-all-apply
