@@ -1205,17 +1205,17 @@
   ;; house = tall rectangular BODY (base at -dir*bh, shoulders at +dir*sy) capped by a wide TRIANGULAR roof
   ;; (apex at +dir*ah), with the CIRCLE sitting in the body so it never pokes past the narrowing roof.
   (setq prev (getvar "CLAYER") a u ts (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)
-        hw (* 0.68 a) bh (* 0.72 a) sy (* 0.30 a) ah (* 0.95 a)
-        fh (/ (* 0.52 a) ts) sh (/ (* 0.36 a) ts))
+        hw (* 0.70 a) bh (* 0.74 a) sy (* 0.34 a) ah (* 0.90 a)
+        fh (/ (* 0.50 a) ts) sh (/ (* 0.36 a) ts))
   (setvar "CLAYER" "FALL")
   (command "_.PLINE"
     (list (- x hw) (- y (* dir bh))) (list (+ x hw) (- y (* dir bh)))                 ; body base
     (list (+ x hw) (+ y (* dir sy))) (list x (+ y (* dir ah))) (list (- x hw) (+ y (* dir sy)))  ; roof shoulders + apex
     "_C")
-  (command "_.CIRCLE" (list x (- y (* dir 0.10 a))) (* 0.50 a))                        ; circle in the body
+  (command "_.CIRCLE" (list x (- y (* dir 0.09 a))) (* 0.50 a))                        ; circle in the body
   (setvar "CLAYER" "TEXT")
-  (txt "MC" (list x (- y (* dir (+ bh (* 0.78 a))))) fh 90.0 "FALL")                   ; FALL vertical, below the pentagon
-  (txt "MC" (list x (- y (* dir (+ bh (* 1.68 a))))) sh  0.0 (peb-slope-text))         ; slope small + horizontal, below FALL
+  (txt "MC" (list x (- y (* dir (+ bh (* 1.00 a))))) fh 90.0 "FALL")                   ; FALL vertical, clear below the pentagon
+  (txt "MC" (list x (- y (* dir (+ bh (* 1.92 a))))) sh  0.0 (peb-slope-text))         ; slope small + horizontal, below FALL
   (setvar "CLAYER" prev))
 
 (defun arrow-up-big   (x y u) (peb-fall-marker x y  1.0 u)) ; fall toward FSW (up)
@@ -1908,7 +1908,7 @@
   (setq txtGap (* 2000.0 *PEB-TEXT-SCALE*))                              ; FIXED gap between text rows
   (setq yBayDim (+ wid topGap))                                         ; per-bay dim chain
   (setq yOvrDim (+ yBayDim topGap))                                     ; overall-length dim (same gap)
-  (setq ovrTxtH (* 560.0 *PEB-DIM-SCALE*))                             ; outer-dim TEXT height (DIMTXT 440*DS + gap) — clear it
+  (setq ovrTxtH (* 490.0 *PEB-DIM-SCALE*))                             ; outer-dim TEXT height (DIMTXT 440*DS) — clear it snugly
   (setq gridY2  (+ yOvrDim ovrTxtH topGap *PEB-BUBRAD*))                ; grid bubble CENTRE — gap ABOVE the dim text (owner 5-Jul)
   (setq yFsw    (+ gridY2 *PEB-BUBRAD* txtGap))                         ; FSW wall label
   (setq ySub    (+ yFsw txtGap))                                        ; area-description banner
