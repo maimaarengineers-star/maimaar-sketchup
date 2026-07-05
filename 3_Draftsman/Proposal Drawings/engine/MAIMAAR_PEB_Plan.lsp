@@ -1925,14 +1925,18 @@
   (setq gridX1  (- (- 0.0 (* 3.0 dimGap) ovrTxtH topGap) *PEB-BUBRAD*))  ; bubble LEFT of the outer-dim text + a gap (owner 5-Jul)
 
   (setq i 1)
-  (foreach x bayPts
-    (setvar "CLAYER" "GRID-LINES")
-    ;; RULE (owner 4-Jul): grid marking line runs from the OUTER dimension line (overall length dim,
-    ;; yOvrDim) up to the inner side of the bubble — not through the building.
-    (command "LINE" (list x (+ yOvrDim ovrTxtH)) (list x (- gridY2 bubR)) "")   ; owner 5-Jul: start just ABOVE the outer-dim text
-    (setvar "CLAYER" "GRID")
-    (grid-bubble x gridY2 (itoa i))
-    (setq i (1+ i))
+  ;; owner 5-Jul (multi-area): the top length-grid sits on the FSW side — skip it when FSW is the wall
+  ;; SHARED with an attached area (the grid continues from the reference; avoids the overlap at the join).
+  (if (not (peb-omit-wall-p "FSW"))
+    (foreach x bayPts
+      (setvar "CLAYER" "GRID-LINES")
+      ;; RULE (owner 4-Jul): grid marking line runs from the OUTER dimension line (overall length dim,
+      ;; yOvrDim) up to the inner side of the bubble — not through the building.
+      (command "LINE" (list x (+ yOvrDim ovrTxtH)) (list x (- gridY2 bubR)) "")   ; owner 5-Jul: start just ABOVE the outer-dim text
+      (setvar "CLAYER" "GRID")
+      (grid-bubble x gridY2 (itoa i))
+      (setq i (1+ i))
+    )
   )
 
   ;; Phase-2A v21: skip width grid LINES at NSW (y=0) and FSW (y=wid)
@@ -1956,10 +1960,14 @@
   ;; connecting the columns (NSW..FSW) through their centres. Drawn together with the grid lines.
   (if (not (tblsearch "LTYPE" "CENTER"))
     (vl-catch-all-apply (function (lambda () (command "_.-LINETYPE" "_Load" "CENTER" "acad.lin" "")))))
+  ;; owner 5-Jul (multi-area): on the wall SHARED with an attached area, extend the frame/rafter centre
+  ;; line all the way to the grid line (0 or wid) so it TOUCHES the reference area's column outer flange
+  ;; (which sits ON that grid line); the non-common walls stay inset by colOff as normal.
   (foreach x bayPts
     (setvar "CLAYER" "GRID-LINES")
     (vl-catch-all-apply (function (lambda () (setvar "CELTYPE" "CENTER"))))
-    (command "_.LINE" (list x colOff) (list x (- wid colOff)) "")
+    (command "_.LINE" (list x (if (peb-omit-wall-p "NSW") 0.0 colOff))
+                      (list x (if (peb-omit-wall-p "FSW") wid (- wid colOff))) "")
     (vl-catch-all-apply (function (lambda () (setvar "CELTYPE" "BYLAYER")))))
 
   ;; ── Ridge / roof type ─────────────────────────────────────────
@@ -3650,15 +3658,18 @@
         (command "_.MOVE" ss "" "0,0,0" (list (car off) (cadr off) 0.0)))))
   (princ))
 
-;; one border + title block around the whole placed set (params published by the areas)
-(defun peb-draw-combined-frame ( / bGap exmin exmax bL bB bT bR tbX tbW ds)
+;; one border + title block around the whole placed set.  owner 5-Jul: size the margin + title-block strip
+;; from the COMBINED extents (not the last/smallest area's params — that made the strip too narrow and the
+;; title-block text squish).  Same proportions a single sheet would use for a building this size.
+(defun peb-draw-combined-frame ( / exmin exmax cw ch cds bGap tbW bL bB bT bR tbX)
   (vl-catch-all-apply (function (lambda () (command "_.ZOOM" "_E"))))
-  (setq ds   (if *PEB-DIM-SCALE* *PEB-DIM-SCALE* 1.0)
-        bGap (if *PEB-MA-BGAP* *PEB-MA-BGAP* 3000.0)
-        tbW  (if *PEB-MA-TBSTRIPW* *PEB-MA-TBSTRIPW* 30000.0)
-        exmin (getvar "EXTMIN") exmax (getvar "EXTMAX"))
+  (setq exmin (getvar "EXTMIN") exmax (getvar "EXTMAX")
+        cw (- (car exmax) (car exmin)) ch (- (cadr exmax) (cadr exmin))
+        cds  (max 0.8 (/ (max cw ch) 45000.0))   ; combined "dim scale" (single-sheet formula)
+        bGap (* 3000.0 cds)                        ; uniform border margin for the whole sheet
+        tbW  (* 0.22 cw))                          ; title-block strip ~ 22% of the combined content width
   (setq bL (- (car exmin) bGap) bB (- (cadr exmin) bGap) bT (+ (cadr exmax) bGap)
-        tbX (+ (car exmax) (* 3500.0 ds)) bR (+ tbX tbW))
+        tbX (+ (car exmax) (* 3500.0 cds)) bR (+ tbX tbW))
   (if *PEB-MA-TBDATA* (peb-titleblock-mammut tbX bB tbW (- bT bB) *PEB-MA-TBDATA*))
   (draw-border bL bB bR bT)
   (command "_.ZOOM" "_E")
