@@ -3645,7 +3645,9 @@
 ;; for the reference — it KEEPS its columns there, only drops the now-internal wall label).
 (defun peb-hide-wall-label-p (w)
   (or (peb-omit-wall-p w)
-      (and *PEB-REF-SHARED* (= (strcase *PEB-REF-SHARED*) (strcase w)))))
+      (and *PEB-REF-SHARED*
+           (member (strcase w)
+                   (mapcar 'strcase (if (listp *PEB-REF-SHARED*) *PEB-REF-SHARED* (list *PEB-REF-SHARED*)))))))
 
 ;; read AR_POSITION from a data file without drawing (to decide the omitted wall BEFORE C:PEB-PLAN runs)
 (defun peb-read-ar-position (path / f line pos)
