@@ -2105,6 +2105,10 @@
           ;; owner 5-Jul (multi-area): omit the SIDE-WALL column row that is COMMON with the attached area
           ;; (*PEB-OMIT-WALL* = "NSW"|"FSW"), so the shared wall has ONE row of columns.  nil => draw both.
           (cond
+            ;; owner 5-Jul (multi-area): END wall shared with a side-by-side area (Left/Right) → drop that
+            ;; whole end-column line (the neighbour's end-wall columns serve the join).
+            ((and (= x 0)          (peb-omit-wall-p "LEW")) nil)
+            ((and (> x (- len 1))  (peb-omit-wall-p "REW")) nil)
             ;; LEW corner (x=0)
             ((= x 0)
               (if (= lewFrameLabel "MAIN FRAME")
@@ -2120,10 +2124,11 @@
               (progn (if (not (peb-omit-wall-p "NSW")) (draw-I-column-lengthwise xdraw botY)) (if (not (peb-omit-wall-p "FSW")) (draw-I-column-lengthwise xdraw topY)))))
         )
         ;; intermediate end-wall columns at the IF stations (exclude the two corners)
+        ;; owner 5-Jul (multi-area): drop the posts on an end wall shared with a side-by-side area.
         (foreach y ewStations
           (if (and (> y 0.5) (< y (- wid 0.5)))
-            (progn (draw-I-column-widthwise leftX y)
-                   (draw-I-column-widthwise rightX y)))
+            (progn (if (not (peb-omit-wall-p "LEW")) (draw-I-column-widthwise leftX y))
+                   (if (not (peb-omit-wall-p "REW")) (draw-I-column-widthwise rightX y))))
         )
         (if (member stype '("MS" "MG"))
           (progn
@@ -2225,12 +2230,12 @@
   ;; owner 4-Jul: wall labels are SIMPLE — the full name only, no open-wall condition suffix.
   ;; owner 5-Jul (multi-area): drop the wall label on the side SHARED with an attached area (avoids the
   ;; label piling onto the reference area at the join).
-  (if (not (peb-omit-wall-p "FSW")) (txt-bold "MC" (list (/ len 2.0) yFsw) 560 0 "FSW - FAR SIDE WALL"))
-  (if (not (peb-omit-wall-p "NSW")) (txt-bold "MC" (list (/ len 2.0) (- (* 3000 *PEB-TEXT-SCALE*))) 560 0 "NSW - NEAR SIDE WALL"))
+  (if (not (peb-hide-wall-label-p "FSW")) (txt-bold "MC" (list (/ len 2.0) yFsw) 560 0 "FSW - FAR SIDE WALL"))
+  (if (not (peb-hide-wall-label-p "NSW")) (txt-bold "MC" (list (/ len 2.0) (- (* 3000 *PEB-TEXT-SCALE*))) 560 0 "NSW - NEAR SIDE WALL"))
   ;; owner 4-Jul: LEW label sits OUTSIDE the letter bubbles (was sandwiched between the width dims and
   ;; the bubbles -> overlapped the dim text). REW side has no dims/bubbles, so it stays close.
-  (txt-bold "MC" (list (- gridX1 (* 2200.0 *PEB-DIM-SCALE*)) (/ wid 2.0)) 560 90 "LEW - LEFT END WALL")
-  (txt-bold "MC" (list (+ len (* 3000 *PEB-DIM-SCALE*)) (/ wid 2.0)) 560 90 "REW - RIGHT END WALL")
+  (if (not (peb-hide-wall-label-p "LEW")) (txt-bold "MC" (list (- gridX1 (* 2200.0 *PEB-DIM-SCALE*)) (/ wid 2.0)) 560 90 "LEW - LEFT END WALL"))
+  (if (not (peb-hide-wall-label-p "REW")) (txt-bold "MC" (list (+ len (* 3000 *PEB-DIM-SCALE*)) (/ wid 2.0)) 560 90 "REW - RIGHT END WALL"))
 
   ;; ── End-frame type MLEADERs (Phase-2A v12) ─────────────────────
   ;; Replaces the old "END FRAME" / "BEARING FRAME (TYP.)" txt labels.
@@ -2304,8 +2309,8 @@
   ;; HORIZONTAL (bay) chain — ONE dim MIRRORING the IF bay expression + basis; NO total (the total is
   ;; the overall length dim). Arrows on the drawn web centre (nth 3/4). Owner 4-Jul.
   ;; owner 5-Jul (multi-area): the top LENGTH dims sit on the FSW side — skip them when FSW is the shared
-  ;; wall (they'd overlap the reference area; the grid/dims come from it).
-  (if (not (peb-omit-wall-p "FSW"))
+  ;; wall (attached area's omit OR the reference's shared side), so they don't land at the internal join.
+  (if (not (peb-hide-wall-label-p "FSW"))
     (progn
       (peb-dim-h-stretch (nth 3 ldim) (+ len (nth 4 ldim)) yBayDim
                          (strcat (peb-chain-text (MSPL-Get-Str data "BAYEXPR") bayPts) " " (peb-basis-suffix lref)))
@@ -2359,10 +2364,11 @@
   ;;   Subtitle           → wid + 6000 * TS
   ;; BIG "COLUMN LAYOUT PLAN" heading at the very top centre (owner: restore it),
   ;; with the compact dim/area/bays/slope info banner below it.
-  ;; owner 5-Jul (multi-area): the big title + spec banner + north arrow are drawn ONLY by the reference
-  ;; (standalone) area — an attached area (*PEB-OMIT-WALL* set) skips them; its AREA No. tag identifies it,
-  ;; and the one combined sheet keeps a single title.  (Single-area: *PEB-OMIT-WALL* is nil, draws normally.)
-  (if (not *PEB-OMIT-WALL*)
+  ;; owner 5-Jul (multi-area): in multi-area NO area draws the big title/spec-banner/north-arrow — the
+  ;; FINALIZE pass (peb-draw-combined-frame) draws ONE title at the true combined top, so it's correct for
+  ;; ANY direction (Below/Above/Left/Right), not only when the reference sits on top.  Each area still draws
+  ;; its own AREA No. tag + dims.  (Single-area: *PEB-MULTI-MODE* nil, draws normally.)
+  (if (not *PEB-MULTI-MODE*)
     (progn
       (txt-bold "MC" (list (/ len 2.0) yTtl) 870 0 "COLUMN LAYOUT PLAN")   ; owner 5-Jul: smaller, more proportional
       (txt "MC" (list (/ len 2.0) ySub) 560 0
@@ -3625,6 +3631,13 @@
 ;; via *PEB-OMIT-WALL*); C:PEB-PLAN skips that row so the shared wall carries ONE row of columns.
 (defun peb-omit-wall-p (w) (and *PEB-OMIT-WALL* (= (strcase *PEB-OMIT-WALL*) (strcase w))))
 
+;; owner 5-Jul (multi-area): hide a wall LABEL when that wall is (a) the attached area's omitted common
+;; wall, OR (b) the REFERENCE area's wall that another area attaches to (*PEB-REF-SHARED*, set per direction
+;; for the reference — it KEEPS its columns there, only drops the now-internal wall label).
+(defun peb-hide-wall-label-p (w)
+  (or (peb-omit-wall-p w)
+      (and *PEB-REF-SHARED* (= (strcase *PEB-REF-SHARED*) (strcase w)))))
+
 ;; read AR_POSITION from a data file without drawing (to decide the omitted wall BEFORE C:PEB-PLAN runs)
 (defun peb-read-ar-position (path / f line pos)
   (setq pos "")
@@ -3691,6 +3704,11 @@
         tbX (+ (car exmax) (* 3500.0 cds)) bR (+ tbX tbW))
   (if *PEB-MA-TBDATA* (peb-titleblock-mammut tbX (- bT tbH) tbW tbH *PEB-MA-TBDATA*))
   (draw-border bL bB bR bT)
+  ;; owner 5-Jul: ONE big title at the TRUE combined top-centre (over the plan, left of the title block) —
+  ;; correct for every attach direction since no area draws its own title in multi-area mode.
+  (setvar "CLAYER" "TEXT")
+  (txt-bold "MC" (list (/ (+ (car exmin) (car exmax)) 2.0) (+ (cadr exmax) (* bGap 0.5)))
+            (* sh 0.0072) 0 "COLUMN LAYOUT PLAN")
   (command "_.ZOOM" "_E")
   (princ))
 
