@@ -785,9 +785,10 @@
         colOff (/ (if *PEB-COL-WEB* *PEB-COL-WEB* 700.0) 2.0))   ; sidewall column-web inset (= botY / topY)
   (foreach b braced
     (setq x0 (+ ox (nth b bayPts)) x1 (+ ox (nth (1+ b) bayPts)) cx (/ (+ x0 x1) 2.0) drewX nil)
-    ;; sidewalls NSW + FSW — bracing ON THE COLUMN-WEB line (inset by colOff, NOT the grid line) → EXTERIOR
-    (if (peb-brace-line x0 x1 (+ oy colOff) d 1.0 extType)          (setq drewX T))   ; NSW web, label inward +y
-    (if (peb-brace-line x0 x1 (+ oy (- wid colOff)) d -1.0 extType) (setq drewX T))   ; FSW web, label inward -y
+    ;; sidewalls NSW + FSW — bracing ON THE COLUMN-WEB line (inset by colOff) → EXTERIOR.  owner 5-Jul:
+    ;; skip the side shared with an attached area (*PEB-OMIT-WALL*) so the common wall has no bracing.
+    (if (and (not (peb-omit-wall-p "NSW")) (peb-brace-line x0 x1 (+ oy colOff) d 1.0 extType))          (setq drewX T))   ; NSW web
+    (if (and (not (peb-omit-wall-p "FSW")) (peb-brace-line x0 x1 (+ oy (- wid colOff)) d -1.0 extType)) (setq drewX T))   ; FSW web
     ;; interior column lines → INTERIOR bracing type
     (foreach yp widthPts
       (if (and (> yp 1.0) (< yp (- wid 1.0)))
@@ -1833,14 +1834,12 @@
   ;; (grid lines, cross-bracing) actually render as dashes at this scale.
   (setvar "LTSCALE" (max 60.0 (/ (max len wid) 400.0)))
   (setvar "CELTSCALE" 2.0)            ; per-entity linetype scale = 2.0
+  ;; owner 5-Jul: draw the outline edge-by-edge (peb-draw-outline) so multi-area can OMIT the shared-wall
+  ;; sheeting/col-outer line (Area 02's common side).  Single-area draws all 4 (identical to the RECTANGs).
   (setvar "CLAYER" "COL-OUTER")
-  (command "RECTANG"
-    (list 0.0 0.0)
-    (list len wid))
+  (peb-draw-outline 0.0 0.0 len wid)
   (setvar "CLAYER" "SHEETING")
-  (command "RECTANG"
-    (list (- 0.0 sheetGap)            (- 0.0 sheetGap))
-    (list (+ len sheetGap)            (+ wid sheetGap)))
+  (peb-draw-outline (- 0.0 sheetGap) (- 0.0 sheetGap) (+ len sheetGap) (+ wid sheetGap))
   (setvar "CELTSCALE" 1.0)            ; reset for everything else
 
   ;; ── AREA marking (Zealcon convention) ─────────────────────────────
@@ -3614,6 +3613,15 @@
           (setq pos (substr line 13))))
       (close f)))
   pos)
+
+;; draw a building-outline rectangle EDGE-BY-EDGE, skipping the wall shared with an attached area
+;; (*PEB-OMIT-WALL*).  NSW=bottom(y0) FSW=top(y1) LEW=left(x0) REW=right(x1).  nil => all 4 (normal).
+(defun peb-draw-outline (x0 y0 x1 y1)
+  (if (not (peb-omit-wall-p "NSW")) (command "_.LINE" (list x0 y0) (list x1 y0) ""))
+  (if (not (peb-omit-wall-p "FSW")) (command "_.LINE" (list x0 y1) (list x1 y1) ""))
+  (if (not (peb-omit-wall-p "LEW")) (command "_.LINE" (list x0 y0) (list x0 y1) ""))
+  (if (not (peb-omit-wall-p "REW")) (command "_.LINE" (list x1 y0) (list x1 y1) ""))
+  (princ))
 
 ;; wall of THIS area that is common with its reference, given its attach position (for *PEB-OMIT-WALL*)
 (defun peb-common-wall (pos / p)
