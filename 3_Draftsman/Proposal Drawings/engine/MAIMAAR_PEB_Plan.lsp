@@ -1945,7 +1945,10 @@
   ;; A (NSW) and last (FSW) remain visible.
   ;; RULE: grid letter A at the TOP (FSW), then B, C… downward.  widthPts is
   ;; ascending (y=0 NSW bottom → y=wid FSW top), so letter index counts DOWN.
+  ;; owner 5-Jul (multi-area): the LEFT width grid sits on the LEW side — skip it when LEW is the shared
+  ;; end wall (Left/Right side-by-side); the outer area carries the one width grid.
   (setq j 0 nWid (length gridWpts))
+  (if (not (peb-hide-wall-label-p "LEW"))
   (foreach y gridWpts
     (setvar "CLAYER" "GRID-LINES")
     ;; RULE (owner 4-Jul): grid marking line from the OUTER width dimension line (-3*dimGap) to the bubble.
@@ -1953,7 +1956,7 @@
     (setvar "CLAYER" "GRID")
     (grid-bubble gridX1 y (chr (+ 65 (- nWid 1 j))))
     (setq j (1+ j))
-  )
+  ))
 
   ;; ── COLUMN CENTRE LINES (owner 4-Jul) ────────────────────────────────────────────
   ;; At each frame (bay grid), a dash-dot CENTRE line crosses the building ALONG THE WIDTH,
@@ -2259,8 +2262,8 @@
   ;; beside the LEW/REW wall labels.  (If an end is a Main Frame, its corner
   ;; columns are already drawn lengthwise = interior main-frame size/direction.)
   (setvar "CLAYER" "TEXT")
-  (txt-bold "MC" (list (- gridX1 (* 4400.0 *PEB-DIM-SCALE*)) (/ wid 2.0)) 430 90 (strcat "(" lewFrameLabel ")"))
-  (txt-bold "MC" (list (+ len (* 4500 *PEB-DIM-SCALE*)) (/ wid 2.0)) 430 90 (strcat "(" rewFrameLabel ")"))
+  (if (not (peb-hide-wall-label-p "LEW")) (txt-bold "MC" (list (- gridX1 (* 4400.0 *PEB-DIM-SCALE*)) (/ wid 2.0)) 430 90 (strcat "(" lewFrameLabel ")")))
+  (if (not (peb-hide-wall-label-p "REW")) (txt-bold "MC" (list (+ len (* 4500 *PEB-DIM-SCALE*)) (/ wid 2.0)) 430 90 (strcat "(" rewFrameLabel ")")))
   (cond
     ;; Both ends same → ONE MLEADER, "BEARING FRAME / BOTH ENDS"
     ((= lewFrameLabel rewFrameLabel)
@@ -2330,6 +2333,10 @@
   (setq wref (peb-tb-or (MSPL-Get-Str data "WIDTH_REF") (MSPL-Get-Str data "WIDTH_MOD_REF")))
   (setq wdim (peb-basis-dim wref 'W wid colOff))    ; drawnHalf = colOff (drawn side-wall web centre)
   ;; ALL width dims on the LEFT (LEW), nested; NO dimension on the Right End Wall (owner 4-Jul).
+  ;; owner 5-Jul (multi-area): skip the whole LEW width-dim stack when LEW is the shared end wall
+  ;; (Left/Right side-by-side) — the outer area carries the one width dimension.
+  (if (not (peb-hide-wall-label-p "LEW"))
+   (progn
   ;; (1) END-WALL COLUMN SPACING — LEW innermost (-1200); ONE dim MIRRORING the IF EW expression +
   ;; basis, no total. Arrows on the drawn web centre (nth 3/4).
   (peb-dim-height-stretch 0.0 (- dimGap) (nth 3 wdim) (+ wid (nth 4 wdim))
@@ -2344,7 +2351,7 @@
   ;; (3) OVERALL WIDTH — LEW outermost (-4800). Real VALUE (nth 0); witness on the DRAWN plane (nth 3/4).
   (peb-dim-height-stretch 0.0 (- (* 3.0 dimGap)) (nth 3 wdim) (+ wid (nth 4 wdim))
                           (peb-fmt-labelled "BLDG. WIDTH" (nth 0 wdim) (peb-basis-suffix wref)))
-  (peb-recolor-last-dim 0)                    ; LEW overall width (outermost)
+  (peb-recolor-last-dim 0)))                    ; LEW overall width (outermost)
 
   ;; ── Title (Phase-2A: compact dim × dim with area) ────────────
   ;;   Line 1: COLUMN LAYOUT PLAN
