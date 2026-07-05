@@ -2617,6 +2617,10 @@
   (setq borderL (- (car  exmin) bGap)
         borderB (- (cadr exmin) bGap)
         borderT (+ (cadr exmax) bGap))
+  ;; owner 5-Jul: AUTO-FIT the title-block strip to the SHEET HEIGHT at a constant aspect (0.30) so it fits
+  ;; ANY building size without distortion (was 0.24*length — absurdly wide for long buildings).  Matches the
+  ;; approved 195 look (its 36573 strip = 0.305 * 119818 sheet height).
+  (setq tbStripW (* (- borderT borderB) 0.30))
   (setq tbStripX (+ (car exmax) (* 3500.0 *PEB-DIM-SCALE*))   ; gap right of the building content
         borderR  (+ tbStripX tbStripW))                       ; right border = panel right edge (no gap)
   ;; owner 5-Jul (multi-area): publish this area's drawn size, frame params and attach info so the
@@ -2624,6 +2628,7 @@
   ;; shared border + title block around the whole set (each area suppresses its own via *PEB-SUPPRESS-TB*).
   (setq *PEB-MA-WID* wid *PEB-MA-LEN* len
         *PEB-MA-TBDATA* tbData *PEB-MA-TBSTRIPW* tbStripW *PEB-MA-BGAP* bGap
+        *PEB-MA-SHEETH* (- borderT borderB)   ; this area's own sheet height (for a constant combined title block)
         *PEB-AR-NUM* (MSPL-Get-Int data "AREA_NUM")
         *PEB-AR-POS* (MSPL-Get-Str data "AR_POSITION")
         *PEB-AR-REF* (MSPL-Get-Int data "AR_REF_AREA")
@@ -3661,16 +3666,18 @@
 ;; one border + title block around the whole placed set.  owner 5-Jul: size the margin + title-block strip
 ;; from the COMBINED extents (not the last/smallest area's params — that made the strip too narrow and the
 ;; title-block text squish).  Same proportions a single sheet would use for a building this size.
-(defun peb-draw-combined-frame ( / exmin exmax cw ch cds bGap tbW bL bB bT bR tbX)
+(defun peb-draw-combined-frame ( / exmin exmax cw ch cds bGap sh tbW bL bB bT bR tbX)
   (vl-catch-all-apply (function (lambda () (command "_.ZOOM" "_E"))))
   (setq exmin (getvar "EXTMIN") exmax (getvar "EXTMAX")
         cw (- (car exmax) (car exmin)) ch (- (cadr exmax) (cadr exmin))
         cds  (max 0.8 (/ (max cw ch) 45000.0))   ; combined "dim scale" (single-sheet formula)
-        bGap (* 3000.0 cds)                        ; uniform border margin for the whole sheet
-        tbW  (* 0.22 cw))                          ; title-block strip ~ 22% of the combined content width
+        bGap (* 3000.0 cds))                       ; uniform border margin for the whole sheet
+  ;; owner 5-Jul: the title block AUTO-FITS at the SAME constant aspect as a single sheet — width = 0.30 x
+  ;; the sheet height, filling the full height.  Scales cleanly to any combination of areas, no distortion.
   (setq bL (- (car exmin) bGap) bB (- (cadr exmin) bGap) bT (+ (cadr exmax) bGap)
+        sh (- bT bB) tbW (* sh 0.30)
         tbX (+ (car exmax) (* 3500.0 cds)) bR (+ tbX tbW))
-  (if *PEB-MA-TBDATA* (peb-titleblock-mammut tbX bB tbW (- bT bB) *PEB-MA-TBDATA*))
+  (if *PEB-MA-TBDATA* (peb-titleblock-mammut tbX bB tbW sh *PEB-MA-TBDATA*))
   (draw-border bL bB bR bT)
   (command "_.ZOOM" "_E")
   (princ))
@@ -3688,6 +3695,8 @@
     (vl-catch-all-apply (function (lambda () (C:PEB-PLAN))))
     (setq w *PEB-MA-WID* l *PEB-MA-LEN* aNum *PEB-AR-NUM*
           pos *PEB-AR-POS* ref *PEB-AR-REF* gap *PEB-AR-GAP*)
+    ;; the reference (first) area fixes the title-block size so it stays CONSTANT (not stretched to the set)
+    (if (= i 0) (setq *PEB-MA-FIRST-SHEETH* *PEB-MA-SHEETH* *PEB-MA-FIRST-TBW* *PEB-MA-TBSTRIPW*))
     (setq refbnds (if ref (cdr (assoc ref placed))))
     (if (or (= i 0) (null refbnds) (wcmatch (strcase (if pos pos "STANDALONE")) "*STANDALONE*"))
       (setq off (list 0.0 0.0))
