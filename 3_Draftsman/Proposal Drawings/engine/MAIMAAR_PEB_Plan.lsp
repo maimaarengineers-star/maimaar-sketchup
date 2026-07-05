@@ -1997,21 +1997,15 @@
       (progn
         (setvar "CLAYER" "RIDGE")
         (command "LINE" (list 0 (/ wid 2.0)) (list len (/ wid 2.0)) "")
-        (vl-catch-all-apply
-          (function (lambda ()
-            (peb-label-with-leader "VALLEY / BUTTERFLY GUTTER LINE"
-                                   (list (* len 0.55) (+ (/ wid 2.0) (* 1500 *PEB-TEXT-SCALE*)))
-                                   (list (* len 0.50) (/ wid 2.0))
-                                   "S" 600.0))))
-      )
+      )   ; owner 5-Jul: valley label folded into the centre-line callouts below (was overlapping the AREA tag)
     )
     ((= stype "FR")
       (progn (setvar "CLAYER" "TEXT")
-             (txt "MC" (list (* len 0.50) (* wid 0.50)) 300 0 "FLAT ROOF BUILDING"))
+             (txt "MC" (list (* len 0.50) (- (* wid 0.50) (* 1300 *PEB-TEXT-SCALE*))) 400 0 "FLAT ROOF BUILDING"))   ; owner 5-Jul: below the AREA tag
     )
     (T
       (progn (setvar "CLAYER" "TEXT")
-             (txt "MC" (list (* len 0.50) (* wid 0.50)) 300 0 (peb-roof-label stype rooftype)))
+             (txt "MC" (list (* len 0.50) (- (* wid 0.50) (* 1300 *PEB-TEXT-SCALE*))) 400 0 (peb-roof-label stype rooftype)))   ; owner 5-Jul: below the AREA tag
     )
   )
 
@@ -2079,9 +2073,9 @@
         (foreach x bayPts
           (if (= x 0) (setq xdraw leftX) (if (> x (- len 1)) (setq xdraw rightX) (setq xdraw x)))
           (draw-I-column-lengthwise xdraw (/ wid 2.0)))
-        (setvar "CLAYER" "TEXT")
-        (txt-bold "MC" (list (/ len 2.0) (+ (/ wid 2.0) (* 850 *PEB-TEXT-SCALE*))) 600 0 "CENTER COLUMN LINE - BUTTERFLY STRUCTURE")
-        (txt "MC" (list (/ len 2.0) (- (/ wid 2.0) (* 850 *PEB-TEXT-SCALE*))) 600 0 "NO SIDE-WALL COLUMNS")
+        (setvar "CLAYER" "TEXT")   ; owner 5-Jul: cleared of the AREA tag — one callout above, one below, snug to the falls
+        (txt-bold "MC" (list (/ len 2.0) (+ (/ wid 2.0) (* 1700 *PEB-TEXT-SCALE*))) 560 0 "CENTER COLUMN LINE / VALLEY GUTTER - BUTTERFLY")
+        (txt-bold "MC" (list (/ len 2.0) (- (/ wid 2.0) (* 1700 *PEB-TEXT-SCALE*))) 560 0 "NO SIDE-WALL COLUMNS - ROOF CANTILEVERS BOTH SIDES")
       )
     )
     (T
