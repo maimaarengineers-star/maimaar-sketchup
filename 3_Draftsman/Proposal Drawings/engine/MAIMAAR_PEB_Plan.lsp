@@ -1780,18 +1780,24 @@
   (setq aNo (MSPL-Get-Int data "AREA_NUM"))
   (if (or (null aNo) (< aNo 1)) (setq aNo 1))
   (setq aLbl (strcat "AREA No. " (if (< aNo 10) (strcat "0" (itoa aNo)) (itoa aNo))))
-  (setq aTxH (if *PEB-TEXT-SCALE* (* 550.0 *PEB-TEXT-SCALE*) 550.0))
+  (setq aTxH (if *PEB-TEXT-SCALE* (* 620.0 *PEB-TEXT-SCALE*) 620.0))  ; owner 5-Jul: bigger, bolder tag
   (setq aBw  (+ (* (strlen aLbl) aTxH 0.34) aTxH))            ; box half-width to fit text
   (setq aBh  (* aTxH 0.95))                                   ; box half-height
   ;; Geometry via ENTMAKE (no command-line prompts → batch-safe).
   (defun aLn (x1 y1 x2 y2)
     (entmake (list (cons 0 "LINE") (cons 8 "AREA-MARK")
                    (list 10 x1 y1 0.0) (list 11 x2 y2 0.0))))
-  ;; centre box (4 lines)
-  (aLn (- aCx aBw) (- aCy aBh) (+ aCx aBw) (- aCy aBh))
-  (aLn (+ aCx aBw) (- aCy aBh) (+ aCx aBw) (+ aCy aBh))
-  (aLn (+ aCx aBw) (+ aCy aBh) (- aCx aBw) (+ aCy aBh))
-  (aLn (- aCx aBw) (+ aCy aBh) (- aCx aBw) (- aCy aBh))
+  (defun aLnS (x1 y1 x2 y2)                                   ; grey line for the drop-shadow
+    (entmake (list (cons 0 "LINE") (cons 8 "AREA-MARK") (cons 62 8)
+                   (list 10 x1 y1 0.0) (list 11 x2 y2 0.0))))
+  (setq aFL (- aCx aBw) aFR (+ aCx aBw) aFB (- aCy aBh) aFT (+ aCy aBh))  ; front box corners
+  ;; DROP SHADOW / raised-box (owner 5-Jul: match BUILDING-01 sample) — grey box offset DOWN-LEFT behind
+  ;; the tag + 4 corner connectors -> extruded/shadowed look.  Pure outlines (plot-safe).
+  (setq aSo (* aBh 0.60) aSL (- aFL aSo) aSR (- aFR aSo) aSB (- aFB aSo) aST (- aFT aSo))
+  (aLnS aSL aSB aSR aSB) (aLnS aSR aSB aSR aST) (aLnS aSR aST aSL aST) (aLnS aSL aST aSL aSB)  ; back box
+  (aLnS aFL aFB aSL aSB) (aLnS aFR aFB aSR aSB) (aLnS aFR aFT aSR aST) (aLnS aFL aFT aSL aST)  ; connectors
+  ;; centre box (4 lines) — front face, on top
+  (aLn aFL aFB aFR aFB) (aLn aFR aFB aFR aFT) (aLn aFR aFT aFL aFT) (aLn aFL aFT aFL aFB)
   ;; AREA CROSS LINES (Roshan, owner): each building corner leadered to the NEAREST corner of the AREA
   ;; tag box — the diagonals CONNECT to the tag box corners (owner 4-Jul: must touch the tag corners).
   (aLn 0.0  0.0  (- aCx aBw) (- aCy aBh))   ; SW corner -> SW box corner
