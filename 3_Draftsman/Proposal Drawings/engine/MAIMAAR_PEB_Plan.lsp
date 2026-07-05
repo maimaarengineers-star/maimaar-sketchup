@@ -1933,12 +1933,17 @@
   ;; SHARED with an attached area (the grid continues from the reference; avoids the overlap at the join).
   (if (not (peb-omit-wall-p "FSW"))
     (foreach x bayPts
-      (setvar "CLAYER" "GRID-LINES")
-      ;; RULE (owner 4-Jul): grid marking line runs from the OUTER dimension line (overall length dim,
-      ;; yOvrDim) up to the inner side of the bubble — not through the building.
-      (command "LINE" (list x (+ yOvrDim ovrTxtH)) (list x (- gridY2 bubR)) "")   ; owner 5-Jul: start just ABOVE the outer-dim text
-      (setvar "CLAYER" "GRID")
-      (grid-bubble x gridY2 (itoa i))
+      ;; owner 5-Jul (multi-area): at a SHARED end wall (Left/Right) the length-grid bubble MERGES — the
+      ;; attached area skips its endpoint on the common LEW/REW so it isn't drawn twice at the join.
+      (if (not (or (and (peb-omit-wall-p "LEW") (< (abs x) 1.0))
+                   (and (peb-omit-wall-p "REW") (< (abs (- x len)) 1.0))))
+        (progn
+          (setvar "CLAYER" "GRID-LINES")
+          ;; RULE (owner 4-Jul): grid marking line runs from the OUTER dimension line (overall length dim,
+          ;; yOvrDim) up to the inner side of the bubble — not through the building.
+          (command "LINE" (list x (+ yOvrDim ovrTxtH)) (list x (- gridY2 bubR)) "")   ; owner 5-Jul: start just ABOVE the outer-dim text
+          (setvar "CLAYER" "GRID")
+          (grid-bubble x gridY2 (itoa i))))
       (setq i (1+ i))
     )
   )
@@ -1954,11 +1959,16 @@
   (setq j 0 nWid (length gridWpts))
   (if (not (peb-hide-wall-label-p "LEW"))
   (foreach y gridWpts
-    (setvar "CLAYER" "GRID-LINES")
-    ;; RULE (owner 4-Jul): grid marking line from the OUTER width dimension line (-3*dimGap) to the bubble.
-    (command "LINE" (list (- (- 0.0 (* 3.0 dimGap)) ovrTxtH) y) (list (+ gridX1 bubR) y) "")   ; owner 5-Jul: start just LEFT of the outer-dim text
-    (setvar "CLAYER" "GRID")
-    (grid-bubble gridX1 y (chr (+ 65 (- nWid 1 j))))
+    ;; owner 5-Jul (multi-area): at a SHARED side wall (Below/Above) the grid bubble MERGES — the attached
+    ;; area skips its endpoint bubble/line on the common wall so it isn't drawn twice at the join.
+    (if (not (or (and (peb-omit-wall-p "NSW") (< (abs y) 1.0))
+                 (and (peb-omit-wall-p "FSW") (< (abs (- y wid)) 1.0))))
+      (progn
+        (setvar "CLAYER" "GRID-LINES")
+        ;; RULE (owner 4-Jul): grid marking line from the OUTER width dimension line (-3*dimGap) to the bubble.
+        (command "LINE" (list (- (- 0.0 (* 3.0 dimGap)) ovrTxtH) y) (list (+ gridX1 bubR) y) "")   ; owner 5-Jul: start just LEFT of the outer-dim text
+        (setvar "CLAYER" "GRID")
+        (grid-bubble gridX1 y (chr (+ 65 (- nWid 1 j))))))
     (setq j (1+ j))
   ))
 
