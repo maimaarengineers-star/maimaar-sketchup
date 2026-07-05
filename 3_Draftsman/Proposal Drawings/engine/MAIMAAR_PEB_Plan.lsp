@@ -1024,6 +1024,16 @@
   (if (>= inches 12) (progn (setq feet (1+ feet)) (setq inches 0)))
   (strcat (itoa feet) "'-" (itoa inches) "\""))
 
+;; Thousands separators for a digit string: "6967"->"6,967", "10670"->"10,670" (owner 5-Jul).
+;; NB: must NOT call the built-in `rem` — the drawing routine has a LOCAL variable named `rem`
+;; (setq rem ...) and AutoLISP dynamic scope would rebind it to a number, so we count-and-reset instead.
+(defun peb-comma (s / n i out cnt)
+  (setq n (strlen s) i n out "" cnt 0)
+  (while (> i 0)
+    (setq out (strcat (substr s i 1) out) cnt (1+ cnt) i (1- i))
+    (if (and (= cnt 3) (> i 0)) (setq out (strcat "," out) cnt 0)))
+  out)
+
 (defun peb-fmt-value (value / mode)
   ;;  Format a single mm value per *PEB-DIM-DISPLAY* mode.
   ;;    "MM"   → "40000"
@@ -1187,37 +1197,25 @@
   (if *PEB-ROOF-SLOPE* *PEB-ROOF-SLOPE* "1:10")
 )
 
-;; FALL marker — Roshan Packages style (owner 5-Jul): a red ARROW (triangular head + rectangular shaft)
-;; with a CIRCLE at its centre, pointing in the FALL direction, and "FALL <slope>" text VERTICAL behind
-;; it.  Replaces the old house-pentagon.  Geometry reproduced (ratio-to-scale) from the Roshan reference
-;; DXF (MAMMUT_09): apex 1.063a, wings ±0.944a, shaft ±0.678a x -0.640a, circle r 0.595a — where a = u
-;; (building size, so it autosizes like before).  dir (+/-1) flips the arrow for the down-slope side.
-(defun peb-fall-marker (x y dir u / prev a ts fh sh)
-  ;; Roshan "Fall Sample" style (owner 5-Jul): a hollow BLOCK ARROW (long rectangular shaft + chevron
-  ;; head) with a CIRCLE in the head, "FALL" VERTICAL on the SHAFT (clear of the circle), and the slope
-  ;; ratio SMALL + HORIZONTAL just behind the TAIL.  a = arrow scale (u).  dir (+/-1) points it in the
-  ;; fall direction.  KEY FIX: the text is sized PROPORTIONAL to the arrow (a), not to *PEB-TEXT-SCALE*
-  ;; independently — before, "FALL" (thRaw*TS) was ~= the whole arrow and buried it.  txt re-scales by TS,
-  ;; so the passed height is (world / TS).
-  (setq prev (getvar "CLAYER") a u
-        ts (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)
-        fh (/ (* 0.52 a) ts)          ; "FALL" world height ~0.52a
-        sh (/ (* 0.42 a) ts))         ; slope world height ~0.42a
+;; FALL marker — "Match the Sample of Fall" (owner 5-Jul): a HOUSE-PENTAGON (rectangle body + triangular
+;; apex pointing in the FALL direction) with a CIRCLE inside, "FALL" text VERTICAL BELOW the pentagon, and
+;; the slope ratio SMALL + HORIZONTAL below that.  a = scale (u, autosizes with the building); dir (+/-1)
+;; points the apex in the fall direction.  Text sized PROPORTIONAL to a (txt re-scales by TS -> pass a/TS).
+(defun peb-fall-marker (x y dir u / prev a ts hw bh sy ah fh sh)
+  ;; house = tall rectangular BODY (base at -dir*bh, shoulders at +dir*sy) capped by a wide TRIANGULAR roof
+  ;; (apex at +dir*ah), with the CIRCLE sitting in the body so it never pokes past the narrowing roof.
+  (setq prev (getvar "CLAYER") a u ts (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)
+        hw (* 0.68 a) bh (* 0.72 a) sy (* 0.30 a) ah (* 0.95 a)
+        fh (/ (* 0.52 a) ts) sh (/ (* 0.36 a) ts))
   (setvar "CLAYER" "FALL")
-  ;; block-arrow outline (apex on the +dir side; long shaft + tail on the -dir side)
   (command "_.PLINE"
-    (list (- x (* 0.32 a)) (+ y (* dir -1.40 a)))   ; tail L
-    (list (+ x (* 0.32 a)) (+ y (* dir -1.40 a)))   ; tail R
-    (list (+ x (* 0.32 a)) (+ y (* dir  0.35 a)))   ; shaft R -> head base
-    (list (+ x (* 0.62 a)) (+ y (* dir  0.35 a)))   ; right wing
-    (list x                (+ y (* dir  1.40 a)))   ; apex (tip)
-    (list (- x (* 0.62 a)) (+ y (* dir  0.35 a)))   ; left wing
-    (list (- x (* 0.32 a)) (+ y (* dir  0.35 a)))   ; shaft L
+    (list (- x hw) (- y (* dir bh))) (list (+ x hw) (- y (* dir bh)))                 ; body base
+    (list (+ x hw) (+ y (* dir sy))) (list x (+ y (* dir ah))) (list (- x hw) (+ y (* dir sy)))  ; roof shoulders + apex
     "_C")
-  (command "_.CIRCLE" (list x (+ y (* dir 0.50 a))) (* 0.46 a))   ; circle in the arrow head
+  (command "_.CIRCLE" (list x (- y (* dir 0.10 a))) (* 0.50 a))                        ; circle in the body
   (setvar "CLAYER" "TEXT")
-  (txt "MC" (list x (+ y (* dir -0.45 a))) fh 90.0 "FALL")        ; FALL vertical on the shaft, clear of circle
-  (txt "MC" (list x (+ y (* dir -1.92 a))) sh  0.0 (peb-slope-text)) ; slope small + horizontal behind the tail
+  (txt "MC" (list x (- y (* dir (+ bh (* 0.78 a))))) fh 90.0 "FALL")                   ; FALL vertical, below the pentagon
+  (txt "MC" (list x (- y (* dir (+ bh (* 1.68 a))))) sh  0.0 (peb-slope-text))         ; slope small + horizontal, below FALL
   (setvar "CLAYER" prev))
 
 (defun arrow-up-big   (x y u) (peb-fall-marker x y  1.0 u)) ; fall toward FSW (up)
@@ -1530,7 +1528,7 @@
     slopeXs slopeStep rafterStep sx grp clearH
     lewFrameRaw rewFrameRaw lewFrameLabel rewFrameLabel
     mainHalfY endHalfX sheetGap
-    gridY1 gridY2 gridX1 gridX2
+    gridY1 gridY2 gridX1 gridX2 ovrTxtH bubR nWid
   )
 
   ;; Initialize MAIMAAR-DIM dimstyle (Section-spec native dims).
@@ -1910,7 +1908,8 @@
   (setq txtGap (* 2000.0 *PEB-TEXT-SCALE*))                              ; FIXED gap between text rows
   (setq yBayDim (+ wid topGap))                                         ; per-bay dim chain
   (setq yOvrDim (+ yBayDim topGap))                                     ; overall-length dim (same gap)
-  (setq gridY2  (+ yOvrDim topGap *PEB-BUBRAD*))                        ; grid bubble CENTRE
+  (setq ovrTxtH (* 560.0 *PEB-DIM-SCALE*))                             ; outer-dim TEXT height (DIMTXT 440*DS + gap) — clear it
+  (setq gridY2  (+ yOvrDim ovrTxtH topGap *PEB-BUBRAD*))                ; grid bubble CENTRE — gap ABOVE the dim text (owner 5-Jul)
   (setq yFsw    (+ gridY2 *PEB-BUBRAD* txtGap))                         ; FSW wall label
   (setq ySub    (+ yFsw txtGap))                                        ; area-description banner
   (setq yTtl    (+ ySub txtGap))                                        ; COLUMN LAYOUT PLAN title
@@ -1918,14 +1917,14 @@
   ;; LEFT stack (leftward from the LEW edge x=0): overall-width dim (-3500 DS) then letter bubbles
   ;; letter bubble CENTRE — anchored 0.9*dimGap BEYOND the outermost (-3*dimGap) width dim, + bubble radius,
   ;; so it FOLLOWS dimGap and can never collide with the overall-width chain no matter how wide the spacing.
-  (setq gridX1  (- (- 0.0 (* 3.9 dimGap)) *PEB-BUBRAD*))
+  (setq gridX1  (- (- 0.0 (* 3.0 dimGap) ovrTxtH topGap) *PEB-BUBRAD*))  ; bubble LEFT of the outer-dim text + a gap (owner 5-Jul)
 
   (setq i 1)
   (foreach x bayPts
     (setvar "CLAYER" "GRID-LINES")
     ;; RULE (owner 4-Jul): grid marking line runs from the OUTER dimension line (overall length dim,
     ;; yOvrDim) up to the inner side of the bubble — not through the building.
-    (command "LINE" (list x yOvrDim) (list x (- gridY2 bubR)) "")
+    (command "LINE" (list x (+ yOvrDim ovrTxtH)) (list x (- gridY2 bubR)) "")   ; owner 5-Jul: start just ABOVE the outer-dim text
     (setvar "CLAYER" "GRID")
     (grid-bubble x gridY2 (itoa i))
     (setq i (1+ i))
@@ -1941,7 +1940,7 @@
   (foreach y gridWpts
     (setvar "CLAYER" "GRID-LINES")
     ;; RULE (owner 4-Jul): grid marking line from the OUTER width dimension line (-3*dimGap) to the bubble.
-    (command "LINE" (list (- 0.0 (* 3.0 dimGap)) y) (list (+ gridX1 bubR) y) "")
+    (command "LINE" (list (- (- 0.0 (* 3.0 dimGap)) ovrTxtH) y) (list (+ gridX1 bubR) y) "")   ; owner 5-Jul: start just LEFT of the outer-dim text
     (setvar "CLAYER" "GRID")
     (grid-bubble gridX1 y (chr (+ 65 (- nWid 1 j))))
     (setq j (1+ j))
@@ -2342,15 +2341,15 @@
   ;;   Subtitle           → wid + 6000 * TS
   ;; BIG "COLUMN LAYOUT PLAN" heading at the very top centre (owner: restore it),
   ;; with the compact dim/area/bays/slope info banner below it.
-  (txt-bold "MC" (list (/ len 2.0) yTtl) 1150 0 "COLUMN LAYOUT PLAN")
-  (txt "MC" (list (/ len 2.0) ySub) 600 0
+  (txt-bold "MC" (list (/ len 2.0) yTtl) 870 0 "COLUMN LAYOUT PLAN")   ; owner 5-Jul: smaller, more proportional
+  (txt "MC" (list (/ len 2.0) ySub) 560 0
     (strcat (rtos (/ len 1000.0) 2 0) "×"
             (rtos (/ wid 1000.0) 2 0) " m"
-            "  |  " (rtos areaM2 2 0) " m\U+00B2"
+            "  |  " (peb-comma (rtos areaM2 2 0)) " m\U+00B2"   ; owner 5-Jul: comma-grouped (6,967)
             "  |  " (itoa bays) " BAYS"
             "  |  SLOPE " roofSlope
             (if (and clearH (> clearH 0))
-              (strcat "  |  C.H = " (peb-fmt-value clearH))
+              (strcat "  |  C.H = " (peb-comma (rtos clearH 2 0)))   ; owner 5-Jul: comma-grouped (10,670)
               "")
             "  |  " (peb-structure-label stype)
             (if (= stype "MG")
@@ -3349,7 +3348,7 @@
   ;; ── Phase-2A v3: DIMSCALE auto-scales with building size ──────
   (peb-safe-setvar "DIMSCALE" (if *PEB-DIM-SCALE* *PEB-DIM-SCALE* 1.0))
   ;; Proper small CLOSED-FILLED arrowheads at each end (owner), value above line.
-  (peb-safe-setvar "DIMTXT"   500.0)        ; clean, never bulky
+  (peb-safe-setvar "DIMTXT"   440.0)        ; owner 5-Jul: smaller, more proportional with the sheet
   (peb-safe-setvar "DIMTXSTY" "PEB-TITLE")
   (peb-safe-setvar "DIMTSZ"     0.0)        ; no ticks -> arrowheads
   (peb-safe-setvar "DIMASZ"   320.0)        ; proper small arrowhead
@@ -3481,7 +3480,7 @@
   ;; capped at the default 500, floored at 150.  (Very long labels are also abbreviated at the source.)
   (if override
     (peb-safe-setvar "DIMTXT"
-      (max 150.0 (min 500.0
+      (max 150.0 (min 440.0
         (/ (* (abs (- y2 y1)) 0.82)
            (* (peb-longest-line-len override) 0.66
               (if *PEB-DIM-SCALE* *PEB-DIM-SCALE* 1.0)))))))
