@@ -1946,7 +1946,7 @@
           ;; yOvrDim) up to the inner side of the bubble — not through the building.
           (command "LINE" (list x (+ yOvrDim ovrTxtH)) (list x (- gridY2 bubR)) "")   ; owner 5-Jul: start just ABOVE the outer-dim text
           (setvar "CLAYER" "GRID")
-          (grid-bubble x gridY2 (itoa i))))
+          (grid-bubble x gridY2 (itoa (+ i (if *PEB-GRID-NUM-OFS* *PEB-GRID-NUM-OFS* 0))))))   ; owner 5-Jul: number offset -> grid CONTINUES across side-by-side areas
       (setq i (1+ i))
     )
   )
@@ -1971,7 +1971,7 @@
         ;; RULE (owner 4-Jul): grid marking line from the OUTER width dimension line (-3*dimGap) to the bubble.
         (command "LINE" (list (- (- 0.0 (* 3.0 dimGap)) ovrTxtH) y) (list (+ gridX1 bubR) y) "")   ; owner 5-Jul: start just LEFT of the outer-dim text
         (setvar "CLAYER" "GRID")
-        (grid-bubble gridX1 y (chr (+ 65 (- nWid 1 j))))))
+        (grid-bubble gridX1 y (chr (+ 65 (- nWid 1 j) (if *PEB-GRID-LET-OFS* *PEB-GRID-LET-OFS* 0))))))   ; owner 5-Jul: letter offset -> grid CONTINUES across stacked areas
     (setq j (1+ j))
   ))
 
@@ -2671,6 +2671,7 @@
   (setq *PEB-MA-WID* wid *PEB-MA-LEN* len
         *PEB-MA-TBDATA* tbData *PEB-MA-TBSTRIPW* tbStripW *PEB-MA-BGAP* bGap
         *PEB-MA-SHEETH* (- borderT borderB)   ; this area's own sheet height (for a constant combined title block)
+        *PEB-MA-WGRID-N* nWid *PEB-MA-LGRID-N* (length bayPts)   ; owner 5-Jul: grid counts for cross-area letter/number continuity
         *PEB-AR-NUM* (MSPL-Get-Int data "AREA_NUM")
         *PEB-AR-POS* (MSPL-Get-Str data "AR_POSITION")
         *PEB-AR-REF* (MSPL-Get-Int data "AR_REF_AREA")
@@ -3723,15 +3724,13 @@
         cw (- (car exmax) (car exmin)) ch (- (cadr exmax) (cadr exmin))
         cds  (max 0.8 (/ (max cw ch) 45000.0))   ; combined "dim scale" (single-sheet formula)
         bGap (* 3000.0 cds))                       ; uniform border margin for the whole sheet
-  ;; owner 5-Jul: use the REFERENCE area's own (tested) title-block width + height — a CONSTANT standard
-  ;; block that fits its content perfectly — anchored TOP-right, NOT stretched to the full set height
-  ;; (which over-stretched the note/load sections and made the text overlap).  Falls back to 0.30 x sheet
-  ;; height if the reference size wasn't supplied.
+  ;; owner 5-Jul: the title block VERTICALLY FILLS the sheet, flush between the top & bottom border lines
+  ;; (owner: 'side block must vertically fit b/w the lines').  Width = 0.30 x that height keeps the tested
+  ;; aspect so the note/load sections stay proportioned (heading sizing already fixed the earlier overlap).
   (setq bL (- (car exmin) bGap) bB (- (cadr exmin) bGap) bT (+ (cadr exmax) bGap) sh (- bT bB)
-        tbW (if *PEB-MA-FIRST-TBW*    *PEB-MA-FIRST-TBW*    (* sh 0.30))
-        tbH (min (if *PEB-MA-FIRST-SHEETH* *PEB-MA-FIRST-SHEETH* sh) sh)
+        tbW (* sh 0.30)
         tbX (+ (car exmax) (* 3500.0 cds)) bR (+ tbX tbW))
-  (if *PEB-MA-TBDATA* (peb-titleblock-mammut tbX (- bT tbH) tbW tbH *PEB-MA-TBDATA*))
+  (if *PEB-MA-TBDATA* (peb-titleblock-mammut tbX bB tbW sh *PEB-MA-TBDATA*))
   (draw-border bL bB bR bT)
   ;; owner 5-Jul: ONE big title at the TRUE combined top-centre (over the plan, left of the title block) —
   ;; correct for every attach direction since no area draws its own title in multi-area mode.
