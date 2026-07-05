@@ -1412,7 +1412,7 @@
   (tb-mtext midX (+ yCur (* rh 0.28)) (tb-fith (tb-get "CUSTOMER") (* 1.6 cw) bv) cw 5 (tb-get "CUSTOMER") green)
   (tb-hdiv yCur)
   ;; STEEL CONTRACTOR : real Maimaar logo + address
-  (setq bt yCur rh (* H 0.150) yCur (- yCur rh))
+  (setq bt yCur rh (* H 0.118) yCur (- yCur rh))   ; owner 5-Jul: narrower (tighter gaps around logo/address; frees footer room)
   (tb-mtext (+ X0 (* W 0.04)) (- bt (* lbl 1.3)) lbl cw 1 "STEEL CONTRACTOR :" grey)
   (peb-tb-place-logo (+ X0 (* W 0.10)) (+ yCur (* rh 0.52))
                      (+ X0 (* W 0.90)) (- bt (* lbl 2.4)))
@@ -1432,18 +1432,19 @@
   ;; Drawing Title
   (setq bt yCur rh (* H 0.045) yCur (- yCur rh))
   (tb-mtext (+ X0 (* W 0.04)) (- bt (* lbl 1.2)) lbl cw 1 "Drawing Title :" grey)
-  (tb-mtext midX (+ yCur (* rh 0.26)) (tb-fith (tb-get "DRGTITLE") cw bv) cw 5
+  (tb-mtext midX (+ yCur (* rh 0.20)) (tb-fith (tb-get "DRGTITLE") cw (* bv 0.82)) cw 5   ; owner 5-Jul: lower + smaller so it clears the label
             (strcat "{\\fArial|b1;" (tb-get "DRGTITLE") "}") green)
   (tb-hdiv yCur)
   ;; footer : Scale | Sheet Size | Sheet No.  (fills down to Y0)
   (setq rh (- yCur Y0) c1x (+ X0 (* W 0.40)) c2x (+ X0 (* W 0.70)))
   (tb-line c1x Y0 c1x yCur white) (tb-line c2x Y0 c2x yCur white)
-  (tb-mtext (+ X0 (* W 0.04)) (- yCur (* lbl 1.2)) lbl 0 1 "Scale" grey)
-  (tb-mtext (+ X0 (* W 0.20)) (+ Y0 (* rh 0.32)) val 0 5 (tb-get "SCALE") green)
-  (tb-mtext (+ c1x (* W 0.03)) (- yCur (* lbl 1.2)) lbl 0 1 "Sheet Size" grey)
-  (tb-mtext (* 0.5 (+ c1x c2x)) (+ Y0 (* rh 0.32)) val 0 5 (tb-get "SHEETSIZE") green)
-  (tb-mtext (+ c2x (* W 0.03)) (- yCur (* lbl 1.2)) lbl 0 1 "Sheet No." grey)
-  (tb-mtext (* 0.5 (+ c2x (+ X0 W))) (+ Y0 (* rh 0.32)) val 0 5 (tb-get "SHEETNO") green)
+  ;; owner 5-Jul: labels pinned to the TOP of the footer, values to the BOTTOM + smaller — no overlap.
+  (tb-mtext (+ X0 (* W 0.04)) (- yCur (* lbl 1.0)) lbl 0 1 "Scale" grey)
+  (tb-mtext (+ X0 (* W 0.20)) (+ Y0 (* val 0.95)) (* val 0.85) 0 5 (tb-get "SCALE") green)
+  (tb-mtext (+ c1x (* W 0.03)) (- yCur (* lbl 1.0)) lbl 0 1 "Sheet Size" grey)
+  (tb-mtext (* 0.5 (+ c1x c2x)) (+ Y0 (* val 0.95)) (* val 0.85) 0 5 (tb-get "SHEETSIZE") green)
+  (tb-mtext (+ c2x (* W 0.03)) (- yCur (* lbl 1.0)) lbl 0 1 "Sheet No." grey)
+  (tb-mtext (* 0.5 (+ c2x (+ X0 W))) (+ Y0 (* val 0.95)) (* val 0.85) 0 5 (tb-get "SHEETNO") green)
   (princ))
 
 ;; ===================== MAIN COMMAND =====================
