@@ -2223,8 +2223,10 @@
   ;; now 4500) to clear the bay+overall dim chain underneath.
   (setvar "CLAYER" "TEXT")
   ;; owner 4-Jul: wall labels are SIMPLE — the full name only, no open-wall condition suffix.
-  (txt-bold "MC" (list (/ len 2.0) yFsw) 560 0 "FSW - FAR SIDE WALL")
-  (txt-bold "MC" (list (/ len 2.0) (- (* 3000 *PEB-TEXT-SCALE*))) 560 0 "NSW - NEAR SIDE WALL")
+  ;; owner 5-Jul (multi-area): drop the wall label on the side SHARED with an attached area (avoids the
+  ;; label piling onto the reference area at the join).
+  (if (not (peb-omit-wall-p "FSW")) (txt-bold "MC" (list (/ len 2.0) yFsw) 560 0 "FSW - FAR SIDE WALL"))
+  (if (not (peb-omit-wall-p "NSW")) (txt-bold "MC" (list (/ len 2.0) (- (* 3000 *PEB-TEXT-SCALE*))) 560 0 "NSW - NEAR SIDE WALL"))
   ;; owner 4-Jul: LEW label sits OUTSIDE the letter bubbles (was sandwiched between the width dims and
   ;; the bubbles -> overlapped the dim text). REW side has no dims/bubbles, so it stays close.
   (txt-bold "MC" (list (- gridX1 (* 2200.0 *PEB-DIM-SCALE*)) (/ wid 2.0)) 560 90 "LEW - LEFT END WALL")
@@ -2301,14 +2303,17 @@
   (setq ldim (peb-basis-dim lref 'L len leftX))     ; drawnHalf = leftX (drawn end-column centre)
   ;; HORIZONTAL (bay) chain — ONE dim MIRRORING the IF bay expression + basis; NO total (the total is
   ;; the overall length dim). Arrows on the drawn web centre (nth 3/4). Owner 4-Jul.
-  (peb-dim-h-stretch (nth 3 ldim) (+ len (nth 4 ldim)) yBayDim
-                     (strcat (peb-chain-text (MSPL-Get-Str data "BAYEXPR") bayPts) " " (peb-basis-suffix lref)))
-  (peb-recolor-last-dim 0)              ; ByBlock
-  ;; Overall length dim — real VALUE (nth 0); witness/arrows on the DRAWN plane (nth 3/4) so the
-  ;; C/C line crosses the drawn web centre, not the bolts (owner 4-Jul).
-  (peb-dim-h-stretch (nth 3 ldim) (+ len (nth 4 ldim)) yOvrDim
-                     (peb-fmt-labelled "BLDG. LENGTH" (nth 0 ldim) (peb-basis-suffix lref)))
-  (peb-recolor-last-dim 0)                   ; ByBlock for overall length
+  ;; owner 5-Jul (multi-area): the top LENGTH dims sit on the FSW side — skip them when FSW is the shared
+  ;; wall (they'd overlap the reference area; the grid/dims come from it).
+  (if (not (peb-omit-wall-p "FSW"))
+    (progn
+      (peb-dim-h-stretch (nth 3 ldim) (+ len (nth 4 ldim)) yBayDim
+                         (strcat (peb-chain-text (MSPL-Get-Str data "BAYEXPR") bayPts) " " (peb-basis-suffix lref)))
+      (peb-recolor-last-dim 0)              ; ByBlock
+      ;; Overall length dim — real VALUE (nth 0); witness/arrows on the DRAWN plane (nth 3/4).
+      (peb-dim-h-stretch (nth 3 ldim) (+ len (nth 4 ldim)) yOvrDim
+                         (peb-fmt-labelled "BLDG. LENGTH" (nth 0 ldim) (peb-basis-suffix lref)))
+      (peb-recolor-last-dim 0)))                   ; ByBlock for overall length
 
   ;; ── WIDTH DIMENSIONS: 3 NESTED CHAINS (owner 4-Jul) ─────────────────────────────
   ;;   most RIGHT (REW)  : END-WALL COLUMN SPACING  (finest — every end-wall post)
@@ -2354,22 +2359,26 @@
   ;;   Subtitle           → wid + 6000 * TS
   ;; BIG "COLUMN LAYOUT PLAN" heading at the very top centre (owner: restore it),
   ;; with the compact dim/area/bays/slope info banner below it.
-  (txt-bold "MC" (list (/ len 2.0) yTtl) 870 0 "COLUMN LAYOUT PLAN")   ; owner 5-Jul: smaller, more proportional
-  (txt "MC" (list (/ len 2.0) ySub) 560 0
-    (strcat (rtos (/ len 1000.0) 2 0) "×"
-            (rtos (/ wid 1000.0) 2 0) " m"
-            "  |  " (peb-comma (rtos areaM2 2 0)) " m\U+00B2"   ; owner 5-Jul: comma-grouped (6,967)
-            "  |  " (itoa bays) " BAYS"
-            "  |  SLOPE " roofSlope
-            (if (and clearH (> clearH 0))
-              (strcat "  |  C.H = " (peb-comma (rtos clearH 2 0)))   ; owner 5-Jul: comma-grouped (10,670)
-              "")
-            "  |  " (peb-structure-label stype)
-            (if (= stype "MG")
-              (strcat "  |  " (itoa mgGables) " GABLES — " (itoa mgSpans) " SPAN(S) EACH")
-              "")))
-
-  (draw-north-arrow (+ len (* 3000 *PEB-DIM-SCALE*)) (+ wid (* 4200 *PEB-DIM-SCALE*)))
+  ;; owner 5-Jul (multi-area): the big title + spec banner + north arrow are drawn ONLY by the reference
+  ;; (standalone) area — an attached area (*PEB-OMIT-WALL* set) skips them; its AREA No. tag identifies it,
+  ;; and the one combined sheet keeps a single title.  (Single-area: *PEB-OMIT-WALL* is nil, draws normally.)
+  (if (not *PEB-OMIT-WALL*)
+    (progn
+      (txt-bold "MC" (list (/ len 2.0) yTtl) 870 0 "COLUMN LAYOUT PLAN")   ; owner 5-Jul: smaller, more proportional
+      (txt "MC" (list (/ len 2.0) ySub) 560 0
+        (strcat (rtos (/ len 1000.0) 2 0) "×"
+                (rtos (/ wid 1000.0) 2 0) " m"
+                "  |  " (peb-comma (rtos areaM2 2 0)) " m\U+00B2"   ; owner 5-Jul: comma-grouped (6,967)
+                "  |  " (itoa bays) " BAYS"
+                "  |  SLOPE " roofSlope
+                (if (and clearH (> clearH 0))
+                  (strcat "  |  C.H = " (peb-comma (rtos clearH 2 0)))   ; owner 5-Jul: comma-grouped (10,670)
+                  "")
+                "  |  " (peb-structure-label stype)
+                (if (= stype "MG")
+                  (strcat "  |  " (itoa mgGables) " GABLES — " (itoa mgSpans) " SPAN(S) EACH")
+                  "")))
+      (draw-north-arrow (+ len (* 3000 *PEB-DIM-SCALE*)) (+ wid (* 4200 *PEB-DIM-SCALE*)))))
 
   ;; CLEAR HEIGHT moved to the subtitle banner above (Phase-2A v7).
   ;; For multi-area plans, per-area C.H. callouts will be re-introduced
