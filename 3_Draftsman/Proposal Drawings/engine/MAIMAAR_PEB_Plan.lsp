@@ -1899,8 +1899,8 @@
   ;; owner 5-Jul (Gap Fix): step = ~1.6x the dim TEXT height (DIMTXT 500 * DIMSCALE) so the gap between
   ;; the building line and the innermost dim, and between the nested chains, AUTO-FITS the text size
   ;; (was 2000/1300 -> ~4x the text, far too wide). Same value drives the width (dimGap) & top (topGap) chains.
-  (setq dimGap (* 800.0 *PEB-DIM-SCALE*))                                ; gap between the NESTED LEFT width chains
-  (setq topGap (* 800.0 *PEB-DIM-SCALE*))                                ; TOP length-dim / bubble stack gap
+  (setq dimGap (* 1050.0 *PEB-DIM-SCALE*))                               ; gap between the NESTED LEFT width chains (owner 5-Jul: 800 was too tight, small space added)
+  (setq topGap (* 1050.0 *PEB-DIM-SCALE*))                               ; TOP length-dim / bubble stack gap
   (setq txtGap (* 2000.0 *PEB-TEXT-SCALE*))                              ; FIXED gap between text rows
   (setq yBayDim (+ wid topGap))                                         ; per-bay dim chain
   (setq yOvrDim (+ yBayDim topGap))                                     ; overall-length dim (same gap)
