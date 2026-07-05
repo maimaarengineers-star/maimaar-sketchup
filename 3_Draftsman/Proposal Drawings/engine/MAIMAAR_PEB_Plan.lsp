@@ -1241,9 +1241,9 @@
 
 (defun peb-structure-label (stype)
   (cond
-    ((= stype "CS") "CLEAR SPAN GABLE")
+    ((= stype "CS") (if *PEB-ARCHED* "ARCHED CLEAR SPAN" "CLEAR SPAN GABLE"))
     ((= stype "SS") "SINGLE SLOPE - COLUMNS BOTH SIDES")
-    ((= stype "MS") "MULTI-SPAN")
+    ((= stype "MS") (if *PEB-ARCHED* "ARCHED MULTI-SPAN" "MULTI-SPAN"))
     ((= stype "LT") "LEAN-TO")
     ((= stype "MG") "MULTI-GABLE")
     ((= stype "FR") "FLAT ROOF")
@@ -1609,6 +1609,12 @@
       ((= (strcase (MSPL-Get-Str data "DIM_DISPLAY")) "ONLY FT") "FT")
       (T                                                          "MM")))
   (setq stype     (strcase (MSPL-Get-Str data "STYPE")))
+  ;; owner 5-Jul: the ARCH shows only in the SECTION — the column-layout PLAN of an arched building is the
+  ;; same as its straight equivalent.  So map ACS->CS and AMS->MS for geometry, but flag it so the label
+  ;; reads "ARCHED …".  (Before, both fell through to CS — AMS wrongly lost its interior columns.)
+  (setq *PEB-ARCHED* nil)
+  (cond ((= stype "ACS") (setq *PEB-ARCHED* T stype "CS"))
+        ((= stype "AMS") (setq *PEB-ARCHED* T stype "MS")))
   (if (not (member stype '("CS" "SS" "MS" "LT" "MG" "FR" "RC" "CC" "BF")))
     (setq stype "CS"))
 
