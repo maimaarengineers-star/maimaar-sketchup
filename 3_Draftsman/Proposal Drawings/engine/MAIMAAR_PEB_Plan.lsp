@@ -838,12 +838,13 @@
       (command "_.LINE" (list (+ xx d) ya) (list (- xx d) yb) "")
       T)))
 
-;; END-WALL column bracing (owner 5-Jul): X-bracing BETWEEN adjacent end-wall columns, in the LEW (x≈0)
-;; and REW (x≈len) planes, following the SAME braced-panel rule as the bays (peb-braced-bays applied to
-;; ewStations: end panels never, 2nd + 2nd-last, interior ≤27 m).  Drawn only when that end's girts are
-;; By-Framed (lewBrace/rewBrace).  Uses the exterior bracing type; inset by colOff so the X sits on the
-;; end-wall column web line (matching the sidewall convention).
-(defun peb-draw-endwall-bracing (ewStations len lewBrace rewBrace extType / braced d colOff prevLayer y0 y1)
+;; END-WALL column bracing (owner 5-Jul): X-bracing BETWEEN adjacent end-wall columns, in the LEW and REW
+;; planes, following the SAME braced-panel rule as the bays (peb-braced-bays applied to ewStations: end
+;; panels never, 2nd + 2nd-last, interior ≤27 m).  Drawn only when that end's girts are By-Framed (lew/
+;; rewBrace).  owner 5-Jul FIX: the X is CENTRED on the end-wall column line (leftX/rightX) and its half-
+;; width d = 0.46 × the end-wall column depth (0.5·D) so it sits WITHIN the column webs (was centred at
+;; colOff, ~350 into the building, and twice too wide).  Uses the exterior bracing type.
+(defun peb-draw-endwall-bracing (ewStations leftX rightX lewBrace rewBrace extType / braced d prevLayer y0 y1)
   (if (and ewStations (> (length ewStations) 2)
            (or lewBrace rewBrace)
            (/= extType "")
@@ -851,12 +852,12 @@
     (progn
       (setq prevLayer (getvar "CLAYER")
             braced (peb-braced-bays ewStations)
-            d      (* (- 0.5 (peb-rule "flange_thick_xD" 0.04)) (if *PEB-COL-WEB* *PEB-COL-WEB* 700.0))
-            colOff (/ (if *PEB-COL-WEB* *PEB-COL-WEB* 700.0) 2.0))
+            d      (* (- 0.5 (peb-rule "flange_thick_xD" 0.04))
+                      (* (peb-rule "endwall_depth_x_main" 0.5) (if *PEB-COL-WEB* *PEB-COL-WEB* 700.0))))
       (foreach b braced
         (setq y0 (nth b ewStations) y1 (nth (1+ b) ewStations))
-        (if lewBrace (peb-brace-line-v y0 y1 colOff d extType))          ; LEW plane
-        (if rewBrace (peb-brace-line-v y0 y1 (- len colOff) d extType))) ; REW plane
+        (if lewBrace (peb-brace-line-v y0 y1 leftX  d extType))   ; LEW plane — on the end-wall column line
+        (if rewBrace (peb-brace-line-v y0 y1 rightX d extType)))  ; REW plane
       (setvar "CLAYER" prevLayer))))
 
 ;; 0-based bay index containing position `at` (mm along length).
@@ -2144,7 +2145,7 @@
   (vl-catch-all-apply (function (lambda () (peb-draw-bracing bayPts widthPts wid 0.0 0.0 lewBrace rewBrace extType intType))))
   ;; End-wall column bracing (owner 5-Jul): X-bracing between the end-wall columns in the LEW/REW planes,
   ;; same braced-panel rule as the bays, gated by lewBrace/rewBrace, exterior type.
-  (vl-catch-all-apply (function (lambda () (peb-draw-endwall-bracing ewStations len lewBrace rewBrace extType))))
+  (vl-catch-all-apply (function (lambda () (peb-draw-endwall-bracing ewStations leftX rightX lewBrace rewBrace extType))))
 
   ;; ── Doors / windows at their offsets (+ braced-bay clash flag) ─
   (vl-catch-all-apply (function (lambda () (peb-draw-placements data 0.0 0.0 len wid bayPts))))
