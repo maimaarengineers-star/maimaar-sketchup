@@ -2043,6 +2043,10 @@
         lewFrameLabel (if (or (= lewFrameRaw "MAIN FRAME") (= lewFrameRaw "RIGID")) "MAIN FRAME" "BEARING FRAME")
         rewFrameLabel (if (or (= rewFrameRaw "MAIN FRAME") (= rewFrameRaw "RIGID")) "MAIN FRAME" "BEARING FRAME"))
 
+  ;; owner 5-Jul (multi-area): in multi-area mode, this area OMITS the column/bracing/sheeting on the wall
+  ;; it SHARES with its reference (from AR_POSITION) — one shared row of columns.  nil => single-area, draw all.
+  (setq *PEB-OMIT-WALL* (if *PEB-MULTI-MODE* (peb-common-wall (MSPL-Get-Str data "AR_POSITION")) nil))
+
   ;; ── Columns ───────────────────────────────────────────────────
   (cond
     ((= stype "RC")
@@ -2091,20 +2095,22 @@
           ;; Phase-2A v22: corner column matches end-frame TYPE.
           ;;   MAIN FRAME corner → lengthwise (700 deep) — flush with COL-OUTER
           ;;   BEARING FRAME corner → widthwise (smaller — bearing post)
+          ;; owner 5-Jul (multi-area): omit the SIDE-WALL column row that is COMMON with the attached area
+          ;; (*PEB-OMIT-WALL* = "NSW"|"FSW"), so the shared wall has ONE row of columns.  nil => draw both.
           (cond
             ;; LEW corner (x=0)
             ((= x 0)
               (if (= lewFrameLabel "MAIN FRAME")
-                (progn (draw-I-column-lengthwise xdraw botY) (draw-I-column-lengthwise xdraw topY))
-                (progn (draw-I-column-widthwise xdraw botY) (draw-I-column-widthwise xdraw topY))))
+                (progn (if (not (peb-omit-wall-p "NSW")) (draw-I-column-lengthwise xdraw botY)) (if (not (peb-omit-wall-p "FSW")) (draw-I-column-lengthwise xdraw topY)))
+                (progn (if (not (peb-omit-wall-p "NSW")) (draw-I-column-widthwise xdraw botY)) (if (not (peb-omit-wall-p "FSW")) (draw-I-column-widthwise xdraw topY)))))
             ;; REW corner (x=len)
             ((> x (- len 1))
               (if (= rewFrameLabel "MAIN FRAME")
-                (progn (draw-I-column-lengthwise xdraw botY) (draw-I-column-lengthwise xdraw topY))
-                (progn (draw-I-column-widthwise xdraw botY) (draw-I-column-widthwise xdraw topY))))
+                (progn (if (not (peb-omit-wall-p "NSW")) (draw-I-column-lengthwise xdraw botY)) (if (not (peb-omit-wall-p "FSW")) (draw-I-column-lengthwise xdraw topY)))
+                (progn (if (not (peb-omit-wall-p "NSW")) (draw-I-column-widthwise xdraw botY)) (if (not (peb-omit-wall-p "FSW")) (draw-I-column-widthwise xdraw topY)))))
             ;; Interior bay → main frame lengthwise
             (T
-              (progn (draw-I-column-lengthwise xdraw botY) (draw-I-column-lengthwise xdraw topY))))
+              (progn (if (not (peb-omit-wall-p "NSW")) (draw-I-column-lengthwise xdraw botY)) (if (not (peb-omit-wall-p "FSW")) (draw-I-column-lengthwise xdraw topY)))))
         )
         ;; intermediate end-wall columns at the IF stations (exclude the two corners)
         (foreach y ewStations
@@ -3594,6 +3600,27 @@
 ;;   Attached — Below -> under ref (shares ref NSW)     Attached — Above -> over ref (shares ref FSW)
 ;;   Attached — Right of -> right of ref (share ref REW) Attached — Left of -> left of ref (share ref LEW)
 
+;; TRUE when the given wall's column row is the one COMMON with an attached area (set by the orchestrator
+;; via *PEB-OMIT-WALL*); C:PEB-PLAN skips that row so the shared wall carries ONE row of columns.
+(defun peb-omit-wall-p (w) (and *PEB-OMIT-WALL* (= (strcase *PEB-OMIT-WALL*) (strcase w))))
+
+;; read AR_POSITION from a data file without drawing (to decide the omitted wall BEFORE C:PEB-PLAN runs)
+(defun peb-read-ar-position (path / f line pos)
+  (setq pos "")
+  (if (setq f (open path "r"))
+    (progn
+      (while (setq line (read-line f))
+        (if (and (>= (strlen line) 12) (= (substr line 1 12) "AR_POSITION="))
+          (setq pos (substr line 13))))
+      (close f)))
+  pos)
+
+;; wall of THIS area that is common with its reference, given its attach position (for *PEB-OMIT-WALL*)
+(defun peb-common-wall (pos / p)
+  (setq p (strcase (if pos pos "")))
+  (cond ((wcmatch p "*BELOW*") "FSW") ((wcmatch p "*ABOVE*") "NSW")
+        ((wcmatch p "*RIGHT*") "LEW") ((wcmatch p "*LEFT*") "REW") (T nil)))
+
 ;; (dx dy) to move a freshly-drawn area (box [0,l]x[0,w]) into place vs refbnds=(lew rew nsw fsw)
 (defun peb-area-offset (pos gap w l refbnds / rlew rrew rnsw rfsw p)
   (setq rlew (nth 0 refbnds) rrew (nth 1 refbnds) rnsw (nth 2 refbnds) rfsw (nth 3 refbnds)
@@ -3635,9 +3662,10 @@
 ;; title-block state quirk).  Single-area is unaffected.  e.g.:
 ;;   (progn (peb-plan-multi-from-files (list ...)) (command "_.ZOOM" "_E") (command "_.DXFOUT" f "16"))
 (defun peb-plan-multi-from-files (paths / placed prev-last off aNum pos ref gap w l refbnds i)
-  (setq *PEB-SUPPRESS-TB* T placed nil i 0)
+  (setq *PEB-SUPPRESS-TB* T *PEB-MULTI-MODE* T placed nil i 0)
   (foreach path paths
     (setq prev-last (entlast) *PEB-DATA-FILE* path)
+    ;; C:PEB-PLAN itself sets *PEB-OMIT-WALL* from AR_POSITION (it already reads the data) — no re-open here
     (vl-catch-all-apply (function (lambda () (C:PEB-PLAN))))
     (setq w *PEB-MA-WID* l *PEB-MA-LEN* aNum *PEB-AR-NUM*
           pos *PEB-AR-POS* ref *PEB-AR-REF* gap *PEB-AR-GAP*)
@@ -3648,7 +3676,7 @@
     (peb-move-since prev-last off)
     (setq placed (cons (cons aNum (list (car off) (+ (car off) l) (cadr off) (+ (cadr off) w))) placed)
           i (1+ i)))
-  (setq *PEB-SUPPRESS-TB* nil)
+  (setq *PEB-SUPPRESS-TB* nil *PEB-OMIT-WALL* nil *PEB-MULTI-MODE* nil)
   (peb-draw-combined-frame)
   (princ))
 
