@@ -2606,6 +2606,15 @@
         borderT (+ (cadr exmax) bGap))
   (setq tbStripX (+ (car exmax) (* 3500.0 *PEB-DIM-SCALE*))   ; gap right of the building content
         borderR  (+ tbStripX tbStripW))                       ; right border = panel right edge (no gap)
+  ;; owner 5-Jul (multi-area): publish this area's drawn size, frame params and attach info so the
+  ;; orchestrator (peb-plan-multi-from-files) can place areas by their LOGICAL dimensions and draw ONE
+  ;; shared border + title block around the whole set (each area suppresses its own via *PEB-SUPPRESS-TB*).
+  (setq *PEB-MA-WID* wid *PEB-MA-LEN* len
+        *PEB-MA-TBDATA* tbData *PEB-MA-TBSTRIPW* tbStripW *PEB-MA-BGAP* bGap
+        *PEB-AR-NUM* (MSPL-Get-Int data "AREA_NUM")
+        *PEB-AR-POS* (MSPL-Get-Str data "AR_POSITION")
+        *PEB-AR-REF* (MSPL-Get-Int data "AR_REF_AREA")
+        *PEB-AR-GAP* (MSPL-Get-Num data "AR_GAP"))
   (if (not *PEB-SUPPRESS-TB*)
     (progn
       (peb-titleblock-mammut tbStripX borderB tbStripW (- borderT borderB) tbData)  ; fills full height
@@ -3573,6 +3582,74 @@
   (setq *PEB-DATA-FILE* nil)
 
   (peb-tile-place prev-last prev-max-x)   ; left→right tile, fixed gap, no box overlap
+  (princ))
+
+;; ============================================================================
+;;  MULTI-AREA — ONE combined plan (owner 5-Jul)
+;; ============================================================================
+;; Draw several AREAS on ONE plan, each placed ADJACENT to its reference area per the IF fields
+;; AR_POSITION / AR_REF_AREA / AR_GAP, then wrap the whole set in ONE border + title block.  Areas are
+;; placed by their LOGICAL drawn dimensions (wid/len published by C:PEB-PLAN) — no fragile extent scan.
+;; Convention (owner 5-Jul): LEFT-ALIGNED; GAP 0 = shared wall.  Position is relative to the reference:
+;;   Attached — Below -> under ref (shares ref NSW)     Attached — Above -> over ref (shares ref FSW)
+;;   Attached — Right of -> right of ref (share ref REW) Attached — Left of -> left of ref (share ref LEW)
+
+;; (dx dy) to move a freshly-drawn area (box [0,l]x[0,w]) into place vs refbnds=(lew rew nsw fsw)
+(defun peb-area-offset (pos gap w l refbnds / rlew rrew rnsw rfsw p)
+  (setq rlew (nth 0 refbnds) rrew (nth 1 refbnds) rnsw (nth 2 refbnds) rfsw (nth 3 refbnds)
+        p (strcase (if pos pos "")) gap (if gap gap 0.0))
+  (cond
+    ((wcmatch p "*BELOW*") (list rlew (- rnsw gap w)))   ; under ref, share ref NSW
+    ((wcmatch p "*ABOVE*") (list rlew (+ rfsw gap)))     ; over ref, share ref FSW
+    ((wcmatch p "*RIGHT*") (list (+ rrew gap) rnsw))     ; right of ref, share ref REW
+    ((wcmatch p "*LEFT*")  (list (- rlew gap l) rnsw))   ; left of ref, share ref LEW
+    (T (list (+ rrew gap) rnsw))))
+
+;; MOVE every entity drawn AFTER prev-last by (dx dy) — collect via entnext (no getboundingbox)
+(defun peb-move-since (prev-last off / e ss)
+  (if (and prev-last off (or (/= (car off) 0.0) (/= (cadr off) 0.0)))
+    (progn
+      (setq ss (ssadd) e prev-last)
+      (while (setq e (entnext e)) (ssadd e ss))
+      (if (> (sslength ss) 0)
+        (command "_.MOVE" ss "" "0,0,0" (list (car off) (cadr off) 0.0)))))
+  (princ))
+
+;; one border + title block around the whole placed set (params published by the areas)
+(defun peb-draw-combined-frame ( / bGap exmin exmax bL bB bT bR tbX tbW ds)
+  (vl-catch-all-apply (function (lambda () (command "_.ZOOM" "_E"))))
+  (setq ds   (if *PEB-DIM-SCALE* *PEB-DIM-SCALE* 1.0)
+        bGap (if *PEB-MA-BGAP* *PEB-MA-BGAP* 3000.0)
+        tbW  (if *PEB-MA-TBSTRIPW* *PEB-MA-TBSTRIPW* 30000.0)
+        exmin (getvar "EXTMIN") exmax (getvar "EXTMAX"))
+  (setq bL (- (car exmin) bGap) bB (- (cadr exmin) bGap) bT (+ (cadr exmax) bGap)
+        tbX (+ (car exmax) (* 3500.0 ds)) bR (+ tbX tbW))
+  (if *PEB-MA-TBDATA* (peb-titleblock-mammut tbX bB tbW (- bT bB) *PEB-MA-TBDATA*))
+  (draw-border bL bB bR bT)
+  (command "_.ZOOM" "_E")
+  (princ))
+
+;; ORCHESTRATOR — draw + place every area file, then one shared frame.
+;; NB (owner 5-Jul): the CALLER must invoke this AND the DXFOUT/export in ONE top-level form (a progn) —
+;; in acad /b, the script reader stalls on the NEXT top-level form after the multi-area draw (an ActiveX/
+;; title-block state quirk).  Single-area is unaffected.  e.g.:
+;;   (progn (peb-plan-multi-from-files (list ...)) (command "_.ZOOM" "_E") (command "_.DXFOUT" f "16"))
+(defun peb-plan-multi-from-files (paths / placed prev-last off aNum pos ref gap w l refbnds i)
+  (setq *PEB-SUPPRESS-TB* T placed nil i 0)
+  (foreach path paths
+    (setq prev-last (entlast) *PEB-DATA-FILE* path)
+    (vl-catch-all-apply (function (lambda () (C:PEB-PLAN))))
+    (setq w *PEB-MA-WID* l *PEB-MA-LEN* aNum *PEB-AR-NUM*
+          pos *PEB-AR-POS* ref *PEB-AR-REF* gap *PEB-AR-GAP*)
+    (setq refbnds (if ref (cdr (assoc ref placed))))
+    (if (or (= i 0) (null refbnds) (wcmatch (strcase (if pos pos "STANDALONE")) "*STANDALONE*"))
+      (setq off (list 0.0 0.0))
+      (setq off (peb-area-offset pos gap w l refbnds)))
+    (peb-move-since prev-last off)
+    (setq placed (cons (cons aNum (list (car off) (+ (car off) l) (cadr off) (+ (cadr off) w))) placed)
+          i (1+ i)))
+  (setq *PEB-SUPPRESS-TB* nil)
+  (peb-draw-combined-frame)
   (princ))
 
 ;; ============================================================================
