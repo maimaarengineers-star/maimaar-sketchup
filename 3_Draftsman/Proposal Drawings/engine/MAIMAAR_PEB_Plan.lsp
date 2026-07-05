@@ -1565,6 +1565,10 @@
            (setvar "CMDECHO" 1) (princ) (exit)))
   (princ (strcat "\nReading: " dataFile))
   (setq data (MSPL-Read-Data dataFile))
+  ;; owner 5-Jul (multi-area): decide the shared/omitted wall from AR_POSITION UP-FRONT — the building
+  ;; outline, width grid and dims are all drawn early, so this must be set before ANY of them (not just
+  ;; before the columns).  nil => single-area, draw everything.
+  (setq *PEB-OMIT-WALL* (if (and *PEB-MULTI-MODE* data) (peb-common-wall (MSPL-Get-Str data "AR_POSITION")) nil))
   (if (null data)
     (progn
       (setvar "CMDECHO" 1)
@@ -2053,9 +2057,7 @@
         lewFrameLabel (if (or (= lewFrameRaw "MAIN FRAME") (= lewFrameRaw "RIGID")) "MAIN FRAME" "BEARING FRAME")
         rewFrameLabel (if (or (= rewFrameRaw "MAIN FRAME") (= rewFrameRaw "RIGID")) "MAIN FRAME" "BEARING FRAME"))
 
-  ;; owner 5-Jul (multi-area): in multi-area mode, this area OMITS the column/bracing/sheeting on the wall
-  ;; it SHARES with its reference (from AR_POSITION) — one shared row of columns.  nil => single-area, draw all.
-  (setq *PEB-OMIT-WALL* (if *PEB-MULTI-MODE* (peb-common-wall (MSPL-Get-Str data "AR_POSITION")) nil))
+  ;; (*PEB-OMIT-WALL* is now set up-front, right after the data read — see the top of C:PEB-PLAN.)
 
   ;; ── Columns ───────────────────────────────────────────────────
   (cond
