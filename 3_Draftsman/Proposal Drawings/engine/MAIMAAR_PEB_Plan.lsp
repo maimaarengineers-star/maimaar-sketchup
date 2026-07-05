@@ -1844,8 +1844,11 @@
   ;; TOP stack (upward from the FSW edge y=wid). owner 4-Jul: FIXED, UNIFORM gap between dimension rows
   ;; (dimGap) so dim spacing is consistent everywhere; generous, equal spacing (txtGap) between the FSW
   ;; label, the area-description banner, the "COLUMN LAYOUT PLAN" title, and the border.
-  (setq dimGap (* 2000.0 *PEB-DIM-SCALE*))                               ; gap between the NESTED LEFT width chains (owner 5-Jul: eased back from 2400)
-  (setq topGap (* 1300.0 *PEB-DIM-SCALE*))                               ; TOP stack gap — TIGHTER than dimGap (owner 5-Jul PNG: reduce top gap)
+  ;; owner 5-Jul (Gap Fix): step = ~1.6x the dim TEXT height (DIMTXT 500 * DIMSCALE) so the gap between
+  ;; the building line and the innermost dim, and between the nested chains, AUTO-FITS the text size
+  ;; (was 2000/1300 -> ~4x the text, far too wide). Same value drives the width (dimGap) & top (topGap) chains.
+  (setq dimGap (* 800.0 *PEB-DIM-SCALE*))                                ; gap between the NESTED LEFT width chains
+  (setq topGap (* 800.0 *PEB-DIM-SCALE*))                                ; TOP length-dim / bubble stack gap
   (setq txtGap (* 2000.0 *PEB-TEXT-SCALE*))                              ; FIXED gap between text rows
   (setq yBayDim (+ wid topGap))                                         ; per-bay dim chain
   (setq yOvrDim (+ yBayDim topGap))                                     ; overall-length dim (same gap)
@@ -3412,13 +3415,14 @@
   (setq lastBefore (entlast))
   (setq oldLayer   (getvar "CLAYER"))
   (peb-dim-set-vars)
-  ;; AUTOSIZE (owner 5-Jul): shrink the dim TEXT so the override label fits BETWEEN the arrows.  Caps at
-  ;; the default 500 (only shrinks when the longest line would overflow the dim span), floored at 200.
+  ;; AUTOSIZE (owner 5-Jul, STRICT RULE: the label must NEVER go beyond the arrows).  Shrink DIMTXT so the
+  ;; longest override line fits within the dim span with margin (conservative 0.82 span / 0.66 char-width),
+  ;; capped at the default 500, floored at 150.  (Very long labels are also abbreviated at the source.)
   (if override
     (peb-safe-setvar "DIMTXT"
-      (max 200.0 (min 500.0
-        (/ (* (abs (- y2 y1)) 0.88)
-           (* (peb-longest-line-len override) 0.62
+      (max 150.0 (min 500.0
+        (/ (* (abs (- y2 y1)) 0.82)
+           (* (peb-longest-line-len override) 0.66
               (if *PEB-DIM-SCALE* *PEB-DIM-SCALE* 1.0)))))))
   (setvar "CLAYER" "DIMENSIONS")
   (setq result
