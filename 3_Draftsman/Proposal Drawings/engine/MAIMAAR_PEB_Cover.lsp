@@ -90,6 +90,12 @@
         loc (strcase loc) quote (strcase quote) dat (strcase dat)
         drn (strcase drn) chk (strcase chk))
 
+  ;; owner 5-Jul: THIN cover lines like Roshan — set layer 0 (all cover lines are BYLAYER on it) to a
+  ;; fine 0.09 mm lineweight so the border/boxes render thin instead of the default 0.25 mm.
+  (vl-catch-all-apply (function (lambda ()
+    (vl-load-com)
+    (vla-put-Lineweight
+      (vla-item (vla-get-Layers (vla-get-ActiveDocument (vlax-get-acad-object))) "0") 9))))
   ;; ---- triple border (Mammut) : outer white x2 + inner BRAND-GREEN accent (modern) ----
   (tb-rect 0 0 Wc Hc white)
   (tb-rect (* Hc 0.010) (* Hc 0.010) (- Wc (* Hc 0.010)) (- Hc (* Hc 0.010)) white)
@@ -118,10 +124,13 @@
            (- bx1 (* Hc 0.012)) (- by1 (* Hc 0.012)) white)
   ;; fit the hero text WELL INSIDE the inner box (bold caps are wide -> use the
   ;; inner width and a conservative factor so it never touches the box lines)
+  ;; owner 5-Jul: fit the hero text via tb-fith on the INNER box (width*0.64 covers bold-caps advance;
+  ;; height*0.72 keeps clear of the top/bottom lines) so it can NEVER spill past the double-line box.
   (tb-mtext cx (* Hc 0.545)
-            (min (* Hc 0.075)
-                 (/ (* (- bx1 bx0 (* Hc 0.048)) 1.0) (* (strlen "PROPOSAL DRAWING") 0.78)))
-            (* Hc 1.9) 5
+            (tb-fith "PROPOSAL DRAWING"
+                     (* (- (- bx1 bx0) (* Hc 0.024)) 0.50)   ; bold ALL-CAPS advance ~1.0 -> conservative, clear margin
+                     (* (- (- by1 by0) (* Hc 0.024)) 0.72))
+            (- (- bx1 bx0) (* Hc 0.024)) 5
             "{\\fArial|b1;PROPOSAL DRAWING}" white)
 
   ;; ---- PROPOSAL / QUOTE NO. box ----
