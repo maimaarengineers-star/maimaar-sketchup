@@ -1386,7 +1386,7 @@
   (tb-hdiv yCur)
   (setq rh (* H 0.122) bt yCur yCur (- yCur rh))
   (tb-mtext (+ X0 (* W 0.04)) (- bt (* sm 1.3))
-    (tb-fith "    DIMENSIONS & LEVELS WILL BE SHOWN IN THE" cw (* sm 0.92)) cw 1
+    (tb-fith "    DIMENSIONS & LEVELS WILL BE SHOWN IN THE" cw (* sm 0.75)) cw 1  ; owner 5-Jul: smaller so the 8-line note fits its box (was overflowing into the disclaimer)
     (strcat "1. ALL DIMENSIONS ARE IN MM.\\P"
             "2. PROPOSAL DRAWING - NOT FOR CONSTRUCTION.\\P"
             "3. PROPOSAL DRAWING IS INDICATIVE ONLY; FINAL\\P"
@@ -3681,12 +3681,15 @@
         cw (- (car exmax) (car exmin)) ch (- (cadr exmax) (cadr exmin))
         cds  (max 0.8 (/ (max cw ch) 45000.0))   ; combined "dim scale" (single-sheet formula)
         bGap (* 3000.0 cds))                       ; uniform border margin for the whole sheet
-  ;; owner 5-Jul: the title block AUTO-FITS at the SAME constant aspect as a single sheet — width = 0.30 x
-  ;; the sheet height, filling the full height.  Scales cleanly to any combination of areas, no distortion.
-  (setq bL (- (car exmin) bGap) bB (- (cadr exmin) bGap) bT (+ (cadr exmax) bGap)
-        sh (- bT bB) tbW (* sh 0.30)
+  ;; owner 5-Jul: use the REFERENCE area's own (tested) title-block width + height — a CONSTANT standard
+  ;; block that fits its content perfectly — anchored TOP-right, NOT stretched to the full set height
+  ;; (which over-stretched the note/load sections and made the text overlap).  Falls back to 0.30 x sheet
+  ;; height if the reference size wasn't supplied.
+  (setq bL (- (car exmin) bGap) bB (- (cadr exmin) bGap) bT (+ (cadr exmax) bGap) sh (- bT bB)
+        tbW (if *PEB-MA-FIRST-TBW*    *PEB-MA-FIRST-TBW*    (* sh 0.30))
+        tbH (min (if *PEB-MA-FIRST-SHEETH* *PEB-MA-FIRST-SHEETH* sh) sh)
         tbX (+ (car exmax) (* 3500.0 cds)) bR (+ tbX tbW))
-  (if *PEB-MA-TBDATA* (peb-titleblock-mammut tbX bB tbW sh *PEB-MA-TBDATA*))
+  (if *PEB-MA-TBDATA* (peb-titleblock-mammut tbX (- bT tbH) tbW tbH *PEB-MA-TBDATA*))
   (draw-border bL bB bR bT)
   (command "_.ZOOM" "_E")
   (princ))
