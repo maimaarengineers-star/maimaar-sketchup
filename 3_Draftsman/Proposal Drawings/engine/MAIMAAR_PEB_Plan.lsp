@@ -505,13 +505,18 @@
   (txt-bold "BL" (list (+ x (* 414.0 s)) (+ y (* 1720.0 s))) (peb-th 'ANNOT) 0 "RIDGE LINE")
   (setvar "CLAYER" prev))
 
-;; x-midpoint of the 3rd bay FROM THE RIGHT (owner rule); 2-3 bays -> 2nd bay; 1 bay -> centre.
-(defun peb-ridge-bay-x (bayPts / n)
-  (setq n (1- (length bayPts)))
-  (cond
-    ((<= n 1) (/ (+ (car bayPts) (last bayPts)) 2.0))
-    ((<= n 3) (/ (+ (nth 1 bayPts) (nth 2 bayPts)) 2.0))
-    (T        (/ (+ (nth (- n 3) bayPts) (nth (- n 2) bayPts)) 2.0))))
+;; Ridge-symbol anchor x (owner 5-Jul): the RIDGE-LINE shelf/text extends to the RIGHT, so anchor it at the
+;; LEFT of an UNBRACED interior bay near the RIGHT-CENTRE (~0.75 of the length) — that keeps the whole label
+;; inside one bay, clear of the vertical "BRACED BAY" text (at each braced bay's midpoint) AND clear of the
+;; centred "AREA No." tag.  Skips the two end bays (shelf must stay inside).  Anchor = bay-left + 10% width.
+(defun peb-ridge-bay-x (bayPts / braced n tgt best bestd i)
+  (setq braced (peb-braced-bays bayPts) n (1- (length bayPts)) tgt (* 0.75 (float n)) bestd 1e9 i 1)
+  (while (< i (1- n))
+    (if (and (not (member i braced)) (< (abs (- i tgt)) bestd))
+      (setq bestd (abs (- i tgt)) best i))
+    (setq i (1+ i)))
+  (if (null best) (setq best (max 0 (- n 3))))
+  (+ (nth best bayPts) (* 0.10 (- (nth (1+ best) bayPts) (nth best bayPts)))))
 
 ;; ── COMPILER BRIDGE (owner 3-Jul) ───────────────────────────────────────────
 ;; Numbers measured from the Rule Book by compile_rulebook.py live in _peb_rules.lsp
