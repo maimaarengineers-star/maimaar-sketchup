@@ -118,22 +118,104 @@
               (T (setq out (cons (atof seg) out)))))
       (reverse out))))
 
-(defun peb-build-sheeting-string (data prefix / typ outProf outMat pirThk pirDens innerMat)
-  (setq typ      (peb-alist-get data (strcat "PN_" prefix "_TYPE")))
-  (setq outProf  (peb-alist-get data (strcat "PN_" prefix "_OUTER_PROFILE")))
-  (setq outMat   (peb-alist-get data (strcat "PN_" prefix "_OUTER_MAT")))
-  (setq pirThk   (peb-alist-get data (strcat "PN_" prefix "_PIR_THK")))
-  (setq pirDens  (peb-alist-get data (strcat "PN_" prefix "_PIR_DENS")))
-  (setq innerMat (peb-alist-get data (strcat "PN_" prefix "_INNER_MAT")))
+;; ----------------------------------------------------------------------------
+;;  SHEETING / INSULATION build-up composer
+;; ----------------------------------------------------------------------------
+;;  peb-panel-digits — pull the leading numeric run (int or decimal) out of a
+;;  free-form field, dropping any unit suffix.  "50mm" -> "50" , "38 kg/m3" ->
+;;  "38" , "0.50 mm" -> "0.50".  Leading spaces are skipped; scanning stops at
+;;  the first non-numeric char AFTER a digit has been seen.
+(defun peb-panel-digits (s / i n ch out started stop)
+  (setq s (if s s "") out "" i 1 n (strlen s) started nil stop nil)
+  (while (and (<= i n) (not stop))
+    (setq ch (substr s i 1))
+    (cond
+      ((or (and (>= (ascii ch) 48) (<= (ascii ch) 57)) (= ch "."))
+        (setq out (strcat out ch) started T))
+      (started (setq stop T)))
+    (setq i (1+ i)))
+  out)
+
+;;  peb-panel-clean-mat — a skin material/thickness string as authored in the
+;;  IF (e.g. "0.50 mm AZ150").  Blank -> the standard default "0.50mm AZ 150"
+;;  so a callout never prints an empty skin.  (Exact spacing of a NON-blank
+;;  value is whatever the estimator typed in the CRM Panel field — one truth
+;;  from the IF; we only trim it.)
+(defun peb-panel-clean-mat (s)
+  (setq s (vl-string-trim " " (if s s "")))
+  (if (= s "") "0.50mm AZ 150" s))
+
+;;  peb-panel-label — compose the FULL sheeting sandwich for KEY = "ROOF" or
+;;  "WALL":   outer  [+ " + " core]  [+ " + " inner ("(Liner)" if a liner skin)]
+;;
+;;    "0.50mm AZ 150 + 50 PIR Core Density 38kg/m3 + 0.50mm AZ 150"  (PIR sandwich)
+;;    "0.50mm AZ 150 + 50mm Fiberglass Insulation"                   (fibre, no liner)
+;;    "0.50mm AZ 150 + 50mm Fiberglass + 0.50mm AZ 150 (Liner)"      (fibre + liner)
+;;
+;;  Reads the v3 PN_<KEY>_* keys (same fields the CRM's pushPanel emits); the
+;;  sheet THICKNESS is embedded in PN_<KEY>_OUTER_MAT ("0.50 mm AZ150").  Empty
+;;  parts are omitted gracefully; blank skin -> standard 0.50mm AZ 150.
+(defun peb-panel-label (data key / typ outMat pirThk pirDens pirType innerMat
+                                    linerMat outer core inner thkNum coreU
+                                    isSandwich hasInner isLiner lbl)
+  (setq typ      (peb-alist-get data (strcat "PN_" key "_TYPE")))
+  (setq outMat   (peb-alist-get data (strcat "PN_" key "_OUTER_MAT")))
+  (setq pirThk   (peb-alist-get data (strcat "PN_" key "_PIR_THK")))
+  (setq pirDens  (peb-alist-get data (strcat "PN_" key "_PIR_DENS")))
+  (setq pirType  (peb-alist-get data (strcat "PN_" key "_PIR_TYPE")))
+  (setq innerMat (peb-alist-get data (strcat "PN_" key "_INNER_MAT")))
+  (setq linerMat (peb-alist-get data "PN_LINER_OUTER_MAT"))
+  (setq isSandwich (or (= (strcase typ) "SANDWICH PANEL")
+                       (= (strcase typ) "SANDWICH")))
+  ;; --- OUTER skin (thickness+material embedded in OUTER_MAT) ---
+  (setq outer  (peb-panel-clean-mat outMat))
+  ;; --- CORE / INSULATION ---
+  (setq thkNum (peb-panel-digits pirThk))
+  (setq coreU  (strcase pirType))
+  ;; an inner skin exists if one is authored, or the panel is a (PIR) sandwich
+  (setq hasInner (or (/= (vl-string-trim " " innerMat) "") isSandwich))
   (cond
-    ((or (= (strcase typ) "SANDWICH PANEL") (= (strcase typ) "SANDWICH"))
-      ;; spec MUST keep a digit (thickness) — see Plan.lsp note; default 50mm.
-      (strcat prefix " SHEETING  "
-              (if (= pirThk "") "50" pirThk) "MM PIR SANDWICH PANEL"))
-    ((or (= (strcase typ) "SINGLE SKIN") (= typ ""))
-      (strcat prefix " SHEETING:  " outMat
-              (if (/= outProf "") (strcat " - " outProf) "")))
-    (T (strcat prefix " SHEETING:  " outMat))))
+    ;; no thickness AND not a sandwich => single skin, no core part
+    ((and (= thkNum "") (not isSandwich)) (setq core ""))
+    ;; PIR core => "50 PIR Core Density 38kg/m3"  (density optional)
+    ((or (wcmatch coreU "*PIR*") isSandwich)
+      (setq core (strcat (if (= thkNum "") "50" thkNum) " PIR Core"
+                         (if (/= (peb-panel-digits pirDens) "")
+                           (strcat " Density " (peb-panel-digits pirDens) "kg/m3")
+                           ""))))
+    ;; Fibreglass / glass-wool / mineral / rock wool => "50mm Fiberglass[ Insulation]"
+    ((or (wcmatch coreU "*FIBER*") (wcmatch coreU "*FIBRE*")
+         (wcmatch coreU "*GLASS*") (wcmatch coreU "*WOOL*")
+         (wcmatch coreU "*MINERAL*") (wcmatch coreU "*ROCK*"))
+      (setq core (strcat thkNum "mm Fiberglass" (if hasInner "" " Insulation"))))
+    ;; any other named insulation carrying a thickness
+    (T (setq core (strcat thkNum "mm "
+                          (if (= (vl-string-trim " " pirType) "")
+                            "Insulation" (vl-string-trim " " pirType))))))
+  ;; --- INNER skin / LINER ---
+  (setq inner   (vl-string-trim " " innerMat))
+  (setq isLiner nil)
+  (cond
+    ;; sandwich: inner skin is integral to the panel (never tagged "(Liner)")
+    (isSandwich (setq inner (peb-panel-clean-mat innerMat)))
+    ;; single skin + an authored inner sheet => that sheet is the liner
+    ((/= inner "") (setq inner (peb-panel-clean-mat innerMat) isLiner T))
+    ;; single skin + a standalone liner panel (PN_LINER_*) => liner
+    ((/= (vl-string-trim " " linerMat) "")
+      (setq inner (peb-panel-clean-mat linerMat) isLiner T))
+    (T (setq inner "")))
+  ;; --- COMPOSE: outer [+ core] [+ inner (Liner?)] ---
+  (setq lbl outer)
+  (if (/= core "")  (setq lbl (strcat lbl " + " core)))
+  (if (/= inner "") (setq lbl (strcat lbl " + " inner (if isLiner " (Liner)" ""))))
+  lbl)
+
+;;  Legacy entry point kept for the drawing code: heading + full build-up.
+;;  Two spaces (no colon) before the spec so split-at-first-digit yields a
+;;  clean "ROOF SHEETING" / "WALL SHEETING" heading (the label routine adds
+;;  the ":") and a spec that begins with the outer-skin thickness digit.
+(defun peb-build-sheeting-string (data prefix)
+  (strcat prefix " SHEETING  " (peb-panel-label data prefix)))
 
 (defun peb-v3-to-legacy (v3 / out project client proposal bldgno revno
                               len wid heightVal brick slope slopeRaw slopeCustom
@@ -3487,8 +3569,11 @@
       (setq rLine2_2L (peb-split-2-lines rLine2))
       (setq rBarY     (+ labRY (* 175 *PEB-TEXT-SCALE*)))
       (setq rBarLen   300.0)                  ; 300 mm bar (Option B)
+      ;; \H0.72x; shrinks the whole panel callout (heading + build-up spec)
+      ;; to 0.72x the MLEADER body height so the full sandwich fits inside
+      ;; the section as a compact leader.
       (setq rCombined
-        (strcat "{\\fArial|b1;" rLine1 "}\\P" rLine2_2L))
+        (strcat "{\\H0.72x;{\\fArial|b1;" rLine1 "}\\P" rLine2_2L "}"))
       ;; --- Try 3-vertex MLEADER with combined text -----------------
       (setq mlResult
         (vl-catch-all-apply 'peb-make-mleader
@@ -3634,8 +3719,11 @@
       ;;   line 1 = bold "WALL SHEETING:"   (above bar)
       ;;   line 2-3 = spec, 2 lines split   (below bar)
       ;; \\P is MText paragraph break.
+      ;; \H0.72x; shrinks the whole panel callout (heading + build-up spec)
+      ;; to 0.72x the MLEADER body height — compact leader that fits inside
+      ;; the section.
       (setq wCombined
-        (strcat "{\\fArial|b1;" wLine1 "}\\P" wLine2_2L))
+        (strcat "{\\H0.72x;{\\fArial|b1;" wLine1 "}\\P" wLine2_2L "}"))
       ;; --- Try 4-vertex MLEADER with combined text -----------------
       ;; Bar (v2-v3) is exactly 300 mm long: v2 at wExtX, v3 at
       ;; wExtX + 300.  Text starts at v3 going RIGHT, landing right
@@ -3886,8 +3974,11 @@
       (setq rLine2_2L (peb-split-2-lines rLine2))
       (setq rBarY  (+ labRY (* 175 *PEB-TEXT-SCALE*)))
       (setq rBarLen 300.0)
+      ;; \H0.72x; shrinks the whole panel callout (heading + build-up spec)
+      ;; to 0.72x the MLEADER body height so the full sandwich fits inside
+      ;; the section as a compact leader.
       (setq rCombined
-        (strcat "{\\fArial|b1;" rLine1 "}\\P" rLine2_2L))
+        (strcat "{\\H0.72x;{\\fArial|b1;" rLine1 "}\\P" rLine2_2L "}"))
       (setq mlResult
         (vl-catch-all-apply 'peb-make-mleader
           (list
@@ -3962,8 +4053,11 @@
       (setq wBarLen    300.0)
       ;; v0-v1 segment 1500 mm so the arrow renders (matches CS rule)
       (setq wExtX      (- labWX 1500.0))
+      ;; \H0.72x; shrinks the whole panel callout (heading + build-up spec)
+      ;; to 0.72x the MLEADER body height — compact leader that fits inside
+      ;; the section.
       (setq wCombined
-        (strcat "{\\fArial|b1;" wLine1 "}\\P" wLine2_2L))
+        (strcat "{\\H0.72x;{\\fArial|b1;" wLine1 "}\\P" wLine2_2L "}"))
       (setq mlResult
         (vl-catch-all-apply 'peb-make-mleader
           (list
