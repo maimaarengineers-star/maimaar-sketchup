@@ -28,13 +28,19 @@ render-then-merge** automatically — verified: canopy + monitor from Area 01 ap
 | Partition | `peb-draw-partition` | COMP-PARTITION (6) | `PT_TOGGLE`, `PT<n>_{TYPE, LENGTH, LOCATION, OPEN}` |
 | Stairs | `peb-draw-stairs` | COMP-STAIRS (6) | `ST_TOGGLE`, `ST<n>_{WIDTH, HEIGHT, TYPE, TOP_LANDING}` |
 
-Also: **Flat Roof** now draws inward-fall arrows to a central dash-dot drain line (was text only).
+Plus two non-tabular drawers/branches:
+- **Roof accessories** (`peb-draw-roof-accessories`, COMP-ROOF-ACC): `RA_SKYLIGHTS`/`RA_TURBOVENTS` counts →
+  distributed X-marked squares (up to 15 drawn) + ridge-line vent circles + count labels; `RA_ROOF_OPENING`
+  m² → note. (Grid-located accessories still flow through `PL_` placements.)
+- **Single Slope** — full-width high→low fall arrows + HIGH/LOW EAVE tags, keyed off `RA_MONO_HIGH`
+  (`a.msHighSide`, else FSW). **Flat Roof** — inward-fall arrows to a central dash-dot drain line.
 
 ## Coverage gate
 `component_coverage_gate.py` compares every key the CRM writes (`drawingData.js` `push('KEY',…)`) against
 every key the engine consumes, resolving dynamic reads (`(strcat pre "SPAN")`, per-wall/per-index). Run:
-`python component_coverage_gate.py`. Current: **~76% of plan-relevant keys consumed** — the remainder are
-either NOT plan geometry (estimation loads, section details, proposal header, panel skins) or **data-blocked**.
+`python component_coverage_gate.py`. Current: **~86% of plan-relevant keys consumed** — the remaining ~14%
+are NOT plan geometry (estimation loads, section-only details like partition height / monitor throat / mezz
+handrail, proposal header, panel skins) or the one data-blocked field below.
 
 ## Already covered (not components)
 - **Dimension BASIS** — `peb-basis-suffix`/`peb-basis-offsets` shift dim witness lines to the chosen plane
@@ -42,11 +48,13 @@ either NOT plan geometry (estimation loads, section details, proposal header, pa
 - **Identical count** — `HD_IDENTICAL` → title block "No. Of Identical Bldg.".
 - **Frame types** CS/MS/MG/RC/CC/BF/SS/FR + arched; multi-area joining, bracing, doors/windows.
 
-## Data-blocked (engine ready; CRM must serialize these to the v3 data file first)
-`drawingData.js` does not yet `push()` these, so the plan cannot consume them regardless:
-- **`msHighSide`** — Single-Slope directional fall (high→low eave tags). Engine draws a default arrow today.
-- **`ridgeOffset`** — off-centre ridge line.
-- **Roof accessories** — skylights, turbo-vents, roof opening area, cut-outs (framed-opening / notch marks).
+## Closed 6-Jul (RA_* wiring, commit 552e811)
+- **Roof accessories** (skylights, turbo-vents, roof opening/cut-out area) — now pushed by `drawingData.ts`
+  (`RA_SKYLIGHTS`/`RA_TURBOVENTS`/`RA_ROOF_OPENING` from `a.skylights`/`turboVents`/`roofOpeningArea`) + drawn.
+- **Single-Slope directional fall** — `RA_MONO_HIGH` (from `a.msHighSide`, else FSW default) drives the
+  high→low arrows + eave tags. The engine is ready for a real `msHighSide` the moment the IF captures it.
 
-To close TRUE 100%: add the corresponding `push()` calls in `drawingData.js`, then wire the small readers
-(SS: high-side arrow direction + eave tags; ridge-offset: shift ridge Y; accessories: small roof marks).
+## Still data-blocked (1 item — engine ready, but no IF field exists)
+- **`ridgeOffset`** — an off-centre ridge line. There is NO `ridgeOffset` field in the IF/area schema and it
+  is a rare requirement, so no `push()` was added. To enable: add the field to the IF + area, push
+  `BP_RIDGE_OFFSET`, then shift the ridge Y in `peb-ridge-line`/`peb-ridge-callout` by that offset.
