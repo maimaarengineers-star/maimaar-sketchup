@@ -1558,6 +1558,12 @@
 ;; dispatch — called from C:PEB-PLAN after the frame is drawn (len/wid = drawn plan size)
 (defun peb-draw-components (data len wid)
   (vl-catch-all-apply (function (lambda () (peb-draw-canopy data len wid))))
+  (vl-catch-all-apply (function (lambda () (peb-draw-roof-ext data len wid))))
+  (vl-catch-all-apply (function (lambda () (peb-draw-fascia data len wid))))
+  (vl-catch-all-apply (function (lambda () (peb-draw-monitor data len wid))))
+  (vl-catch-all-apply (function (lambda () (peb-draw-partition data len wid))))
+  (vl-catch-all-apply (function (lambda () (peb-draw-mezzanine data len wid))))
+  (vl-catch-all-apply (function (lambda () (peb-draw-crane data len wid))))
   ;; future drawers appended here: mezzanine / crane / roof-ext / fascia / monitor / platform / catwalk / partition ...
   (setvar "CLAYER" "0")
   (princ))
@@ -1608,6 +1614,595 @@
     (progn   ; wall along Y: projection dim = horizontal, coverage dim = vertical
       (vl-catch-all-apply (function (lambda () (peb-dim-h-stretch bx (+ bx (* nx proj)) (- by (* su 1.6)) (peb-comma (rtos proj 2 0))))))
       (if (not full) (vl-catch-all-apply (function (lambda () (peb-dim-height-stretch bx (+ bx (* nx (+ proj (* su 1.6)))) by ey (peb-comma (rtos (abs (- ey by)) 2 0)))))))))
+  (princ))
+
+
+;; ---- component drawer: peb-draw-roof-ext (merged from comp_roofext.lsp) ----
+;; ============================================================================
+;; ROOF EXTENSION / OVERHANG drawer (per wall RX_<W>_*)  — Column Layout Plan
+;; ----------------------------------------------------------------------------
+;; A roof extension is a roof-plane cantilever beyond a wall: same slope/plane as
+;; the main roof (unlike a canopy which falls to its own free edge), so the plan
+;; footprint is the outline projected past the wall by WIDTH, along the wall by
+;; LEN (0 = full wall).  Owner rule: outer steel outline + projection dim
+;; (+ coverage dim if partial) + label; NO fall arrow (same roof plane) — the
+;; eave condition is annotated instead.
+;; Building axes in plan: NSW=bottom(y=0) FSW=top(y=wid) LEW=left(x=0) REW=right(x=len).
+;; Reuses shared helpers: peb-comp-layer, peb-comp-poly, txt-bold,
+;; peb-dim-h-stretch, peb-dim-height-stretch, peb-comma, MSPL-Get-Str/Num.
+;; Self-contained + catch-wrapped; safe defaults; draws only on RX_TOGGLE = Yes.
+;; ============================================================================
+
+;; dispatch — mirror of peb-draw-canopy: iterate the four walls, draw each
+;; toggled-on roof extension.  proj = RX_<W>_WIDTH (projection from the wall);
+;; alen = RX_<W>_LEN (coverage along the wall, 0/blank = full).
+(defun peb-draw-roof-ext (data len wid / u proj alen eave)
+  (if (= (strcase (MSPL-Get-Str data "RX_TOGGLE")) "YES")
+    (progn
+      (setq u (max 400.0 (min 3000.0 (/ (max len wid) 70.0))))
+      (foreach w (list "NSW" "FSW" "LEW" "REW")
+        (if (= (strcase (MSPL-Get-Str data (strcat "RX_" w "_TOGGLE"))) "YES")
+          (progn
+            (setq proj (MSPL-Get-Num data (strcat "RX_" w "_WIDTH")))   ; projection from wall
+            (setq alen (MSPL-Get-Num data (strcat "RX_" w "_LEN")))     ; length along wall (0 = full)
+            (setq eave (MSPL-Get-Str data (strcat "RX_" w "_EAVE")))    ; eave-edge condition
+            (if (or (null proj) (<= proj 0.0)) (setq proj 1000.0))      ; std overhang 1000 mm
+            (vl-catch-all-apply
+              (function (lambda () (peb-comp-roof-ext-one w proj alen eave len wid u)))))))))
+  (princ))
+
+;; one roof extension on wall w: outline extruded from the wall by proj, along the
+;; wall by alen (default full), + projection & coverage-length dims + label +
+;; eave-condition note.  Same NSW/FSW/LEW/REW geometry + horiz/dims logic as
+;; peb-comp-canopy-one, minus the FALL arrow (roof extension shares the roof plane).
+(defun peb-comp-roof-ext-one (w proj alen eave len wid u / wl a0 a1 bx by ex ey nx ny mcx mcy horiz su full)
+  (setq horiz (member w '("NSW" "FSW")) wl (if horiz len wid)
+        full (or (null alen) (<= alen 0.0) (>= alen wl)))
+  (if full (setq a0 0.0 a1 wl) (setq a0 (/ (- wl alen) 2.0) a1 (+ a0 alen)))
+  (cond
+    ((= w "NSW") (setq bx a0 by 0.0 ex a1 ey 0.0  nx 0.0 ny -1.0))
+    ((= w "FSW") (setq bx a0 by wid ex a1 ey wid  nx 0.0 ny 1.0))
+    ((= w "LEW") (setq bx 0.0 by a0 ex 0.0 ey a1  nx -1.0 ny 0.0))
+    ((= w "REW") (setq bx len by a0 ex len ey a1  nx 1.0 ny 0.0)))
+  (setq mcx (+ (/ (+ bx ex) 2.0) (* nx proj 0.5)) mcy (+ (/ (+ by ey) 2.0) (* ny proj 0.5))
+        su (max 300.0 (min u (* (abs proj) 0.30))))        ; annotation size scaled to the STRIP depth
+  (peb-comp-layer "COMP-ROOF-EXT" 5)                       ; blue
+  (peb-comp-poly (list (list bx by) (list ex ey)
+                       (list (+ ex (* nx proj)) (+ ey (* ny proj)))
+                       (list (+ bx (* nx proj)) (+ by (* ny proj)))))
+  (setvar "CLAYER" "COMP-ROOF-EXT")
+  ;; centre label (reads along the strip)
+  (txt-bold "MC" (list mcx mcy) (/ su (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) (if horiz 0.0 90.0) "ROOF EXTN")
+  ;; eave-condition note at the free edge (~72% across the strip so it clears the centre label);
+  ;; no FALL arrow — same roof plane as the main roof.
+  (if (and eave (/= eave ""))
+    (progn
+      (if horiz
+        (txt-bold "MC" (list (+ bx (* (- ex bx) 0.72)) (+ by (* ny proj 0.75)))
+                  (/ (* su 0.55) (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0.0 (strcat "EAVE: " eave))
+        (txt-bold "MC" (list (+ bx (* nx proj 0.75)) (+ by (* (- ey by) 0.72)))
+                  (/ (* su 0.55) (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 90.0 (strcat "EAVE: " eave)))))
+  ;; projection dim ALWAYS; coverage dim only if PARTIAL (a full-wall extension's
+  ;; extent already equals the building length/width dim, so re-drawing it collides).
+  (if horiz
+    (progn   ; wall along X: projection dim = vertical, coverage dim = horizontal
+      (vl-catch-all-apply (function (lambda () (peb-dim-height-stretch bx (- bx (* su 1.6)) by (+ by (* ny proj)) (peb-comma (rtos proj 2 0))))))
+      (if (not full) (vl-catch-all-apply (function (lambda () (peb-dim-h-stretch bx ex (+ by (* ny (+ proj (* su 1.6)))) (peb-comma (rtos (abs (- ex bx)) 2 0))))))))
+    (progn   ; wall along Y: projection dim = horizontal, coverage dim = vertical
+      (vl-catch-all-apply (function (lambda () (peb-dim-h-stretch bx (+ bx (* nx proj)) (- by (* su 1.6)) (peb-comma (rtos proj 2 0))))))
+      (if (not full) (vl-catch-all-apply (function (lambda () (peb-dim-height-stretch bx (+ bx (* nx (+ proj (* su 1.6)))) by ey (peb-comma (rtos (abs (- ey by)) 2 0)))))))))
+  (princ))
+
+;; ---- component drawer: peb-draw-fascia (merged from comp_fascia.lsp) ----
+;; ============================================================================
+;; FASCIA / PARAPET component drawer (per wall FA_<W>_*)  — own file, self-contained.
+;; Mirrors the CANOPY drawer pattern (peb-draw-canopy / peb-comp-canopy-one).
+;; Plan axes: NSW=bottom(y=0) FSW=top(y=wid) LEW=left(x=0) REW=right(x=len).
+;; Raw mm everywhere; only txt-bold divides its height by *PEB-TEXT-SCALE*.
+;; Draws a THIN perimeter BAND just OUTBOARD of each toggled wall (full length or
+;; FA_<W>_LEN), projecting OUT by FA_<W>_PROJ (default 600 mm). No columns.
+;; Layer "COMP-FASCIA" colour 2 (yellow).
+;; ============================================================================
+
+(defun peb-draw-fascia (data len wid / u proj alen)
+  (if (= (strcase (MSPL-Get-Str data "FA_TOGGLE")) "YES")
+    (progn
+      ;; annotation base unit (same clamp as canopy); su clamps this down per strip
+      (setq u (max 400.0 (min 3000.0 (/ (max len wid) 70.0))))
+      (foreach w (list "NSW" "FSW" "LEW" "REW")
+        (if (= (strcase (MSPL-Get-Str data (strcat "FA_" w "_TOGGLE"))) "YES")
+          (progn
+            (setq proj (MSPL-Get-Num data (strcat "FA_" w "_PROJ")))   ; projection out from wall
+            (setq alen (MSPL-Get-Num data (strcat "FA_" w "_LEN")))    ; length along wall (0/blank = full)
+            (if (or (null proj) (<= proj 0.0)) (setq proj 600.0))      ; fascia/parapet std ~600 mm
+            (vl-catch-all-apply
+              (function (lambda ()
+                (peb-comp-fascia-one w proj alen len wid u
+                  (MSPL-Get-Str data (strcat "FA_" w "_TYPE")))))))))))
+  (setvar "CLAYER" "0")
+  (princ))
+
+;; one fascia/parapet band on wall w: outboard strip extruded from the wall by proj,
+;; along the wall by alen (default full) + centred TYPE label + projection dim.
+(defun peb-comp-fascia-one (w proj alen len wid u typ / wl a0 a1 bx by ex ey nx ny mcx mcy horiz su full lbl)
+  (setq horiz (member w '("NSW" "FSW")) wl (if horiz len wid)
+        full (or (null alen) (<= alen 0.0) (>= alen wl)))
+  (if full (setq a0 0.0 a1 wl) (setq a0 (/ (- wl alen) 2.0) a1 (+ a0 alen)))
+  (cond
+    ((= w "NSW") (setq bx a0 by 0.0 ex a1 ey 0.0  nx 0.0 ny -1.0))
+    ((= w "FSW") (setq bx a0 by wid ex a1 ey wid  nx 0.0 ny 1.0))
+    ((= w "LEW") (setq bx 0.0 by a0 ex 0.0 ey a1  nx -1.0 ny 0.0))
+    ((= w "REW") (setq bx len by a0 ex len ey a1  nx 1.0 ny 0.0)))
+  (setq mcx (+ (/ (+ bx ex) 2.0) (* nx proj 0.5)) mcy (+ (/ (+ by ey) 2.0) (* ny proj 0.5))
+        ;; PROJ is small (~600): keep text legible but never protruding past the band
+        su (max 150.0 (min u (* (abs proj) 0.5))))
+  ;; label: "PARAPET" when the type reads as a parapet, else "FASCIA - <TYPE>"
+  (if (or (null typ) (= typ "")) (setq typ "PARAPET"))
+  (setq lbl (if (wcmatch (strcase typ) "*PARAPET*")
+              (strcase typ)
+              (strcat "FASCIA - " (strcase typ))))
+  (peb-comp-layer "COMP-FASCIA" 2)                       ; yellow
+  ;; thin outboard band running ALONG the wall, projecting OUT by proj
+  (peb-comp-poly (list (list bx by) (list ex ey)
+                       (list (+ ex (* nx proj)) (+ ey (* ny proj)))
+                       (list (+ bx (* nx proj)) (+ by (* ny proj)))))
+  (setvar "CLAYER" "COMP-FASCIA")
+  ;; centred TYPE label — reads along the wall (horizontal walls) or up it (end walls)
+  (txt-bold "MC" (list mcx mcy)
+            (/ su (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0))
+            (if horiz 0.0 90.0) lbl)
+  ;; projection dim ALWAYS; coverage dim only when PARTIAL (full-length is already the
+  ;; building length/width dim, so re-drawing it just collides with the wall labels).
+  (if horiz
+    (progn   ; wall along X: projection dim = vertical, coverage dim = horizontal
+      (vl-catch-all-apply (function (lambda () (peb-dim-height-stretch bx (- bx (* su 1.6)) by (+ by (* ny proj)) (peb-comma (rtos proj 2 0))))))
+      (if (not full) (vl-catch-all-apply (function (lambda () (peb-dim-h-stretch bx ex (+ by (* ny (+ proj (* su 1.6)))) (peb-comma (rtos (abs (- ex bx)) 2 0))))))))
+    (progn   ; wall along Y: projection dim = horizontal, coverage dim = vertical
+      (vl-catch-all-apply (function (lambda () (peb-dim-h-stretch bx (+ bx (* nx proj)) (- by (* su 1.6)) (peb-comma (rtos proj 2 0))))))
+      (if (not full) (vl-catch-all-apply (function (lambda () (peb-dim-height-stretch bx (+ bx (* nx (+ proj (* su 1.6)))) by ey (peb-comma (rtos (abs (- ey by)) 2 0)))))))))
+  (princ))
+
+;; ---- component drawer: peb-draw-monitor (merged from comp_monitor.lsp) ----
+;; ============================================================================
+;; ROOF MONITOR — Column Layout Plan component drawer (single, along the ridge)
+;; Building axes in plan: NSW=bottom(y=0) FSW=top(y=wid) LEW=left(x=0) REW=right(x=len).
+;; Ridge runs along the LENGTH at mid-width (y = wid/2).  All coords RAW mm; only
+;; txt-bold divides by *PEB-TEXT-SCALE*.  Layer "COMP-MONITOR" colour 4 (cyan).
+;; Draws: raised strip outline (rectangle centred on ridge, total width
+;; RM_OVERALL_WIDTH, running RM_LENGTH along the length, default full & centred),
+;; a centre ridge line, a "ROOF MONITOR" label, a width dim, and a length dim if
+;; the monitor is partial.  NO columns.
+;; ============================================================================
+(defun peb-draw-monitor (data len wid
+                         / u ridge ow rmlen half x0 x1 yTop yBot mcx su lay lyr)
+  (if (= (strcase (MSPL-Get-Str data "RM_TOGGLE")) "YES")
+    (progn
+      ;; ---- size unit (same formula the other drawers use) ----------------
+      (setq u (max 400.0 (min 3000.0 (/ (max len wid) 70.0))))
+      ;; ---- read IF keys with safe defaults (all raw mm) ------------------
+      (setq ow    (MSPL-Get-Num data "RM_OVERALL_WIDTH"))   ; total strip width across the ridge
+      (setq rmlen (MSPL-Get-Num data "RM_LENGTH"))          ; length along the ridge (0/blank = full)
+      (if (or (null ow) (<= ow 0.0)) (setq ow 3000.0))      ; Mammut-ish default 3.0 m
+      ;; ---- geometry ------------------------------------------------------
+      (setq ridge (/ wid 2.0)                               ; single ridge at mid-width
+            half  (/ ow 2.0)
+            yTop  (+ ridge half)
+            yBot  (- ridge half))
+      ;; length span (centred if partial) ----------------------------------
+      (if (or (null rmlen) (<= rmlen 0.0) (>= rmlen len))
+        (setq x0 0.0 x1 len)                                ; full length, LEW->REW
+        (setq x0 (/ (- len rmlen) 2.0) x1 (+ x0 rmlen)))    ; centred partial
+      (setq mcx (/ (+ x0 x1) 2.0)
+            su  (max 300.0 (min u (* ow 0.30))))            ; annotation size scaled to the strip depth
+      ;; ---- layer ---------------------------------------------------------
+      (setq lay "COMP-MONITOR")
+      (if (not (tblsearch "LAYER" lay))
+        (entmake (list (cons 0 "LAYER") (cons 100 "AcDbSymbolTableRecord")
+                       (cons 100 "AcDbLayerTableRecord") (cons 2 lay)
+                       (cons 70 0) (cons 62 4))))           ; colour 4 = cyan
+      (setvar "CLAYER" lay)
+      (setq lyr (getvar "CLAYER"))
+      ;; ---- strip outline (rectangle = two ridge-parallel lines + end caps) ----
+      (entmake (list (cons 0 "LWPOLYLINE") (cons 100 "AcDbEntity") (cons 8 lyr)
+                     (cons 100 "AcDbPolyline") (cons 90 4) (cons 70 1)
+                     (list 10 x0 yBot) (list 10 x1 yBot)
+                     (list 10 x1 yTop) (list 10 x0 yTop)))
+      ;; ---- centre ridge line ---------------------------------------------
+      (entmake (list (cons 0 "LINE") (cons 8 lyr)
+                     (list 10 x0 ridge 0.0) (list 11 x1 ridge 0.0)))
+      ;; ---- label (reads along the length) --------------------------------
+      (setvar "CLAYER" lay)
+      (txt-bold "MC" (list mcx ridge)
+                (/ su (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0 "ROOF MONITOR")
+      ;; ---- width dim (RM_OVERALL_WIDTH) — vertical, at the left end -------
+      (vl-catch-all-apply
+        (function (lambda ()
+          (peb-dim-height-stretch x0 (- x0 (* su 1.6)) yBot yTop
+                                  (peb-comma (rtos ow 2 0))))))
+      ;; ---- length dim — horizontal, only if PARTIAL ----------------------
+      (if (and rmlen (> rmlen 0.0) (< rmlen len))
+        (vl-catch-all-apply
+          (function (lambda ()
+            (peb-dim-h-stretch x0 x1 (+ yTop (* su 1.6))
+                               (peb-comma (rtos (- x1 x0) 2 0)))))))))
+  (princ))
+
+;; ---- component drawer: peb-draw-partition (merged from comp_partition.lsp) ----
+;; ============================================================================
+;; PARTITION (interior wall) drawer  -- PT_TOGGLE + PT<n>_* (n = 1..4)
+;; Self-contained; reuses shared helpers only. Owner rule: minimal footprint
+;; interior wall LINE, NO columns.  Building axes in plan:
+;;   NSW = bottom (y=0)  FSW = top (y=wid)  LEW = left (x=0)  REW = right (x=len)
+;;   Longitudinal = along the LENGTH (x), positioned at a WIDTH  (from-NSW) y.
+;;   Transverse   = across the WIDTH  (y), positioned at a LENGTH (from-LEW) x.
+;;   PT<n>_LENGTH  0/blank => full span; else the wall is that long, centred.
+;;   PT<n>_LOCATION (mm) => the offset position; blank => mid-span.
+;;   PT<n>_OPEN /= "Fully Sheeted" => label gets " (OPEN)".
+;; Dispatch (add to peb-draw-components):
+;;   (vl-catch-all-apply (function (lambda () (peb-draw-partition data len wid))))
+;; ============================================================================
+(defun peb-draw-partition
+       (data len wid / u th tw i tag typ plen pos opn lng x0 x1 y0 y1 cx cy)
+  (if (= (strcase (MSPL-Get-Str data "PT_TOGGLE")) "YES")
+    (progn
+      (setq u  (max 400.0 (min 3000.0 (/ (max len wid) 70.0)))   ; annotation unit
+            th (max 300.0 (* u 0.45))                            ; desired raw text height
+            tw 150.0)                                            ; wall thickness on plan (mm)
+      (peb-comp-layer "COMP-PARTITION" 6)                        ; magenta
+      (setq i 1)
+      (while (<= i 4)
+        (setq tag (strcat "PT" (itoa i) "_"))
+        (if (= (strcase (MSPL-Get-Str data (strcat tag "TOGGLE"))) "YES")
+          (vl-catch-all-apply
+            (function
+              (lambda ()
+                (setq typ  (strcase (MSPL-Get-Str data (strcat tag "TYPE")))
+                      plen (MSPL-Get-Num data (strcat tag "LENGTH"))
+                      pos  (MSPL-Get-Num data (strcat tag "LOCATION"))
+                      opn  (strcase (MSPL-Get-Str data (strcat tag "OPEN"))))
+                (peb-comp-layer "COMP-PARTITION" 6)
+                (if (wcmatch typ "*TRANSVERSE*")
+                  ;; ---- TRANSVERSE : vertical band across the width at x = cx ----
+                  (progn
+                    (setq lng (if (and plen (> plen 0.0)) (min plen wid) wid)
+                          y0  (/ (- wid lng) 2.0)
+                          y1  (+ y0 lng)
+                          cx  (if (and pos (> pos 0.0) (< pos len)) pos (/ len 2.0)))
+                    (peb-comp-poly (list (list (- cx (/ tw 2.0)) y0)
+                                         (list (+ cx (/ tw 2.0)) y0)
+                                         (list (+ cx (/ tw 2.0)) y1)
+                                         (list (- cx (/ tw 2.0)) y1)))
+                    (setvar "CLAYER" "COMP-PARTITION")
+                    (txt-bold "MC"
+                              (list (+ cx (* u 0.8)) (/ (+ y0 y1) 2.0))
+                              (/ th (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0))
+                              90.0
+                              (strcat "PARTITION PT" (itoa i) " (TRANSVERSE)"
+                                      (if (and opn (/= opn "FULLY SHEETED") (/= opn "")) " (OPEN)" "")))
+                    (vl-catch-all-apply
+                      (function (lambda ()
+                        (peb-dim-height-stretch cx (- cx (* u 1.6)) y0 y1
+                                                (peb-comma (rtos lng 2 0)))))))
+                  ;; ---- LONGITUDINAL (default) : horizontal band along len at y = cy ----
+                  (progn
+                    (setq lng (if (and plen (> plen 0.0)) (min plen len) len)
+                          x0  (/ (- len lng) 2.0)
+                          x1  (+ x0 lng)
+                          cy  (if (and pos (> pos 0.0) (< pos wid)) pos (/ wid 2.0)))
+                    (peb-comp-poly (list (list x0 (- cy (/ tw 2.0)))
+                                         (list x1 (- cy (/ tw 2.0)))
+                                         (list x1 (+ cy (/ tw 2.0)))
+                                         (list x0 (+ cy (/ tw 2.0)))))
+                    (setvar "CLAYER" "COMP-PARTITION")
+                    (txt-bold "MC"
+                              (list (/ (+ x0 x1) 2.0) (+ cy (* u 0.8)))
+                              (/ th (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0))
+                              0.0
+                              (strcat "PARTITION PT" (itoa i) " (LONGITUDINAL)"
+                                      (if (and opn (/= opn "FULLY SHEETED") (/= opn "")) " (OPEN)" "")))
+                    (vl-catch-all-apply
+                      (function (lambda ()
+                        (peb-dim-h-stretch x0 x1 (- cy (* u 1.6))
+                                           (peb-comma (rtos lng 2 0))))))))
+                (princ)))))
+        (setq i (1+ i)))))
+  (setvar "CLAYER" "0")
+  (princ))
+
+;; ---- component drawer: peb-draw-mezzanine (merged from comp_mezzanine.lsp) ----
+;; ============================================================================
+;; MEZZANINE component drawer  —  Column Layout Plan (TOP VIEW)
+;; Owner rule (Ch.11 §11.1-11.2, catalogue §11): a CLEAN FOOTPRINT, not a framing
+;; plan.  Draw only: (1) decking OUTLINE rectangle over the footprint, (2) its OWN
+;; interior stub-column grid (small filled squares, NOT the big I-section),
+;; (3) "MEZZANINE" label + "F.F.L" tag, (4) footprint dims only when PARTIAL.
+;;
+;; Self-contained: reuses engine helpers (MSPL-Get-*, peb-comp-layer, peb-comp-poly,
+;; txt-bold, peb-comma, peb-dim-h-stretch, peb-dim-height-stretch) but every risky
+;; call is wrapped in vl-catch-all-apply and every field defaults if missing/zero.
+;; Plan axes: NSW=bottom(y=0) FSW=top(y=wid) LEW=left(x=0) REW=right(x=len).  Raw mm.
+;; Layer: "COMP-MEZZ" colour 6 (magenta).
+;; ============================================================================
+(defun peb-draw-mezzanine
+  ( data len wid /
+    u post inset scale
+    spStr spList tmp plus seg atP cnt val k s2 spx
+    specs foots n ml mw ff sp cx0 a0 a1 b0 b1
+    ft fx0 fx1 fy0 fy1 partial cx cy hlab fflStr fflv
+    ys xs acc h hh x y )
+
+  (if (/= (strcase (MSPL-Get-Str data "MZ_TOGGLE")) "YES")
+    (princ)                                    ; not requested — do nothing
+    (progn
+      (if (not *PEB-TEXT-SCALE*) (setq *PEB-TEXT-SCALE* 1.0))
+      (setq scale *PEB-TEXT-SCALE*)
+      (if (or (null len) (<= len 0.0)) (setq len 30000.0))
+      (if (or (null wid) (<= wid 0.0)) (setq wid 20000.0))
+
+      ;; strip / feature units (same law as the canopy drawer)
+      (setq u    (max 400.0 (min 3000.0 (/ (max len wid) 70.0))))
+      (setq post (max 200.0 (min 450.0 (/ (max len wid) 150.0))))   ; stub-post square side
+      (setq inset (max 300.0 (min 1000.0 (* (min len wid) 0.10))))   ; wall clearance
+
+      ;; --- parse MZ_COL_SPACING ("4@6000" / "1@7150+5@8500") into a spacing list ---
+      (setq spStr (MSPL-Get-Str data "MZ_COL_SPACING") spList '())
+      (vl-catch-all-apply
+        (function (lambda ()
+          (setq tmp spStr)
+          (while (and tmp (> (strlen tmp) 0))
+            (setq plus (vl-string-search "+" tmp))
+            (if plus (setq seg (substr tmp 1 plus) tmp (substr tmp (+ plus 2)))
+                     (setq seg tmp tmp ""))
+            (setq seg (vl-string-trim " " seg) atP (vl-string-search "@" seg))
+            (if atP
+              (progn (setq cnt (atoi (substr seg 1 atP)) val (atof (substr seg (+ atP 2))) k 0)
+                     (while (< k cnt) (setq spList (cons val spList) k (1+ k))))
+              (if (> (atof seg) 0.0) (setq spList (cons (atof seg) spList)))))
+          (setq spList (reverse spList)))))
+      (if (null spList) (setq spList (list 6000.0)))          ; sane default grid
+      (setq spx (car spList))
+      (if (or (null spx) (<= spx 0.0)) (setq spx 6000.0))     ; length-wise pitch
+
+      ;; --- collect footprints ---------------------------------------------------
+      ;; PARTIAL: any MZn_TOGGLE=Yes with a real LEN & WID -> tiled from the LEW/NSW
+      ;;          corner (inset), dimensioned.  DEFAULT: one full building-interior
+      ;;          rectangle inset ~inset mm from all walls (LEN/WID currently 0).
+      (setq specs '())
+      (foreach n (list "1" "2" "3")
+        (if (= (strcase (MSPL-Get-Str data (strcat "MZ" n "_TOGGLE"))) "YES")
+          (progn
+            (setq ml (MSPL-Get-Num data (strcat "MZ" n "_LEN"))
+                  mw (MSPL-Get-Num data (strcat "MZ" n "_WID"))
+                  ff (MSPL-Get-Num data (strcat "MZ" n "_CH_FFL_BEAM")))
+            (if (and ml mw (> ml 0.0) (> mw 0.0))
+              (setq specs (append specs (list (list ml mw ff))))))))
+
+      (setq foots '())
+      (if specs
+        (progn                                   ; one or more dimensioned footprints
+          (setq cx0 inset)
+          (foreach sp specs
+            (setq ml (nth 0 sp) mw (nth 1 sp) ff (nth 2 sp)
+                  a0 cx0 a1 (min (- len inset) (+ cx0 ml))
+                  b0 inset b1 (min (- wid inset) (+ inset mw)))
+            (if (and (> a1 a0) (> b1 b0))
+              (setq foots (append foots (list (list a0 a1 b0 b1 T ff)))))
+            (setq cx0 (+ a1 (max u 2000.0)))))    ; gap before next tiled mezz
+        (setq foots (list (list inset (- len inset) inset (- wid inset)
+                                nil (MSPL-Get-Num data "MZ1_CH_FFL_BEAM")))))
+
+      ;; --- draw each footprint --------------------------------------------------
+      (peb-comp-layer "COMP-MEZZ" 6)             ; magenta
+      (foreach ft foots
+        (vl-catch-all-apply
+          (function (lambda ()
+            (setq fx0 (nth 0 ft) fx1 (nth 1 ft) fy0 (nth 2 ft) fy1 (nth 3 ft)
+                  partial (nth 4 ft) fflv (nth 5 ft))
+            (if (and (> fx1 fx0) (> fy1 fy0))
+              (progn
+                (peb-comp-layer "COMP-MEZZ" 6)
+
+                ;; (1) decking outline rectangle over the footprint
+                (peb-comp-poly (list (list fx0 fy0) (list fx1 fy0)
+                                     (list fx1 fy1) (list fx0 fy1)))
+
+                ;; (2) OWN stub-column grid — width stations from MZ_COL_SPACING,
+                ;;     length stations mirrored at the same pitch; small filled squares.
+                (setq ys (list fy0) acc fy0)
+                (foreach s2 spList
+                  (setq acc (+ acc s2))
+                  (if (< acc (- fy1 (* post 0.6))) (setq ys (append ys (list acc)))))
+                (setq ys (append ys (list fy1)))
+                (setq xs (list fx0) acc fx0)
+                (while (< (+ acc spx) (- fx1 (* post 0.6)))
+                  (setq acc (+ acc spx) xs (append xs (list acc))))
+                (setq xs (append xs (list fx1)))
+                (setq hh (* post 0.5))
+                (foreach x xs
+                  (foreach y ys
+                    (entmake (list (cons 0 "SOLID") (cons 8 "COMP-MEZZ")
+                                   (list 10 (- x hh) (- y hh) 0.0) (list 11 (+ x hh) (- y hh) 0.0)
+                                   (list 12 (- x hh) (+ y hh) 0.0) (list 13 (+ x hh) (+ y hh) 0.0)))))
+
+                ;; (3) label + F.F.L tag (centred on the decking)
+                (setq cx (/ (+ fx0 fx1) 2.0) cy (/ (+ fy0 fy1) 2.0)
+                      hlab (max 250.0 (min 900.0 (* u 0.6))))
+                (setq fflStr (if (and fflv (> fflv 0.0))
+                               (strcat "F.F.L (C.H. " (peb-comma (rtos fflv 2 0)) ")")
+                               "F.F.L"))
+                (setvar "CLAYER" "COMP-MEZZ")
+                (vl-catch-all-apply (function (lambda ()
+                  (txt-bold "MC" (list cx cy) (/ hlab scale) 0.0 "MEZZANINE"))))
+                (vl-catch-all-apply (function (lambda ()
+                  (txt-bold "MC" (list cx (- cy (* hlab 1.7))) (/ (* hlab 0.65) scale) 0.0 fflStr))))
+
+                ;; (4) footprint dims — only when PARTIAL (a full-interior default
+                ;;     rectangle is implied by the building outline, so dims would collide).
+                (if partial
+                  (progn
+                    (vl-catch-all-apply (function (lambda ()
+                      (peb-dim-h-stretch fx0 fx1 (- fy0 (* post 2.5))
+                                         (peb-comma (rtos (- fx1 fx0) 2 0))))))
+                    (vl-catch-all-apply (function (lambda ()
+                      (peb-dim-height-stretch fx0 (- fx0 (* post 2.5)) fy0 fy1
+                                              (peb-comma (rtos (- fy1 fy0) 2 0))))))))))))))
+      (setvar "CLAYER" "0")
+      (princ))))
+
+;; ---- component drawer: peb-draw-crane (merged from comp_crane.lsp) ----
+;; ============================================================================
+;;  peb-draw-crane  —  PEB Column Layout Plan overlay for the CRANE component.
+;;  Owner: crane runway beams + bridge + hook + capacity/class label, and (only
+;;  where the load actually warrants it) a SEPARATE crane-column row.
+;;
+;;  Self-contained drawer.  Reuses only stable engine helpers that are always in
+;;  scope when the Plan engine is loaded:  MSPL-Get-Str / MSPL-Get-Num /
+;;  MSPL-Get-Int, peb-comp-layer, peb-comp-poly, txt-bold, peb-comma,
+;;  peb-dim-h-stretch, peb-dim-height-stretch.  Everything else is inline.
+;;
+;;  Plan axes (raw mm):  NSW = bottom (y=0) · FSW = top (y=wid) ·
+;;                       LEW = left (x=0)  · REW = right (x=len).
+;;  Only txt-bold divides by *PEB-TEXT-SCALE*.
+;;
+;;  IF keys (from drawingData.js, per crane CR1_/CR2_/CR3_):
+;;    CR_TOGGLE            master on/off ("Yes"/"No")
+;;    CRn_TOGGLE           this crane on/off
+;;    CRn_SPAN             crane span  = c/c of the two runways, mm
+;;    CRn_RUN_LENGTH       runway length, mm
+;;    CRn_GRID_LOC         "Between Grids" location text (e.g. "Grid 2 to 5")
+;;    CRn_CAP              capacity, metric TONNES (t)
+;;    CRn_TYPE             e.g. "Top Running (TR)"
+;;    CRn_CMAA_CLASS       service class A..F
+;;    CRn_QTY_PER_RUNWAY   cranes per runway (informational)
+;;
+;;  UNITS:  span & runway length are in MILLIMETRES (drawingData pushes them via
+;;          mm0()).  Capacity is in TONNES (num0()).  Column-trigger thresholds
+;;          therefore compare cap>20 (t) and span>15000 (mm).
+;; ============================================================================
+(defun peb-draw-crane (data len wid /
+                        u sc n pre span cap typ cls loc runlen
+                        numBays cum i sp rem bayPts
+                        nums cur k ch g1 g2 tmp
+                        x0 x1 yLo yHi bcx hcx hcy hr dg s bx capLbl)
+  (if (= (strcase (MSPL-Get-Str data "CR_TOGGLE")) "YES")
+    (progn
+      (setq u  (max 400.0 (min 3000.0 (/ (max len wid) 70.0))))
+      (setq sc (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0))
+
+      ;; ── grid stations (same parse as the engine: NUMBAYS + BAYn) ──────────
+      (setq numBays (MSPL-Get-Int data "NUMBAYS"))
+      (if (or (null numBays) (< numBays 1)) (setq numBays 1))
+      (if (> numBays 60) (setq numBays 60))
+      (setq bayPts (list 0.0) cum 0.0 i 0)
+      (while (< i numBays)
+        (setq sp  (MSPL-Get-Num data (strcat "BAY" (itoa (1+ i))))
+              rem (- len cum))
+        (cond ((= i (1- numBays))            (setq sp rem))
+              ((and sp (> sp 0.0) (< sp rem)) T)
+              (T                              (setq sp (/ rem (float (- numBays i))))))
+        (setq cum (+ cum sp) bayPts (append bayPts (list cum)) i (1+ i)))
+
+      ;; ── one strip per crane (catch-wrapped so one bad crane can't kill the rest) ──
+      (setq n 1)
+      (while (<= n 3)
+        (setq pre (strcat "CR" (itoa n) "_"))
+        (if (= (strcase (MSPL-Get-Str data (strcat pre "TOGGLE"))) "YES")
+          (vl-catch-all-apply
+            (function
+              (lambda ( / )
+                ;; --- read this crane, with defaults ---
+                (setq span   (MSPL-Get-Num data (strcat pre "SPAN")))
+                (setq cap    (MSPL-Get-Num data (strcat pre "CAP")))
+                (setq typ    (MSPL-Get-Str data (strcat pre "TYPE")))
+                (setq cls    (MSPL-Get-Str data (strcat pre "CMAA_CLASS")))
+                (setq loc    (MSPL-Get-Str data (strcat pre "GRID_LOC")))
+                (setq runlen (MSPL-Get-Num data (strcat pre "RUN_LENGTH")))
+                (if (or (null span) (<= span 0.0)) (setq span (* wid 0.7)))
+                (if (or (null cap)  (<= cap  0.0)) (setq cap  5.0))
+                (if (= typ "") (setq typ "Top Running (TR)"))
+                (if (= cls "") (setq cls "C"))
+
+                ;; --- runway y positions (c/c = span), clamped inside the shell ---
+                (setq yLo (/ (- wid span) 2.0)
+                      yHi (/ (+ wid span) 2.0))
+                (if (< yLo 250.0)          (setq yLo 250.0))
+                (if (> yHi (- wid 250.0))  (setq yHi (- wid 250.0)))
+
+                ;; --- runway x-range: prefer "Between Grids", else RUN_LENGTH, else full ---
+                (setq x0 0.0 x1 len)
+                (setq nums '() cur "" k 1)
+                (while (<= k (strlen loc))
+                  (setq ch (substr loc k 1))
+                  (if (and (>= ch "0") (<= ch "9"))
+                    (setq cur (strcat cur ch))
+                    (if (> (strlen cur) 0) (setq nums (append nums (list (atoi cur))) cur "")))
+                  (setq k (1+ k)))
+                (if (> (strlen cur) 0) (setq nums (append nums (list (atoi cur)))))
+                (cond
+                  ((>= (length nums) 2)
+                   (setq g1 (nth 0 nums) g2 (nth 1 nums))
+                   (if (> g1 g2) (setq tmp g1 g1 g2 g2 tmp))
+                   (if (and (>= g1 1) (<= g2 (length bayPts)))
+                     (setq x0 (nth (1- g1) bayPts) x1 (nth (1- g2) bayPts))))
+                  ((and runlen (> runlen 0.0) (< runlen len))
+                   (setq x0 (/ (- len runlen) 2.0) x1 (+ x0 runlen))))
+
+                (peb-comp-layer "COMP-CRANE" 1)                 ; red
+
+                ;; (1) two RUNWAY (crane beam) lines along the LENGTH
+                (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE")
+                               (list 10 x0 yLo 0.0) (list 11 x1 yLo 0.0)))
+                (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE")
+                               (list 10 x0 yHi 0.0) (list 11 x1 yHi 0.0)))
+                (setvar "CLAYER" "COMP-CRANE")
+                (txt-bold "MC" (list (+ x0 (* (- x1 x0) 0.25)) (+ yLo (* u 0.6)))
+                          (/ (* u 0.5) sc) 0.0 "CRANE BEAM")
+                (txt-bold "MC" (list (+ x0 (* (- x1 x0) 0.75)) (- yHi (* u 0.6)))
+                          (/ (* u 0.5) sc) 0.0 "CRANE BEAM")
+
+                ;; (2) BRIDGE across the width at a representative x, + HOOK circle
+                (setq bcx (/ (+ x0 x1) 2.0)
+                      hcx bcx hcy (/ (+ yLo yHi) 2.0) hr (* u 0.4))
+                (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE")
+                               (list 10 bcx yLo 0.0) (list 11 bcx yHi 0.0)))
+                (entmake (list (cons 0 "CIRCLE") (cons 8 "COMP-CRANE")
+                               (list 10 hcx hcy 0.0) (cons 40 hr)))
+
+                ;; (3) capacity + class label  ("05MT TOP RUNNING (TR) CRANE")
+                (setq capLbl (strcat (rtos cap 2 0) "MT " typ " CRANE"))
+                (txt-bold "MC" (list hcx (+ hcy (* u 1.1))) (/ (* u 0.55) sc) 0.0 capLbl)
+                (txt-bold "MC" (list hcx (- hcy (* u 1.1))) (/ (* u 0.45) sc) 0.0
+                          (strcat "CMAA CLASS " cls))
+
+                ;; span & runway-length dims (soft — never break the sheet)
+                (setq dg (* u 1.6))
+                (vl-catch-all-apply (function (lambda ()
+                  (peb-dim-height-stretch x0 (- x0 dg) yLo yHi (peb-comma (rtos span 2 0))))))
+                (vl-catch-all-apply (function (lambda ()
+                  (peb-dim-h-stretch x0 x1 (- yLo dg)
+                    (strcat "CRANE RUN: " (peb-comma (rtos (- x1 x0) 2 0)))))))
+
+                ;; (4) SEPARATE crane-column row ONLY where the load is real:
+                ;;     capacity > 20 t  OR  span > 15000 mm  → small square posts
+                ;;     under each runway at the grid stations inside the run.
+                (if (or (> cap 20.0) (> span 15000.0))
+                  (progn
+                    (peb-comp-layer "COMP-CRANE" 1)
+                    (setq s (* u 0.7))
+                    (foreach bx bayPts
+                      (if (and (>= bx (- x0 1.0)) (<= bx (+ x1 1.0)))
+                        (progn
+                          (peb-comp-poly (list (list (- bx (/ s 2.0)) (- yLo (/ s 2.0)))
+                                               (list (+ bx (/ s 2.0)) (- yLo (/ s 2.0)))
+                                               (list (+ bx (/ s 2.0)) (+ yLo (/ s 2.0)))
+                                               (list (- bx (/ s 2.0)) (+ yLo (/ s 2.0)))))
+                          (peb-comp-poly (list (list (- bx (/ s 2.0)) (- yHi (/ s 2.0)))
+                                               (list (+ bx (/ s 2.0)) (- yHi (/ s 2.0)))
+                                               (list (+ bx (/ s 2.0)) (+ yHi (/ s 2.0)))
+                                               (list (- bx (/ s 2.0)) (+ yHi (/ s 2.0))))))))))
+                (princ))))) ; end lambda / catch
+        (setq n (1+ n)))))
+  (setvar "CLAYER" "0")
   (princ))
 
 ;; ===================== MAIN COMMAND =====================
