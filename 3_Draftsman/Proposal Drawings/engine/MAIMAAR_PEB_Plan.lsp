@@ -1558,6 +1558,7 @@
 ;; dispatch — called from C:PEB-PLAN after the frame is drawn (len/wid = drawn plan size)
 (defun peb-draw-components (data len wid)
   (vl-catch-all-apply (function (lambda () (peb-draw-canopy data len wid))))
+  (vl-catch-all-apply (function (lambda () (peb-draw-roof-accessories data len wid))))
   (vl-catch-all-apply (function (lambda () (peb-draw-stairs data len wid))))
   (vl-catch-all-apply (function (lambda () (peb-draw-roof-ext data len wid))))
   (vl-catch-all-apply (function (lambda () (peb-draw-fascia data len wid))))
@@ -2332,6 +2333,57 @@
   (setvar "CLAYER" "0")
   (princ))
 
+;; ---- ROOF ACCESSORIES (RA_*) : skylights + turbo-vents as COUNTS → typical distributed roof marks
+;;      (no per-unit grid location in the IF; grid-located ones flow through PL_ placements), + a roof-
+;;      opening area note. Owner 6-Jul "100% IF": closes the count-based accessory fields. ----
+(defun peb-draw-roof-accessories (data len wid / nsky nvent opening u ts sq cols rows i j k px py r ridge cap)
+  (setq nsky    (MSPL-Get-Num data "RA_SKYLIGHTS")
+        nvent   (MSPL-Get-Num data "RA_TURBOVENTS")
+        opening (MSPL-Get-Num data "RA_ROOF_OPENING")
+        u  (max 400.0 (min 3000.0 (/ (max len wid) 70.0)))
+        ts (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0))
+  (if (or (and nsky (> nsky 0)) (and nvent (> nvent 0)) (and opening (> opening 0)))
+    (peb-comp-layer "COMP-ROOF-ACC" 4))                      ; cyan
+  ;; --- skylights: even grid over the roof (draw up to 15 typical marks; true count in the label) ---
+  (if (and nsky (> nsky 0))
+    (progn
+      (setq nsky (fix nsky) cap (min nsky 15)
+            sq (max 700.0 (min 2200.0 (/ (min len wid) 32.0)))
+            cols (fix (+ 0.999 (sqrt cap))) rows (fix (+ 0.999 (/ (float cap) (max 1 cols))))
+            k 0 i 1)
+      (while (and (<= i rows) (< k cap))
+        (setq j 1)
+        (while (and (<= j cols) (< k cap))
+          (setq px (* len (/ (float j) (+ cols 1))) py (* wid (/ (float i) (+ rows 1))))
+          (peb-comp-poly (list (list (- px sq) (- py sq)) (list (+ px sq) (- py sq))
+                               (list (+ px sq) (+ py sq)) (list (- px sq) (+ py sq))))
+          (entmake (list (cons 0 "LINE") (cons 8 "COMP-ROOF-ACC") (list 10 (- px sq) (- py sq) 0.0) (list 11 (+ px sq) (+ py sq) 0.0)))
+          (entmake (list (cons 0 "LINE") (cons 8 "COMP-ROOF-ACC") (list 10 (- px sq) (+ py sq) 0.0) (list 11 (+ px sq) (- py sq) 0.0)))
+          (setq k (1+ k) j (1+ j)))
+        (setq i (1+ i)))
+      (setvar "CLAYER" "COMP-ROOF-ACC")
+      (txt-bold "MC" (list (* len 0.5) (* wid 0.035)) (/ (* u 0.45) ts) 0.0
+                (strcat (itoa nsky) " SKYLIGHTS (TYP. DISTRIBUTED)"))))
+  ;; --- turbo/roof vents: circles evenly along the ridge line ---
+  (if (and nvent (> nvent 0))
+    (progn
+      (setq nvent (fix nvent) ridge (/ wid 2.0) r (max 300.0 (min 850.0 (/ (min len wid) 60.0))) k 1)
+      (while (<= k (min nvent 20))
+        (setq px (* len (/ (float k) (+ (min nvent 20) 1))))
+        (entmake (list (cons 0 "CIRCLE") (cons 8 "COMP-ROOF-ACC") (list 10 px ridge 0.0) (cons 40 r)))
+        (setq k (1+ k)))
+      (setvar "CLAYER" "COMP-ROOF-ACC")
+      (txt-bold "MC" (list (* len 0.5) (+ ridge (* r 3.0))) (/ (* u 0.4) ts) 0.0
+                (strcat (itoa nvent) " TURBO/ROOF VENTS (ON RIDGE)"))))
+  ;; --- roof opening (area only, no location) : a note ---
+  (if (and opening (> opening 0))
+    (progn
+      (setvar "CLAYER" "COMP-ROOF-ACC")
+      (txt-bold "MC" (list (* len 0.5) (* wid 0.965)) (/ (* u 0.4) ts) 0.0
+                (strcat "ROOF OPENING(S): " (peb-comma (rtos opening 2 1)) " SQM (SEE ROOF PLAN)"))))
+  (setvar "CLAYER" "0")
+  (princ))
+
 ;; ===================== MAIN COMMAND =====================
 
 (defun C:PEB-PLAN
@@ -3084,6 +3136,19 @@
           (peb-ridge-line (* len 0.04) (* len 0.96) (* wid 0.5)))))   ; central drain line (dash-dot)
         (setvar "CLAYER" "TEXT")
         (txt "MC" (list (* len 0.50) (* wid 0.55)) 600 0 "ROOF SLOPES TO CENTRE DRAIN"))
+      ((= stype "SS")
+        ;; single slope: ONE continuous fall high->low across the full width (no ridge). High side =
+        ;; RA_MONO_HIGH (FSW default until the IF captures msHighSide). Full-width arrows + HIGH/LOW EAVE tags.
+        (foreach sx slopeXs
+          (if (wcmatch (strcase (MSPL-Get-Str data "RA_MONO_HIGH")) "*NSW*")
+            (arrow-up-big   sx (* wid 0.5) fallU)     ; NSW high -> fall toward FSW
+            (arrow-down-big sx (* wid 0.5) fallU)))   ; FSW high (default) -> fall toward NSW
+        (setvar "CLAYER" "TEXT")
+        (if (wcmatch (strcase (MSPL-Get-Str data "RA_MONO_HIGH")) "*NSW*")
+          (progn (txt "MC" (list (* len 0.5) (* wid 0.055)) 550 0 "HIGH EAVE")
+                 (txt "MC" (list (* len 0.5) (* wid 0.945)) 550 0 "LOW EAVE"))
+          (progn (txt "MC" (list (* len 0.5) (* wid 0.945)) 550 0 "HIGH EAVE")
+                 (txt "MC" (list (* len 0.5) (* wid 0.055)) 550 0 "LOW EAVE"))))
       (T
         (foreach sx slopeXs
           (arrow-down-big sx (* wid 0.5) fallU)))))))
