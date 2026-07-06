@@ -132,7 +132,7 @@
   (setq outProf (peb-alist-get data (strcat "PN_" prefix "_OUTER_PROFILE")))
   (setq pirThk (peb-alist-get data (strcat "PN_" prefix "_PIR_THK")))
   (setq lbl (vl-catch-all-apply
-              (function (lambda () (if (fboundp 'peb-panel-label) (peb-panel-label data prefix) nil)))))
+              (function (lambda () (if (boundp 'peb-panel-label) (peb-panel-label data prefix) nil)))))
   (if (and lbl (not (vl-catch-all-error-p lbl)) (= (type lbl) 'STR) (/= lbl ""))
     (strcat prefix " SHEETING  " lbl)
     ;; fallback = the original simple label (always has a digit)
