@@ -1928,7 +1928,7 @@
     u post inset scale
     spStr spList tmp plus seg atP cnt val k s2 spx
     specs foots n ml mw ff sp cx0 a0 a1 b0 b1
-    ft fx0 fx1 fy0 fy1 partial cx cy hlab fflStr fflv
+    ft fx0 fx1 fy0 fy1 partial cx cy lcy hlab fflStr fflv
     ys xs acc h hh x y )
 
   (if (/= (strcase (MSPL-Get-Str data "MZ_TOGGLE")) "YES")
@@ -2026,15 +2026,16 @@
 
                 ;; (3) label + F.F.L tag (centred on the decking)
                 (setq cx (/ (+ fx0 fx1) 2.0) cy (/ (+ fy0 fy1) 2.0)
+                      lcy (+ fy0 (* (- fy1 fy0) 0.80))   ; label block in the UPPER part, clear of the centre AREA marker
                       hlab (max 250.0 (min 900.0 (* u 0.6))))
                 (setq fflStr (if (and fflv (> fflv 0.0))
                                (strcat "F.F.L (C.H. " (peb-comma (rtos fflv 2 0)) ")")
                                "F.F.L"))
                 (setvar "CLAYER" "COMP-MEZZ")
                 (vl-catch-all-apply (function (lambda ()
-                  (txt-bold "MC" (list cx cy) (/ hlab scale) 0.0 "MEZZANINE"))))
+                  (txt-bold "MC" (list cx lcy) (/ hlab scale) 0.0 "MEZZANINE"))))
                 (vl-catch-all-apply (function (lambda ()
-                  (txt-bold "MC" (list cx (- cy (* hlab 1.7))) (/ (* hlab 0.65) scale) 0.0 fflStr))))
+                  (txt-bold "MC" (list cx (- lcy (* hlab 1.7))) (/ (* hlab 0.65) scale) 0.0 fflStr))))
 
                 ;; (4) footprint dims — only when PARTIAL (a full-interior default
                 ;;     rectangle is implied by the building outline, so dims would collide).
@@ -2176,8 +2177,11 @@
 
                 ;; span & runway-length dims (soft — never break the sheet)
                 (setq dg (* u 1.6))
+                ;; span dim placed INBOARD between the runways (~15% along the run) so it never collides
+                ;; with the building's outboard width-dim chain; clear of the central hook/capacity labels.
                 (vl-catch-all-apply (function (lambda ()
-                  (peb-dim-height-stretch x0 (- x0 dg) yLo yHi (peb-comma (rtos span 2 0))))))
+                  (peb-dim-height-stretch (+ x0 (* (- x1 x0) 0.15)) (+ x0 (* (- x1 x0) 0.15) dg)
+                                          yLo yHi (peb-comma (rtos span 2 0))))))
                 (vl-catch-all-apply (function (lambda ()
                   (peb-dim-h-stretch x0 x1 (- yLo dg)
                     (strcat "CRANE RUN: " (peb-comma (rtos (- x1 x0) 2 0)))))))
