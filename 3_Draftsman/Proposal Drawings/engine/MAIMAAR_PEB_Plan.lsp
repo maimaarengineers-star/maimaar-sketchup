@@ -1558,6 +1558,7 @@
 ;; dispatch — called from C:PEB-PLAN after the frame is drawn (len/wid = drawn plan size)
 (defun peb-draw-components (data len wid)
   (vl-catch-all-apply (function (lambda () (peb-draw-canopy data len wid))))
+  (vl-catch-all-apply (function (lambda () (peb-draw-stairs data len wid))))
   (vl-catch-all-apply (function (lambda () (peb-draw-roof-ext data len wid))))
   (vl-catch-all-apply (function (lambda () (peb-draw-fascia data len wid))))
   (vl-catch-all-apply (function (lambda () (peb-draw-monitor data len wid))))
@@ -2206,6 +2207,128 @@
                                                (list (- bx (/ s 2.0)) (+ yHi (/ s 2.0))))))))))
                 (princ))))) ; end lambda / catch
         (setq n (1+ n)))))
+  (setvar "CLAYER" "0")
+  (princ))
+
+
+;; ---- component drawer: peb-draw-stairs (merged from comp_stairs.lsp) ----
+;; ---- component drawer: peb-draw-stairs (comp_stairs.lsp) --------------------
+;; ============================================================================
+;; STAIRS / STAIRCASE drawer  --  ST_TOGGLE + ST<n>_* (n = 1..4)  -- Column Layout Plan
+;; ----------------------------------------------------------------------------
+;; A staircase in plan = a straight-flight FOOTPRINT (clean footprint, NOT a
+;; detailed stair section): an outline WIDTH (across, x) x run-length (along, y),
+;; a set of evenly-spaced TREAD lines, an UP arrow showing the climb direction,
+;; and a "STAIR ST<n>" label.  Optional TOP-landing rectangle at the head.
+;;
+;; PLACEMENT (there is no x/y key for a staircase): stack the staircases along
+;; the LEW (left, x=0) wall just inside the building, starting near the NSW
+;; corner (y=0), tiling upward in +y so multiple stairs never overlap.  A stair
+;; normally sits against a wall / in a mezzanine, so this is a sensible default;
+;; ST<n>_IN_MEZZ = Yes is still drawn the same way.
+;;
+;; ST<n> keys used:  TOGGLE, TYPE, WIDTH (mm, dflt 1200), HEIGHT (mm, dflt nil),
+;;                   TOP_LANDING ('1'/'0'), MID_LANDING ('1'/'0').
+;; Building axes in plan:  NSW=bottom(y=0) FSW=top(y=wid) LEW=left(x=0) REW=right(x=len).
+;; Raw mm everywhere; only txt-bold divides its height by *PEB-TEXT-SCALE*.
+;; Layer: "COMP-STAIRS" colour 6 (magenta).
+;; Self-contained: reuses engine helpers (MSPL-Get-Str/Num, peb-comp-layer,
+;; peb-comp-poly, txt-bold, peb-comma) but every risky stair is wrapped in
+;; vl-catch-all-apply so one bad stair can't kill the rest; fields default if
+;; missing/zero.
+;; Dispatch (add to peb-draw-components):
+;;   (vl-catch-all-apply (function (lambda () (peb-draw-stairs data len wid))))
+;; ============================================================================
+(defun peb-draw-stairs
+       (data len wid /
+        u inset gap ycur i tag wdt hgt typ topl runlen
+        x0 x1 y0 y1 midx midy th nt spc j ty
+        ax0 ay0 ay1 hl a1 a2 lan)
+  (if (= (strcase (MSPL-Get-Str data "ST_TOGGLE")) "YES")
+    (progn
+      (setq u     (max 400.0 (min 3000.0 (/ (max len wid) 70.0)))  ; annotation unit
+            inset (max 300.0 (min 1500.0 (* u 0.5)))               ; clearance from LEW wall / NSW corner
+            gap   (max 400.0 (* u 0.9))                            ; vertical gap between stacked stairs
+            th    (max 300.0 (* u 0.40))                           ; desired raw text height
+            ycur  inset)                                           ; running y-cursor, starts near NSW corner
+      (peb-comp-layer "COMP-STAIRS" 6)                             ; magenta
+      (setq i 1)
+      (while (<= i 4)
+        (setq tag (strcat "ST" (itoa i) "_"))
+        (if (= (strcase (MSPL-Get-Str data (strcat tag "TOGGLE"))) "YES")
+          (vl-catch-all-apply
+            (function
+              (lambda ()
+                ;; --- read + default this stair's fields ---
+                (setq wdt  (MSPL-Get-Num data (strcat tag "WIDTH"))
+                      hgt  (MSPL-Get-Num data (strcat tag "HEIGHT"))
+                      typ  (MSPL-Get-Str data (strcat tag "TYPE"))
+                      topl (MSPL-Get-Str data (strcat tag "TOP_LANDING")))
+                (if (or (null wdt) (<= wdt 0.0)) (setq wdt 1200.0)) ; ST width already mm, dflt 1200
+                ;; straight-flight run: derived from climb height, else 4000 mm
+                (setq runlen (if (and hgt (> hgt 0.0)) (max 3000.0 (* hgt 1.2)) 4000.0))
+                ;; --- footprint rectangle along LEW, tiling upward in +y ---
+                (setq x0   inset
+                      x1   (+ inset wdt)
+                      y0   ycur
+                      y1   (+ ycur runlen)
+                      midx (/ (+ x0 x1) 2.0)
+                      midy (/ (+ y0 y1) 2.0))
+                (peb-comp-layer "COMP-STAIRS" 6)
+                (peb-comp-poly (list (list x0 y0) (list x1 y0)
+                                     (list x1 y1) (list x0 y1)))
+                ;; --- TREAD lines: ~6-10 short LINEs across the width ---
+                (setq nt  (max 6 (min 10 (fix (/ runlen 400.0))))
+                      spc (/ runlen (+ nt 1.0))
+                      j   1)
+                (while (<= j nt)
+                  (setq ty (+ y0 (* j spc)))
+                  (entmake (list (cons 0 "LINE") (cons 8 "COMP-STAIRS")
+                                 (list 10 x0 ty 0.0) (list 11 x1 ty 0.0)))
+                  (setq j (1+ j)))
+                ;; --- UP arrow: LINE along the run (+y = climb) + arrowhead + "UP" ---
+                (setq ax0 midx
+                      ay0 (+ y0 (* spc 0.5))
+                      ay1 (- y1 (* spc 0.5))
+                      hl  (max 300.0 (* u 0.5)))
+                (entmake (list (cons 0 "LINE") (cons 8 "COMP-STAIRS")
+                               (list 10 ax0 ay0 0.0) (list 11 ax0 ay1 0.0)))
+                (setq a1 (list (- ax0 (* hl 0.4)) (- ay1 hl))
+                      a2 (list (+ ax0 (* hl 0.4)) (- ay1 hl)))
+                (entmake (list (cons 0 "SOLID") (cons 8 "COMP-STAIRS")
+                               (list 10 (car a1) (cadr a1) 0.0)
+                               (list 11 (car a2) (cadr a2) 0.0)
+                               (list 12 ax0 ay1 0.0) (list 13 ax0 ay1 0.0)))
+                (setvar "CLAYER" "COMP-STAIRS")
+                (txt-bold "ML"
+                          (list (+ ax0 (* u 0.35)) (+ ay0 (* runlen 0.10)))
+                          (/ (* th 0.75) (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0))
+                          90.0 "UP")
+                ;; --- optional TOP landing rectangle at the head (y1..y1+landing) ---
+                (if (= topl "1")
+                  (progn
+                    (setq lan (max 900.0 (* wdt 0.9)))
+                    (peb-comp-poly (list (list x0 y1) (list x1 y1)
+                                         (list x1 (+ y1 lan)) (list x0 (+ y1 lan))))
+                    (setvar "CLAYER" "COMP-STAIRS")
+                    (txt-bold "MC" (list midx (+ y1 (/ lan 2.0)))
+                              (/ (* th 0.6) (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0))
+                              0.0 "LANDING")
+                    (setq y1 (+ y1 lan)))
+                  (setq lan 0.0))
+                ;; --- label to the right of the footprint, reading up the run ---
+                (setvar "CLAYER" "COMP-STAIRS")
+                (txt-bold "MC"
+                          (list (+ x1 (* u 0.7)) (/ (+ y0 y1) 2.0))
+                          (/ th (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0))
+                          90.0
+                          (strcat "STAIR ST" (itoa i)
+                                  (if (and typ (/= typ ""))
+                                    (strcat " (" (strcase typ) ")") "")))
+                ;; --- advance the y-cursor past this stair (incl. landing) + gap ---
+                (setq ycur (+ y1 gap))
+                (princ)))))
+        (setq i (1+ i)))))
   (setvar "CLAYER" "0")
   (princ))
 
