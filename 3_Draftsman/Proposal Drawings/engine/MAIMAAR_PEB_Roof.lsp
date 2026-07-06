@@ -164,11 +164,17 @@
     borderL borderR borderT borderB bMarg
   )
 
-  ;; ── Presentation standard (layers / styles / dim) ────────────────
-  (vl-catch-all-apply (function (lambda () (setup-maimaar-dim))))
-  (if (boundp 'peb-std-setup)
-    (vl-catch-all-apply (function (lambda () (peb-std-setup))))
-    (princ "\n** MAIMAAR_PEB_Standard.lsp NOT loaded — load it FIRST (single source of every layer). **"))
+  ;; ── Presentation standard (layers / styles / dim) — RUN ONCE PER SESSION ─
+  ;; Guard on the MAIMAAR-DIM dimstyle: re-running setup-maimaar-dim after another sheet (Cover/Plan) already
+  ;; created it re-issues (-DIMSTYLE _Save), which PROMPTS "redefine?" and HANGS in /b batch (EXPERT=5 does
+  ;; not fully suppress it on re-run). Skipping when the style exists makes the full multi-sheet drawing
+  ;; (Cover+Plan+Roof+Elevation+Framing+Section in one session) safe; a standalone roof still sets itself up.
+  (if (not (tblsearch "DIMSTYLE" "MAIMAAR-DIM"))
+    (progn
+      (vl-catch-all-apply (function (lambda () (setup-maimaar-dim))))
+      (if (boundp 'peb-std-setup)
+        (vl-catch-all-apply (function (lambda () (peb-std-setup))))
+        (princ "\n** MAIMAAR_PEB_Standard.lsp NOT loaded — load it FIRST (single source of every layer). **"))))
   (vl-load-com)
   (setvar "CMDECHO" 0)
   (setvar "OSMODE" 0)
@@ -190,7 +196,6 @@
   (setq data (MSPL-Read-Data dataFile))
   (if (null data)
     (progn (setvar "CMDECHO" 1) (princ "\nERROR: Data file not found or empty.") (princ) (exit)))
-
   ;; ── Core geometry (identical derivation to C:PEB-PLAN) ───────────
   (setq project   (MSPL-Get-Str data "PROJECT"))
   (setq client    (MSPL-Get-Str data "CLIENT"))

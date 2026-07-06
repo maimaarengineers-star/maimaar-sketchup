@@ -120,26 +120,29 @@
               (T (setq out (cons (atof seg) out)))))
       (reverse out))))
 
-(defun peb-build-sheeting-string (data prefix / typ outProf outMat pirThk pirDens innerMat)
-  (setq typ      (peb-alist-get data (strcat "PN_" prefix "_TYPE")))
-  (setq outProf  (peb-alist-get data (strcat "PN_" prefix "_OUTER_PROFILE")))
-  (setq outMat   (peb-alist-get data (strcat "PN_" prefix "_OUTER_MAT")))
-  (setq pirThk   (peb-alist-get data (strcat "PN_" prefix "_PIR_THK")))
-  (setq pirDens  (peb-alist-get data (strcat "PN_" prefix "_PIR_DENS")))
-  (setq innerMat (peb-alist-get data (strcat "PN_" prefix "_INNER_MAT")))
-  (cond
-    ((or (= (strcase typ) "SANDWICH PANEL") (= (strcase typ) "SANDWICH"))
-      ;; Clean two-line label "<PREFIX> SHEETING:" / "<thk>MM PIR SANDWICH PANEL".
-      ;; NOTE: the spec MUST contain a digit (the thickness) so split-at-first-digit
-      ;; produces a non-nil suffix and the section label takes the tested two-line
-      ;; branch; a digit-less spec routes to a (command)-based fallback that hangs
-      ;; in batch. Default thickness to 50mm when the IF leaves it blank.
-      (strcat prefix " SHEETING  "
-              (if (= pirThk "") "50" pirThk) "MM PIR SANDWICH PANEL"))
-    ((or (= (strcase typ) "SINGLE SKIN") (= typ ""))
-      (strcat prefix " SHEETING:  " outMat
-              (if (/= outProf "") (strcat " - " outProf) "")))
-    (T (strcat prefix " SHEETING:  " outMat))))
+(defun peb-build-sheeting-string (data prefix / typ outProf outMat pirThk lbl)
+  ;; owner 6-Jul: FULL sheeting+insulation build-up label (shared with the Section). Plan's copy WINS in the
+  ;; CRM per-building session (Plan loads after Section), so it must emit the SAME complete label the Section
+  ;; owns via peb-panel-label. peb-panel-label lives in the Section engine (loaded first in every render set);
+  ;; call it ONLY when it is a real function AND returns a non-empty string, else fall back to a digit-bearing
+  ;; label (the section's split-at-first-digit needs a digit). Wrapped so a bad label can NEVER abort the
+  ;; data load / plan drawing.
+  (setq typ    (peb-alist-get data (strcat "PN_" prefix "_TYPE")))
+  (setq outMat (peb-alist-get data (strcat "PN_" prefix "_OUTER_MAT")))
+  (setq outProf (peb-alist-get data (strcat "PN_" prefix "_OUTER_PROFILE")))
+  (setq pirThk (peb-alist-get data (strcat "PN_" prefix "_PIR_THK")))
+  (setq lbl (vl-catch-all-apply
+              (function (lambda () (if (fboundp 'peb-panel-label) (peb-panel-label data prefix) nil)))))
+  (if (and lbl (not (vl-catch-all-error-p lbl)) (= (type lbl) 'STR) (/= lbl ""))
+    (strcat prefix " SHEETING  " lbl)
+    ;; fallback = the original simple label (always has a digit)
+    (cond
+      ((or (= (strcase typ) "SANDWICH PANEL") (= (strcase typ) "SANDWICH"))
+        (strcat prefix " SHEETING  " (if (= pirThk "") "50" pirThk) "MM PIR SANDWICH PANEL"))
+      ((or (= (strcase typ) "SINGLE SKIN") (= typ ""))
+        (strcat prefix " SHEETING:  " (if (= outMat "") "0.50mm AZ 150" outMat)
+                (if (/= outProf "") (strcat " - " outProf) "")))
+      (T (strcat prefix " SHEETING:  " (if (= outMat "") "0.50mm AZ 150" outMat))))))
 
 (defun peb-v3-to-legacy (v3 / out project client proposal bldgno revno
                               len wid heightVal brick slope slopeRaw slopeCustom
