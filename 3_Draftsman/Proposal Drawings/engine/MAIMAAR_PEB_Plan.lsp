@@ -1537,17 +1537,22 @@
   (foreach p pts (setq e (append e (list (list 10 (car p) (cadr p))))))
   (entmake e))
 
-;; a FALL/slope arrow from (x0 y0) outward along unit normal (nx ny) + "FALL" text
-(defun peb-comp-fall (x0 y0 nx ny u / x1 y1 ang hl a1 a2)
+;; a FALL/slope arrow CENTRED at (cx cy) along unit normal (nx ny), with "FALL"
+;; text set to the perpendicular SIDE so both stay inside the component strip.
+;; u = strip-scaled size unit (NOT the building unit) so it never protrudes.
+(defun peb-comp-fall (cx cy nx ny u / x0 y0 x1 y1 ang hl a1 a2 px py)
   (setvar "CLAYER" "TEXT")
-  (setq x1 (+ x0 (* nx u 2.2)) y1 (+ y0 (* ny u 2.2)) ang (atan ny nx) hl (* u 0.75))
+  (setq x0 (- cx (* nx u 0.9)) y0 (- cy (* ny u 0.9))
+        x1 (+ cx (* nx u 0.9)) y1 (+ cy (* ny u 0.9))
+        ang (atan ny nx) hl (* u 0.5) px (- ny) py nx)   ; (px py) = perpendicular to the arrow
   (entmake (list (cons 0 "LINE") (cons 8 "TEXT") (list 10 x0 y0 0.0) (list 11 x1 y1 0.0)))
   (setq a1 (list (- x1 (* hl (cos (- ang 0.35)))) (- y1 (* hl (sin (- ang 0.35)))))
         a2 (list (- x1 (* hl (cos (+ ang 0.35)))) (- y1 (* hl (sin (+ ang 0.35))))))
   (entmake (list (cons 0 "SOLID") (cons 8 "TEXT") (list 10 (car a1) (cadr a1) 0.0)
                  (list 11 (car a2) (cadr a2) 0.0) (list 12 x1 y1 0.0) (list 13 x1 y1 0.0)))
-  (txt-bold "MC" (list (- x0 (* nx u 1.3)) (- y0 (* ny u 1.3))) (* u 0.4)
-            (if (equal ny 0.0 0.001) 90.0 0.0) "FALL")
+  (txt-bold "MC" (list (+ cx (* px u 1.15)) (+ cy (* py u 1.15)))
+            (/ (* u 0.5) (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0))   ; txt-bold re-applies the scale; divide it out
+            (if (equal nx 0.0 0.001) 0.0 90.0) "FALL")   ; text reads along the strip
   (princ))
 
 ;; dispatch — called from C:PEB-PLAN after the frame is drawn (len/wid = drawn plan size)
@@ -1574,32 +1579,35 @@
 
 ;; one canopy on wall w: outline extruded from the wall by proj, along the wall by
 ;; alen (default full), + outward FALL arrow + projection & coverage-length dims + label.
-(defun peb-comp-canopy-one (w proj alen len wid u / wl a0 a1 bx by ex ey nx ny mcx mcy horiz)
-  (setq horiz (member w '("NSW" "FSW")) wl (if horiz len wid))
-  (if (or (null alen) (<= alen 0.0) (>= alen wl)) (setq a0 0.0 a1 wl)
-    (setq a0 (/ (- wl alen) 2.0) a1 (+ a0 alen)))
+(defun peb-comp-canopy-one (w proj alen len wid u / wl a0 a1 bx by ex ey nx ny mcx mcy horiz su full)
+  (setq horiz (member w '("NSW" "FSW")) wl (if horiz len wid)
+        full (or (null alen) (<= alen 0.0) (>= alen wl)))
+  (if full (setq a0 0.0 a1 wl) (setq a0 (/ (- wl alen) 2.0) a1 (+ a0 alen)))
   (cond
     ((= w "NSW") (setq bx a0 by 0.0 ex a1 ey 0.0  nx 0.0 ny -1.0))
     ((= w "FSW") (setq bx a0 by wid ex a1 ey wid  nx 0.0 ny 1.0))
     ((= w "LEW") (setq bx 0.0 by a0 ex 0.0 ey a1  nx -1.0 ny 0.0))
     ((= w "REW") (setq bx len by a0 ex len ey a1  nx 1.0 ny 0.0)))
-  (setq mcx (+ (/ (+ bx ex) 2.0) (* nx proj 0.5)) mcy (+ (/ (+ by ey) 2.0) (* ny proj 0.5)))
+  (setq mcx (+ (/ (+ bx ex) 2.0) (* nx proj 0.5)) mcy (+ (/ (+ by ey) 2.0) (* ny proj 0.5))
+        su (max 300.0 (min u (* (abs proj) 0.30))))        ; annotation size scaled to the STRIP depth
   (peb-comp-layer "COMP-CANOPY" 3)                        ; green
   (peb-comp-poly (list (list bx by) (list ex ey)
                        (list (+ ex (* nx proj)) (+ ey (* ny proj)))
                        (list (+ bx (* nx proj)) (+ by (* ny proj)))))
-  ;; fall arrow (outward to the free/cantilever edge) at ~28% along the strip so it clears the centre label
-  (if horiz (peb-comp-fall (+ bx (* (- ex bx) 0.28)) mcy nx ny u)
-            (peb-comp-fall mcx (+ by (* (- ey by) 0.28)) nx ny u))
+  ;; fall arrow (outward to the free/cantilever edge) at ~30% along the strip so it clears the centre label
+  (if horiz (peb-comp-fall (+ bx (* (- ex bx) 0.30)) mcy nx ny su)
+            (peb-comp-fall mcx (+ by (* (- ey by) 0.30)) nx ny su))
   (setvar "CLAYER" "COMP-CANOPY")
-  (txt-bold "MC" (list mcx mcy) (min (* u 0.42) (* (abs proj) 0.42)) (if horiz 0.0 90.0) "CANOPY")
+  (txt-bold "MC" (list mcx mcy) (/ su (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) (if horiz 0.0 90.0) "CANOPY")
+  ;; projection dim ALWAYS; coverage dim only if PARTIAL (a full-wall canopy's extent is already the
+  ;; building length/width dim, so re-drawing it just collides with the wall labels).
   (if horiz
     (progn   ; wall along X: projection dim = vertical, coverage dim = horizontal
-      (vl-catch-all-apply (function (lambda () (peb-dim-height-stretch bx (- bx (* u 2.2)) by (+ by (* ny proj)) (peb-comma (rtos proj 2 0))))))
-      (vl-catch-all-apply (function (lambda () (peb-dim-h-stretch bx ex (+ by (* ny (+ proj (* u 2.2)))) (peb-comma (rtos (abs (- ex bx)) 2 0)))))))
+      (vl-catch-all-apply (function (lambda () (peb-dim-height-stretch bx (- bx (* su 1.6)) by (+ by (* ny proj)) (peb-comma (rtos proj 2 0))))))
+      (if (not full) (vl-catch-all-apply (function (lambda () (peb-dim-h-stretch bx ex (+ by (* ny (+ proj (* su 1.6)))) (peb-comma (rtos (abs (- ex bx)) 2 0))))))))
     (progn   ; wall along Y: projection dim = horizontal, coverage dim = vertical
-      (vl-catch-all-apply (function (lambda () (peb-dim-h-stretch bx (+ bx (* nx proj)) (- by (* u 2.2)) (peb-comma (rtos proj 2 0))))))
-      (vl-catch-all-apply (function (lambda () (peb-dim-height-stretch bx (+ bx (* nx (+ proj (* u 2.2)))) by ey (peb-comma (rtos (abs (- ey by)) 2 0))))))))
+      (vl-catch-all-apply (function (lambda () (peb-dim-h-stretch bx (+ bx (* nx proj)) (- by (* su 1.6)) (peb-comma (rtos proj 2 0))))))
+      (if (not full) (vl-catch-all-apply (function (lambda () (peb-dim-height-stretch bx (+ bx (* nx (+ proj (* su 1.6)))) by ey (peb-comma (rtos (abs (- ey by)) 2 0)))))))))
   (princ))
 
 ;; ===================== MAIN COMMAND =====================
