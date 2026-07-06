@@ -597,6 +597,13 @@
     ((wcmatch u "*SHEET*")                       "")   ; fully sheeted = the default; no clutter
     (T (strcat "  -  " (strcase s)))))
 
+;; owner 5-Jul: TRUE when a wall's IF condition means NO sheeting line in plan — i.e. FULLY open for
+;; access.  The partial "Open up to X M ... Rest Height Sheeted" conditions still have sheeting above the
+;; opening, so they stay sheeted in plan (only 'Full Height Open for Access' drops the line).
+(defun peb-wall-open-p (s / u)
+  (setq u (strcase (if s s "")))
+  (and (wcmatch u "*OPEN*") (not (wcmatch u "*SHEET*"))))
+
 ;; Base-plate + 4 anchor-bolt holes at a column (top view) — the anchor-bolt
 ;; content of the combined COLUMN LAYOUT & ANCHOR BOLT PLAN.  Plate on PLATES,
 ;; bolts as clear circles on BOLTS at gauge ±g.  Drawn BEHIND the column section.
@@ -1445,8 +1452,8 @@
   (setq rh (* H 0.026))
   (tb-mtext (+ X0 (* W 0.11)) (- yCur (* rh 0.55)) val 0 5 (tb-get "REV")  green)
   (tb-mtext (+ X0 (* W 0.41)) (- yCur (* rh 0.55)) val 0 5 (tb-get "DATE") green)
-  (tb-mtext (+ X0 (* W 0.80)) (- yCur (* rh 0.55)) val 0 5 (tb-get "DRN")  green)
-  (tb-mtext (+ X0 (* W 0.935))(- yCur (* rh 0.55)) val 0 5 (tb-get "CHK")  green)
+  (tb-mtext (+ X0 (* W 0.80)) (- yCur (* rh 0.55)) (tb-fith (tb-get "DRN") (* W 0.12) val) 0 5 (tb-get "DRN")  green)   ; owner 5-Jul: fit initials to the cell
+  (tb-mtext (+ X0 (* W 0.935))(- yCur (* rh 0.55)) (tb-fith (tb-get "CHK") (* W 0.12) val) 0 5 (tb-get "CHK")  green)
   (tb-hdiv (- yCur rh))
   (tb-mtext (+ X0 (* W 0.11)) (- yCur rh (* rh 0.55)) lbl 0 5 "Rev. No." grey)
   (tb-mtext (+ X0 (* W 0.41)) (- yCur rh (* rh 0.55)) lbl 0 5 "Date"    grey)
@@ -1483,9 +1490,9 @@
                     (list "Bldg. Name." (tb-get "BLDGNAME"))
                     (list "No. Of Identical Bldg." (tb-get "IDENTICAL")))
     (setq rh (* H 0.0240) yCur (- yCur rh))
-    (tb-mtext (+ X0 (* W 0.05)) (+ yCur (* rh 0.50)) lbl 0 4 (car pr) grey)
-    (tb-mtext (+ X0 (* W 0.52)) (+ yCur (* rh 0.50))
-              (tb-fith (strcat ": " (cadr pr)) (* W 0.44) val) (* W 0.45) 4
+    (tb-mtext (+ X0 (* W 0.05)) (+ yCur (* rh 0.50)) (tb-fith (car pr) (* W 0.44) lbl) 0 4 (car pr) grey)   ; owner 5-Jul: fit long labels (No. Of Identical Bldg.) so the value doesn't overlap
+    (tb-mtext (+ X0 (* W 0.55)) (+ yCur (* rh 0.50))
+              (tb-fith (strcat ": " (cadr pr)) (* W 0.42) val) (* W 0.43) 4
               (strcat ": " (cadr pr)) green)
     (tb-hdiv yCur))
   ;; Drawing Title
@@ -1572,6 +1579,13 @@
   ;; outline, width grid and dims are all drawn early, so this must be set before ANY of them (not just
   ;; before the columns).  nil => single-area, draw everything.
   (setq *PEB-OMIT-WALL* (if (and *PEB-MULTI-MODE* data) (peb-common-wall (MSPL-Get-Str data "AR_POSITION")) nil))
+  ;; owner 5-Jul: per-wall open-for-access state (IF Wall Conditions: OW_NSW/FSW/LEW/REW) — drives whether
+  ;; the SHEETING line is drawn on that wall.  Area 01 draws as usual (its own conditions); an associated
+  ;; area omits its common wall entirely, so the shared wall follows Area 01's condition.
+  (setq *PEB-WOPEN-NSW* (and data (peb-wall-open-p (MSPL-Get-Str data "OW_NSW")))
+        *PEB-WOPEN-FSW* (and data (peb-wall-open-p (MSPL-Get-Str data "OW_FSW")))
+        *PEB-WOPEN-LEW* (and data (peb-wall-open-p (MSPL-Get-Str data "OW_LEW")))
+        *PEB-WOPEN-REW* (and data (peb-wall-open-p (MSPL-Get-Str data "OW_REW"))))
   (if (null data)
     (progn
       (setvar "CMDECHO" 1)
@@ -1844,9 +1858,9 @@
   ;; owner 5-Jul: draw the outline edge-by-edge (peb-draw-outline) so multi-area can OMIT the shared-wall
   ;; sheeting/col-outer line (Area 02's common side).  Single-area draws all 4 (identical to the RECTANGs).
   (setvar "CLAYER" "COL-OUTER")
-  (peb-draw-outline 0.0 0.0 len wid)
+  (peb-draw-outline 0.0 0.0 len wid nil)                 ; column line: always drawn (columns are there)
   (setvar "CLAYER" "SHEETING")
-  (peb-draw-outline (- 0.0 sheetGap) (- 0.0 sheetGap) (+ len sheetGap) (+ wid sheetGap))
+  (peb-draw-outline (- 0.0 sheetGap) (- 0.0 sheetGap) (+ len sheetGap) (+ wid sheetGap) T)   ; sheeting: skip fully-open walls
   (setvar "CELTSCALE" 1.0)            ; reset for everything else
 
   ;; ── AREA marking (Zealcon convention) ─────────────────────────────
@@ -1886,6 +1900,10 @@
   ;; centred area label inside the box (real number)
   (setvar "CLAYER" "TEXT")
   (txt-bold "MC" (list aCx aCy) 550 0 aLbl)
+  ;; owner 5-Jul: EAVE-HEIGHT tag just below the box so, at a glance, you see which area is high / low.
+  (setq aEave (MSPL-Get-Num data "BP_EAVE_HEIGHT"))
+  (if (and aEave (> aEave 0.0))
+    (txt-bold "MC" (list aCx (- aFB (* aTxH 0.80))) 400 0 (strcat "EAVE HT. " (peb-comma (rtos aEave 2 0)))))
 
   ;; ── Grid lines (Phase-2A v19 — extend to sheeting outer lines) ──
   ;; Bay lines run from NSW sheeting outer to FSW sheeting outer.
@@ -3681,11 +3699,14 @@
 
 ;; draw a building-outline rectangle EDGE-BY-EDGE, skipping the wall shared with an attached area
 ;; (*PEB-OMIT-WALL*).  NSW=bottom(y0) FSW=top(y1) LEW=left(x0) REW=right(x1).  nil => all 4 (normal).
-(defun peb-draw-outline (x0 y0 x1 y1)
-  (if (not (peb-omit-wall-p "NSW")) (command "_.LINE" (list x0 y0) (list x1 y0) ""))
-  (if (not (peb-omit-wall-p "FSW")) (command "_.LINE" (list x0 y1) (list x1 y1) ""))
-  (if (not (peb-omit-wall-p "LEW")) (command "_.LINE" (list x0 y0) (list x0 y1) ""))
-  (if (not (peb-omit-wall-p "REW")) (command "_.LINE" (list x1 y0) (list x1 y1) ""))
+;; owner 5-Jul: when `sheeting` is T (the SHEETING outline, not the column line), ALSO skip a wall whose
+;; IF condition is FULLY open for access (*PEB-WOPEN-*) — no sheeting line there.  So a common wall set
+;; 'Full Height Open for Access' reads as an open passage between the areas.
+(defun peb-draw-outline (x0 y0 x1 y1 sheeting)
+  (if (not (or (peb-omit-wall-p "NSW") (and sheeting *PEB-WOPEN-NSW*))) (command "_.LINE" (list x0 y0) (list x1 y0) ""))
+  (if (not (or (peb-omit-wall-p "FSW") (and sheeting *PEB-WOPEN-FSW*))) (command "_.LINE" (list x0 y1) (list x1 y1) ""))
+  (if (not (or (peb-omit-wall-p "LEW") (and sheeting *PEB-WOPEN-LEW*))) (command "_.LINE" (list x0 y0) (list x0 y1) ""))
+  (if (not (or (peb-omit-wall-p "REW") (and sheeting *PEB-WOPEN-REW*))) (command "_.LINE" (list x1 y0) (list x1 y1) ""))
   (princ))
 
 ;; wall of THIS area that is common with its reference, given its attach position (for *PEB-OMIT-WALL*)
