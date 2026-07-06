@@ -1513,6 +1513,95 @@
   (tb-mtext (* 0.5 (+ c2x (+ X0 W))) (+ Y0 (* val 0.95)) (* val 0.85) 0 5 (tb-get "SHEETNO") green)
   (princ))
 
+;; ============================================================================
+;; COMPONENT OVERLAY PASS (owner 6-Jul) — draws the IF components onto the Column
+;; Layout Plan AFTER the frame/columns/placements.  Each drawer is self-contained
+;; (add a component = one new defun + one line in peb-draw-components).  Owner
+;; rule: minimal footprint (outer steel outline + FALL arrow + coverage dims +
+;; label); columns ONLY where the component really has columns.
+;; Building axes in plan: NSW=bottom(y=0) FSW=top(y=wid) LEW=left(x=0) REW=right(x=len).
+;; ============================================================================
+
+;; ensure a component layer exists (batch-safe entmake — no command-line prompts)
+(defun peb-comp-layer (name col)
+  (if (not (tblsearch "LAYER" name))
+    (entmake (list (cons 0 "LAYER") (cons 100 "AcDbSymbolTableRecord")
+                   (cons 100 "AcDbLayerTableRecord") (cons 2 name) (cons 70 0) (cons 62 col))))
+  (setvar "CLAYER" name)
+  (princ))
+
+;; closed polyline outline on the current layer (pts = list of (x y))
+(defun peb-comp-poly (pts / e)
+  (setq e (list (cons 0 "LWPOLYLINE") (cons 100 "AcDbEntity") (cons 8 (getvar "CLAYER"))
+                (cons 100 "AcDbPolyline") (cons 90 (length pts)) (cons 70 1)))
+  (foreach p pts (setq e (append e (list (list 10 (car p) (cadr p))))))
+  (entmake e))
+
+;; a FALL/slope arrow from (x0 y0) outward along unit normal (nx ny) + "FALL" text
+(defun peb-comp-fall (x0 y0 nx ny u / x1 y1 ang hl a1 a2)
+  (setvar "CLAYER" "TEXT")
+  (setq x1 (+ x0 (* nx u 2.2)) y1 (+ y0 (* ny u 2.2)) ang (atan ny nx) hl (* u 0.75))
+  (entmake (list (cons 0 "LINE") (cons 8 "TEXT") (list 10 x0 y0 0.0) (list 11 x1 y1 0.0)))
+  (setq a1 (list (- x1 (* hl (cos (- ang 0.35)))) (- y1 (* hl (sin (- ang 0.35)))))
+        a2 (list (- x1 (* hl (cos (+ ang 0.35)))) (- y1 (* hl (sin (+ ang 0.35))))))
+  (entmake (list (cons 0 "SOLID") (cons 8 "TEXT") (list 10 (car a1) (cadr a1) 0.0)
+                 (list 11 (car a2) (cadr a2) 0.0) (list 12 x1 y1 0.0) (list 13 x1 y1 0.0)))
+  (txt-bold "MC" (list (- x0 (* nx u 1.3)) (- y0 (* ny u 1.3))) (* u 0.4)
+            (if (equal ny 0.0 0.001) 90.0 0.0) "FALL")
+  (princ))
+
+;; dispatch — called from C:PEB-PLAN after the frame is drawn (len/wid = drawn plan size)
+(defun peb-draw-components (data len wid)
+  (vl-catch-all-apply (function (lambda () (peb-draw-canopy data len wid))))
+  ;; future drawers appended here: mezzanine / crane / roof-ext / fascia / monitor / platform / catwalk / partition ...
+  (setvar "CLAYER" "0")
+  (princ))
+
+;; ---- CANOPY (attached, per wall CN_<W>_*) — owner: outer steel outline + slope/
+;;      FALL sign + coverage dims; NO columns at the free (cantilever) edge. ----
+(defun peb-draw-canopy (data len wid / u proj alen)
+  (if (= (strcase (MSPL-Get-Str data "CN_TOGGLE")) "YES")
+    (progn
+      (setq u (max 400.0 (min 3000.0 (/ (max len wid) 70.0))))
+      (foreach w (list "NSW" "FSW" "LEW" "REW")
+        (if (= (strcase (MSPL-Get-Str data (strcat "CN_" w "_TOGGLE"))) "YES")
+          (progn
+            (setq proj (MSPL-Get-Num data (strcat "CN_" w "_WIDTH")))   ; projection from wall
+            (setq alen (MSPL-Get-Num data (strcat "CN_" w "_LEN")))     ; length along wall (0 = full)
+            (if (or (null proj) (<= proj 0.0)) (setq proj 1500.0))      ; Mammut std 1500 mm
+            (vl-catch-all-apply (function (lambda () (peb-comp-canopy-one w proj alen len wid u)))))))))
+  (princ))
+
+;; one canopy on wall w: outline extruded from the wall by proj, along the wall by
+;; alen (default full), + outward FALL arrow + projection & coverage-length dims + label.
+(defun peb-comp-canopy-one (w proj alen len wid u / wl a0 a1 bx by ex ey nx ny mcx mcy horiz)
+  (setq horiz (member w '("NSW" "FSW")) wl (if horiz len wid))
+  (if (or (null alen) (<= alen 0.0) (>= alen wl)) (setq a0 0.0 a1 wl)
+    (setq a0 (/ (- wl alen) 2.0) a1 (+ a0 alen)))
+  (cond
+    ((= w "NSW") (setq bx a0 by 0.0 ex a1 ey 0.0  nx 0.0 ny -1.0))
+    ((= w "FSW") (setq bx a0 by wid ex a1 ey wid  nx 0.0 ny 1.0))
+    ((= w "LEW") (setq bx 0.0 by a0 ex 0.0 ey a1  nx -1.0 ny 0.0))
+    ((= w "REW") (setq bx len by a0 ex len ey a1  nx 1.0 ny 0.0)))
+  (setq mcx (+ (/ (+ bx ex) 2.0) (* nx proj 0.5)) mcy (+ (/ (+ by ey) 2.0) (* ny proj 0.5)))
+  (peb-comp-layer "COMP-CANOPY" 3)                        ; green
+  (peb-comp-poly (list (list bx by) (list ex ey)
+                       (list (+ ex (* nx proj)) (+ ey (* ny proj)))
+                       (list (+ bx (* nx proj)) (+ by (* ny proj)))))
+  ;; fall arrow (outward to the free/cantilever edge) at ~28% along the strip so it clears the centre label
+  (if horiz (peb-comp-fall (+ bx (* (- ex bx) 0.28)) mcy nx ny u)
+            (peb-comp-fall mcx (+ by (* (- ey by) 0.28)) nx ny u))
+  (setvar "CLAYER" "COMP-CANOPY")
+  (txt-bold "MC" (list mcx mcy) (min (* u 0.42) (* (abs proj) 0.42)) (if horiz 0.0 90.0) "CANOPY")
+  (if horiz
+    (progn   ; wall along X: projection dim = vertical, coverage dim = horizontal
+      (vl-catch-all-apply (function (lambda () (peb-dim-height-stretch bx (- bx (* u 2.2)) by (+ by (* ny proj)) (peb-comma (rtos proj 2 0))))))
+      (vl-catch-all-apply (function (lambda () (peb-dim-h-stretch bx ex (+ by (* ny (+ proj (* u 2.2)))) (peb-comma (rtos (abs (- ex bx)) 2 0)))))))
+    (progn   ; wall along Y: projection dim = horizontal, coverage dim = vertical
+      (vl-catch-all-apply (function (lambda () (peb-dim-h-stretch bx (+ bx (* nx proj)) (- by (* u 2.2)) (peb-comma (rtos proj 2 0))))))
+      (vl-catch-all-apply (function (lambda () (peb-dim-height-stretch bx (+ bx (* nx (+ proj (* u 2.2)))) by ey (peb-comma (rtos (abs (- ey by)) 2 0))))))))
+  (princ))
+
 ;; ===================== MAIN COMMAND =====================
 
 (defun C:PEB-PLAN
@@ -2207,6 +2296,9 @@
 
   ;; ── Doors / windows at their offsets (+ braced-bay clash flag) ─
   (vl-catch-all-apply (function (lambda () (peb-draw-placements data 0.0 0.0 len wid bayPts))))
+
+  ;; ── Overlaid IF components (canopy, mezzanine, crane, roof-ext, …) — owner 6-Jul ──
+  (vl-catch-all-apply (function (lambda () (peb-draw-components data len wid))))
 
   ;; (Anchor-bolt base-plate schedule removed — this is the COLUMN LAYOUT PLAN;
   ;;  columns show the I-section with their typical 4 anchor bolts, no schedule.)
