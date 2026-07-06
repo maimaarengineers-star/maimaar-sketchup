@@ -2948,8 +2948,15 @@
           (arrow-down-big sx (* wid 0.875) fallU)   ; owner 5-Jul: 3/4 from ridge -> near wall
           (arrow-up-big   sx (* wid 0.125) fallU)))
       ((= stype "FR")
-        (progn (setvar "CLAYER" "TEXT")
-               (txt "MC" (list (* len 0.50) (* wid 0.57)) 600 0 "MINIMUM ROOF SLOPE / DRAINAGE AS PER DESIGN")))
+        ;; flat roof drains INWARD to a central drain line (owner/Mammut §4.5): arrows from both
+        ;; sidewalls toward the centreline, + a dashed centre drain line along the length.
+        (foreach sx slopeXs
+          (arrow-down-big sx (* wid 0.72) fallU)    ; upper half falls down toward centre
+          (arrow-up-big   sx (* wid 0.28) fallU))   ; lower half falls up toward centre
+        (vl-catch-all-apply (function (lambda ()
+          (peb-ridge-line (* len 0.04) (* len 0.96) (* wid 0.5)))))   ; central drain line (dash-dot)
+        (setvar "CLAYER" "TEXT")
+        (txt "MC" (list (* len 0.50) (* wid 0.55)) 600 0 "ROOF SLOPES TO CENTRE DRAIN"))
       (T
         (foreach sx slopeXs
           (arrow-down-big sx (* wid 0.5) fallU)))))))
