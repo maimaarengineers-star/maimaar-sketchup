@@ -1558,7 +1558,8 @@
 ;; dispatch — called from C:PEB-PLAN after the frame is drawn (len/wid = drawn plan size)
 (defun peb-draw-components (data len wid)
   (vl-catch-all-apply (function (lambda () (peb-draw-canopy data len wid))))
-  (vl-catch-all-apply (function (lambda () (peb-draw-roof-accessories data len wid))))
+  ;; NOTE (owner 6-Jul): roof ACCESSORIES (skylights/vents/openings) belong on the ROOF PLAN, NOT the
+  ;; Column Layout Plan — peb-draw-roof-accessories is called by the Roof Plan engine, not here.
   (vl-catch-all-apply (function (lambda () (peb-draw-stairs data len wid))))
   (vl-catch-all-apply (function (lambda () (peb-draw-roof-ext data len wid))))
   (vl-catch-all-apply (function (lambda () (peb-draw-fascia data len wid))))
