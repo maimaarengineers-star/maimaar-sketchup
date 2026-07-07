@@ -262,13 +262,23 @@
     (grid-bubble (+ ox g) bubY (peb-elev-label idx isEnd) "U")
     (setq idx (1+ idx)))
 
-  ;; ── condition note + title ──────────────────────────────────
+  ;; ── title (blue, full wall name) + condition note — CLEAR BELOW the grid bubbles ──
+  ;; owner 7-Jul (presentation audit): was crammed between the wall base and the bubbles at oy-1500/-2100su
+  ;; where — at large text scale — the long condition note overran the title.  Now stacked below the bubbles.
+  ;; NOTE: txt/txt-bold already multiply height by *PEB-TEXT-SCALE*, so pass RAW heights here (single-scale).
+  ;; The rest of this file pre-scales (* N su) = su^2; keeping these two labels single-scaled makes their
+  ;; height and their su-scaled Y offsets grow together, so title & note never overlap at large su.
   (setvar "CLAYER" "TEXT")
-  (txt "MC" (list (+ ox (/ faceLen 2.0)) (- oy (* 1500 su))) (* 260 su) 0
+  (setvar "CECOLOR" "5")   ; Mammut blue view title
+  (txt-bold "MC" (list (+ ox (/ faceLen 2.0)) (- oy (* 4400 su))) 520 0
+            (strcat surf " - "
+                    (cond ((= surf "NSW") "NEAR SIDE WALL") ((= surf "FSW") "FAR SIDE WALL")
+                          ((= surf "LEW") "LEFT END WALL")  ((= surf "REW") "RIGHT END WALL") (T "WALL"))
+                    " ELEVATION"))
+  (setvar "CECOLOR" "BYLAYER")
+  (txt "MC" (list (+ ox (/ faceLen 2.0)) (- oy (* 5400 su))) 320 0
        (if wallOpen "OPEN FOR ACCESS"
-         (if (= owncond "") "SHEETED" (strcase owncond))))
-  (txt-bold "MC" (list (+ ox (/ faceLen 2.0)) (- oy (* 2100 su)))
-            (* 400 su) 0 (strcat surf " ELEVATION"))
+         (if (= owncond "") "FULLY SHEETED" (strcase owncond))))
 
   (setvar "CLAYER" prev)
   ;; apex Y consumed
@@ -289,7 +299,7 @@
   (setq *PEB-TEXT-SCALE* (max 0.80 (min 4.00 (/ maxSize 45000.0))))
   (setq *PEB-DIM-SCALE*  *PEB-TEXT-SCALE*)
   (setq su     (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)
-        below  (* 3900 su)      ; title + condition + grid bubbles live below oy
+        below  (* 6000 su)      ; grid bubbles (-3200) + title (-4400) + condition note (-5250) live below oy
         gap    (* 3500 su)
         cursor 0.0)
   (foreach surf '("NSW" "FSW" "LEW" "REW")

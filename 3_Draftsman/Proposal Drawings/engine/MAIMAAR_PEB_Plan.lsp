@@ -2948,7 +2948,10 @@
   (txt-bold "MC" (list aCx aCy) 550 0 aLbl)
   ;; owner 5-Jul: EAVE-HEIGHT tag just below the box so, at a glance, you see which area is high / low.
   (setq aEave (MSPL-Get-Num data "BP_EAVE_HEIGHT"))
-  (if (and aEave (> aEave 0.0))
+  ;; owner 7-Jul (presentation audit): the eave tag is only useful in MULTI-area (compare high/low areas)
+  ;; and it collided with the vertical "BRACED BAY" text; single-area already shows the eave in the title
+  ;; block + section, so gate it to multi-area — declutters the common single-area plan.
+  (if (and *PEB-MULTI-MODE* aEave (> aEave 0.0))
     (txt-bold "MC" (list aCx (- aFB (* aTxH 0.80))) 400 0 (strcat "EAVE HT. " (peb-comma (rtos aEave 2 0)))))
 
   ;; ── Grid lines (Phase-2A v19 — extend to sheeting outer lines) ──
