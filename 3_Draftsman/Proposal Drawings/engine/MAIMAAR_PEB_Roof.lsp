@@ -335,18 +335,21 @@
   (setvar "CLAYER" "SHEETING")
   (command "RECTANG" (list 0.0 0.0) (list len wid))
 
-  ;; ── PURLIN lines — parallel to the ridge, along the length ───────
-  (setq npur (max 1 (fix (+ 0.5 (/ wid 1800.0)))))   ; ~1800 mm target spacing
-  (setq psp (/ wid (float npur)))
+  ;; ── ROOF SHEETING run-lines — ALONG the falls, RIDGE -> EAVE gutter (owner 7-Jul) ───
+  ;; Metal roof sheets run DOWN the slope (ridge to eave), so on the sheeting plan the run-lines go
+  ;; ACROSS the width (perpendicular to the ridge), spaced along the length at the panel cover width.
+  ;; (Purlins — parallel to the ridge — belong on the Roof FRAMING plan, not the sheeting plan.)
+  (setq npur (max 2 (fix (+ 0.5 (/ len 1000.0)))))   ; ~1000 mm panel cover-width spacing
+  (setq psp (/ len (float npur)))
   (setvar "CLAYER" "ROOF-PURLIN")
   (setq i 1)
   (while (< i npur)
-    (setq y (* i psp))
-    (entmake (list (cons 0 "LINE") (cons 8 "ROOF-PURLIN") (list 10 0.0 y 0.0) (list 11 len y 0.0)))
+    (setq x (* i psp))
+    (entmake (list (cons 0 "LINE") (cons 8 "ROOF-PURLIN") (list 10 x 0.0 0.0) (list 11 x wid 0.0)))
     (setq i (1+ i)))
   (setvar "CLAYER" "ROOF-PURLIN")
   (txt "ML" (list (* len 0.02) (+ wid (* 300.0 ts))) 300 0
-       (strcat "PURLINS @ " (peb-comma (rtos psp 2 0)) " C/C"))
+       (strcat "ROOF SHEETING (RIDGE -> EAVE) @ " (peb-comma (rtos psp 2 0)) " C/C"))
 
   ;; ── RIDGE / VALLEY lines (dash-dot) by structure type ────────────
   (cond
