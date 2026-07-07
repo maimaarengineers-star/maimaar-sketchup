@@ -337,10 +337,16 @@
     (vl-catch-all-apply (function (lambda () (grid-bubble (+ ox g) (- base bubGap) lbl "U"))))
     (setq i (1+ i)))
 
-  ;; 8. title
+  ;; 8. title — blue + full wall name (owner 7-Jul, consistent with the Wall Elevations sheet)
   (setvar "CLAYER" "TEXT")
+  (setvar "CECOLOR" "5")
   (txt-bold "MC" (list (+ ox (/ faceLen 2.0)) (+ base eaveH rise (* 2600 *PEB-TEXT-SCALE*)))
-            (* 420 *PEB-TEXT-SCALE*) 0 (strcat surf " FRAMING ELEVATION"))
+            (* 420 *PEB-TEXT-SCALE*) 0
+            (strcat surf " - "
+                    (cond ((= surf "NSW") "NEAR SIDE WALL") ((= surf "FSW") "FAR SIDE WALL")
+                          ((= surf "LEW") "LEFT END WALL")  ((= surf "REW") "RIGHT END WALL") (T "WALL"))
+                    " FRAMING"))
+  (setvar "CECOLOR" "BYLAYER")
 
   ;; 9. eave-height dim (left) + bay/station dim chain (below the bubbles)
   (vl-catch-all-apply (function (lambda ()
