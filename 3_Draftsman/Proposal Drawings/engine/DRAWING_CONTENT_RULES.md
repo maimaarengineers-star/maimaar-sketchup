@@ -70,11 +70,12 @@ Anchor-Bolt Setting Plan. See OPEN QUESTIONS on set membership.
   (Catalogue §"PLAN DISCRIMINATORS").
 - **Ridge line** (label `RIDGE LINE`) for gable types; **valley line(s)** for Multi-Gable;
   **RAFTER** direction indicator. (Cold-Storage PRO-01 shows RIDGE LINE + RAFTER labels.)
-- **FALL / slope glyphs** — a MINIMAL set (owner: max 2–3, snapped to unbraced bays so
-  the `BRACED BAY` text never overlaps) showing the roof-fall direction + slope ratio
-  (`peb-fall-marker`, owner 4-Jul). DELIBERATE EXCEPTION (owner 7-Jul): fall direction is
-  also useful on the layout plan, so it is shown on BOTH the CLP (this minimal set) and the
-  Roof Plan (the full owner set). The two are intentionally kept in sync, not a duplication bug.
+- **FALL / slope glyphs** — house-pentagon + inscribed circle + `FALL` + slope ratio, max 2–3,
+  snapped to unbraced bays so the `BRACED BAY` text never overlaps (`peb-fall-marker`, owner
+  4-Jul). DELIBERATE EXCEPTION (owner 7-Jul): fall direction is also useful on the layout plan,
+  so it is shown on BOTH the CLP and the Roof Plan — and it must be **IDENTICAL** on both. A
+  single shared routine (`peb-fall-glyph-set`) draws the exact same glyph set on each sheet
+  (same positions + size), so this is intentional, not a duplication bug.
 - **Bracing marks** — braced-bay X's + notes (`WALL BRACING / ROOF BRACING / PORTAL
   BRACING` appear as plan text in `MAIMAAR_06_Warehouse`). Rule = brace 2nd & 2nd-last bay.
 - **Dimensions**: bay chain, width chain, and the two overall notes
@@ -237,7 +238,7 @@ Legend: **✓** = drawn (owned here) · **ref** = referenced/implied only, not t
 | Valley line (MG/BF) | – | ✓ | ✓ | ref | ✓ (roof-fr) | ref |
 | Purlins | – | – | ✓ | – | ✓ (roof-fr) | ✓ (marks) |
 | Girts | – | – | – | ✓ | ✓ | ✓ (marks) |
-| Fall / slope arrows | – | ✓ (min set, owner 7-Jul) | ✓ (owner, full set) | ref (slope tag) | ✓ (roof-fr) | ref (rafter slope) |
+| Fall / slope arrows | – | ✓ (owner 7-Jul, shared) | ✓ (owner, shared) | ref (slope tag) | ✓ (roof-fr) | ref (rafter slope) |
 | Gutters / downspouts | – | – | ✓ (owner) | ref | – | ref (detail) |
 | Sheeting run-lines (cladding) | – | – | ✓ (roof) | ✓ (wall) | – | – |
 | Sheeting + insulation SPEC label | ref (accessory box) | – | ref (corner note) | ref (condition note) | – | ✓ (owner, full build-up) |
