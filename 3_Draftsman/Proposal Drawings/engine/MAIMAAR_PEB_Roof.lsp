@@ -380,8 +380,10 @@
       (setvar "CLAYER" "TEXT")
       (txt "MC" (list (* len 0.5) (* wid 0.5)) 380 0 (peb-roof-label stype rooftype))))
 
-  ;; ── FALL arrows ──────────────────────────────────────────────────
-  (vl-catch-all-apply (function (lambda () (peb-roof-falls stype len wid mgRidgePts mgValleyPts))))
+  ;; ── FALL glyphs (owner 7-Jul: IDENTICAL to the Column Layout Plan) ──
+  ;; Use the SHARED pentagon-glyph set (the better symbol) so the Roof Plan and CLP match exactly.
+  ;; (Superseded the local peb-roof-falls line-arrows, which are kept defined but no longer called.)
+  (vl-catch-all-apply (function (lambda () (peb-fall-glyph-set data stype len wid bayPts mgRidgePts mgGableW))))
 
   ;; ── EAVE gutters + downspouts ────────────────────────────────────
   (vl-catch-all-apply (function (lambda () (peb-roof-gutters stype len wid bayPts))))

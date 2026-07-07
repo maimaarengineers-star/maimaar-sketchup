@@ -1232,6 +1232,80 @@
 (defun arrow-up-big   (x y u) (peb-fall-marker x y  1.0 u)) ; fall toward FSW (up)
 (defun arrow-down-big (x y u) (peb-fall-marker x y -1.0 u)) ; fall toward NSW (down)
 
+;; ── Shared FALL-glyph set (owner 7-Jul: IDENTICAL on the Column Layout Plan AND the Roof Plan) ──
+;; Single source of truth for the roof-fall glyphs.  Both sheets build bayPts + mgRidgePts + mgGableW
+;; with the same algorithm and share the same *PEB-TEXT-SCALE* / *PEB-ROOF-SLOPE*, so the pentagon
+;; glyphs land at IDENTICAL positions and size.  Placement: MAX 2-3 stations (owner), each snapped to
+;; the nearest UNBRACED bay so the CLP's "BRACED BAY" text never overlaps; the Roof Plan reuses the
+;; SAME stations for an exact match.  Direction/eave-tags per structure type.
+(defun peb-fall-glyph-set (data stype len wid bayPts mgRidgePts mgGableW /
+                           bays fallBraced fallUsed slopeXs nFall k tgt off found fallU sx mgY)
+  (setq bays (max 1 (1- (length bayPts))))
+  (setq fallBraced (peb-braced-bays bayPts) fallUsed '() slopeXs '())
+  (setq nFall (if (<= bays 2) 1 2))   ; owner 4-Jul: FALL in 2 places only (1 on a tiny 1-2 bay building)
+  (setq k 1)
+  (while (<= k nFall)
+    (setq tgt (fix (+ 0.5 (* bays (/ k (+ nFall 1.0))))) off 0 found nil)   ; target bay at k/(nFall+1)
+    (while (and (not found) (<= off bays))
+      (cond
+        ((and (>= (- tgt off) 0) (< (- tgt off) bays)
+              (not (member (- tgt off) fallBraced)) (not (member (- tgt off) fallUsed)))
+         (setq found (- tgt off)))
+        ((and (< (+ tgt off) bays)
+              (not (member (+ tgt off) fallBraced)) (not (member (+ tgt off) fallUsed)))
+         (setq found (+ tgt off))))
+      (setq off (1+ off)))
+    (if found
+      (setq slopeXs  (cons (/ (+ (nth found bayPts) (nth (1+ found) bayPts)) 2.0) slopeXs)
+            fallUsed (cons found fallUsed)))
+    (setq k (1+ k)))
+  (setq slopeXs (reverse slopeXs))
+  (setq fallU (max 400.0 (min 3000.0 (/ (max len wid) 70.0))))
+  ;; catch-wrap so a fall-glyph error can never abort the sheet.
+  (vl-catch-all-apply (function (lambda ()
+    (cond
+      ((member stype '("CS" "MS" "RC"))
+        (foreach sx slopeXs
+          (arrow-up-big   sx (* wid 0.875) fallU)    ; owner 5-Jul: 3/4 from ridge -> near FSW
+          (arrow-down-big sx (* wid 0.125) fallU)))  ; owner 5-Jul: 3/4 from ridge -> near NSW
+      ((= stype "MG")
+        (foreach mgY mgRidgePts
+          (foreach sx slopeXs
+            (arrow-up-big   sx (+ mgY (* mgGableW 0.375)) fallU)   ; owner 5-Jul: 3/4 from gable ridge
+            (arrow-down-big sx (- mgY (* mgGableW 0.375)) fallU))))
+      ((= stype "BF")
+        (foreach sx slopeXs
+          (arrow-down-big sx (* wid 0.875) fallU)   ; owner 5-Jul: 3/4 from ridge -> near wall
+          (arrow-up-big   sx (* wid 0.125) fallU)))
+      ((= stype "FR")
+        ;; flat roof drains INWARD to a central drain line (owner/Mammut §4.5): arrows from both
+        ;; sidewalls toward the centreline, + a dashed centre drain line along the length.
+        (foreach sx slopeXs
+          (arrow-down-big sx (* wid 0.72) fallU)    ; upper half falls down toward centre
+          (arrow-up-big   sx (* wid 0.28) fallU))   ; lower half falls up toward centre
+        (vl-catch-all-apply (function (lambda ()
+          (peb-ridge-line (* len 0.04) (* len 0.96) (* wid 0.5)))))   ; central drain line (dash-dot)
+        (setvar "CLAYER" "TEXT")
+        (txt "MC" (list (* len 0.50) (* wid 0.55)) 600 0 "ROOF SLOPES TO CENTRE DRAIN"))
+      ((= stype "SS")
+        ;; single slope: ONE continuous fall high->low across the full width (no ridge). High side =
+        ;; RA_MONO_HIGH (FSW default until the IF captures msHighSide). Full-width arrows + HIGH/LOW EAVE tags.
+        (foreach sx slopeXs
+          (if (wcmatch (strcase (MSPL-Get-Str data "RA_MONO_HIGH")) "*NSW*")
+            (arrow-up-big   sx (* wid 0.5) fallU)     ; NSW high -> fall toward FSW
+            (arrow-down-big sx (* wid 0.5) fallU)))   ; FSW high (default) -> fall toward NSW
+        (setvar "CLAYER" "TEXT")
+        (if (wcmatch (strcase (MSPL-Get-Str data "RA_MONO_HIGH")) "*NSW*")
+          (progn (txt "MC" (list (* len 0.5) (* wid 0.055)) 550 0 "HIGH EAVE")
+                 (txt "MC" (list (* len 0.5) (* wid 0.945)) 550 0 "LOW EAVE"))
+          (progn (txt "MC" (list (* len 0.5) (* wid 0.945)) 550 0 "HIGH EAVE")
+                 (txt "MC" (list (* len 0.5) (* wid 0.055)) 550 0 "LOW EAVE"))))
+      (T
+        (foreach sx slopeXs
+          (arrow-down-big sx (* wid 0.5) fallU)))))))
+  (setvar "CLAYER" "0")
+  (princ))
+
 (defun draw-north-arrow (cx cy / s)
   (if (not *PEB-TEXT-SCALE*) (setq *PEB-TEXT-SCALE* 1.0))
   (setq s *PEB-TEXT-SCALE*)
@@ -3089,73 +3163,10 @@
   ;; (Anchor-bolt base-plate schedule removed — this is the COLUMN LAYOUT PLAN;
   ;;  columns show the I-section with their typical 4 anchor bolts, no schedule.)
 
-  ;; ── FALL glyphs (owner 4-Jul) ─────────────────────────────────
-  ;; MAXIMUM 2-3 fall symbols total (owner: "should be maximum 2 or 3"), evenly spaced, snapped to the
-  ;; nearest UNBRACED bay (so the "BRACED BAY" text never overlaps). Autosized (fallU), placed MID-WAY
-  ;; between the ridge line and the outer columns.
-  (setq fallBraced (peb-braced-bays bayPts) fallUsed '() slopeXs '())
-  (setq nFall (if (<= bays 2) 1 2))   ; owner 4-Jul: FALL in 2 places only (1 on a tiny 1-2 bay building)
-  (setq k 1)
-  (while (<= k nFall)
-    (setq tgt (fix (+ 0.5 (* bays (/ k (+ nFall 1.0))))) off 0 found nil)   ; target bay at k/(nFall+1)
-    (while (and (not found) (<= off bays))
-      (cond
-        ((and (>= (- tgt off) 0) (< (- tgt off) bays)
-              (not (member (- tgt off) fallBraced)) (not (member (- tgt off) fallUsed)))
-         (setq found (- tgt off)))
-        ((and (< (+ tgt off) bays)
-              (not (member (+ tgt off) fallBraced)) (not (member (+ tgt off) fallUsed)))
-         (setq found (+ tgt off))))
-      (setq off (1+ off)))
-    (if found
-      (setq slopeXs  (cons (/ (+ (nth found bayPts) (nth (1+ found) bayPts)) 2.0) slopeXs)
-            fallUsed (cons found fallUsed)))
-    (setq k (1+ k)))
-  (setq slopeXs (reverse slopeXs))
-  (setq fallU (max 400.0 (min 3000.0 (/ (max len wid) 70.0))))
-
-  ;; catch-wrap so a fall-glyph error can never abort the whole plan.
-  (vl-catch-all-apply (function (lambda ()
-    (cond
-      ((member stype '("CS" "MS" "RC"))
-        (foreach sx slopeXs
-          (arrow-up-big   sx (* wid 0.875) fallU)    ; owner 5-Jul: 3/4 from ridge -> near FSW
-          (arrow-down-big sx (* wid 0.125) fallU)))  ; owner 5-Jul: 3/4 from ridge -> near NSW
-      ((= stype "MG")
-        (foreach mgY mgRidgePts
-          (foreach sx slopeXs
-            (arrow-up-big   sx (+ mgY (* mgGableW 0.375)) fallU)   ; owner 5-Jul: 3/4 from gable ridge
-            (arrow-down-big sx (- mgY (* mgGableW 0.375)) fallU))))
-      ((= stype "BF")
-        (foreach sx slopeXs
-          (arrow-down-big sx (* wid 0.875) fallU)   ; owner 5-Jul: 3/4 from ridge -> near wall
-          (arrow-up-big   sx (* wid 0.125) fallU)))
-      ((= stype "FR")
-        ;; flat roof drains INWARD to a central drain line (owner/Mammut §4.5): arrows from both
-        ;; sidewalls toward the centreline, + a dashed centre drain line along the length.
-        (foreach sx slopeXs
-          (arrow-down-big sx (* wid 0.72) fallU)    ; upper half falls down toward centre
-          (arrow-up-big   sx (* wid 0.28) fallU))   ; lower half falls up toward centre
-        (vl-catch-all-apply (function (lambda ()
-          (peb-ridge-line (* len 0.04) (* len 0.96) (* wid 0.5)))))   ; central drain line (dash-dot)
-        (setvar "CLAYER" "TEXT")
-        (txt "MC" (list (* len 0.50) (* wid 0.55)) 600 0 "ROOF SLOPES TO CENTRE DRAIN"))
-      ((= stype "SS")
-        ;; single slope: ONE continuous fall high->low across the full width (no ridge). High side =
-        ;; RA_MONO_HIGH (FSW default until the IF captures msHighSide). Full-width arrows + HIGH/LOW EAVE tags.
-        (foreach sx slopeXs
-          (if (wcmatch (strcase (MSPL-Get-Str data "RA_MONO_HIGH")) "*NSW*")
-            (arrow-up-big   sx (* wid 0.5) fallU)     ; NSW high -> fall toward FSW
-            (arrow-down-big sx (* wid 0.5) fallU)))   ; FSW high (default) -> fall toward NSW
-        (setvar "CLAYER" "TEXT")
-        (if (wcmatch (strcase (MSPL-Get-Str data "RA_MONO_HIGH")) "*NSW*")
-          (progn (txt "MC" (list (* len 0.5) (* wid 0.055)) 550 0 "HIGH EAVE")
-                 (txt "MC" (list (* len 0.5) (* wid 0.945)) 550 0 "LOW EAVE"))
-          (progn (txt "MC" (list (* len 0.5) (* wid 0.945)) 550 0 "HIGH EAVE")
-                 (txt "MC" (list (* len 0.5) (* wid 0.055)) 550 0 "LOW EAVE"))))
-      (T
-        (foreach sx slopeXs
-          (arrow-down-big sx (* wid 0.5) fallU)))))))
+  ;; ── FALL glyphs (owner 4-Jul; unified 7-Jul) ──────────────────
+  ;; MAX 2-3 fall symbols, snapped to unbraced bays, autosized — now via the SHARED routine so the
+  ;; Column Layout Plan and the Roof Plan draw the SAME glyph set. (See peb-fall-glyph-set.)
+  (peb-fall-glyph-set data stype len wid bayPts mgRidgePts mgGableW)
 
   ;; ── Wall labels ───────────────────────────────────────────────
   ;; Phase-2A v12: pushed FSW/NSW further from building (was 2800,
