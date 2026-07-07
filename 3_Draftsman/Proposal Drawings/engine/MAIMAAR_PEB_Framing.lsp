@@ -40,11 +40,13 @@
   (setvar "CLAYER" prev))
 
 (defun peb-draw-roof-framing (data ox oy / len wid slopeD bayPts purlSp nRows i x y
-                              prev cnt pre psurf pat pw mark midY)
+                              prev cnt pre psurf pat pw mark midY j bubGap bubR)
   (setq len    (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
         wid    (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
         slopeD (atof (peb-tb-or (MSPL-Get-Str data "SLOPE") "10")))
   (if (<= slopeD 0.0) (setq slopeD 10.0))
+  ;; owner 7-Jul: set drawing scale from building size (parity with the other sheets)
+  (setq *PEB-TEXT-SCALE* (max 0.80 (min 4.00 (/ (max len wid 1.0) 45000.0))) *PEB-DIM-SCALE* *PEB-TEXT-SCALE*)
   (setq bayPts (peb-fr-stations (MSPL-Get-Str data "BAYEXPR") len))
   (setq midY (+ oy (/ wid 2.0)) prev (getvar "CLAYER"))
 
@@ -105,10 +107,26 @@
       (vl-catch-all-apply (function (lambda ()
         (peb-dim-h-stretch ox (+ ox len) (+ oy wid (* 900 *PEB-DIM-SCALE*))
                            (peb-fmt-expr (MSPL-Get-Str data "BAYEXPR"))))))))
+  ;; grid bubbles — numbers (top) + letters A/B at the eaves (owner 7-Jul, parity with other sheets)
+  (setq bubGap (* 3500 *PEB-TEXT-SCALE*) bubR (if *PEB-BUBRAD* *PEB-BUBRAD* (* 620 *PEB-TEXT-SCALE*)) j 1)
+  (foreach g bayPts
+    (setvar "CLAYER" "GRID")
+    (command "_.LINE" (list (+ ox g) (+ oy wid)) (list (+ ox g) (+ oy wid bubGap)) "")
+    (grid-bubble (+ ox g) (+ oy wid bubGap bubR) (itoa j) "D")
+    (setq j (1+ j)))
+  (setvar "CLAYER" "GRID")
+  (command "_.LINE" (list ox oy) (list (- ox bubGap) oy) "")
+  (grid-bubble (- ox bubGap bubR) oy "A" "R")
+  (command "_.LINE" (list ox (+ oy wid)) (list (- ox bubGap) (+ oy wid)) "")
+  (grid-bubble (- ox bubGap bubR) (+ oy wid) "B" "R")
+  ;; blue title (below the roof) + shared title block
   (setvar "CLAYER" "TEXT")
-  (txt-bold "MC" (list (+ ox (/ len 2.0)) (- oy (* 1600 *PEB-TEXT-SCALE*)))
+  (setvar "CECOLOR" "5")
+  (txt-bold "MC" (list (+ ox (/ len 2.0)) (- oy (* 3200 *PEB-TEXT-SCALE*)))
             (* 450 *PEB-TEXT-SCALE*) 0 "ROOF FRAMING PLAN")
-  (setvar "CLAYER" prev))
+  (setvar "CECOLOR" "BYLAYER")
+  (setvar "CLAYER" prev)
+  (vl-catch-all-apply (function (lambda () (peb-frame-and-titleblock data "ROOF FRAMING PLAN")))))
 
 ;; ============================================================================
 ;;  STEEL FRAMING ELEVATIONS  (side walls NSW/FSW + end walls LEW/REW)
