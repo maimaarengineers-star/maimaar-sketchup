@@ -407,7 +407,7 @@
     (setvar "CLAYER" "GRID-LINES")
     (command "LINE" (list x (+ wid (* 300.0 ds))) (list x (- gridY2 bubR)) "")
     (setvar "CLAYER" "GRID")
-    (grid-bubble x gridY2 (itoa i))
+    (grid-bubble x gridY2 (itoa i) "D")
     (setq i (1+ i)))
 
   ;; width letters (A at the TOP = FSW; counts down toward NSW)
@@ -416,7 +416,7 @@
     (setvar "CLAYER" "GRID-LINES")
     (command "LINE" (list (- 0.0 (* 300.0 ds)) y) (list (+ gridX1 bubR) y) "")
     (setvar "CLAYER" "GRID")
-    (grid-bubble gridX1 y (chr (+ 65 (- nWid 1 j))))
+    (grid-bubble gridX1 y (chr (+ 65 (- nWid 1 j))) "R")
     (setq j (1+ j)))
 
   ;; ── ROOF ACCESSORIES (skylights / vents / opening) ───────────────

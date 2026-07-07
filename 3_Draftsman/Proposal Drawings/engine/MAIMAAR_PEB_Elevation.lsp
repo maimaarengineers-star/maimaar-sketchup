@@ -259,7 +259,7 @@
   (foreach g stations
     (setvar "CLAYER" "GRID")
     (command "_.LINE" (list (+ ox g) oy) (list (+ ox g) (+ bubY bubR)) "")
-    (grid-bubble (+ ox g) bubY (peb-elev-label idx isEnd))
+    (grid-bubble (+ ox g) bubY (peb-elev-label idx isEnd) "U")
     (setq idx (1+ idx)))
 
   ;; ── condition note + title ──────────────────────────────────

@@ -408,19 +408,29 @@
   (command "TEXT" "J" just pt (* h *PEB-TEXT-SCALE*) rot str)
 )
 
-(defun grid-bubble (x y label / r h prev)
-  ;; Clean single circle (GRID layer) with a centred GRID-TEXT label — the
-  ;; Mammut grid-bubble look.  Caller places (x,y) clear outside the building so
-  ;; the bubble never overlaps a column; the grid line stops at the bubble.
-  ;; RULE G2: text AUTO-FITS inside the circle — sized by label length so a
-  ;; single digit fills the bubble and 2-3 chars still sit clean inside it.
+;; Grid bubble — Mammut MIRROR (owner 7-Jul): a GREEN shield/pennant = circle + a triangular pointer
+;; aimed at the grid line (toward the building), with the number/letter centred in the circle.  dir tells
+;; which way the pointer aims (toward the building): "D" down (top number row), "U" up (elevation bubbles
+;; below the wall), "L" left, "R" right (left letter column).  Omitted dir defaults to "R" (never crashes).
+(defun grid-bubble (x y label dir / r h prev pc d tail apex p1 p2)
   (if (not *PEB-TEXT-SCALE*) (setq *PEB-TEXT-SCALE* 1.0))
-  (setq r (if *PEB-BUBRAD* *PEB-BUBRAD* (* 620 *PEB-TEXT-SCALE*)) prev (getvar "CLAYER"))  ; RULE: flexible bubble radius (clamped so bubbles never touch); text auto-fits to r
+  (setq r (if *PEB-BUBRAD* *PEB-BUBRAD* (* 620 *PEB-TEXT-SCALE*)) prev (getvar "CLAYER") pc (getvar "CECOLOR"))
   (setq h (* r (cond ((<= (strlen label) 1) 0.95)   ; 1 char  -> fills the circle
                      ((= (strlen label) 2) 0.66)    ; 2 chars -> fit
                      (T 0.48))))                    ; 3+ chars -> fit
+  (setq d (cond ((= dir "D") (list 0.0 -1.0)) ((= dir "U") (list 0.0 1.0))
+                ((= dir "L") (list -1.0 0.0)) (T (list 1.0 0.0)))
+        tail (* r 1.15)
+        apex (list (+ x (* (car d) (+ r tail)))      (+ y (* (cadr d) (+ r tail))))
+        p1   (list (+ x (* (- (cadr d)) (* r 0.62)) (* (car d) (* r 0.30)))
+                   (+ y (* (car d)        (* r 0.62)) (* (cadr d) (* r 0.30))))
+        p2   (list (+ x (* (cadr d)      (* r 0.62)) (* (car d) (* r 0.30)))
+                   (+ y (* (- (car d))   (* r 0.62)) (* (cadr d) (* r 0.30)))))
   (setvar "CLAYER" "GRID")
+  (setvar "CECOLOR" "3")                              ; Mammut GREEN bubble
   (command "_.CIRCLE" (list x y) r)
+  (command "_.PLINE" p1 apex p2 "")                   ; triangular pointer toward the grid line
+  (setvar "CECOLOR" pc)
   (setvar "CLAYER" "GRID-TEXT")
   (setvar "TEXTSTYLE" "PEB-TITLE")
   (command "_.TEXT" "_J" "_MC" (list x y) h 0 label)
@@ -3000,7 +3010,7 @@
           ;; yOvrDim) up to the inner side of the bubble — not through the building.
           (command "LINE" (list x (+ yOvrDim ovrTxtH)) (list x (- gridY2 bubR)) "")   ; owner 5-Jul: start just ABOVE the outer-dim text
           (setvar "CLAYER" "GRID")
-          (grid-bubble x gridY2 (itoa (+ i (if *PEB-GRID-NUM-OFS* *PEB-GRID-NUM-OFS* 0))))))   ; owner 5-Jul: number offset -> grid CONTINUES across side-by-side areas
+          (grid-bubble x gridY2 (itoa (+ i (if *PEB-GRID-NUM-OFS* *PEB-GRID-NUM-OFS* 0))) "D")))   ; owner 5-Jul: number offset -> grid CONTINUES across side-by-side areas
       (setq i (1+ i))
     )
   )
@@ -3025,7 +3035,7 @@
         ;; RULE (owner 4-Jul): grid marking line from the OUTER width dimension line (-3*dimGap) to the bubble.
         (command "LINE" (list (- (- 0.0 (* 3.0 dimGap)) ovrTxtH) y) (list (+ gridX1 bubR) y) "")   ; owner 5-Jul: start just LEFT of the outer-dim text
         (setvar "CLAYER" "GRID")
-        (grid-bubble gridX1 y (chr (+ 65 (- nWid 1 j) (if *PEB-GRID-LET-OFS* *PEB-GRID-LET-OFS* 0))))))   ; owner 5-Jul: letter offset -> grid CONTINUES across stacked areas
+        (grid-bubble gridX1 y (chr (+ 65 (- nWid 1 j) (if *PEB-GRID-LET-OFS* *PEB-GRID-LET-OFS* 0))) "R")))   ; owner 5-Jul: letter offset -> grid CONTINUES across stacked areas
     (setq j (1+ j))
   ))
 

@@ -334,7 +334,7 @@
     (setq lbl (if isEnd (peb-fr-letter i) (itoa (1+ i))))
     (setvar "CLAYER" "GRID-LINES")
     (command "_.LINE" (list (+ ox g) base) (list (+ ox g) (- base (* bubGap 0.45))) "")
-    (vl-catch-all-apply (function (lambda () (grid-bubble (+ ox g) (- base bubGap) lbl))))
+    (vl-catch-all-apply (function (lambda () (grid-bubble (+ ox g) (- base bubGap) lbl "U"))))
     (setq i (1+ i)))
 
   ;; 8. title
