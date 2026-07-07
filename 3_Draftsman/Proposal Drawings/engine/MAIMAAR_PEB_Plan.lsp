@@ -1234,7 +1234,7 @@
     (list (+ x hw) (+ y (* dir sy))) (list x (+ y (* dir ah))) (list (- x hw) (+ y (* dir sy)))  ; roof shoulders + apex
     "_C")
   (command "_.CIRCLE" (list x (- y (* dir 0.09 a))) (* 0.50 a))                        ; circle in the body
-  (setvar "CLAYER" "TEXT")
+  (setvar "CLAYER" "FALL")   ; owner 7-Jul (Mammut mirror): FALL text is RED like the glyph, not white
   (txt "MC" (list x (- y (* dir (+ bh (* 1.00 a))))) fh 90.0 "FALL")                   ; FALL vertical, clear below the pentagon
   (txt "MC" (list x (- y (* dir (+ bh (* 1.92 a))))) sh  0.0 (peb-slope-text))         ; slope small + horizontal, below FALL
   (setvar "CLAYER" prev))
@@ -3364,7 +3364,7 @@
       (peb-recolor-last-dim 0)              ; ByBlock
       ;; Overall length dim — real VALUE (nth 0); witness/arrows on the DRAWN plane (nth 3/4).
       (peb-dim-h-stretch (nth 3 ldim) (+ len (nth 4 ldim)) yOvrDim
-                         (peb-fmt-labelled "BLDG. LENGTH" (nth 0 ldim) (peb-basis-suffix lref)))
+                         (peb-fmt-labelled "BUILDING LENGTH" (nth 0 ldim) (peb-basis-suffix lref)))
       (peb-recolor-last-dim 0)))                   ; ByBlock for overall length
 
   ;; ── WIDTH DIMENSIONS: 3 NESTED CHAINS (owner 4-Jul) ─────────────────────────────
@@ -3394,7 +3394,7 @@
       (peb-recolor-last-dim 0)))              ; LEW width module (middle)
   ;; (3) OVERALL WIDTH — LEW outermost (-4800). Real VALUE (nth 0); witness on the DRAWN plane (nth 3/4).
   (peb-dim-height-stretch 0.0 (- (* 3.0 dimGap)) (nth 3 wdim) (+ wid (nth 4 wdim))
-                          (peb-fmt-labelled "BLDG. WIDTH" (nth 0 wdim) (peb-basis-suffix wref)))
+                          (peb-fmt-labelled "BUILDING WIDTH" (nth 0 wdim) (peb-basis-suffix wref)))
   (peb-recolor-last-dim 0)))                    ; LEW overall width (outermost)
 
   ;; ── Title (Phase-2A: compact dim × dim with area) ────────────
@@ -3421,7 +3421,9 @@
   ;; its own AREA No. tag + dims.  (Single-area: *PEB-MULTI-MODE* nil, draws normally.)
   (if (not *PEB-MULTI-MODE*)
     (progn
-      (txt-bold "MC" (list (/ len 2.0) yTtl) 870 0 "COLUMN LAYOUT PLAN")   ; owner 5-Jul: smaller, more proportional
+      (setvar "CECOLOR" "5")   ; owner 7-Jul (Mammut mirror): the main title is BLUE
+      (txt-bold "MC" (list (/ len 2.0) yTtl) 870 0 "COLUMN LAY-OUT PLAN")
+      (setvar "CECOLOR" "BYLAYER")
       (txt "MC" (list (/ len 2.0) ySub) 560 0
         (strcat (rtos (/ len 1000.0) 2 0) "×"
                 (rtos (/ wid 1000.0) 2 0) " m"
