@@ -1397,9 +1397,11 @@
                  (list 10 x1 y1 0.0) (list 11 x2 y2 0.0)
                  (list 12 x3 y3 0.0) (list 13 x3 y3 0.0))))
 ;; AUTOFIT: return a text height so a string of N chars fits within width mw on
-;; ONE line, capped at the desired height mh (Arial char width ~ 0.60 x height).
+;; ONE line, capped at the desired height mh.  owner 7-Jul: the real romans.shx advance is
+;; ~0.72 x height (0.64 was optimistic -> long labels/values overflowed their column into the
+;; next); use 0.74 so autofit actually shrinks overflowing strings.
 (defun tb-fith (s mw mh)
-  (min mh (/ mw (* (max 1.0 (float (strlen s))) 0.64))))
+  (min mh (/ mw (* (max 1.0 (float (strlen s))) 0.74))))
 
 ;; strip an embedded unit suffix ("0 KN/m2" -> "0", "135 km/h" -> "135").
 (defun peb-num-only (s / p)
@@ -1588,7 +1590,7 @@
             "MAIMAAR STEEL (PVT) LTD - NOT FOR CONSTRUCTION}") cyan)
   (tb-hdiv yCur)
   ;; ----- DESIGN-LOAD table (Mammut format) -----
-  (setq lx (+ X0 (* W 0.05)) vx (+ X0 (* W 0.635)) ux (+ X0 (* W 0.82)))   ; owner 5-Jul: value col moved right so long labels (WIND SPEED (3-SEC GUST)) don't touch the value
+  (setq lx (+ X0 (* W 0.05)) vx (+ X0 (* W 0.70)) ux (+ X0 (* W 0.865)))   ; owner 7-Jul: value+unit cols pushed right (into the empty right margin) so labels never touch the value and the table fills its width
   (setq rh (* H 0.052) bt yCur yCur (- yCur rh))
   ;; owner 5-Jul: the BOLD heading is wider than tb-fith's non-bold estimate, so it was wrapping to 3 lines
   ;; and the 3rd overran the first load row.  Size it small enough that each half stays on ONE line (2 lines
@@ -1608,10 +1610,13 @@
        (list "TEMPERATURE LOAD"       (tb-get "TEMP")     "")
        (list "RAINFALL INTENSITY"     (tb-get "RAIN")     "MM/HR"))
     (setq rh (* H 0.0200) yCur (- yCur rh))
-    (tb-mtext lx (+ yCur (* rh 0.5)) sm 0 4 (car r) white)
-    (tb-mtext vx (+ yCur (* rh 0.5)) (tb-fith (cadr r) (* W 0.19) val) 0 4 (cadr r) green)
+    ;; owner 7-Jul: FIT the label to the label column so long ones (WIND SPEED (3-SEC GUST),
+    ;; RAINFALL INTENSITY, ADD'L. COLLATERAL LOAD) can't overflow into the value; tighten the value
+    ;; width so it can't touch the unit (KPH was rendering as "PH").
+    (tb-mtext lx (+ yCur (* rh 0.5)) (tb-fith (car r) (* W 0.63) sm) 0 4 (car r) white)
+    (tb-mtext vx (+ yCur (* rh 0.5)) (tb-fith (cadr r) (* W 0.15) val) 0 4 (cadr r) green)
     (if (/= (caddr r) "")
-      (tb-mtext ux (+ yCur (* rh 0.5)) sm 0 4 (caddr r) grey)))
+      (tb-mtext ux (+ yCur (* rh 0.5)) (tb-fith (caddr r) (* W 0.13) sm) 0 4 (caddr r) grey)))
   ;; code note — taller row + smaller fit so the 2-line text stays INSIDE the box
   ;; (above the divider), never overwriting the rule below.
   (setq rh (* H 0.044) yCur (- yCur rh))
@@ -1660,7 +1665,7 @@
   (tb-mtext (+ X0 (* W 0.04)) (- bt (* lbl 1.3)) lbl cw 1 "STEEL CONTRACTOR :" grey)
   (peb-tb-place-logo (+ X0 (* W 0.10)) (+ yCur (* rh 0.52))
                      (+ X0 (* W 0.90)) (- bt (* lbl 2.4)))
-  (tb-mtext (+ X0 (* W 0.06)) (+ yCur (* rh 0.62)) (* sm 0.84) cw 1 (tb-get "ADDR") white)  ; owner 5-Jul: raised + shrunk so the CELL line stays inside the cell (was crossing the divider)
+  (tb-mtext (+ X0 (* W 0.06)) (+ yCur (* rh 0.66)) (* sm 0.70) cw 1 (tb-get "ADDR") white)  ; owner 7-Jul: shrunk more (0.84->0.70) + raised so the 6-line address (…CELL…) never crosses into the quote row
   (tb-hdiv yCur)
   ;; quote / bldg rows
   (foreach pr (list (list "QUOTE NO." (tb-get "QUOTE"))
