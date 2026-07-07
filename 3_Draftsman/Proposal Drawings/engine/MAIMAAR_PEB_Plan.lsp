@@ -1522,28 +1522,32 @@
 ;; to the content width, so the title block never balloons to the stack height.  drgTitle = the sheet title.
 (defun peb-frame-and-titleblock (data drgTitle / tbData ds bGap exmin exmax cW cH
                                                  borderL borderB borderT tbStripW tbStripH tbStripX tbY0 borderR)
-  (setq tbData (peb-build-tbdata data drgTitle))
-  (setq ds (if *PEB-DIM-SCALE* *PEB-DIM-SCALE* 1.0))
-  (setq bGap (max (* 3000.0 ds) (if *PEB-BUBRAD* *PEB-BUBRAD* 600.0)))
-  (vl-catch-all-apply (function (lambda () (command "_.ZOOM" "_E"))))
-  (setq exmin (getvar "EXTMIN") exmax (getvar "EXTMAX"))
-  (setq cW (- (car exmax) (car exmin)) cH (- (cadr exmax) (cadr exmin)))
-  (setq borderL (- (car  exmin) bGap)
-        borderB (- (cadr exmin) bGap)
-        borderT (+ (cadr exmax) bGap))
-  (cond
-    ((<= cH (* cW 1.25))                 ; landscape → full-height flush-right strip (CLP/Roof look)
-      (setq tbStripH (- borderT borderB)
-            tbStripW (* tbStripH 0.30)
-            tbY0     borderB))
-    (T                                   ; portrait stack → bottom-right corner block sized to content WIDTH
-      (setq tbStripW (* cW 0.20)
-            tbStripH (/ tbStripW 0.30)   ; keep the ~0.30 aspect
-            tbY0     borderB)))
-  (setq tbStripX (+ (car exmax) (* 3500.0 ds))
-        borderR  (+ tbStripX tbStripW))
-  (vl-catch-all-apply (function (lambda () (peb-titleblock-mammut tbStripX tbY0 tbStripW tbStripH tbData))))
-  (draw-border borderL borderB borderR borderT)
+  ;; owner 7-Jul (multi-area cover): when a combining orchestrator suppresses per-area title blocks
+  ;; (*PEB-SUPPRESS-TB*), skip — the finalize pass draws ONE frame around the whole set (mirrors the CLP).
+  (if (not *PEB-SUPPRESS-TB*)
+    (progn
+      (setq tbData (peb-build-tbdata data drgTitle))
+      (setq ds (if *PEB-DIM-SCALE* *PEB-DIM-SCALE* 1.0))
+      (setq bGap (max (* 3000.0 ds) (if *PEB-BUBRAD* *PEB-BUBRAD* 600.0)))
+      (vl-catch-all-apply (function (lambda () (command "_.ZOOM" "_E"))))
+      (setq exmin (getvar "EXTMIN") exmax (getvar "EXTMAX"))
+      (setq cW (- (car exmax) (car exmin)) cH (- (cadr exmax) (cadr exmin)))
+      (setq borderL (- (car  exmin) bGap)
+            borderB (- (cadr exmin) bGap)
+            borderT (+ (cadr exmax) bGap))
+      (cond
+        ((<= cH (* cW 1.25))                 ; landscape → full-height flush-right strip (CLP/Roof look)
+          (setq tbStripH (- borderT borderB)
+                tbStripW (* tbStripH 0.30)
+                tbY0     borderB))
+        (T                                   ; portrait stack → bottom-right corner block sized to content WIDTH
+          (setq tbStripW (* cW 0.20)
+                tbStripH (/ tbStripW 0.30)   ; keep the ~0.30 aspect
+                tbY0     borderB)))
+      (setq tbStripX (+ (car exmax) (* 3500.0 ds))
+            borderR  (+ tbStripX tbStripW))
+      (vl-catch-all-apply (function (lambda () (peb-titleblock-mammut tbStripX tbY0 tbStripW tbStripH tbData))))
+      (draw-border borderL borderB borderR borderT)))
   (princ))
 
 ;; Mammut-MIRROR vertical title strip:  NOTES + disclaimer + DESIGN-LOAD table
