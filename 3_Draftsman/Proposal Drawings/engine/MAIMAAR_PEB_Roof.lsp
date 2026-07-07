@@ -435,16 +435,11 @@
   ;; title sits above the top grid stack (like the plan's title band)
   (setq yTtl (+ gridY2 *PEB-BUBRAD* txtGap txtGap))
   (setvar "CLAYER" "TEXT")
-  (txt-bold "MC" (list (* len 0.5) yTtl) 620 0 "ROOF PLAN")
-  (txt "MC" (list (* len 0.5) (- yTtl txtGap)) 380 0 (strcat aLbl "  |  " (peb-roof-panel-note data)))
+  ;; owner 7-Jul: the sheet title now lives in the shared title block; keep only the AREA + panel-note band.
+  (txt "MC" (list (* len 0.5) yTtl) 380 0 (strcat aLbl "  |  " (peb-roof-panel-note data)))
 
-  ;; border around the whole thing (symmetric side margins, like the plan)
-  (setq bMarg (+ (* 10500.0 ds) *PEB-BUBRAD*))
-  (setq borderL (- 0.0 bMarg)
-        borderR (+ len bMarg)
-        borderB (- (- 0.0 (* 6.0 dimGap)) *PEB-BUBRAD*)
-        borderT (+ yTtl (* 2000.0 ts)))
-  (if (boundp 'draw-border) (draw-border borderL borderB borderR borderT))
+  ;; owner 7-Jul: shared title block + border — IDENTICAL to the Column Layout Plan (see peb-frame-and-titleblock).
+  (vl-catch-all-apply (function (lambda () (peb-frame-and-titleblock data "ROOF PLAN"))))
 
   (command "UNDO" "END")
   (vl-catch-all-apply (function (lambda () (command "_.ZOOM" "_E"))))

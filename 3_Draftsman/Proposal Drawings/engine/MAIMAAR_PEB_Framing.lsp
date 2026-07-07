@@ -366,6 +366,8 @@
   (peb-draw-framing-elev "FSW" 0.0 step         data)
   (peb-draw-framing-elev "LEW" 0.0 (* 2.0 step) data)
   (peb-draw-framing-elev "REW" 0.0 (* 3.0 step) data)
+  ;; owner 7-Jul: shared title block + border (portrait stack -> bottom-right corner block).
+  (vl-catch-all-apply (function (lambda () (peb-frame-and-titleblock data "FRAMING ELEVATIONS"))))
   (princ))
 
 (defun C:PEB-FRAMING ( / data ms)

@@ -294,7 +294,9 @@
         cursor 0.0)
   (foreach surf '("NSW" "FSW" "LEW" "REW")
     (setq apex (peb-draw-elevation surf 0.0 cursor data))
-    (setq cursor (+ apex gap below))))
+    (setq cursor (+ apex gap below)))
+  ;; owner 7-Jul: shared title block + border (portrait stack -> bottom-right corner block).
+  (vl-catch-all-apply (function (lambda () (peb-frame-and-titleblock data "WALL ELEVATIONS")))))
 
 (defun C:PEB-ELEVATION ( / data dataFile)
   (vl-load-com)

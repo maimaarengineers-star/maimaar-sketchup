@@ -1449,6 +1449,93 @@
         (command "_.-INSERT" *PEB-LOGO-DWG* (list px py 0.0) s s 0))))
     (princ "\n[title block] logo DWG not found — box left empty.")))
 
+;; ── SHARED title-block data + framing (owner 7-Jul: EVERY sheet gets the SAME title block) ──
+;; peb-build-tbdata builds the full Mammut title-block field alist straight from the NORMALIZED
+;; data (the same legacy alist every sheet parses), so the title block is identical on the Column
+;; Layout Plan, Roof Plan, Wall Elevations and Framing Elevations — only DRGTITLE differs.
+(defun peb-build-tbdata (data drgTitle / propinput propno tbQuote tbBno tbDrn tbChk tbBname tbDate
+                                          revno windspeed exposure collateral fulldate)
+  (setq propinput (MSPL-Get-Str data "PROPOSAL"))
+  (if (= propinput "") (setq propinput "000"))
+  (setq propno (strcat "MSPL-26-" propinput))
+  (setq revno (MSPL-Get-Str data "REVNO")) (if (= revno "") (setq revno "0"))
+  (setq windspeed  (MSPL-Get-Str data "WINDSPEED"))
+  (setq exposure   (MSPL-Get-Str data "EXPOSURE"))
+  (setq collateral (MSPL-Get-Str data "COLLATERAL"))
+  (setq fulldate (format-date (getvar "CDATE")))
+  ;; QUOTE: prefer the IF's full proposal no.; else re-form the digits-only code.
+  (setq tbQuote (MSPL-Get-Str data "PROPOSAL_FULL"))
+  (if (= tbQuote "")
+    (cond
+      ((and (= (strlen propinput) 5) (wcmatch propinput "#####"))
+       (setq tbQuote (strcat "MSPL-" (substr propinput 1 2) "-" (substr propinput 3))))
+      (T (setq tbQuote propno))))
+  (setq tbBno (MSPL-Get-Str data "BLDGNO")) (if (= tbBno "") (setq tbBno "00"))
+  (if (= (strlen tbBno) 1) (setq tbBno (strcat "0" tbBno)))
+  (setq tbDrn (MSPL-Get-Str data "TBDRN")) (if (= tbDrn "") (setq tbDrn "M.H"))
+  (setq tbChk (MSPL-Get-Str data "TBCHK")) (if (= tbChk "") (setq tbChk "YEA"))
+  (setq tbBname (MSPL-Get-Str data "TBBLDGNAME"))
+  (setq tbDate (MSPL-Get-Str data "TBDATE"))
+  (if (= tbDate "") (setq tbDate fulldate) (setq tbDate (peb-pretty-date tbDate)))
+  (list
+    (cons "REV"  (if (= revno "0") "00" revno))
+    (cons "DATE" tbDate)
+    (cons "DRN"  tbDrn) (cons "CHK" tbChk)
+    (cons "LL_ROOF"  (peb-tb-or (MSPL-Get-Str data "LIVEROOF")  "0.57"))
+    (cons "LL_FRAME" (peb-tb-or (MSPL-Get-Str data "LIVEFRAME") "0.57"))
+    (cons "WIND"     (if (= windspeed "") "AS PER CODE" (peb-num-only windspeed)))
+    (cons "EXPOSURE" (peb-tb-or exposure "B"))
+    (cons "COLL"     (if (= collateral "") "0.0" (peb-num-only collateral)))
+    (cons "SNOW"     (peb-tb-snow (MSPL-Get-Str data "SNOW")))
+    (cons "SEISMIC"  (peb-tb-zone (MSPL-Get-Str data "SEISMIC")))
+    (cons "TEMP"     (peb-tb-snow (MSPL-Get-Str data "TEMP")))
+    (cons "RAIN"     (peb-tb-or   (MSPL-Get-Str data "RAIN") "-"))
+    (cons "CODE"     (peb-tb-or (MSPL-Get-Str data "DESIGNCODE") "MBMA 2006"))
+    (cons "PROJECT"  (peb-tb-or (MSPL-Get-Str data "PROJECT") "UNNAMED PROJECT"))
+    (cons "CUSTOMER" (peb-tb-or (MSPL-Get-Str data "CLIENT") "UNNAMED CLIENT"))
+    (cons "ADDR"
+      (strcat "Lahore Office\\P" "238, First Floor, Lalazar Commercial Area,\\P"
+              "Raiwind Road, Lahore, Pakistan\\P" "Web: www.maimaargroup.com\\P"
+              "Cell : +(92-300) 807 4007"))
+    (cons "QUOTE"     tbQuote)
+    (cons "BLDGNO"    tbBno)
+    (cons "BLDGNAME"  tbBname)
+    (cons "IDENTICAL" (peb-tb-or (MSPL-Get-Str data "IDENTICAL") "1"))
+    (cons "DRGTITLE"  drgTitle)
+    (cons "SCALE"     "N.T.S.")
+    (cons "SHEETSIZE" "A1")
+    (cons "SHEETNO"   (strcat "PRO-" tbBno))))
+
+;; Draw the title-block strip + border around whatever is currently in model space (call LAST, after all
+;; content is drawn).  ADAPTIVE: a landscape sheet (Plan/Roof) gets the full-height flush-right strip (the
+;; owner 5-Jul look); a tall PORTRAIT stack (Wall/Framing elevations) gets a bottom-right CORNER block sized
+;; to the content width, so the title block never balloons to the stack height.  drgTitle = the sheet title.
+(defun peb-frame-and-titleblock (data drgTitle / tbData ds bGap exmin exmax cW cH
+                                                 borderL borderB borderT tbStripW tbStripH tbStripX tbY0 borderR)
+  (setq tbData (peb-build-tbdata data drgTitle))
+  (setq ds (if *PEB-DIM-SCALE* *PEB-DIM-SCALE* 1.0))
+  (setq bGap (max (* 3000.0 ds) (if *PEB-BUBRAD* *PEB-BUBRAD* 600.0)))
+  (vl-catch-all-apply (function (lambda () (command "_.ZOOM" "_E"))))
+  (setq exmin (getvar "EXTMIN") exmax (getvar "EXTMAX"))
+  (setq cW (- (car exmax) (car exmin)) cH (- (cadr exmax) (cadr exmin)))
+  (setq borderL (- (car  exmin) bGap)
+        borderB (- (cadr exmin) bGap)
+        borderT (+ (cadr exmax) bGap))
+  (cond
+    ((<= cH (* cW 1.25))                 ; landscape → full-height flush-right strip (CLP/Roof look)
+      (setq tbStripH (- borderT borderB)
+            tbStripW (* tbStripH 0.30)
+            tbY0     borderB))
+    (T                                   ; portrait stack → bottom-right corner block sized to content WIDTH
+      (setq tbStripW (* cW 0.20)
+            tbStripH (/ tbStripW 0.30)   ; keep the ~0.30 aspect
+            tbY0     borderB)))
+  (setq tbStripX (+ (car exmax) (* 3500.0 ds))
+        borderR  (+ tbStripX tbStripW))
+  (vl-catch-all-apply (function (lambda () (peb-titleblock-mammut tbStripX tbY0 tbStripW tbStripH tbData))))
+  (draw-border borderL borderB borderR borderT)
+  (princ))
+
 ;; Mammut-MIRROR vertical title strip:  NOTES + disclaimer + DESIGN-LOAD table
 ;; anchored at the TOP, PROJECT-INFORMATION block anchored at the BOTTOM (exact
 ;; mirror of the Mammut proposal-drawing title block).  Every value links to the IF.
