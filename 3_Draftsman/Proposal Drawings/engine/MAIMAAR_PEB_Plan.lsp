@@ -2135,6 +2135,12 @@
   (command "_.LINE" (list (- x h) (+ y h)) (list (+ x h) (- y h)) "")
   (setvar "CLAYER" prev))
 
+;; TRUE when the mezzanine host is an EXISTING RCC building — the plan then draws the existing RCC
+;; pillars (via peb-draw-mezzanine) and NO steel building columns.  The two hosts are mutually exclusive.
+(defun peb-mz-rcc-p (data)
+  (and (= (strcase (peb-tb-or (MSPL-Get-Str data "MZ_TOGGLE") "")) "YES")
+       (= (strcase (peb-tb-or (MSPL-Get-Str data "MZ_RCC")    "")) "YES")))
+
 ;; ---- component drawer: peb-draw-mezzanine (merged from comp_mezzanine.lsp) ----
 ;; ============================================================================
 ;; MEZZANINE component drawer  —  Column Layout Plan (TOP VIEW)
@@ -2156,7 +2162,8 @@
     specs foots n ml mw ff sp cx0 a0 a1 b0 b1
     ft fx0 fx1 fy0 fy1 partial cx cy lcy hlab fflStr fflv
     ys xs acc h hh x y
-    numBays bayPts2 sp2 rem2 bx colD savedWeb circR host rcc mzRcc rccXs rccYs )
+    numBays bayPts2 sp2 rem2 bx colD savedWeb circR host rcc mzRcc rccXs rccYs
+    module rr gap nsub yi yy0 yy1 )
 
   (if (/= (strcase (MSPL-Get-Str data "MZ_TOGGLE")) "YES")
     (princ)                                    ; not requested — do nothing
@@ -2276,34 +2283,50 @@
                 ;;      (Estimate stays the Mammut self-contained grid — SAP + the detail sheet reconcile
                 ;;      the real columns; the drawing is not driven off the estimate.)
                 ;;  - else derive from FRAME TYPE: STYPE RC (roof-on-RCC) → RCC pier symbol; else steel I-stub.
-                (setq mzRcc (= (strcase (peb-tb-or (MSPL-Get-Str data "MZ_RCC") "")) "YES")
-                      host  (strcase (peb-tb-or (MSPL-Get-Str data "STYPE") ""))
-                      rcc   (= host "RC"))
+                ;; The two hosts are MUTUALLY EXCLUSIVE (owner 8-Jul):
+                (setq mzRcc (= (strcase (peb-tb-or (MSPL-Get-Str data "MZ_RCC") "")) "YES"))
                 (if mzRcc
                   (progn
+                    ;; ── EXISTING RCC BUILDING ──────────────────────────────────────────────
+                    ;; The building columns ARE the existing RCC pillars (X-square) — no steel
+                    ;; building columns (suppressed in the main plan when MZ_RCC=Yes).  Mezzanine
+                    ;; beams are CHEMICALLY ANCHORED to them; steel columns are added between the
+                    ;; RCC pillars ONLY where an RCC bay is wider than the mezzanine module.
                     (peb-comp-layer "COMP-RCC" 8)          ; grey = existing concrete
-                    (setq rccXs (peb-mezz-stations (MSPL-Get-Str data "MZ_RCC_BAY") fx0 fx1)
-                          rccYs (peb-mezz-stations (MSPL-Get-Str data "MZ_RCC_COL") fy0 fy1))
+                    (setq rccXs   (peb-mezz-stations (MSPL-Get-Str data "MZ_RCC_BAY") fx0 fx1)
+                          rccYs   (peb-mezz-stations (MSPL-Get-Str data "MZ_RCC_COL") fy0 fy1)
+                          module  (apply 'max (cons 6000.0 spList)))
                     ;; existing RCC concrete pillars at their grid
                     (foreach x rccXs
                       (foreach y rccYs
                         (vl-catch-all-apply (function (lambda () (peb-draw-rcc-pillar x y (* colD 1.40)))))))
-                    ;; NEW steel mezzanine columns — RCC bay lines (length) x mezz module (width),
-                    ;; skipping any that coincide with an existing RCC pillar row.
-                    (foreach x rccXs
-                      (foreach y ys
-                        (if (not (vl-some (function (lambda (ry) (< (abs (- ry y)) (* colD 0.8)))) rccYs))
+                    ;; steel INFILL columns — subdivide only an RCC bay whose width gap exceeds the
+                    ;; mezz module (long span); none where the RCC spacing already fits the module.
+                    (setq rr (cdr rccYs) yy0 (car rccYs))
+                    (foreach yy1 rr
+                      (setq gap (- yy1 yy0) nsub (fix (/ (- gap 1.0) module)) k 1)
+                      (while (<= k nsub)
+                        (setq yi (+ yy0 (* (/ gap (float (1+ nsub))) k)))
+                        (foreach x rccXs
                           (vl-catch-all-apply (function (lambda ()
-                            (draw-I-column-lengthwise x y)
+                            (draw-I-column-lengthwise x yi)
                             (setvar "CLAYER" "COMP-MEZZ")
-                            (command "_.CIRCLE" (list x y) circR))))))))
+                            (command "_.CIRCLE" (list x yi) circR)))))
+                        (setq k (1+ k)))
+                      (setq yy0 yy1))
+                    ;; one representative chemical-anchor callout
+                    (vl-catch-all-apply (function (lambda ()
+                      (setvar "CLAYER" "COMP-RCC")
+                      (txt-bold "ML" (list (+ (car rccXs) (* colD 1.2)) (+ (cadr rccYs) (* colD 1.2)))
+                                (/ 520.0 scale) 0.0 "BEAM CHEM. ANCHORED TO RCC COL (TYP.)")))))
+                  ;; ── PEB (STEEL) BUILDING ───────────────────────────────────────────────
+                  ;; New steel mezzanine columns only (I + bolts + circle stub).  NO RCC columns
+                  ;; appear on a steel-building plan (owner 8-Jul).
                   (foreach x xs
                     (foreach y ys
                       (vl-catch-all-apply (function (lambda ()
-                        (if (and rcc (boundp 'draw-RCC-column))
-                          (draw-RCC-column x y)              ; steel I within existing RCC pier (frame on RCC)
-                          (draw-I-column-lengthwise x y))    ; I-section + 4 anchor bolts — like the PEB columns
-                        (setvar "CLAYER" "COMP-MEZZ")         ; STUB marker = one circle over the I (magenta = mezzanine)
+                        (draw-I-column-lengthwise x y)
+                        (setvar "CLAYER" "COMP-MEZZ")
                         (command "_.CIRCLE" (list x y) circR)))))))
                 (setq *PEB-COL-WEB* savedWeb)
 
@@ -3247,6 +3270,9 @@
 
   ;; ── Columns ───────────────────────────────────────────────────
   (cond
+    ;; existing-RCC-building mezzanine: the building columns ARE the existing RCC pillars
+    ;; (drawn by peb-draw-mezzanine) — draw NO steel building columns here (owner 8-Jul).
+    ((peb-mz-rcc-p data) nil)
     ((= stype "RC")
       (progn
         (foreach x bayPts

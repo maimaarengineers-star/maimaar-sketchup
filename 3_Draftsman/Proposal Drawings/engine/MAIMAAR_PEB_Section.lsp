@@ -5249,6 +5249,56 @@
   (tb-mtext (* 0.5 (+ c2x (+ X0 W))) (+ Y0 (* rh 0.32)) val 0 5 (tb-get "SHEETNO") green)
   (princ))
 
+;; ── MEZZANINE in cross-section (owner 8-Jul) ──────────────────────────────────
+;; Draws the intermediate mezzanine floor across the width: the deck/slab band, the
+;; main-beam bottom line, and the support columns from FFL up to the beam.  Host-aware:
+;; steel I columns for a PEB building; hatched concrete columns + a "chemically anchored"
+;; note for an existing RCC building.  Section frame across the WIDTH: x=0..wid, y=0 = FFL.
+(defun peb-draw-mezz-section (data wid / mzRcc chBeam thk beamD colW x0 x1 mm lst xs acc s beamTop slabTop prev cx)
+  (if (/= (strcase (peb-tb-or (MSPL-Get-Str data "MZ_TOGGLE") "")) "YES")
+    (princ)
+    (progn
+      (setq mzRcc  (= (strcase (peb-tb-or (MSPL-Get-Str data "MZ_RCC") "")) "YES")
+            chBeam (MSPL-Get-Num data "MZ1_CH_FFL_BEAM")
+            thk    (MSPL-Get-Num data "MZ1_FLOOR_THK")
+            beamD  500.0 colW 300.0 prev (getvar "CLAYER"))
+      (if (or (null chBeam) (<= chBeam 0.0)) (setq chBeam 3000.0))
+      (if (or (null thk)    (<= thk 0.0))    (setq thk 150.0))
+      (setq beamTop (+ chBeam beamD) slabTop (+ chBeam beamD thk))
+      (setq x0 (* wid 0.06) x1 (- wid (* wid 0.06)))
+      (setq mm (MSPL-Get-Num data "MZ1_WID"))
+      (if (and mm (> mm 0.0)) (setq x1 (min (- wid (* wid 0.04)) (+ x0 mm))))
+      ;; support-column stations from MZ_COL_SPACING across [x0,x1]
+      (setq lst (peb-parse-mod-expression (MSPL-Get-Str data "MZ_COL_SPACING")))
+      (setq xs (list x0) acc x0)
+      (if lst
+        (progn (foreach s lst (setq acc (+ acc s)) (if (< acc (- x1 1.0)) (setq xs (append xs (list acc)))))
+               (setq xs (append xs (list x1))))
+        (setq xs (list x0 (/ (+ x0 x1) 2.0) x1)))
+      ;; deck slab band + beam-top (joists) + beam-bottom lines
+      (setvar "CLAYER" "COMP-MEZZ")
+      (command "_.RECTANG" (list x0 beamTop) (list x1 slabTop))
+      (command "_.LINE" (list x0 beamTop) (list x1 beamTop) "")
+      (command "_.LINE" (list x0 chBeam)  (list x1 chBeam)  "")
+      ;; support columns from FFL up to the beam — steel (PEB) or hatched concrete (RCC)
+      (foreach cx xs
+        (if mzRcc
+          (progn
+            (setvar "CLAYER" "RCC-COLUMN")
+            (command "_.RECTANG" (list (- cx colW) 0.0) (list (+ cx colW) chBeam))
+            (vl-catch-all-apply (function (lambda () (command "HATCH" "AR-CONC" 25 0 "L" "")))))
+          (progn
+            (setvar "CLAYER" "COMP-MEZZ")
+            (command "_.RECTANG" (list (- cx (/ colW 2.0)) 0.0) (list (+ cx (/ colW 2.0)) chBeam)))))
+      ;; labels
+      (setvar "CLAYER" "TEXT")
+      (txt "MC" (list (/ (+ x0 x1) 2.0) (+ slabTop 500.0)) 300 0 "MEZZANINE FLOOR")
+      (if mzRcc
+        (txt "MC" (list (/ (+ x0 x1) 2.0) (+ chBeam (/ beamD 2.0))) 220 0
+             "BEAM CHEM. ANCHORED TO EXISTING RCC COLUMNS"))
+      (setvar "CLAYER" prev)
+      (princ))))
+
 (defun C:PEB-SECTION
   ( / dataFile data
     project client propinput propno fulldate
@@ -5545,6 +5595,9 @@
     (T
       ;; CS, MG (spanPerGab=1) and other standard gable-type frames
       (draw-frame-outline cols ridges H rise ht rd cb)))
+
+  ;; ── Mezzanine floor in section (deck + beam + support columns) ──
+  (vl-catch-all-apply (function (lambda () (peb-draw-mezz-section data wid))))
 
   ;; ── Connection plates ────────────────────────────────────────
   ;; For MG: plates only at HAUNCH columns (left/right outer + valley
