@@ -2010,10 +2010,10 @@
       ;; ---- centre ridge line ---------------------------------------------
       (entmake (list (cons 0 "LINE") (cons 8 lyr)
                      (list 10 x0 ridge 0.0) (list 11 x1 ridge 0.0)))
-      ;; ---- label (reads along the length) --------------------------------
-      (setvar "CLAYER" lay)
-      (txt-bold "MC" (list mcx ridge)
-                (/ su (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0 "ROOF MONITOR")
+      ;; ---- label suppressed (owner 8-Jul) --------------------------------
+      ;; Real Maimaar/Mammut approval drawings show the monitor GEOMETRICALLY only —
+      ;; no "ROOF MONITOR" text on either the CLP or the Roof Plan (reference-verified).
+      ;; The opening band + dims below identify it; no text label is drawn.
       ;; ---- width dim (RM_OVERALL_WIDTH) — vertical, at the left end -------
       (vl-catch-all-apply
         (function (lambda ()
