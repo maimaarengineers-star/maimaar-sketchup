@@ -2163,7 +2163,7 @@
     ft fx0 fx1 fy0 fy1 partial cx cy lcy hlab fflStr fflv
     ys xs acc h hh x y
     numBays bayPts2 sp2 rem2 bx colD savedWeb circR host rcc mzRcc rccXs rccYs
-    module rr gap nsub yi yy0 yy1 )
+    module rr gap nsub yi yy0 yy1 glF glT glX0 glX1 )
 
   (if (/= (strcase (MSPL-Get-Str data "MZ_TOGGLE")) "YES")
     (princ)                                    ; not requested — do nothing
@@ -2211,10 +2211,31 @@
             (if (and ml mw (> ml 0.0) (> mw 0.0))
               (setq specs (append specs (list (list ml mw ff))))))))
 
+      ;; grid-line LENGTH extent (owner 8-Jul): a partial mezzanine can be defined by the grid it
+      ;; covers — bays Grid <from>..<to>.  Map those grid numbers to the building bay stations.
+      (setq glF (MSPL-Get-Int data "MZ_GRID_BAY_FROM") glT (MSPL-Get-Int data "MZ_GRID_BAY_TO")
+            glX0 nil glX1 nil)
+      (if (and glF glT (> glF 0) (> glT glF))
+        (progn
+          (setq numBays (MSPL-Get-Int data "NUMBAYS"))
+          (if (or (null numBays) (< numBays 1)) (setq numBays 1))
+          (setq bayPts2 (list 0.0) acc 0.0 k 0)
+          (while (< k numBays)
+            (setq sp2 (MSPL-Get-Num data (strcat "BAY" (itoa (1+ k)))) rem2 (- len acc))
+            (cond ((= k (1- numBays))             (setq sp2 rem2))
+                  ((and sp2 (> sp2 0.0) (< sp2 rem2)) T)
+                  (T                               (setq sp2 (/ rem2 (float (- numBays k))))))
+            (setq acc (+ acc sp2) bayPts2 (append bayPts2 (list acc)) k (1+ k)))
+          (if (<= glT (length bayPts2))
+            (setq glX0 (nth (1- glF) bayPts2) glX1 (nth (1- glT) bayPts2)))))
+
       (setq foots '())
-      (if specs
-        (progn                                   ; one or more dimensioned footprints
-          (setq cx0 inset)
+      (cond
+        ;; grid-line extent → one footprint spanning those bays (full interior width)
+        ((and glX0 glX1 (> glX1 glX0))
+         (setq foots (list (list glX0 glX1 inset (- wid inset) T (MSPL-Get-Num data "MZ1_CH_FFL_BEAM")))))
+        (specs
+          (setq cx0 inset)                       ; one or more dimensioned footprints
           (foreach sp specs
             (setq ml (nth 0 sp) mw (nth 1 sp) ff (nth 2 sp)
                   a0 cx0 a1 (min (- len inset) (+ cx0 ml))
@@ -2222,8 +2243,9 @@
             (if (and (> a1 a0) (> b1 b0))
               (setq foots (append foots (list (list a0 a1 b0 b1 T ff)))))
             (setq cx0 (+ a1 (max u 2000.0)))))    ; gap before next tiled mezz
-        (setq foots (list (list inset (- len inset) inset (- wid inset)
-                                nil (MSPL-Get-Num data "MZ1_CH_FFL_BEAM")))))
+        (T
+          (setq foots (list (list inset (- len inset) inset (- wid inset)
+                                  nil (MSPL-Get-Num data "MZ1_CH_FFL_BEAM"))))))
 
       ;; --- draw each footprint --------------------------------------------------
       (peb-comp-layer "COMP-MEZZ" 6)             ; magenta
