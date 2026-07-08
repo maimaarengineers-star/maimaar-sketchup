@@ -2109,6 +2109,32 @@
   (setvar "CLAYER" "0")
   (princ))
 
+;; Grid stations across [a,b] from a "N@S+..." spacing expression (mm) — used to place the
+;; EXISTING RCC pillars of a client's building under a dropped-in mezzanine.  Blank => the two ends.
+(defun peb-mezz-stations (expr a b / lst acc out)
+  (setq lst (if (and expr (/= expr "") (boundp 'peb-parse-mod-expression))
+              (peb-parse-mod-expression expr) nil))
+  (setq out (list a) acc a)
+  (if lst
+    (progn
+      (foreach s lst
+        (if (> s 0.0)
+          (progn (setq acc (+ acc s)) (if (< acc (- b 1.0)) (setq out (append out (list acc)))))))
+      (setq out (append out (list b))))
+    (setq out (list a b)))
+  out)
+
+;; Existing RCC concrete pillar (top view) — a square outline with an X, visually distinct from the
+;; steel I-column, so a mezzanine dropped inside a client's existing RCC building shows BOTH the
+;; existing concrete pillars and the new steel mezzanine columns.
+(defun peb-draw-rcc-pillar (x y s / h prev)
+  (setq h (/ s 2.0) prev (getvar "CLAYER"))
+  (setvar "CLAYER" "COMP-RCC")
+  (command "_.RECTANG" (list (- x h) (- y h)) (list (+ x h) (+ y h)))
+  (command "_.LINE" (list (- x h) (- y h)) (list (+ x h) (+ y h)) "")
+  (command "_.LINE" (list (- x h) (+ y h)) (list (+ x h) (- y h)) "")
+  (setvar "CLAYER" prev))
+
 ;; ---- component drawer: peb-draw-mezzanine (merged from comp_mezzanine.lsp) ----
 ;; ============================================================================
 ;; MEZZANINE component drawer  —  Column Layout Plan (TOP VIEW)
@@ -2130,7 +2156,7 @@
     specs foots n ml mw ff sp cx0 a0 a1 b0 b1
     ft fx0 fx1 fy0 fy1 partial cx cy lcy hlab fflStr fflv
     ys xs acc h hh x y
-    numBays bayPts2 sp2 rem2 bx colD savedWeb circR host rcc )
+    numBays bayPts2 sp2 rem2 bx colD savedWeb circR host rcc mzRcc rccXs rccYs )
 
   (if (/= (strcase (MSPL-Get-Str data "MZ_TOGGLE")) "YES")
     (princ)                                    ; not requested — do nothing
@@ -2242,20 +2268,43 @@
                       savedWeb  *PEB-COL-WEB*
                       *PEB-COL-WEB* colD
                       circR     (* colD 0.72))
-                ;; host (owner 8-Jul): derived from the building's own FRAME TYPE — no separate
-                ;; field (Flat Roof and "Roof on RCC columns" are already IF Frame Types).  When the
-                ;; building is Roof-on-RCC-columns (STYPE RC), mezz stubs rest on the existing RCC
-                ;; piers → draw the RCC pier symbol; every steel/flat frame → plain steel I-stub.
-                (setq host (strcase (peb-tb-or (MSPL-Get-Str data "STYPE") ""))
-                      rcc  (= host "RC"))
-                (foreach x xs
-                  (foreach y ys
-                    (vl-catch-all-apply (function (lambda ()
-                      (if (and rcc (boundp 'draw-RCC-column))
-                        (draw-RCC-column x y)              ; steel I within existing RCC pier
-                        (draw-I-column-lengthwise x y))    ; I-section + 4 anchor bolts — like the PEB columns
-                      (setvar "CLAYER" "COMP-MEZZ")         ; STUB marker = one circle over the I (magenta = mezzanine)
-                      (command "_.CIRCLE" (list x y) circR))))))
+                ;; column depiction (owner 8-Jul):
+                ;;  - MZ_RCC = Yes → mezzanine dropped inside a client's EXISTING RCC building:
+                ;;      draw the EXISTING RCC concrete pillars on their own grid (MZ_RCC_BAY along the
+                ;;      length x MZ_RCC_COL across the width) PLUS the NEW steel mezzanine columns that
+                ;;      fill in the width module between them.  The drawing shows BOTH column types.
+                ;;      (Estimate stays the Mammut self-contained grid — SAP + the detail sheet reconcile
+                ;;      the real columns; the drawing is not driven off the estimate.)
+                ;;  - else derive from FRAME TYPE: STYPE RC (roof-on-RCC) → RCC pier symbol; else steel I-stub.
+                (setq mzRcc (= (strcase (peb-tb-or (MSPL-Get-Str data "MZ_RCC") "")) "YES")
+                      host  (strcase (peb-tb-or (MSPL-Get-Str data "STYPE") ""))
+                      rcc   (= host "RC"))
+                (if mzRcc
+                  (progn
+                    (peb-comp-layer "COMP-RCC" 8)          ; grey = existing concrete
+                    (setq rccXs (peb-mezz-stations (MSPL-Get-Str data "MZ_RCC_BAY") fx0 fx1)
+                          rccYs (peb-mezz-stations (MSPL-Get-Str data "MZ_RCC_COL") fy0 fy1))
+                    ;; existing RCC concrete pillars at their grid
+                    (foreach x rccXs
+                      (foreach y rccYs
+                        (vl-catch-all-apply (function (lambda () (peb-draw-rcc-pillar x y (* colD 1.40)))))))
+                    ;; NEW steel mezzanine columns — RCC bay lines (length) x mezz module (width),
+                    ;; skipping any that coincide with an existing RCC pillar row.
+                    (foreach x rccXs
+                      (foreach y ys
+                        (if (not (vl-some (function (lambda (ry) (< (abs (- ry y)) (* colD 0.8)))) rccYs))
+                          (vl-catch-all-apply (function (lambda ()
+                            (draw-I-column-lengthwise x y)
+                            (setvar "CLAYER" "COMP-MEZZ")
+                            (command "_.CIRCLE" (list x y) circR))))))))
+                  (foreach x xs
+                    (foreach y ys
+                      (vl-catch-all-apply (function (lambda ()
+                        (if (and rcc (boundp 'draw-RCC-column))
+                          (draw-RCC-column x y)              ; steel I within existing RCC pier (frame on RCC)
+                          (draw-I-column-lengthwise x y))    ; I-section + 4 anchor bolts — like the PEB columns
+                        (setvar "CLAYER" "COMP-MEZZ")         ; STUB marker = one circle over the I (magenta = mezzanine)
+                        (command "_.CIRCLE" (list x y) circR)))))))
                 (setq *PEB-COL-WEB* savedWeb)
 
                 ;; (3) label + F.F.L tag (centred on the decking)
