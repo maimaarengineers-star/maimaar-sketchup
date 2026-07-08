@@ -2115,7 +2115,8 @@
     spStr spList tmp plus seg atP cnt val k s2 spx
     specs foots n ml mw ff sp cx0 a0 a1 b0 b1
     ft fx0 fx1 fy0 fy1 partial cx cy lcy hlab fflStr fflv
-    ys xs acc h hh x y )
+    ys xs acc h hh x y
+    numBays bayPts2 sp2 rem2 bx colD savedWeb circR host rcc )
 
   (if (/= (strcase (MSPL-Get-Str data "MZ_TOGGLE")) "YES")
     (princ)                                    ; not requested — do nothing
@@ -2192,23 +2193,55 @@
                 (peb-comp-poly (list (list fx0 fy0) (list fx1 fy0)
                                      (list fx1 fy1) (list fx0 fy1)))
 
-                ;; (2) OWN stub-column grid — width stations from MZ_COL_SPACING,
-                ;;     length stations mirrored at the same pitch; small filled squares.
+                ;; (2) OWN column grid — MEZZANINE STUB COLUMNS (owner 8-Jul):
+                ;;     each drawn as an I-section + anchor bolts, EXACTLY like the PEB
+                ;;     columns, but capped with a CIRCLE that marks it a STUB rising only
+                ;;     to the underside of the mezzanine beam.  Length-wise the columns sit
+                ;;     on the BUILDING BAY grid lines (the main-beam lines); width-wise at
+                ;;     the mezzanine column module (MZ_COL_SPACING).  The existing PEB frame
+                ;;     columns already carry the beam at the walls, so the footprint-interior
+                ;;     stubs drawn here are the NEW mezzanine columns.
+                ;; length (x) stations = building bay grid lines that fall inside the footprint
+                (setq numBays (MSPL-Get-Int data "NUMBAYS"))
+                (if (or (null numBays) (< numBays 1)) (setq numBays 1))
+                (if (> numBays 60) (setq numBays 60))
+                (setq bayPts2 (list 0.0) acc 0.0 k 0)
+                (while (< k numBays)
+                  (setq sp2 (MSPL-Get-Num data (strcat "BAY" (itoa (1+ k)))) rem2 (- len acc))
+                  (cond ((= k (1- numBays))             (setq sp2 rem2))
+                        ((and sp2 (> sp2 0.0) (< sp2 rem2)) T)
+                        (T                               (setq sp2 (/ rem2 (float (- numBays k))))))
+                  (setq acc (+ acc sp2) bayPts2 (append bayPts2 (list acc)) k (1+ k)))
+                (setq xs '())
+                (foreach bx bayPts2
+                  (if (and (>= bx (- fx0 1.0)) (<= bx (+ fx1 1.0))) (setq xs (append xs (list bx)))))
+                (if (null xs) (setq xs (list fx0 fx1)))
+                ;; width (y) stations = mezzanine column module (MZ_COL_SPACING) across the footprint
                 (setq ys (list fy0) acc fy0)
                 (foreach s2 spList
                   (setq acc (+ acc s2))
                   (if (< acc (- fy1 (* post 0.6))) (setq ys (append ys (list acc)))))
                 (setq ys (append ys (list fy1)))
-                (setq xs (list fx0) acc fx0)
-                (while (< (+ acc spx) (- fx1 (* post 0.6)))
-                  (setq acc (+ acc spx) xs (append xs (list acc))))
-                (setq xs (append xs (list fx1)))
-                (setq hh (* post 0.5))
+                ;; mezzanine stub-column section depth — sized off the width module (lighter
+                ;; than the main frame); override the global col depth for the stub, then restore.
+                (setq colD     (peb-col-web-depth (apply 'max (cons 6000.0 spList)))
+                      savedWeb  *PEB-COL-WEB*
+                      *PEB-COL-WEB* colD
+                      circR     (* colD 0.72))
+                ;; host structure (owner 8-Jul): "Within RCC …" mezzanine stubs rest on
+                ;; existing RCC piers, so draw the RCC concrete pier symbol (steel I within
+                ;; the concrete square); PEB / standalone hosts get the plain steel I-stub.
+                (setq host (strcase (peb-tb-or (MSPL-Get-Str data "MZ_HOST") ""))
+                      rcc  (wcmatch host "*RCC*"))
                 (foreach x xs
                   (foreach y ys
-                    (entmake (list (cons 0 "SOLID") (cons 8 "COMP-MEZZ")
-                                   (list 10 (- x hh) (- y hh) 0.0) (list 11 (+ x hh) (- y hh) 0.0)
-                                   (list 12 (- x hh) (+ y hh) 0.0) (list 13 (+ x hh) (+ y hh) 0.0)))))
+                    (vl-catch-all-apply (function (lambda ()
+                      (if (and rcc (boundp 'draw-RCC-column))
+                        (draw-RCC-column x y)              ; steel I within existing RCC pier
+                        (draw-I-column-lengthwise x y))    ; I-section + 4 anchor bolts — like the PEB columns
+                      (setvar "CLAYER" "COMP-MEZZ")         ; STUB marker = one circle over the I (magenta = mezzanine)
+                      (command "_.CIRCLE" (list x y) circR))))))
+                (setq *PEB-COL-WEB* savedWeb)
 
                 ;; (3) label + F.F.L tag (centred on the decking)
                 (setq cx (/ (+ fx0 fx1) 2.0) cy (/ (+ fy0 fy1) 2.0)

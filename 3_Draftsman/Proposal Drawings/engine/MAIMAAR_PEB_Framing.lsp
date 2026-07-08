@@ -40,7 +40,9 @@
   (setvar "CLAYER" prev))
 
 (defun peb-draw-roof-framing (data ox oy / len wid slopeD bayPts purlSp nRows i x y
-                              prev cnt pre psurf pat pw mark midY j bubGap bubR)
+                              prev cnt pre psurf pat pw mark midY j bubGap bubR
+                              stype mgGables mgGableW mgRid mgVal base hiNSW mgi k
+                              loB hiB ry vy fx)
   (setq len    (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
         wid    (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
         slopeD (atof (peb-tb-or (MSPL-Get-Str data "SLOPE") "10")))
@@ -65,9 +67,81 @@
     (setq y (+ oy (* (/ wid (float nRows)) i)))
     (command "_.LINE" (list ox y) (list (+ ox len) y) "")
     (setq i (1+ i)))
-  ;; ridge line (gable centre)
-  (setvar "CLAYER" "RIDGE")
-  (command "_.LINE" (list ox midY) (list (+ ox len) midY) "")
+  ;; ── RIDGE / VALLEY lines + FALL arrows — by STRUCTURE TYPE ──────────
+  ;; Registers with the Roof Sheeting Plan.  Reference-verified labels (real
+  ;; Maimaar/Mammut approval DXFs): ridge = "RIDGE LINE" (dash-dot), valley =
+  ;; "VALLEY GUTTER" (dash-dot, never "VALLEY LINE"); slope = the "1:NN" ratio
+  ;; tag drawn by peb-fr-fall (Maimaar convention).  Roof monitors carry NO
+  ;; text label in any reference, so none is emitted here.
+  (setq stype (strcase (peb-tb-or (MSPL-Get-Str data "STYPE") "CS")))
+  (cond
+    ;; ---- MULTI-GABLE: N ridge lines + (N-1) valley gutters ----
+    ((= stype "MG")
+     (setq mgGables (MSPL-Get-Int data "NUMGABLES"))
+     (if (or (null mgGables) (< mgGables 2)) (setq mgGables 2))
+     (setq mgGableW (/ wid (float mgGables)) mgRid '() mgVal '() mgi 0)
+     (while (< mgi mgGables)
+       (setq base (* mgi mgGableW))
+       (setq mgRid (append mgRid (list (+ base (/ mgGableW 2.0)))))
+       (if (< mgi (1- mgGables)) (setq mgVal (append mgVal (list (+ base mgGableW)))))
+       (setq mgi (1+ mgi)))
+     (setvar "CLAYER" "RIDGE")
+     (foreach ry mgRid (command "_.LINE" (list ox (+ oy ry)) (list (+ ox len) (+ oy ry)) ""))
+     (setvar "CLAYER" "GRID")
+     (foreach vy mgVal (command "_.LINE" (list ox (+ oy vy)) (list (+ ox len) (+ oy vy)) ""))
+     (setvar "CLAYER" "TEXT")
+     (foreach ry mgRid
+       (txt "ML" (list (+ ox (* len 0.02)) (+ oy ry (* 300 *PEB-TEXT-SCALE*)))
+            (* 240 *PEB-TEXT-SCALE*) 0 "RIDGE LINE"))
+     (foreach vy mgVal
+       (txt "ML" (list (+ ox (* len 0.72)) (+ oy vy (* 300 *PEB-TEXT-SCALE*)))
+            (* 240 *PEB-TEXT-SCALE*) 0 "VALLEY GUTTER"))
+     ;; falls: each ridge crest down to its two neighbours (valley or eave)
+     (foreach fx (list (* len 0.25) (* len 0.75))
+       (setq k 0)
+       (foreach ry mgRid
+         (setq loB (if (= k 0) 0.0 (nth (1- k) mgVal))
+               hiB (if (< k (length mgVal)) (nth k mgVal) wid))
+         (peb-fr-fall (+ ox fx) (+ oy ry) (+ oy (+ loB (* (- ry loB) 0.18))) slopeD)
+         (peb-fr-fall (+ ox fx) (+ oy ry) (+ oy (- hiB (* (- hiB ry) 0.18))) slopeD)
+         (setq k (1+ k)))))
+    ;; ---- BUTTERFLY: central valley gutter, falls both eaves -> centre ----
+    ((= stype "BF")
+     (setvar "CLAYER" "GRID")
+     (command "_.LINE" (list ox midY) (list (+ ox len) midY) "")
+     (setvar "CLAYER" "TEXT")
+     (txt "MC" (list (+ ox (* len 0.5)) (+ midY (* 400 *PEB-TEXT-SCALE*)))
+          (* 240 *PEB-TEXT-SCALE*) 0 "VALLEY GUTTER")
+     (foreach fx (list (* len 0.25) (* len 0.75))
+       (peb-fr-fall (+ ox fx) (+ oy (* wid 0.06)) (+ oy (* wid 0.44)) slopeD)
+       (peb-fr-fall (+ ox fx) (+ oy (* wid 0.94)) (+ oy (* wid 0.56)) slopeD)))
+    ;; ---- MONO / SINGLE-SLOPE / LEAN-TO: no ridge, one-way fall ----
+    ((member stype '("SS" "LT" "CC"))
+     (setq hiNSW (wcmatch (strcase (peb-tb-or (MSPL-Get-Str data "RA_MONO_HIGH") "")) "*NSW*"))
+     (setvar "CLAYER" "TEXT")
+     (txt "MC" (list (+ ox (* len 0.5)) (+ oy (* wid 0.5))) (* 300 *PEB-TEXT-SCALE*) 0
+          (if (= stype "LT") "LEAN-TO ROOF" "SINGLE SLOPE ROOF"))
+     (foreach fx (list (* len 0.25) (* len 0.75))
+       (if hiNSW
+         (peb-fr-fall (+ ox fx) (+ oy (* wid 0.10)) (+ oy (* wid 0.90)) slopeD)   ; high NSW -> low FSW
+         (peb-fr-fall (+ ox fx) (+ oy (* wid 0.90)) (+ oy (* wid 0.10)) slopeD)))) ; high FSW -> low NSW
+    ;; ---- FLAT: no ridge; inward drain arrows to centre ----
+    ((= stype "FR")
+     (setvar "CLAYER" "TEXT")
+     (txt "MC" (list (+ ox (* len 0.5)) (+ midY (* 400 *PEB-TEXT-SCALE*))) (* 300 *PEB-TEXT-SCALE*) 0 "FLAT ROOF")
+     (foreach fx (list (* len 0.25) (* len 0.75))
+       (peb-fr-fall (+ ox fx) (+ oy (* wid 0.06)) (+ oy (* wid 0.42)) slopeD)
+       (peb-fr-fall (+ ox fx) (+ oy (* wid 0.94)) (+ oy (* wid 0.58)) slopeD)))
+    ;; ---- GABLE (CS / MS / RC / default): central ridge, falls ridge -> both eaves ----
+    (T
+     (setvar "CLAYER" "RIDGE")
+     (command "_.LINE" (list ox midY) (list (+ ox len) midY) "")
+     (setvar "CLAYER" "TEXT")
+     (txt "ML" (list (+ ox (* len 0.02)) (+ midY (* 300 *PEB-TEXT-SCALE*)))
+          (* 240 *PEB-TEXT-SCALE*) 0 "RIDGE LINE")
+     (foreach fx (list (* len 0.25) (* len 0.75))
+       (peb-fr-fall (+ ox fx) midY (+ oy (* wid 0.12)) slopeD)
+       (peb-fr-fall (+ ox fx) midY (+ oy (* wid 0.88)) slopeD))))
 
   ;; ROOF cross-bracing in the braced bays — full-bay X (this is the ROOF plane;
   ;; the COLUMN LAYOUT plan carries the WALL bracing via peb-draw-bracing).

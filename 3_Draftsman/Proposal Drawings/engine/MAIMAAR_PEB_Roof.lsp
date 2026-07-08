@@ -162,6 +162,7 @@
     psp npur y mgY x
     aNo aLbl yTtl border-margin
     borderL borderR borderT borderB bMarg
+    lref wref wmSuffix
   )
 
   ;; ── Presentation standard (layers / styles / dim) — RUN ONCE PER SESSION ─
@@ -422,12 +423,37 @@
     (grid-bubble gridX1 y (chr (+ 65 (- nWid 1 j))) "R")
     (setq j (1+ j)))
 
+  ;; ── DIMENSIONS — bay chain + overall LENGTH (stacked below the NSW eave) and the
+  ;;    width-module chain + overall WIDTH (stacked right of the REW).  Mirrors the
+  ;;    Column Layout Plan's labelled O/O basis so the two sheets read identically.
+  ;;    (Placed on the sides the grid stacks leave clear: numbers on top, letters on left.)
+  (setq lref (peb-tb-or (MSPL-Get-Str data "LENGTH_REF") (MSPL-Get-Str data "BAY_REF")))
+  (setq wref (peb-tb-or (MSPL-Get-Str data "WIDTH_REF")  (MSPL-Get-Str data "WIDTH_MOD_REF")))
+  (setq wmSuffix (peb-basis-suffix (peb-tb-or (MSPL-Get-Str data "WIDTH_MOD_REF")
+                                              (MSPL-Get-Str data "WIDTH_REF"))))
+  (vl-catch-all-apply (function (lambda ()
+    (peb-dim-h-stretch 0.0 len (- (* 2400.0 ds))
+      (strcat (peb-chain-text (MSPL-Get-Str data "BAYEXPR") bayPts) " " (peb-basis-suffix lref))))))
+  (vl-catch-all-apply (function (lambda ()
+    (peb-dim-h-stretch 0.0 len (- (* 3800.0 ds))
+      (peb-fmt-labelled "BUILDING LENGTH" len (peb-basis-suffix lref))))))
+  (if (> (length widthPts) 2)
+    (vl-catch-all-apply (function (lambda ()
+      (peb-dim-height-stretch len (+ len (* 2400.0 ds)) 0.0 wid
+        (strcat (peb-chain-text (MSPL-Get-Str data "MODEXPR") widthPts) " " wmSuffix))))))
+  (vl-catch-all-apply (function (lambda ()
+    (peb-dim-height-stretch len (+ len (* 3800.0 ds)) 0.0 wid
+      (peb-fmt-labelled "BUILDING WIDTH" wid (peb-basis-suffix wref))))))
+
   ;; ── ROOF ACCESSORIES (skylights / vents / opening) ───────────────
   (vl-catch-all-apply (function (lambda () (peb-draw-roof-accessories data len wid))))
 
-  ;; ── ROOF EXTENSIONS + CANOPIES (footprints beyond the walls) ─────
+  ;; ── ROOF EXTENSIONS + CANOPIES + MONITOR (footprints on the roof plane) ─────
   (vl-catch-all-apply (function (lambda () (peb-draw-roof-ext data len wid))))
   (vl-catch-all-apply (function (lambda () (peb-draw-canopy data len wid))))
+  ;; roof-monitor opening band — belongs on the Roof Plan (owner 6-Jul); drawer shared with the CLP.
+  (if (boundp 'peb-draw-monitor)
+    (vl-catch-all-apply (function (lambda () (peb-draw-monitor data len wid)))))
   (setvar "CLAYER" "0")
 
   ;; ── TITLE + panel note + border ──────────────────────────────────

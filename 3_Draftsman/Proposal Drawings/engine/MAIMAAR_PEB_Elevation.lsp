@@ -108,7 +108,7 @@
                              sampleXs xs pts p0 p1 wallOpen owncond
                              braced nB b x0 x1 mid
                              cnt pre psurf pat pw ph psill ptyp mark gx0 gx1 oy0
-                             lbl idx bubY bubR)
+                             lbl idx bubY bubR lenCount widCount gridId)
   (setq su     (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)
         len    (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
         wid    (atof (peb-tb-or (MSPL-Get-Str data "WIDTH")  "0"))
@@ -174,6 +174,16 @@
       (command "_.LINE" (list (+ ox faceLen) oy) (list (+ ox faceLen) sideTop) "")
       (setvar "CLAYER" "STRUCTURE")
       (command "_.LINE" (list ox sideTop) (list (+ ox faceLen) sideTop) "")))
+
+  ;; ── roof slope tag (Maimaar convention "ROOF SLOPE 1:NN") — on the sloped end-wall face ──
+  ;; Reference-verified (real Maimaar approval DXFs) — slope is shown as the 1:NN ratio, not a "FALL" word.
+  (if isEnd
+    (progn
+      (setvar "CLAYER" "TEXT")
+      (txt "MC" (list (+ ox (* faceLen 0.28))
+                      (+ (peb-elev-roof-y stype (* faceLen 0.28) wid top slopeD numGab) (* 700 su)))
+           (* 300 su) 0
+           (strcat "ROOF SLOPE 1:" (if (< slopeD 10.0) (strcat "0" (rtos slopeD 2 0)) (rtos slopeD 2 0))))))
 
   ;; ── columns at grid stations ────────────────────────────────
   (setvar "CLAYER" "COLUMNS")
@@ -268,13 +278,24 @@
   ;; NOTE: txt/txt-bold already multiply height by *PEB-TEXT-SCALE*, so pass RAW heights here (single-scale).
   ;; The rest of this file pre-scales (* N su) = su^2; keeping these two labels single-scaled makes their
   ;; height and their su-scaled Y offsets grow together, so title & note never overlap at large su.
+  ;; grid line this elevation is viewed ALONG — reference wording (Maimaar approval sets):
+  ;;   "SIDE WALL ELEVATION  ALONG GRID LINE- <letter>" / "END WALL ELEVATION  ALONG GRID LINE- <number>".
+  ;;   Side walls (NSW/FSW) sit on a WIDTH letter line (A at FSW top → last at NSW); end walls (LEW/REW)
+  ;;   on a LENGTH number line (1 at LEW → last at REW).
+  (setq lenCount (length (peb-elev-stations (MSPL-Get-Str data "BAYEXPR") len))
+        widCount (length (peb-elev-stations (MSPL-Get-Str data "EWLEXPR") wid)))
+  (if (< lenCount 2) (setq lenCount 2))
+  (if (< widCount 2) (setq widCount 2))
+  (setq gridId (cond ((= surf "LEW") "1")
+                     ((= surf "REW") (itoa lenCount))
+                     ((= surf "FSW") "A")
+                     ((= surf "NSW") (chr (+ 64 widCount)))
+                     (T "1")))
   (setvar "CLAYER" "TEXT")
   (setvar "CECOLOR" "5")   ; Mammut blue view title
   (txt-bold "MC" (list (+ ox (/ faceLen 2.0)) (- oy (* 4400 su))) 520 0
-            (strcat surf " - "
-                    (cond ((= surf "NSW") "NEAR SIDE WALL") ((= surf "FSW") "FAR SIDE WALL")
-                          ((= surf "LEW") "LEFT END WALL")  ((= surf "REW") "RIGHT END WALL") (T "WALL"))
-                    " ELEVATION"))
+            (strcat (if isEnd "END WALL ELEVATION" "SIDE WALL ELEVATION")
+                    "  ALONG GRID LINE- " gridId))
   (setvar "CECOLOR" "BYLAYER")
   (txt "MC" (list (+ ox (/ faceLen 2.0)) (- oy (* 5400 su))) 320 0
        (if wallOpen "OPEN FOR ACCESS"
