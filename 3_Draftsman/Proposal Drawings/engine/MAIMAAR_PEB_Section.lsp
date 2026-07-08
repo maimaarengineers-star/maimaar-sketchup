@@ -5258,6 +5258,11 @@
   (if (/= (strcase (peb-tb-or (MSPL-Get-Str data "MZ_TOGGLE") "")) "YES")
     (princ)
     (progn
+      ;; ensure the mezzanine layer exists — a standalone section render (no Plan sheet first)
+      ;; would otherwise fail on (setvar "CLAYER" "COMP-MEZZ") and silently skip the mezzanine.
+      (if (boundp 'peb-comp-layer)
+        (vl-catch-all-apply (function (lambda () (peb-comp-layer "COMP-MEZZ" 6))))
+        (vl-catch-all-apply (function (lambda () (command "_.-LAYER" "_Make" "COMP-MEZZ" "_Color" "6" "" "")))))
       (setq mzRcc  (= (strcase (peb-tb-or (MSPL-Get-Str data "MZ_RCC") "")) "YES")
             chBeam (MSPL-Get-Num data "MZ1_CH_FFL_BEAM")
             thk    (MSPL-Get-Num data "MZ1_FLOOR_THK")
@@ -5285,8 +5290,7 @@
         (if mzRcc
           (progn
             (setvar "CLAYER" "RCC-COLUMN")
-            (command "_.RECTANG" (list (- cx colW) 0.0) (list (+ cx colW) chBeam))
-            (vl-catch-all-apply (function (lambda () (command "HATCH" "AR-CONC" 25 0 "L" "")))))
+            (command "_.RECTANG" (list (- cx colW) 0.0) (list (+ cx colW) chBeam)))
           (progn
             (setvar "CLAYER" "COMP-MEZZ")
             (command "_.RECTANG" (list (- cx (/ colW 2.0)) 0.0) (list (+ cx (/ colW 2.0)) chBeam)))))
@@ -5298,6 +5302,30 @@
              "BEAM CHEM. ANCHORED TO EXISTING RCC COLUMNS"))
       (setvar "CLAYER" prev)
       (princ))))
+
+;; Existing RCC BUILDING frame in section (owner 8-Jul): full-height concrete columns + a FLAT RCC
+;; roof slab (concrete) — NOT a steel rafter/gable.  Used for the mezzanine-in-existing-RCC set,
+;; where the roof is RCC too (no steel roof, purlins or cladding).  Slab drawn as a double-line
+;; band (no hatch — keeps the command stream clean so the mezzanine that follows still draws).
+(defun peb-mz-rcc-sec-p (data)
+  (= (strcase (peb-tb-or (MSPL-Get-Str data "MZ_RCC") "")) "YES"))
+(defun draw-rcc-building-frame (cols wid H cb / slabT prev rw x)
+  (setq slabT (max 250.0 (* cb 0.9)) rw (* cb 1.2) prev (getvar "CLAYER"))
+  (setvar "CLAYER" "RCC-COLUMN")
+  ;; concrete columns full height — OUTLINE rectangles (NO hatch: a HATCH here corrupts the
+  ;; command stream and silently kills the mezzanine draw that follows).  The RCC-COLUMN layer
+  ;; colour reads as concrete.
+  (foreach x cols
+    (cond
+      ((equal x (car cols)  0.001) (command "_.RECTANG" (list x 0.0) (list (+ x rw) H)))
+      ((equal x (last cols) 0.001) (command "_.RECTANG" (list (- x rw) 0.0) (list x H)))
+      (T (command "_.RECTANG" (list (- x (/ rw 2.0)) 0.0) (list (+ x (/ rw 2.0)) H)))))
+  ;; flat RCC roof slab (double-line band)
+  (command "_.RECTANG" (list 0.0 H) (list wid (+ H slabT)))
+  (command "_.LINE" (list 0.0 (+ H (* slabT 0.5))) (list wid (+ H (* slabT 0.5))) "")
+  (setvar "CLAYER" "TEXT")
+  (txt "MC" (list (/ wid 2.0) (+ H slabT 500.0)) 300 0 "EXISTING RCC ROOF SLAB (BY OTHERS)")
+  (setvar "CLAYER" prev))
 
 (defun C:PEB-SECTION
   ( / dataFile data
@@ -5560,6 +5588,9 @@
 
   ;; ── Frame outline (stype-aware dispatcher) ───────────────────
   (cond
+    ;; existing RCC building host: concrete columns + FLAT RCC roof slab (no steel roof) — owner 8-Jul
+    ((peb-mz-rcc-sec-p data)
+      (draw-rcc-building-frame cols wid H cb))
     ((= stype "SS")
       (setq slopeRise (/ wid slopeD))
       (draw-ss-frame wid H slopeRise ht cb))
@@ -5604,6 +5635,8 @@
   ;; columns between gables).  Sub-span intermediate columns are not
   ;; haunch points - they sit under the rafter and do not need plates.
   (cond
+    ;; existing RCC building: no steel haunch/base plates (concrete frame) — owner 8-Jul
+    ((peb-mz-rcc-sec-p data) nil)
     ((= stype "MG")
       (progn
         ;; Base plates at every gable-boundary column (0, gW, 2gW, ..., W)
@@ -5757,6 +5790,9 @@
   ;;   SS: asymmetric heights - elements still drawn at H, high-side
   ;;       follow-up tuning will be done next turn
   (cond
+    ;; existing RCC building: no steel cladding / purlins / girts / eave / rafter — RCC walls & roof
+    ;; are existing (by others).  Skip the whole steel wall/roof-element block (owner 8-Jul).
+    ((peb-mz-rcc-sec-p data) nil)
     ;; ── BF (Butterfly): center column only, no walls ──
     ;; Add COLUMN label pointing at center column inner flange.
     ((= stype "BF")
