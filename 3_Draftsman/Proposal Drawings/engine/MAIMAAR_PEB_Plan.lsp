@@ -5174,6 +5174,116 @@
   (princ "\n────────────────────────────────────────────────────\n")
   (princ))
 
+;; ============================================================================
+;;  MEZZANINE FLOOR LAYOUT PLAN (per floor) — for multi-storey mezzanines (owner 8-Jul).
+;;  One sheet per floor: mezzanine footprint + columns (I-section) + main beams (along the
+;;  length) + joists (across the width) + grid bubbles + a "MEZZANINE FLOOR-n LAYOUT PLAN"
+;;  title.  Extent full-interior or partial by grid lines (MZ_GRID_BAY_FROM/TO).
+;;  Entry: (peb-mezz-floor-from-file <path> <floorNum>).  Reuses the CLP helpers.
+;; ============================================================================
+(defun peb-mzfp-bays (data len / nb pts cum i sp rem)
+  (setq nb (MSPL-Get-Int data "NUMBAYS")) (if (or (null nb) (< nb 1)) (setq nb 1))
+  (setq pts (list 0.0) cum 0.0 i 0)
+  (while (< i nb)
+    (setq sp (MSPL-Get-Num data (strcat "BAY" (itoa (1+ i)))) rem (- len cum))
+    (cond ((= i (1- nb)) (setq sp rem)) ((and sp (> sp 0.0) (< sp rem)) T) (T (setq sp (/ rem (float (- nb i))))))
+    (setq cum (+ cum sp) pts (append pts (list cum)) i (1+ i)))
+  pts)
+
+(defun peb-mzfp-splist (data / spList tmp plus seg atP cnt val k)
+  (setq spList '())
+  (vl-catch-all-apply (function (lambda ()
+    (setq tmp (MSPL-Get-Str data "MZ_COL_SPACING"))
+    (while (and tmp (> (strlen tmp) 0))
+      (setq plus (vl-string-search "+" tmp))
+      (if plus (setq seg (substr tmp 1 plus) tmp (substr tmp (+ plus 2))) (setq seg tmp tmp ""))
+      (setq seg (vl-string-trim " " seg) atP (vl-string-search "@" seg))
+      (if atP (progn (setq cnt (atoi (substr seg 1 atP)) val (atof (substr seg (+ atP 2))) k 0)
+                     (while (< k cnt) (setq spList (cons val spList) k (1+ k))))
+        (if (> (atof seg) 0.0) (setq spList (cons (atof seg) spList)))))
+    (setq spList (reverse spList)))))
+  (if (null spList) (setq spList (list 10000.0)))
+  spList)
+
+(defun peb-draw-mezz-floor-plan (data len wid floorNum / spList bayPts glF glT fx0 fx1 fy0 fy1
+                                 ys xs acc s2 x y colD savedWeb jsp jx i gbr letterIdx sc)
+  (setq sc (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0))
+  (setq spList (peb-mzfp-splist data) bayPts (peb-mzfp-bays data len))
+  (setq glF (MSPL-Get-Int data "MZ_GRID_BAY_FROM") glT (MSPL-Get-Int data "MZ_GRID_BAY_TO"))
+  (setq fy0 (* wid 0.06) fy1 (- wid (* wid 0.06)))
+  (if (and glF glT (> glF 0) (> glT glF) (<= glT (length bayPts)))
+    (setq fx0 (nth (1- glF) bayPts) fx1 (nth (1- glT) bayPts))
+    (setq fx0 (* len 0.06) fx1 (- len (* len 0.06))))
+  ;; width column lines (from MZ_COL_SPACING) + bay lines within the footprint
+  (setq ys (list fy0) acc fy0)
+  (foreach s2 spList (setq acc (+ acc s2)) (if (< acc (- fy1 300.0)) (setq ys (append ys (list acc)))))
+  (setq ys (append ys (list fy1)))
+  (setq xs '())
+  (foreach x bayPts (if (and (>= x (- fx0 1.0)) (<= x (+ fx1 1.0))) (setq xs (append xs (list x)))))
+  (if (null xs) (setq xs (list fx0 fx1)))
+  ;; deck outline
+  (peb-comp-layer "COMP-MEZZ" 6)
+  (peb-comp-poly (list (list fx0 fy0) (list fx1 fy0) (list fx1 fy1) (list fx0 fy1)))
+  ;; joists — light lines across the width at ~1250 along the length
+  (peb-comp-layer "COMP-MEZZ-JOIST" 8)
+  (setq jsp 1250.0 jx (+ fx0 jsp))
+  (while (< jx (- fx1 100.0)) (command "_.LINE" (list jx fy0) (list jx fy1) "") (setq jx (+ jx jsp)))
+  ;; main beams — along the length at each width column line
+  (peb-comp-layer "COMP-MEZZ-BEAM" 5)
+  (foreach y ys (command "_.LINE" (list fx0 y) (list fx1 y) ""))
+  ;; columns (I-section) at bay x module
+  (setq colD (peb-col-web-depth (apply 'max (cons 6000.0 spList))) savedWeb *PEB-COL-WEB* *PEB-COL-WEB* colD)
+  (foreach x xs (foreach y ys (vl-catch-all-apply (function (lambda () (draw-I-column-lengthwise x y))))))
+  (setq *PEB-COL-WEB* savedWeb)
+  ;; grid bubbles — building grid NUMBERS along the top at each footprint bay line
+  (setq gbr (max 900.0 (* 620.0 sc)) i 0)
+  (foreach x bayPts
+    (if (and (>= x (- fx0 1.0)) (<= x (+ fx1 1.0)))
+      (progn (setvar "CLAYER" "GRID")
+             (command "_.LINE" (list x fy1) (list x (+ fy1 (* 2.0 gbr))) "")
+             (grid-bubble x (+ fy1 (* 2.0 gbr) gbr) (itoa (1+ i)) "D")))
+    (setq i (1+ i)))
+  ;; width LETTERS along the left (A at the top)
+  (setq letterIdx 0)
+  (foreach y (reverse ys)
+    (setvar "CLAYER" "GRID")
+    (command "_.LINE" (list fx0 y) (list (- fx0 (* 2.0 gbr)) y) "")
+    (grid-bubble (- fx0 (* 2.0 gbr) gbr) y (chr (+ 65 letterIdx)) "R")
+    (setq letterIdx (1+ letterIdx)))
+  ;; blue floor title below the plan
+  (setvar "CLAYER" "TEXT") (setvar "CECOLOR" "5")
+  (txt-bold "MC" (list (/ (+ fx0 fx1) 2.0) (- fy0 (* 3200 sc))) (* 450 sc) 0
+            (strcat "MEZZANINE FLOOR-" (itoa floorNum) " LAYOUT PLAN"))
+  (setvar "CECOLOR" "BYLAYER")
+  (princ))
+
+(defun C:PEB-MEZZ-FLOOR (/ dataFile data len wid floorNum)
+  (setq dataFile (if (and (boundp '*PEB-DATA-FILE*) *PEB-DATA-FILE*) *PEB-DATA-FILE* nil))
+  (if (null dataFile) (progn (princ "\nPEB-MEZZ-FLOOR: no data file.") (exit)))
+  (setq data (MSPL-Read-Data dataFile))
+  (setq len (MSPL-Get-Num data "LENGTH") wid (MSPL-Get-Num data "WIDTH"))
+  (if (or (null len) (<= len 0)) (setq len 30000.0))
+  (if (or (null wid) (<= wid 0)) (setq wid 20000.0))
+  (setq floorNum (if (and (boundp '*PEB-MEZZ-FLOOR-NUM*) *PEB-MEZZ-FLOOR-NUM*) *PEB-MEZZ-FLOOR-NUM* 1))
+  (setq *PEB-TEXT-SCALE* (max 0.80 (min 4.00 (/ (max len wid 1.0) 45000.0))) *PEB-DIM-SCALE* *PEB-TEXT-SCALE*)
+  (vl-catch-all-apply (function (lambda () (peb-draw-mezz-floor-plan data len wid floorNum))))
+  (setvar "CLAYER" "0")
+  (vl-catch-all-apply (function (lambda () (peb-frame-and-titleblock data (strcat "MEZZANINE FLOOR-" (itoa floorNum) " LAYOUT PLAN")))))
+  (vl-catch-all-apply (function (lambda () (command "_.ZOOM" "_E"))))
+  (princ))
+
+(defun peb-mezz-floor-from-file (path floorNum / prev-last prev-max-x)
+  (setq prev-last (entlast))
+  (if prev-last
+    (progn (command "_.REGEN") (setq prev-max-x (car (getvar "EXTMAX")))
+           (if (or (null prev-max-x) (< prev-max-x -1e10)) (setq prev-max-x nil)))
+    (setq prev-max-x nil))
+  (setq *PEB-DATA-FILE* path *PEB-MEZZ-FLOOR-NUM* floorNum)
+  (C:PEB-MEZZ-FLOOR)
+  (setq *PEB-DATA-FILE* nil *PEB-MEZZ-FLOOR-NUM* nil)
+  (if (boundp 'peb-tile-place) (peb-tile-place prev-last prev-max-x))
+  (princ))
+
 (princ "\nMAIMAAR PEB-PLAN (Phase-2 standalone) loaded [BUILD 2026-07-04-R2 border-centre+bubble]. Command: PEB-PLAN")
 (princ "\nPDF helper:    type PEB-PDF  then pick window corners.")
 (princ "\nIdentify tool: type PEB-WHAT then pick any entity to see its LISP source.\n")
