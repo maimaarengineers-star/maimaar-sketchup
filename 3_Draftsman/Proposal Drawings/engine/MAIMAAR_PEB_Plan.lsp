@@ -95,8 +95,22 @@
 (defun peb-frame-display-to-code (s / up pair)
   (setq up (strcase (vl-string-trim " " s)))
   (cond ((member up '("CS" "SS" "MS" "LT" "MG" "FR" "RC" "ACS" "AMS" "BF" "CC")) up)
-        (T (setq pair (assoc up *PEB-FRAME-CODE-MAP*))
-           (if pair (cdr pair) "CS"))))
+        ((setq pair (assoc up *PEB-FRAME-CODE-MAP*)) (cdr pair))
+        ;; fuzzy fallbacks (owner 8-Jul) — the IF sends VERBOSE option strings that don't match the
+        ;; exact alist keys (e.g. "Roof System without steel columns (rafter is fixed on RCC columns)",
+        ;; "Multi-Gable (CS & MS)", "Arch Clear Span (ACS)"), which previously all defaulted to CS.
+        ;; Order: most specific first (ARCH-MULTI before ARCH; MULTI-GABLE before MULTI-SPAN).
+        ((wcmatch up "*RCC*,*ON RCC*,*OVER RCC*,*RC COLUMN*") "RC")
+        ((wcmatch up "*FLAT*")                                "FR")
+        ((wcmatch up "*BUTTERFLY*")                           "BF")
+        ((wcmatch up "*ARCH*MULTI*")                          "AMS")
+        ((wcmatch up "*ARCH*")                                "ACS")
+        ((wcmatch up "*MULTI*GABLE*")                         "MG")
+        ((wcmatch up "*SINGLE*SLOPE*")                        "SS")
+        ((wcmatch up "*LEAN*")                                "LT")
+        ((wcmatch up "*CANTILEVER*")                          "CC")
+        ((wcmatch up "*MULTI*SPAN*")                          "MS")
+        (T                                                    "CS")))
 
 (defun peb-slope-to-denom (slopeStr customStr / s pos)
   (setq s (vl-string-trim " " slopeStr))
@@ -2228,11 +2242,12 @@
                       savedWeb  *PEB-COL-WEB*
                       *PEB-COL-WEB* colD
                       circR     (* colD 0.72))
-                ;; host structure (owner 8-Jul): "Within RCC …" mezzanine stubs rest on
-                ;; existing RCC piers, so draw the RCC concrete pier symbol (steel I within
-                ;; the concrete square); PEB / standalone hosts get the plain steel I-stub.
-                (setq host (strcase (peb-tb-or (MSPL-Get-Str data "MZ_HOST") ""))
-                      rcc  (wcmatch host "*RCC*"))
+                ;; host (owner 8-Jul): derived from the building's own FRAME TYPE — no separate
+                ;; field (Flat Roof and "Roof on RCC columns" are already IF Frame Types).  When the
+                ;; building is Roof-on-RCC-columns (STYPE RC), mezz stubs rest on the existing RCC
+                ;; piers → draw the RCC pier symbol; every steel/flat frame → plain steel I-stub.
+                (setq host (strcase (peb-tb-or (MSPL-Get-Str data "STYPE") ""))
+                      rcc  (= host "RC"))
                 (foreach x xs
                   (foreach y ys
                     (vl-catch-all-apply (function (lambda ()
