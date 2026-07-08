@@ -5254,7 +5254,13 @@
 ;; main-beam bottom line, and the support columns from FFL up to the beam.  Host-aware:
 ;; steel I columns for a PEB building; hatched concrete columns + a "chemically anchored"
 ;; note for an existing RCC building.  Section frame across the WIDTH: x=0..wid, y=0 = FFL.
-(defun peb-draw-mezz-section (data wid / mzRcc chBeam thk beamD colW x0 x1 mm lst xs acc s beamTop slabTop prev cx)
+;; MULTI-FLOOR mezzanine in section (owner 8-Jul): draws 1..N stacked mezzanine floors under the
+;; (sloped) building roof.  Each floor = deck/slab band + beam-top (joists) + beam-bottom lines +
+;; a "MEZZANINE FLOOR-n" label, at level = MZ1_CH_FFL_BEAM + (n-1)*MZ_FLOOR_HT.  Support columns run
+;; CONTINUOUSLY from the floor up to the top floor's beam — steel I (PEB) or concrete (existing RCC,
+;; with a chemical-anchor note).  Extent is full-interior or partial (MZ1_WID width).
+(defun peb-draw-mezz-section (data wid / mzRcc chBeam thk beamD colW x0 x1 mm lst xs acc s prev cx
+                              numFloors floorHt f lvl bTop sTop topLvl)
   (if (/= (strcase (peb-tb-or (MSPL-Get-Str data "MZ_TOGGLE") "")) "YES")
     (princ)
     (progn
@@ -5269,7 +5275,13 @@
             beamD  500.0 colW 300.0 prev (getvar "CLAYER"))
       (if (or (null chBeam) (<= chBeam 0.0)) (setq chBeam 3000.0))
       (if (or (null thk)    (<= thk 0.0))    (setq thk 150.0))
-      (setq beamTop (+ chBeam beamD) slabTop (+ chBeam beamD thk))
+      ;; number of stacked floors (1..N) + floor-to-floor height
+      (setq numFloors (MSPL-Get-Num data "MZ_NUM_FLOORS"))
+      (setq numFloors (if (and numFloors (>= numFloors 1)) (fix numFloors) 1))
+      (if (> numFloors 30) (setq numFloors 30))
+      (setq floorHt (MSPL-Get-Num data "MZ_FLOOR_HT"))
+      (if (or (null floorHt) (<= floorHt 0.0)) (setq floorHt (+ chBeam beamD thk 300.0)))
+      ;; extent — full interior, or partial from MZ1_WID
       (setq x0 (* wid 0.06) x1 (- wid (* wid 0.06)))
       (setq mm (MSPL-Get-Num data "MZ1_WID"))
       (if (and mm (> mm 0.0)) (setq x1 (min (- wid (* wid 0.04)) (+ x0 mm))))
@@ -5280,26 +5292,31 @@
         (progn (foreach s lst (setq acc (+ acc s)) (if (< acc (- x1 1.0)) (setq xs (append xs (list acc)))))
                (setq xs (append xs (list x1))))
         (setq xs (list x0 (/ (+ x0 x1) 2.0) x1)))
-      ;; deck slab band + beam-top (joists) + beam-bottom lines
-      (setvar "CLAYER" "COMP-MEZZ")
-      (command "_.RECTANG" (list x0 beamTop) (list x1 slabTop))
-      (command "_.LINE" (list x0 beamTop) (list x1 beamTop) "")
-      (command "_.LINE" (list x0 chBeam)  (list x1 chBeam)  "")
-      ;; support columns from FFL up to the beam — steel (PEB) or hatched concrete (RCC)
+      (setq topLvl (+ chBeam (* (1- numFloors) floorHt)))    ; beam-bottom of the TOP floor
+      ;; ── continuous support columns FFL → top floor beam (steel PEB / concrete RCC) ──
       (foreach cx xs
         (if mzRcc
-          (progn
-            (setvar "CLAYER" "RCC-COLUMN")
-            (command "_.RECTANG" (list (- cx colW) 0.0) (list (+ cx colW) chBeam)))
-          (progn
-            (setvar "CLAYER" "COMP-MEZZ")
-            (command "_.RECTANG" (list (- cx (/ colW 2.0)) 0.0) (list (+ cx (/ colW 2.0)) chBeam)))))
-      ;; labels
-      (setvar "CLAYER" "TEXT")
-      (txt "MC" (list (/ (+ x0 x1) 2.0) (+ slabTop 500.0)) 300 0 "MEZZANINE FLOOR")
+          (progn (setvar "CLAYER" "RCC-COLUMN")
+                 (command "_.RECTANG" (list (- cx colW) 0.0) (list (+ cx colW) topLvl)))
+          (progn (setvar "CLAYER" "COMP-MEZZ")
+                 (command "_.RECTANG" (list (- cx (/ colW 2.0)) 0.0) (list (+ cx (/ colW 2.0)) topLvl)))))
+      ;; ── each stacked floor: deck slab + beam-top (joists) + beam-bottom + label ──
+      (setq f 1)
+      (while (<= f numFloors)
+        (setq lvl (+ chBeam (* (1- f) floorHt)) bTop (+ lvl beamD) sTop (+ lvl beamD thk))
+        (setvar "CLAYER" "COMP-MEZZ")
+        (command "_.RECTANG" (list x0 bTop) (list x1 sTop))
+        (command "_.LINE" (list x0 bTop) (list x1 bTop) "")
+        (command "_.LINE" (list x0 lvl)  (list x1 lvl)  "")
+        (setvar "CLAYER" "TEXT")
+        (txt "MC" (list (/ (+ x0 x1) 2.0) (+ sTop 300.0)) 260 0
+             (if (> numFloors 1) (strcat "MEZZANINE FLOOR-" (itoa f)) "MEZZANINE FLOOR"))
+        (setq f (1+ f)))
+      ;; existing-RCC host: one chemical-anchor callout
       (if mzRcc
-        (txt "MC" (list (/ (+ x0 x1) 2.0) (+ chBeam (/ beamD 2.0))) 220 0
-             "BEAM CHEM. ANCHORED TO EXISTING RCC COLUMNS"))
+        (progn (setvar "CLAYER" "TEXT")
+               (txt "MC" (list (/ (+ x0 x1) 2.0) (+ chBeam (/ beamD 2.0))) 220 0
+                    "BEAMS CHEM. ANCHORED TO EXISTING RCC COLUMNS")))
       (setvar "CLAYER" prev)
       (princ))))
 
