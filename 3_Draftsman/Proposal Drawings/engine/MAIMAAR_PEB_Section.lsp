@@ -2184,18 +2184,22 @@
     "C")
 )
 
-(defun draw-cc-frame (W H slopeRise ht cb / )
-  ;;  Cantilever Canopy: ONE column on the LEFT (back), rafter
-  ;;  cantilevers out to the right (open front).  No right column.
+(defun draw-cc-frame (W H slopeRise ht cb lowAtCol / eL eR)
+  ;;  Cantilever Canopy: ONE column on the LEFT (back), rafter cantilevers out to the right
+  ;;  (open front).  No right column.  TWO slope types (owner 8-Jul):
+  ;;   - lowAtCol = nil  → FALCON: column-side HIGH, free end LOW (drains at the free end).
+  ;;   - lowAtCol = T    → column-side LOW, free end HIGH (slopes TOWARD the column, drains at it).
+  (setq eL (if lowAtCol H            (+ H slopeRise))    ; left / column eave
+        eR (if lowAtCol (+ H slopeRise) H))              ; right / free-end eave
   (setvar "CLAYER" "FRAME")
   (setvar "PLINEWID" 0.0)
   (command "PLINE"
-    (list 0.0       0.0)                   ; bottom-left outside
-    (list 0.0       (+ H slopeRise))       ; eave-left outside (HIGH back)
-    (list W         H)                     ; eave-right outside (LOW front, open)
-    (list W         (- H ht))              ; rafter end inside-bottom (cantilever tip)
-    (list ht        (- H ht))              ; left haunch corner
-    (list cb        0.0)                   ; left column inside-base
+    (list 0.0       0.0)                   ; column base outside
+    (list 0.0       eL)                    ; eave-left outside (column)
+    (list W         eR)                    ; eave-right outside (free end, open)
+    (list W         (- eR (* ht 0.5)))     ; rafter tip inside-bottom (thin at the free end)
+    (list ht        (- eL ht))             ; column haunch corner (deep at the support)
+    (list cb        0.0)                   ; column inside-base
     "C")
 )
 
@@ -2337,6 +2341,27 @@
     (list (+ cx (/ intColW 2.0)) (- H ht)) ; valley right haunch (column right top)
     (list (- cx (/ intColW 2.0)) (- H ht)) ; valley left haunch (column left top)
     (list ht        (+ H rise (- 0 ht)))   ; left rafter inside-bottom near eave
+    "C")
+)
+
+(defun draw-falcon2-frame (W H rise ht cb intColW / cx)
+  ;;  FALCON (2 wings) — CENTER column, PEAK at centre, two wings slope DOWN-OUTWARD to the LOW
+  ;;  side eaves (drains at the free ends).  The vertical MIRROR of the Butterfly (owner 8-Jul).
+  (setq cx (/ W 2.0) intColW (max intColW 400.0))
+  ;; Center column (up to the peak underside)
+  (setvar "CLAYER" "FRAME")
+  (command "RECTANG"
+    (list (- cx (/ intColW 2.0)) 0.0)
+    (list (+ cx (/ intColW 2.0)) (+ H rise (- 0 ht))))
+  ;; Frame outline: peak at centre, low outer eaves (drains outward)
+  (command "PLINE"
+    (list 0.0       H)                      ; LEFT low eave outside
+    (list cx        (+ H rise))             ; PEAK (centre, highest)
+    (list W         H)                      ; RIGHT low eave outside
+    (list (- W ht)  (- H (* ht 0.4)))       ; right rafter inside-bottom (thin at the low tip)
+    (list (+ cx (/ intColW 2.0)) (+ H rise (- 0 ht))) ; peak right haunch (column top)
+    (list (- cx (/ intColW 2.0)) (+ H rise (- 0 ht))) ; peak left haunch (column top)
+    (list ht        (- H (* ht 0.4)))       ; left rafter inside-bottom (thin at the low tip)
     "C")
 )
 
@@ -5620,9 +5645,14 @@
       (draw-fr-frame wid H ht cb))
     ((= stype "CC")
       (setq slopeRise (/ wid slopeD))
-      (draw-cc-frame wid H slopeRise ht cb))
+      (draw-cc-frame wid H slopeRise ht cb
+                     (= (strcase (peb-tb-or (MSPL-Get-Str data "CC_LOW_AT_COLUMN") "")) "YES")))
     ((= stype "BF")
-      (draw-bf-frame wid H rise ht cb 400.0))
+      ;; BF stype covers BOTH 2-wing canopies: Butterfly (valley, default) and Falcon (centre peak)
+      ;; when CC_FALCON_PEAK=Yes (owner 8-Jul).
+      (if (= (strcase (peb-tb-or (MSPL-Get-Str data "CC_FALCON_PEAK") "")) "YES")
+        (draw-falcon2-frame wid H rise ht cb 400.0)
+        (draw-bf-frame wid H rise ht cb 400.0)))
     ((= stype "ACS")
       ;; Arched Clear Span — single curved roof arc, 2 R.F. columns
       (draw-acs-frame wid H rise ht cb))
