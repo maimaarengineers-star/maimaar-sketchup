@@ -2223,10 +2223,11 @@
 )
 
 (defun draw-cc-frame (W H slopeRise ht cb lowAtCol / eL eR)
-  ;;  Cantilever Canopy: ONE column on the LEFT (back), rafter cantilevers out to the right
-  ;;  (open front).  No right column.  TWO slope types (owner 8-Jul):
-  ;;   - lowAtCol = nil  → FALCON: column-side HIGH, free end LOW (drains at the free end).
-  ;;   - lowAtCol = T    → column-side LOW, free end HIGH (slopes TOWARD the column, drains at it).
+  ;;  SINGLE-SIDED CANTILEVER: ONE column on the LEFT (back), rafter cantilevers out to the right
+  ;;  (open front).  No right column.  TWO slope types (owner 8-Jul; names corrected 9-Jul -- these
+  ;;  are NOT "Falcon/Butterfly 1-wing"; Falcon and Butterfly name only the 2-wing pair):
+  ;;   - lowAtCol = nil  → SLOPE AWAY FROM COLUMNS: column-side HIGH, free end LOW (drains at the free end).
+  ;;   - lowAtCol = T    → SLOPE TOWARDS COLUMNS:   column-side LOW, free end HIGH (drains at the column).
   (setq eL (if lowAtCol H            (+ H slopeRise))    ; left / column eave
         eR (if lowAtCol (+ H slopeRise) H))              ; right / free-end eave
   (setvar "CLAYER" "FRAME")
@@ -4921,6 +4922,24 @@
   (command "TEXT" "J" "MC" (list cx cy) (* r 0.7) 0 label)
 )
 
+;; ---- CANTILEVER-SHADE NAMING (owner 9-Jul) ------------------------------------------------------
+;; Duplicate of the Plan engine's copy (Plan loads last and wins; kept here so Section stands alone).
+;; "Butterfly"/"Falcon" name ONLY the 2-wing pair.  The 1-wing pair is "Single-Sided Cantilever",
+;; qualified by slope direction relative to its single column line -- NOT "Butterfly/Falcon 1-wing".
+(defun peb-canopy-name (stype data)
+  (cond
+    ((= stype "BF")
+      (if (= (strcase (peb-tb-or (MSPL-Get-Str data "CC_FALCON_PEAK") "")) "YES")
+        "FALCON CANOPY (CENTRE PEAK)"
+        "BUTTERFLY CANOPY (VALLEY)"))
+    ((= stype "CC")
+      (if (= (strcase (peb-tb-or (MSPL-Get-Str data "CC_LOW_AT_COLUMN") "")) "YES")
+        "SINGLE-SIDED CANTILEVER (TOWARDS COLUMNS)"
+        "SINGLE-SIDED CANTILEVER (AWAY FROM COLUMNS)"))
+    (T nil)
+  )
+)
+
 (defun peb-structure-label (stype)
   (cond
     ((= stype "CS") "CLEAR SPAN GABLE")
@@ -4930,9 +4949,8 @@
     ((= stype "MG") "MULTI-GABLE")
     ((= stype "FR") "FLAT ROOF")
     ((= stype "RC") "ROOF ON RCC COLUMNS")
-    ((= stype "CC") "CANTILEVER CANOPY")
+    ((member stype '("CC" "BF")) (if *PEB-CANOPY-NAME* *PEB-CANOPY-NAME* "CANTILEVER CANOPY"))
     ((= stype "PP") "PETROL PUMP CANOPY")
-    ((= stype "BF") "BUTTERFLY STRUCTURE")
     ((= stype "ACS") "ARCHED CLEAR SPAN")
     ((= stype "AMS") "ARCHED MULTI-SPAN")
     (T "CLEAR SPAN GABLE")
@@ -5510,6 +5528,8 @@
   (setq stype (strcase (MSPL-Get-Str data "STYPE")))
   (if (not (member stype '("CS" "SS" "MS" "LT" "MG" "FR" "RC" "CC" "BF" "ACS" "AMS" "PP")))
     (setq stype "CS"))
+  ;; proper canopy name for this sheet; nil for non-canopy stypes (reset every sheet, never stale).
+  (setq *PEB-CANOPY-NAME* (peb-canopy-name stype data))
 
   ;; ── Effective span for rise/haunch calc (per-gable for MG) ──
   ;; For MG: each gable has its own ridge, so rise is computed
@@ -6138,6 +6158,7 @@
   ;; Re-assert stype from the data (defensive: a dim/label helper can clobber the dynamic binding).
   (setq stype (strcase (MSPL-Get-Str data "STYPE")))
   (if (not (member stype '("CS" "SS" "MS" "LT" "MG" "FR" "RC" "CC" "BF" "ACS" "AMS" "PP"))) (setq stype "CS"))
+  (setq *PEB-CANOPY-NAME* (peb-canopy-name stype data))   ; re-assert alongside stype (same defensive reason)
   (setvar "CLAYER" "TEXT")
   ;; Top line: frame type (e.g. CLEAR SPAN GABLE / MULTI-GABLE / SINGLE SLOPE)
   (txt-bold "MC"

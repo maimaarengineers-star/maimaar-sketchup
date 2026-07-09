@@ -1300,8 +1300,8 @@
             (arrow-down-big sx (- mgY (* mgGableW 0.375)) fallU))))
       ((= stype "BF")
         ;; BF covers BOTH 2-wing canopies (centre column at wid/2), mirroring the Section dispatch:
-        ;;   CC_FALCON_PEAK=Yes -> FALCON: centre PEAK, wings slope outward, drains at the outer eaves.
-        ;;   default            -> BUTTERFLY: centre VALLEY, wings slope inward, drains at the centre.
+        ;;   CC_FALCON_PEAK=Yes -> FALCON (2-wing, centre peak): wings slope outward, drains at the outer eaves.
+        ;;   default            -> BUTTERFLY (2-wing, valley):   wings slope inward, drains at the centre.
         (if (= (strcase (peb-tb-or (MSPL-Get-Str data "CC_FALCON_PEAK") "")) "YES")
           (foreach sx slopeXs
             (arrow-up-big   sx (* wid 0.875) fallU)   ; upper wing falls out toward FSW
@@ -1310,15 +1310,24 @@
             (arrow-down-big sx (* wid 0.875) fallU)   ; upper wing falls in toward the centre valley
             (arrow-up-big   sx (* wid 0.125) fallU))))
       ((= stype "CC")
-        ;; 1-wing cantilever canopy: back support column line on NSW (y=0), free edge on FSW (y=wid)
-        ;; -- see the CC column branch below.  ONE continuous fall across the width (no ridge), so a
-        ;; single mid-width arrow like SS.  Direction mirrors the Section's draw-cc-frame lowAtCol:
-        ;;   CC_LOW_AT_COLUMN=Yes -> BUTTERFLY 1-wing: low at the column, drains AT the column (NSW).
-        ;;   default              -> FALCON 1-wing: high at the column, drains at the free end (FSW).
+        ;; SINGLE-SIDED CANTILEVER (the 1-wing pair -- NOT "Butterfly/Falcon 1-wing", owner 9-Jul).
+        ;; Back support column line on NSW (y=0), free edge on FSW (y=wid) -- see the CC column branch
+        ;; below.  ONE continuous fall across the width (no ridge), so a single mid-width arrow like SS.
+        ;; Direction mirrors the Section's draw-cc-frame lowAtCol:
+        ;;   CC_LOW_AT_COLUMN=Yes -> SLOPE TOWARDS COLUMNS:   low at the column, drains AT it (NSW).
+        ;;   default              -> SLOPE AWAY FROM COLUMNS: high at the column, drains at the free end (FSW).
         (foreach sx slopeXs
           (if (= (strcase (peb-tb-or (MSPL-Get-Str data "CC_LOW_AT_COLUMN") "")) "YES")
             (arrow-down-big sx (* wid 0.5) fallU)
             (arrow-up-big   sx (* wid 0.5) fallU))))
+      ((= stype "PP")
+        ;; PETROL PUMP / CNG CANOPY (owner 9-Jul): near-flat slab on two inset column lines
+        ;; (0.22 / 0.78 of the width) with a cantilever overhang each side.  It drains INWARD from
+        ;; both free edges to the column lines, through concealed downpipes inside the columns -- so
+        ;; no water is shed over the forecourt.  One arrow per overhang, pointing at its column line.
+        (foreach sx slopeXs
+          (arrow-down-big sx (* wid 0.89) fallU)   ; upper overhang falls in toward the 0.78 column line
+          (arrow-up-big   sx (* wid 0.11) fallU))) ; lower overhang falls in toward the 0.22 column line
       ((= stype "FR")
         ;; flat roof drains INWARD to a central drain line (owner/Mammut §4.5): arrows from both
         ;; sidewalls toward the centreline, + a dashed centre drain line along the length.
@@ -1366,6 +1375,31 @@
   (command "RECTANG" (list (- x1 (* margin 0.6)) (- y1 (* margin 0.6))) (list (+ x2 (* margin 0.6)) (+ y2 (* margin 0.6))))
 )
 
+;; ---- CANTILEVER-SHADE NAMING (owner 9-Jul) ------------------------------------------------------
+;; The 4 cantilever shades carry the IF's own names.  "Butterfly" and "Falcon" name ONLY the 2-wing
+;; pair (they describe where the roof drains: centre valley vs centre peak).  The 1-wing pair is NOT
+;; "Butterfly/Falcon 1-wing" -- it is "Single-Sided Cantilever", qualified by which way it slopes
+;; relative to its single column line.  Matches spec.js/specFields.js `canopyType`:
+;;   BF + CC_FALCON_PEAK=Yes   -> Falcon (2-wing, centre peak)
+;;   BF + (default)            -> Butterfly (2-wing, valley)
+;;   CC + CC_LOW_AT_COLUMN=Yes -> Single-Sided Cantilever - Slope Towards Columns
+;;   CC + (default)            -> Single-Sided Cantilever - Slope Away From Columns
+;; Returns the proper name for a canopy stype, else nil.  Cached per sheet in *PEB-CANOPY-NAME* so
+;; the label fns stay single-argument (4 call sites across Plan + Section).
+(defun peb-canopy-name (stype data)
+  (cond
+    ((= stype "BF")
+      (if (= (strcase (peb-tb-or (MSPL-Get-Str data "CC_FALCON_PEAK") "")) "YES")
+        "FALCON CANOPY (CENTRE PEAK)"
+        "BUTTERFLY CANOPY (VALLEY)"))
+    ((= stype "CC")
+      (if (= (strcase (peb-tb-or (MSPL-Get-Str data "CC_LOW_AT_COLUMN") "")) "YES")
+        "SINGLE-SIDED CANTILEVER (TOWARDS COLUMNS)"
+        "SINGLE-SIDED CANTILEVER (AWAY FROM COLUMNS)"))
+    (T nil)
+  )
+)
+
 (defun peb-structure-label (stype)
   (cond
     ((= stype "CS") (if *PEB-ARCHED* "ARCHED CLEAR SPAN" "CLEAR SPAN GABLE"))
@@ -1375,9 +1409,8 @@
     ((= stype "MG") "MULTI-GABLE")
     ((= stype "FR") "FLAT ROOF")
     ((= stype "RC") "ROOF ON RCC COLUMNS - NO STEEL COLUMNS")
-    ((= stype "CC") "CANTILEVER CANOPY")
+    ((member stype '("CC" "BF")) (if *PEB-CANOPY-NAME* *PEB-CANOPY-NAME* "CANTILEVER CANOPY"))
     ((= stype "PP") "PETROL PUMP CANOPY")
-    ((= stype "BF") "BUTTERFLY STRUCTURE")
     (T "CLEAR SPAN GABLE")
   )
 )
@@ -1389,8 +1422,11 @@
     ((= stype "MG") "MULTI-GABLE")
     ((= stype "FR") "FLAT ROOF")
     ((= stype "RC") "ROOF SYSTEM ON RCC COLUMNS")
-    ((= stype "CC") "CANTILEVER CANOPY")
-    ((= stype "BF") "BUTTERFLY ROOF")
+    ((= stype "PP") "PETROL PUMP CANOPY")
+    ((= stype "CC") "SINGLE-SIDED CANTILEVER ROOF")   ; fall arrows carry the towards/away distinction
+    ((= stype "BF")
+      (if (and *PEB-CANOPY-NAME* (wcmatch *PEB-CANOPY-NAME* "FALCON*")) "FALCON ROOF (CENTRE PEAK)"
+                                                                        "BUTTERFLY ROOF (VALLEY)"))
     ((= rooftype "M") "MONO-SLOPE")
     (T "GABLE")
   )
@@ -2735,6 +2771,7 @@
   ( / dataFile data
     project client propinput propno fulldate
     len wid btype rooftype stype widthPts windspeed exposure collateral bldgno revno
+    ppY1 ppY2
     bays baysp bayPts x1 x2 baylen ewcols ewsp gridWpts ewStations ewY
     lewBrace rewBrace extType intType
     minSp prevp yBayDim yOvrDim yFsw ySub yTtl yFrmTop dimGap topGap txtGap
@@ -2853,8 +2890,14 @@
   (setq *PEB-ARCHED* nil)
   (cond ((= stype "ACS") (setq *PEB-ARCHED* T stype "CS"))
         ((= stype "AMS") (setq *PEB-ARCHED* T stype "MS")))
-  (if (not (member stype '("CS" "SS" "MS" "LT" "MG" "FR" "RC" "CC" "BF")))
+  ;; owner 9-Jul: "PP" (Petrol Pump / CNG canopy) MUST be in this whitelist -- it was omitted, so a
+  ;; Petrol Pump silently fell through to "CS" and drew as a clear-span gable, leaving the
+  ;; "PETROL PUMP CANOPY" label unreachable.  The Section always handled it (draw-petrol-frame).
+  (if (not (member stype '("CS" "SS" "MS" "LT" "MG" "FR" "RC" "CC" "BF" "PP")))
     (setq stype "CS"))
+  ;; proper canopy name for this sheet (nil for non-canopy stypes -- must be set every sheet so a
+  ;; later Clear Span in the same drawing can't inherit a stale Falcon/Butterfly name).
+  (setq *PEB-CANOPY-NAME* (peb-canopy-name stype data))
 
   (setq windspeed  (MSPL-Get-Str data "WINDSPEED"))
   (setq exposure   (MSPL-Get-Str data "EXPOSURE"))
@@ -2867,7 +2910,7 @@
   (cond
     ((member stype '("SS" "LT" "CC")) (setq rooftype "M"))
     ((member stype '("CS" "MS" "MG" "RC")) (setq rooftype "G"))
-    ((= stype "FR") (setq rooftype "F"))
+    ((member stype '("FR" "PP")) (setq rooftype "F"))   ; PP = near-flat slab (owner 9-Jul)
     ((= stype "BF") (setq rooftype "B"))
     (T (setq rooftype "G"))
   )
@@ -3331,6 +3374,21 @@
         (setvar "CLAYER" "TEXT")
         (txt-bold "MC" (list (/ len 2.0) (* wid 0.86)) 600 0 "FRONT / CANTILEVER EDGE - NO COLUMNS")
         (txt-bold "MC" (list (/ len 2.0) (* wid 0.14)) 600 0 "BACK SUPPORT COLUMN LINE")
+      )
+    )
+    ((= stype "PP")
+      ;; Petrol Pump / CNG canopy (owner 9-Jul).  TWO column lines, INSET from the roof edges, with a
+      ;; cantilever overhang on each side -- the same 0.22 / 0.78 of the width the Section uses
+      ;; (draw-petrol-frame: cx1 = 0.22W, cx2 = 0.78W).  Open underneath: no walls, no end columns.
+      (progn
+        (setq ppY1 (* wid 0.22) ppY2 (* wid 0.78))
+        (foreach x bayPts
+          (if (= x 0) (setq xdraw leftX) (if (> x (- len 1)) (setq xdraw rightX) (setq xdraw x)))
+          (draw-I-column-lengthwise xdraw ppY1)
+          (draw-I-column-lengthwise xdraw ppY2))
+        (setvar "CLAYER" "TEXT")
+        (txt-bold "MC" (list (/ len 2.0) (* wid 0.95)) 600 0 "CANTILEVER OVERHANG - NO COLUMNS")
+        (txt-bold "MC" (list (/ len 2.0) (* wid 0.05)) 600 0 "CANTILEVER OVERHANG - NO COLUMNS")
       )
     )
     ((= stype "LT")

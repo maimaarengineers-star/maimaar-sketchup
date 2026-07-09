@@ -221,8 +221,15 @@
   (setq *PEB-ARCHED* nil)
   (cond ((= stype "ACS") (setq *PEB-ARCHED* T stype "CS"))
         ((= stype "AMS") (setq *PEB-ARCHED* T stype "MS")))
-  (if (not (member stype '("CS" "SS" "MS" "LT" "MG" "FR" "RC" "CC" "BF")))
+  ;; owner 9-Jul: "PP" must be whitelisted here too (same omission as the plan had) or a Petrol Pump
+  ;; roof plan silently draws as a clear-span gable.
+  (if (not (member stype '("CS" "SS" "MS" "LT" "MG" "FR" "RC" "CC" "BF" "PP")))
     (setq stype "CS"))
+  ;; proper canopy name for this sheet (see peb-canopy-name in the Plan engine); nil for non-canopy.
+  ;; boundp-guarded -- NOT fboundp, which is not an AutoLISP function -- so a standalone Roof load
+  ;; (without Plan.lsp) degrades to the generic label instead of erroring out mid-sheet.
+  (setq *PEB-CANOPY-NAME*
+    (if (boundp 'peb-canopy-name) (peb-canopy-name stype data) nil))
 
   (cond
     ((member stype '("SS" "LT" "CC")) (setq rooftype "M"))
