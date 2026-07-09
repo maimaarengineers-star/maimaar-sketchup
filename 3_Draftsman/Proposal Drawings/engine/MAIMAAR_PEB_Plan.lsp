@@ -491,6 +491,16 @@
     (setq xx (+ xx pitch)))
   (setvar "CLAYER" prev))
 
+;; RIDGE Y (owner 9-Jul).  The IF's `ridgeOffset` is the ridge distance FROM NSW (y=0) in metres --
+;; NOT a delta from the centre -- serialized as BP_RIDGE_OFFSET (mm).  Blank / non-numeric / degenerate
+;; => CENTRAL ridge (wid/2).  This is the SAME convention proposalData.ts uses for the Word proposal
+;; (rise = max(off, W-off) x slope), so the drawing and the proposal can no longer disagree.
+;; Gable sheets only (CS / MS / RC); MG has its own per-gable ridges and SS/FR/CC/PP/BF have no ridge.
+;; Clamped off the eaves so a silly value can't put the ridge on top of a sidewall.
+(defun peb-ridge-y (data wid / v)
+  (setq v (MSPL-Get-Num data "BP_RIDGE_OFFSET"))
+  (if (and v (> v (* wid 0.02)) (< v (* wid 0.98))) v (/ wid 2.0)))
+
 ;; RIDGE LINE = dash-dot centre line (owner 4-Jul, Rule Book: "it just shows the line of the ridge").
 ;; FIX (ridge showed SOLID): the stock CENTERX2 pattern is only ~a few drawing units long, so the huge
 ;; global LTSCALE (~380 on big buildings) stretches each dash past the whole line and it renders solid.
@@ -1264,7 +1274,7 @@
 ;; the nearest UNBRACED bay so the CLP's "BRACED BAY" text never overlaps; the Roof Plan reuses the
 ;; SAME stations for an exact match.  Direction/eave-tags per structure type.
 (defun peb-fall-glyph-set (data stype len wid bayPts mgRidgePts mgGableW /
-                           bays fallBraced fallUsed slopeXs nFall k tgt off found fallU sx mgY)
+                           bays fallBraced fallUsed slopeXs nFall k tgt off found fallU sx mgY rY)
   (setq bays (max 1 (1- (length bayPts))))
   (setq fallBraced (peb-braced-bays bayPts) fallUsed '() slopeXs '())
   (setq nFall (if (<= bays 2) 1 2))   ; owner 4-Jul: FALL in 2 places only (1 on a tiny 1-2 bay building)
@@ -1290,9 +1300,14 @@
   (vl-catch-all-apply (function (lambda ()
     (cond
       ((member stype '("CS" "MS" "RC"))
+        ;; owner 5-Jul: each arrow sits 3/4 of the way from the RIDGE out to its eave.  With a central
+        ;; ridge that is 0.875 / 0.125 of the width -- the old hardcoded numbers.  owner 9-Jul: the
+        ;; ridge can be off-centre (BP_RIDGE_OFFSET), so derive both stations from it instead.  A
+        ;; central ridge reproduces 0.875 / 0.125 exactly, so nothing moves on the common case.
+        (setq rY (peb-ridge-y data wid))
         (foreach sx slopeXs
-          (arrow-up-big   sx (* wid 0.875) fallU)    ; owner 5-Jul: 3/4 from ridge -> near FSW
-          (arrow-down-big sx (* wid 0.125) fallU)))  ; owner 5-Jul: 3/4 from ridge -> near NSW
+          (arrow-up-big   sx (+ rY (* 0.75 (- wid rY))) fallU)   ; ridge -> FSW eave
+          (arrow-down-big sx (* 0.25 rY)                fallU))) ; ridge -> NSW eave
       ((= stype "MG")
         (foreach mgY mgRidgePts
           (foreach sx slopeXs
@@ -2777,7 +2792,7 @@
   ( / dataFile data
     project client propinput propno fulldate
     len wid btype rooftype stype widthPts windspeed exposure collateral bldgno revno
-    ppY1 ppY2
+    ppY1 ppY2 ridgeY
     bays baysp bayPts x1 x2 baylen ewcols ewsp gridWpts ewStations ewY
     lewBrace rewBrace extType intType
     minSp prevp yBayDim yOvrDim yFsw ySub yTtl yFrmTop dimGap topGap txtGap
@@ -3284,10 +3299,12 @@
     ((member stype '("CS" "MS" "RC"))
       (progn
         ;; owner 4-Jul: ridge = dash-dot CENTERX2 line; L-leader symbol in the 3rd bay from the right.
-        (peb-ridge-line 0 len (/ wid 2.0))
+        ;; owner 9-Jul: ridge Y honours BP_RIDGE_OFFSET (distance from NSW); blank => central.
+        (setq ridgeY (peb-ridge-y data wid))
+        (peb-ridge-line 0 len ridgeY)
         (vl-catch-all-apply
           (function (lambda ()
-            (peb-ridge-symbol (peb-ridge-bay-x bayPts) (/ wid 2.0)))))
+            (peb-ridge-symbol (peb-ridge-bay-x bayPts) ridgeY))))
       )
     )
     ((= stype "MG")

@@ -153,7 +153,7 @@
 ;; ===========================================================================
 (defun C:PEB-ROOF
   ( / dataFile data project client propinput bldgno revno propno fulldate
-    len wid stype rooftype roofSlope
+    len wid stype rooftype roofSlope ridgeY
     numBays bays baysp bayPts cum i j sp rem
     mgGables mgSpans mgGableW mgSpanW mgRidgePts mgValleyPts mgColumnPts base valley colY
     numMod widthPts gridWpts ewExpr ewSpans ewSum ewScale ewAcc ewStations ewcols ewsp ewY
@@ -362,9 +362,13 @@
   ;; ── RIDGE / VALLEY lines (dash-dot) by structure type ────────────
   (cond
     ((member stype '("CS" "MS" "RC"))
-      (peb-ridge-line 0 len (/ wid 2.0))
+      ;; owner 9-Jul: ridge Y honours BP_RIDGE_OFFSET (distance from NSW); blank => central.
+      ;; boundp-guarded (peb-ridge-y lives in the Plan engine) -- NOT fboundp, which is not an
+      ;; AutoLISP function -- so a standalone Roof load degrades to a central ridge, as before.
+      (setq ridgeY (if (boundp 'peb-ridge-y) (peb-ridge-y data wid) (/ wid 2.0)))
+      (peb-ridge-line 0 len ridgeY)
       (if (boundp 'peb-ridge-symbol)
-        (vl-catch-all-apply (function (lambda () (peb-ridge-symbol (peb-ridge-bay-x bayPts) (/ wid 2.0)))))))
+        (vl-catch-all-apply (function (lambda () (peb-ridge-symbol (peb-ridge-bay-x bayPts) ridgeY))))))
     ((= stype "MG")
       (foreach mgY mgRidgePts (peb-ridge-line 0 len mgY))
       (setvar "CLAYER" "GRID-LINES")

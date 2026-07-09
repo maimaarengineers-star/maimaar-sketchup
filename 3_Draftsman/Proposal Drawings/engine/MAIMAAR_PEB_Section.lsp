@@ -1477,6 +1477,14 @@
 
 ;; ===================== SECTION DRAWING HELPERS =====================
 
+;; RIDGE X (owner 9-Jul).  Duplicate of the Plan engine's peb-ridge-y (Plan loads last and wins; kept
+;; here so Section stands alone).  The IF's `ridgeOffset` is the ridge distance FROM NSW in metres --
+;; NOT a delta from the centre -- serialized as BP_RIDGE_OFFSET (mm).  Blank / non-numeric /
+;; degenerate => CENTRAL ridge.  In the section, NSW is x=0, so the plan's Y is the section's X.
+(defun peb-ridge-x (data W / v)
+  (setq v (MSPL-Get-Num data "BP_RIDGE_OFFSET"))
+  (if (and v (> v (* W 0.02)) (< v (* W 0.98))) v (/ W 2.0)))
+
 (defun compute-section-layout (data stype W /
                                 cols ridges numMod numGab spanPerGab gW
                                 i sp cum modw)
@@ -1502,7 +1510,7 @@
         (setq cum (+ cum sp))
         (setq cols (append cols (list cum)))
         (setq i (1+ i)))
-      (list cols (list (/ W 2.0))))
+      (list cols (list (peb-ridge-x data W))))   ; owner 9-Jul: ridge honours BP_RIDGE_OFFSET
 
     ((= stype "MG")
       (setq numGab (MSPL-Get-Int data "NUMGABLES"))
@@ -1535,7 +1543,7 @@
       ;; Roof system on Reinforced Concrete columns.
       ;; Same gable layout as CS but columns drawn separately as
       ;; concrete rectangles (handled in main draw flow).
-      (list (list 0.0 W) (list (/ W 2.0))))
+      (list (list 0.0 W) (list (peb-ridge-x data W))))   ; owner 9-Jul: ridge honours BP_RIDGE_OFFSET
 
     ((= stype "ACS")
       ;; Arched Clear Span — 2 columns, "ridge" at apex (W/2)
@@ -1552,7 +1560,9 @@
       (list (list (* W 0.22) (- W (* W 0.22))) '()))
 
     (T   ; CS (clear span gable) and any unrecognized stype
-      (list (list 0.0 W) (list (/ W 2.0))))
+      ;; owner 9-Jul: ridge honours BP_RIDGE_OFFSET (blank => central).  ACS/AMS keep a central apex
+      ;; above -- an arch crown is not a ridge and must stay at W/2.
+      (list (list 0.0 W) (list (peb-ridge-x data W))))
   )
 )
 
@@ -5432,7 +5442,7 @@
   ( / dataFile data
     project client propinput propno fulldate
     bldgno revno
-    len wid widInput stype slopeStr slopeD rise
+    len wid widInput stype slopeStr slopeD rise ridgeXoff
     H clearHt ht rd cb fw ep purlinD brickH
     windspeed exposure collateral
     maxSize areaM2
@@ -5545,6 +5555,15 @@
     (T
       (setq effSpan wid)))
   (setq rise (/ (/ effSpan 2.0) slopeD))
+  ;; owner 9-Jul: an OFF-CENTRE ridge (BP_RIDGE_OFFSET) makes the two pitches unequal, because both
+  ;; eaves sit at H.  Convention (matches proposalData.ts, which already bills it this way):
+  ;; the stated slope governs the LONGER run, so rise = max(off, W-off) / slopeD and the SHORT side
+  ;; comes out steeper.  A central ridge gives back (W/2)/slopeD exactly -- no change to the common
+  ;; case.  Gable stypes only: MG has per-gable central ridges, and ACS/AMS crowns must stay central.
+  (if (member stype '("CS" "MS" "RC"))
+    (progn
+      (setq ridgeXoff (peb-ridge-x data wid))
+      (setq rise (/ (max ridgeXoff (- wid ridgeXoff)) slopeD))))
 
   ;; ── User-facing section inputs ───────────────────────────────
   ;; Customer enters only the BUILDING ENVELOPE.  Structural member
