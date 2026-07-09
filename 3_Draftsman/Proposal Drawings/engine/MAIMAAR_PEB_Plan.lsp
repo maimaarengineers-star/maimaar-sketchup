@@ -427,7 +427,7 @@
 ;; aimed at the grid line (toward the building), with the number/letter centred in the circle.  dir tells
 ;; which way the pointer aims (toward the building): "D" down (top number row), "U" up (elevation bubbles
 ;; below the wall), "L" left, "R" right (left letter column).  Omitted dir defaults to "R" (never crashes).
-(defun grid-bubble (x y label dir / r h prev pc d tail apex p1 p2)
+(defun grid-bubble (x y label dir / r h prev pc d tail apex p1 p2 L phi alpha)
   (if (not *PEB-TEXT-SCALE*) (setq *PEB-TEXT-SCALE* 1.0))
   (setq r (if *PEB-BUBRAD* *PEB-BUBRAD* (* 620 *PEB-TEXT-SCALE*)) prev (getvar "CLAYER") pc (getvar "CECOLOR"))
   (setq h (* r (cond ((<= (strlen label) 1) 0.95)   ; 1 char  -> fills the circle
@@ -436,15 +436,21 @@
   (setq d (cond ((= dir "D") (list 0.0 -1.0)) ((= dir "U") (list 0.0 1.0))
                 ((= dir "L") (list -1.0 0.0)) (T (list 1.0 0.0)))
         tail (* r 1.15)
-        apex (list (+ x (* (car d) (+ r tail)))      (+ y (* (cadr d) (+ r tail))))
-        p1   (list (+ x (* (- (cadr d)) (* r 0.62)) (* (car d) (* r 0.30)))
-                   (+ y (* (car d)        (* r 0.62)) (* (cadr d) (* r 0.30))))
-        p2   (list (+ x (* (cadr d)      (* r 0.62)) (* (car d) (* r 0.30)))
-                   (+ y (* (- (car d))   (* r 0.62)) (* (cadr d) (* r 0.30)))))
+        apex (list (+ x (* (car d) (+ r tail)))      (+ y (* (cadr d) (+ r tail)))))
+  ;; POINTER (owner 9-Jul: "the V lines are crossing the bubble circle lines").  The two legs used to
+  ;; start at 0.688*r from the centre -- INSIDE the circle -- so each leg cut across the circumference.
+  ;; Start them exactly ON the circle, at the TANGENT points from the apex: the legs then touch the
+  ;; circle and never cross it.  For an apex at distance L from the centre, the tangent points lie at
+  ;; +/- alpha from the pointing direction, where cos(alpha) = r / L  (so alpha = atan(sqrt(L^2-r^2), r)).
+  (setq L     (+ r tail)
+        phi   (atan (cadr d) (car d))                 ; direction angle of the pointer
+        alpha (atan (sqrt (- (* L L) (* r r))) r)     ; half-angle to the tangent points
+        p1    (list (+ x (* r (cos (+ phi alpha)))) (+ y (* r (sin (+ phi alpha)))))
+        p2    (list (+ x (* r (cos (- phi alpha)))) (+ y (* r (sin (- phi alpha))))))
   (setvar "CLAYER" "GRID")
   (setvar "CECOLOR" "3")                              ; Mammut GREEN bubble
   (command "_.CIRCLE" (list x y) r)
-  (command "_.PLINE" p1 apex p2 "")                   ; triangular pointer toward the grid line
+  (command "_.PLINE" p1 apex p2 "")                   ; tangent pointer toward the grid line
   (setvar "CECOLOR" pc)
   (setvar "CLAYER" "GRID-TEXT")
   (setvar "TEXTSTYLE" "PEB-TITLE")
@@ -2919,6 +2925,11 @@
   ;; proper canopy name for this sheet (nil for non-canopy stypes -- must be set every sheet so a
   ;; later Clear Span in the same drawing can't inherit a stale Falcon/Butterfly name).
   (setq *PEB-CANOPY-NAME* (peb-canopy-name stype data))
+  ;; OPEN CANOPY (owner 9-Jul, from the rendered review set).  BF / CC / PP are open shades: they have
+  ;; NO side walls, NO end walls and NO end frames -- the plan even prints "NO SIDE-WALL COLUMNS" while
+  ;; the old code went on to draw sidewall cross-bracing, four wall labels and a "BEARING FRAME BOTH
+  ;; ENDS" leader across them.  Reset every sheet.
+  (setq *PEB-OPEN-CANOPY* (if (member stype '("BF" "CC" "PP")) T nil))
 
   (setq windspeed  (MSPL-Get-Str data "WINDSPEED"))
   (setq exposure   (MSPL-Get-Str data "EXPOSURE"))
@@ -3511,10 +3522,13 @@
   ;; →thick beam line, N/A→nothing).
   (setq extType (MSPL-Get-Str data "BP_BRACING_EXT")
         intType (MSPL-Get-Str data "BP_BRACING_INT"))
-  (vl-catch-all-apply (function (lambda () (peb-draw-bracing bayPts widthPts wid 0.0 0.0 lewBrace rewBrace extType intType))))
-  ;; End-wall column bracing (owner 5-Jul): X-bracing between the end-wall columns in the LEW/REW planes,
-  ;; same braced-panel rule as the bays, gated by lewBrace/rewBrace, exterior type.
-  (vl-catch-all-apply (function (lambda () (peb-draw-endwall-bracing ewStations leftX rightX lewBrace rewBrace extType))))
+  ;; An OPEN CANOPY (BF/CC/PP) has no side walls and no end walls, so there is nothing to brace.
+  (if (not *PEB-OPEN-CANOPY*)
+    (progn
+      (vl-catch-all-apply (function (lambda () (peb-draw-bracing bayPts widthPts wid 0.0 0.0 lewBrace rewBrace extType intType))))
+      ;; End-wall column bracing (owner 5-Jul): X-bracing between the end-wall columns in the LEW/REW planes,
+      ;; same braced-panel rule as the bays, gated by lewBrace/rewBrace, exterior type.
+      (vl-catch-all-apply (function (lambda () (peb-draw-endwall-bracing ewStations leftX rightX lewBrace rewBrace extType))))))
 
   ;; ── Doors / windows at their offsets (+ braced-bay clash flag) ─
   (vl-catch-all-apply (function (lambda () (peb-draw-placements data 0.0 0.0 len wid bayPts))))
@@ -3539,12 +3553,13 @@
   ;; label piling onto the reference area at the join).
   ;; owner 5-Jul (multi-area): in multi-area mode NO area draws the outer wall labels — the FINALIZE draws
   ;; the four labels ONCE around the whole combined building, so they never repeat per stacked/side area.
-  (if (and (not *PEB-MULTI-MODE*) (not (peb-hide-wall-label-p "FSW"))) (txt-bold "MC" (list (/ len 2.0) yFsw) 560 0 "FSW - FAR SIDE WALL"))
-  (if (and (not *PEB-MULTI-MODE*) (not (peb-hide-wall-label-p "NSW"))) (txt-bold "MC" (list (/ len 2.0) (- (* 3000 *PEB-TEXT-SCALE*))) 560 0 "NSW - NEAR SIDE WALL"))
+  ;; owner 9-Jul: an OPEN CANOPY has no walls at all, so it gets none of the four wall labels.
+  (if (and (not *PEB-MULTI-MODE*) (not *PEB-OPEN-CANOPY*) (not (peb-hide-wall-label-p "FSW"))) (txt-bold "MC" (list (/ len 2.0) yFsw) 560 0 "FSW - FAR SIDE WALL"))
+  (if (and (not *PEB-MULTI-MODE*) (not *PEB-OPEN-CANOPY*) (not (peb-hide-wall-label-p "NSW"))) (txt-bold "MC" (list (/ len 2.0) (- (* 3000 *PEB-TEXT-SCALE*))) 560 0 "NSW - NEAR SIDE WALL"))
   ;; owner 4-Jul: LEW label sits OUTSIDE the letter bubbles (was sandwiched between the width dims and
   ;; the bubbles -> overlapped the dim text). REW side has no dims/bubbles, so it stays close.
-  (if (and (not *PEB-MULTI-MODE*) (not (peb-hide-wall-label-p "LEW"))) (txt-bold "MC" (list (- gridX1 (* 2200.0 *PEB-DIM-SCALE*)) (/ wid 2.0)) 560 90 "LEW - LEFT END WALL"))
-  (if (and (not *PEB-MULTI-MODE*) (not (peb-hide-wall-label-p "REW"))) (txt-bold "MC" (list (+ len (* 3000 *PEB-DIM-SCALE*)) (/ wid 2.0)) 560 90 "REW - RIGHT END WALL"))
+  (if (and (not *PEB-MULTI-MODE*) (not *PEB-OPEN-CANOPY*) (not (peb-hide-wall-label-p "LEW"))) (txt-bold "MC" (list (- gridX1 (* 2200.0 *PEB-DIM-SCALE*)) (/ wid 2.0)) 560 90 "LEW - LEFT END WALL"))
+  (if (and (not *PEB-MULTI-MODE*) (not *PEB-OPEN-CANOPY*) (not (peb-hide-wall-label-p "REW"))) (txt-bold "MC" (list (+ len (* 3000 *PEB-DIM-SCALE*)) (/ wid 2.0)) 560 90 "REW - RIGHT END WALL"))
 
   ;; ── End-frame type MLEADERs (Phase-2A v12) ─────────────────────
   ;; Replaces the old "END FRAME" / "BEARING FRAME (TYP.)" txt labels.
@@ -3570,9 +3585,11 @@
   (setvar "CLAYER" "TEXT")
   ;; owner 5-Jul (multi-area): drop the per-end frame-type words + the BOTH-ENDS leader in multi-area — they
   ;; repeat per stacked area and overprint the width dims.  (Single-area draws them normally.)
-  (if (and (not *PEB-MULTI-MODE*) (not (peb-hide-wall-label-p "LEW"))) (txt-bold "MC" (list (- gridX1 (* 4400.0 *PEB-DIM-SCALE*)) (/ wid 2.0)) 430 90 (strcat "(" lewFrameLabel ")")))
-  (if (and (not *PEB-MULTI-MODE*) (not (peb-hide-wall-label-p "REW"))) (txt-bold "MC" (list (+ len (* 4500 *PEB-DIM-SCALE*)) (/ wid 2.0)) 430 90 (strcat "(" rewFrameLabel ")")))
-  (if (not *PEB-MULTI-MODE*)
+  ;; owner 9-Jul: an OPEN CANOPY has no end WALLS, so it has no end FRAMES to name either -- the
+  ;; "(BEARING FRAME)" words and the "BEARING FRAME / BOTH ENDS" leader are suppressed for BF/CC/PP.
+  (if (and (not *PEB-MULTI-MODE*) (not *PEB-OPEN-CANOPY*) (not (peb-hide-wall-label-p "LEW"))) (txt-bold "MC" (list (- gridX1 (* 4400.0 *PEB-DIM-SCALE*)) (/ wid 2.0)) 430 90 (strcat "(" lewFrameLabel ")")))
+  (if (and (not *PEB-MULTI-MODE*) (not *PEB-OPEN-CANOPY*) (not (peb-hide-wall-label-p "REW"))) (txt-bold "MC" (list (+ len (* 4500 *PEB-DIM-SCALE*)) (/ wid 2.0)) 430 90 (strcat "(" rewFrameLabel ")")))
+  (if (and (not *PEB-MULTI-MODE*) (not *PEB-OPEN-CANOPY*))
   (cond
     ;; Both ends same → ONE MLEADER, "BEARING FRAME / BOTH ENDS"
     ((= lewFrameLabel rewFrameLabel)
