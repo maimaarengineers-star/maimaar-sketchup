@@ -449,7 +449,18 @@
         p2    (list (+ x (* r (cos (- phi alpha)))) (+ y (* r (sin (- phi alpha))))))
   (setvar "CLAYER" "GRID")
   (setvar "CECOLOR" "3")                              ; Mammut GREEN bubble
-  (command "_.CIRCLE" (list x y) r)
+  ;; Draw the MAJOR ARC only, from one tangent point round to the other the LONG way, so the circle
+  ;; stops where the pointer begins.  Drawing a full circle left its bottom arc running straight
+  ;; through the V -- which is the line the owner saw crossing.
+  ;;
+  ;; GOTCHA: entmake takes angle group codes 50/51 in RADIANS, even though the DXF file stores them
+  ;; in degrees.  Passing degrees here made 62.3 be read as 62.3 RADIANS, which wraps to 329 deg --
+  ;; the arc came out as the small 63-deg sliver instead of the 235-deg major arc.
+  ;; CCW from (phi + alpha) round the back to (phi - alpha) leaves the 2*alpha gap for the pointer.
+  (entmake (list '(0 . "ARC") (cons 8 "GRID") '(62 . 3)
+                 (list 10 x y 0.0) (cons 40 r)
+                 (cons 50 (+ phi alpha))      ; start at tangent point 1 (RADIANS)
+                 (cons 51 (- phi alpha))))    ; CCW round the back to tangent point 2 (RADIANS)
   (command "_.PLINE" p1 apex p2 "")                   ; tangent pointer toward the grid line
   (setvar "CECOLOR" pc)
   (setvar "CLAYER" "GRID-TEXT")
