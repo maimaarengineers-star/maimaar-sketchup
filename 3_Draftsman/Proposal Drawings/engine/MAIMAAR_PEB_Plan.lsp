@@ -3430,7 +3430,15 @@
           (if (= x 0) (setq xdraw leftX) (if (> x (- len 1)) (setq xdraw rightX) (setq xdraw x)))
           (draw-I-column-lengthwise xdraw (/ wid 2.0)))
         (setvar "CLAYER" "TEXT")   ; owner 5-Jul: cleared of the AREA tag — one callout above, one below, snug to the falls
-        (txt-bold "MC" (list (/ len 2.0) (+ (/ wid 2.0) (* 1700 *PEB-TEXT-SCALE*))) 560 0 "CENTER COLUMN LINE / VALLEY GUTTER - BUTTERFLY")
+        ;; The centre line means the OPPOSITE thing for the two 2-wing canopies (owner 9-Jul):
+        ;;   Butterfly -> wings fall INWARD, so the centre is a VALLEY and carries the gutter.
+        ;;   Falcon    -> wings fall OUTWARD, so the centre is a RIDGE PEAK and drains at the
+        ;;                outer free edges; calling it a valley gutter is simply wrong.
+        ;; *PEB-CANOPY-NAME* is set from CC_FALCON_PEAK when the sheet's data is read.
+        (txt-bold "MC" (list (/ len 2.0) (+ (/ wid 2.0) (* 1700 *PEB-TEXT-SCALE*))) 560 0
+          (if (and *PEB-CANOPY-NAME* (wcmatch *PEB-CANOPY-NAME* "FALCON*"))
+            "CENTER COLUMN LINE / RIDGE PEAK - FALCON"
+            "CENTER COLUMN LINE / VALLEY GUTTER - BUTTERFLY"))
         (txt-bold "MC" (list (/ len 2.0) (- (/ wid 2.0) (* 1700 *PEB-TEXT-SCALE*))) 560 0 "NO SIDE-WALL COLUMNS - ROOF CANTILEVERS BOTH SIDES")
       )
     )
