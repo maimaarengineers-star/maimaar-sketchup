@@ -85,16 +85,27 @@
     ("MULTI-SPAN" . "MS") ("MULTI SPAN" . "MS")
     ("LEAN-TO" . "LT") ("LEAN TO" . "LT")
     ("MULTI-GABLE" . "MG") ("MULTI GABLE" . "MG")
-    ("FLAT ROOF" . "FR") ("ROOF ON RCC COLUMNS" . "RC")
+    ("FLAT ROOF" . "FR") ("ROOF ON RCC COLUMNS" . "RC") ("ROOF SYSTEM" . "RC")
     ("ARCHED CLEAR SPAN" . "ACS") ("ARCHED MULTI-SPAN" . "AMS")
     ("ARCHED MULTI SPAN" . "AMS") ("BUTTERFLY" . "BF")
-    ("CANTILEVER CANOPY" . "CC")))
+    ("CANTILEVER CANOPY" . "CC") ("PETROL CANOPY" . "PP") ("PETROL PUMP" . "PP")))
 
 (defun peb-frame-display-to-code (s / up pair)
   (setq up (strcase (vl-string-trim " " s)))
-  (cond ((member up '("CS" "SS" "MS" "LT" "MG" "FR" "RC" "ACS" "AMS" "BF" "CC")) up)
-        (T (setq pair (assoc up *PEB-FRAME-CODE-MAP*))
-           (if pair (cdr pair) "CS"))))
+  (cond ((member up '("CS" "SS" "MS" "LT" "MG" "FR" "RC" "ACS" "AMS" "BF" "CC" "PP")) up)
+        ((assoc up *PEB-FRAME-CODE-MAP*) (cdr (assoc up *PEB-FRAME-CODE-MAP*)))
+        ;; fuzzy fallbacks for verbose IF strings
+        ((wcmatch up "*ROOF*SYSTEM*,*RCC*,*ON RCC*,*RC COLUMN*") "RC")
+        ((wcmatch up "*PETROL*,*CNG*,*FUEL*") "PP")
+        ((wcmatch up "*FLAT*") "FR")
+        ((wcmatch up "*BUTTERFLY*") "BF")
+        ((wcmatch up "*ARCH*MULTI*") "AMS")
+        ((wcmatch up "*ARCH*") "ACS")
+        ((wcmatch up "*MULTI*GABLE*") "MG")
+        ((wcmatch up "*SINGLE*SLOPE*,*MONO*") "SS")
+        ((wcmatch up "*LEAN*") "LT")
+        ((wcmatch up "*CANTILEVER*,*SINGLE*SIDED*,*ONE*SIDED*") "CC")
+        (T "CS")))
 
 (defun peb-slope-to-denom (slopeStr customStr / s pos)
   (setq s (vl-string-trim " " slopeStr))
@@ -1536,6 +1547,10 @@
       ;; for grid bubble + dim purposes.
       (list (list 0.0 (/ W 2.0) W) (list (/ W 2.0))))
 
+    ((= stype "PP")
+      ;; Petrol Pump canopy — TWO inset column lines (roof cantilevers beyond each), no ridge.
+      (list (list (* W 0.22) (- W (* W 0.22))) '()))
+
     (T   ; CS (clear span gable) and any unrecognized stype
       (list (list 0.0 W) (list (/ W 2.0))))
   )
@@ -2182,6 +2197,29 @@
     (list ht        (- H ht))               ; left haunch corner
     (list cb        0.0)                    ; left column inside-base
     "C")
+)
+
+(defun draw-petrol-frame (W H ht cb / ovh cx1 cx2 rt colw)
+  ;;  PETROL PUMP / CNG CANOPY (owner 9-Jul): a near-flat roof carried on 1-2 rows of columns with
+  ;;  CANTILEVER overhangs on both sides — the roof slab spans the full width and projects beyond the
+  ;;  two (inset) column lines.  Open underneath (no walls).  Section = across the width.
+  (setq ovh  (* W 0.22)              ; side cantilever overhang (each side)
+        cx1  ovh cx2 (- W ovh)       ; the two column lines (inset from the roof edges)
+        rt   (max (* ht 0.8) 250.0)  ; roof slab band depth
+        colw (max cb 300.0))
+  (setvar "CLAYER" "FRAME")
+  (setvar "PLINEWID" 0.0)
+  ;; near-flat roof slab — full width, overhanging both column lines (the cantilevers)
+  (command "PLINE"
+    (list 0.0 H) (list W H) (list W (- H rt)) (list 0.0 (- H rt)) "C")
+  ;; left column (floor up to the roof underside)
+  (command "PLINE"
+    (list (- cx1 (/ colw 2.0)) 0.0) (list (- cx1 (/ colw 2.0)) (- H rt))
+    (list (+ cx1 (/ colw 2.0)) (- H rt)) (list (+ cx1 (/ colw 2.0)) 0.0) "C")
+  ;; right column
+  (command "PLINE"
+    (list (- cx2 (/ colw 2.0)) 0.0) (list (- cx2 (/ colw 2.0)) (- H rt))
+    (list (+ cx2 (/ colw 2.0)) (- H rt)) (list (+ cx2 (/ colw 2.0)) 0.0) "C")
 )
 
 (defun draw-cc-frame (W H slopeRise ht cb lowAtCol / eL eR)
@@ -4893,6 +4931,7 @@
     ((= stype "FR") "FLAT ROOF")
     ((= stype "RC") "ROOF ON RCC COLUMNS")
     ((= stype "CC") "CANTILEVER CANOPY")
+    ((= stype "PP") "PETROL PUMP CANOPY")
     ((= stype "BF") "BUTTERFLY STRUCTURE")
     ((= stype "ACS") "ARCHED CLEAR SPAN")
     ((= stype "AMS") "ARCHED MULTI-SPAN")
@@ -5469,7 +5508,7 @@
   (setq slopeD   (slope-denom slopeStr))
 
   (setq stype (strcase (MSPL-Get-Str data "STYPE")))
-  (if (not (member stype '("CS" "SS" "MS" "LT" "MG" "FR" "RC" "CC" "BF" "ACS" "AMS")))
+  (if (not (member stype '("CS" "SS" "MS" "LT" "MG" "FR" "RC" "CC" "BF" "ACS" "AMS" "PP")))
     (setq stype "CS"))
 
   ;; ── Effective span for rise/haunch calc (per-gable for MG) ──
@@ -5643,6 +5682,9 @@
       (draw-lt-frame wid H slopeRise ht cb))
     ((= stype "FR")
       (draw-fr-frame wid H ht cb))
+    ((= stype "PP")
+      ;; Petrol Pump / CNG canopy — near-flat roof on inset columns, cantilever both sides.
+      (draw-petrol-frame wid H ht cb))
     ((= stype "CC")
       (setq slopeRise (/ wid slopeD))
       (draw-cc-frame wid H slopeRise ht cb
@@ -5684,6 +5726,7 @@
   (cond
     ;; existing RCC building: no steel haunch/base plates (concrete frame) — owner 8-Jul
     ((peb-mz-rcc-sec-p data) nil)
+    ((= stype "PP") nil)   ; Petrol canopy — simple inset columns, no haunch/base-plate/stiffener detail
     ((= stype "MG")
       (progn
         ;; Base plates at every gable-boundary column (0, gW, 2gW, ..., W)
@@ -5921,6 +5964,11 @@
       (draw-downpipes     wid H brickH)
       (draw-eave-features wid H)
       (draw-rafter-label  (/ wid numGab) H rise ht))
+    ((= stype "PP")
+      ;; Petrol Pump / CNG canopy — an OPEN, near-flat canopy: NO brick wall, girts, downpipes,
+      ;; eave struts, or gable cladding/purlins.  The flat roof band + inset columns
+      ;; (draw-petrol-frame) already document it.  Just the eave gutters/trims at the roof edges.
+      (draw-eave-features wid H))
     (T
       (draw-brick-wall    wid brickH)
       (draw-cladding      data wid H rise brickH)
@@ -6087,6 +6135,9 @@
   (peb-recolor-last-dim 0)                    ; ByBlock for overall width dim
 
   ;; ── Title (frame type prominently displayed for review) ─────
+  ;; Re-assert stype from the data (defensive: a dim/label helper can clobber the dynamic binding).
+  (setq stype (strcase (MSPL-Get-Str data "STYPE")))
+  (if (not (member stype '("CS" "SS" "MS" "LT" "MG" "FR" "RC" "CC" "BF" "ACS" "AMS" "PP"))) (setq stype "CS"))
   (setvar "CLAYER" "TEXT")
   ;; Top line: frame type (e.g. CLEAR SPAN GABLE / MULTI-GABLE / SINGLE SLOPE)
   (txt-bold "MC"
@@ -6112,8 +6163,9 @@
        200 0
        (strcat (rtos (/ widInput 1000.0) 2 1) "m SPAN  |  "
                "C.H " (rtos (/ (- H ht) 1000.0) 2 1) "m  |  "
-               "RIDGE " (rtos (/ (+ H rise) 1000.0) 2 1) "m  |  "
-               "SLOPE " slopeStr))
+               (if (member stype '("PP" "FR"))
+                 "FLAT ROOF"
+                 (strcat "RIDGE " (rtos (/ (+ H rise) 1000.0) 2 1) "m  |  SLOPE " slopeStr))))
 
   ;; ── Title block (auto-widens for narrow buildings, scales uniformly for big) ──
   ;; Min: 35 m so small buildings still get readable cells.

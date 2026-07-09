@@ -87,28 +87,29 @@
     ("MULTI-SPAN" . "MS") ("MULTI SPAN" . "MS")
     ("LEAN-TO" . "LT") ("LEAN TO" . "LT")
     ("MULTI-GABLE" . "MG") ("MULTI GABLE" . "MG")
-    ("FLAT ROOF" . "FR") ("ROOF ON RCC COLUMNS" . "RC")
+    ("FLAT ROOF" . "FR") ("ROOF ON RCC COLUMNS" . "RC") ("ROOF SYSTEM" . "RC")
     ("ARCHED CLEAR SPAN" . "ACS") ("ARCHED MULTI-SPAN" . "AMS")
     ("ARCHED MULTI SPAN" . "AMS") ("BUTTERFLY" . "BF")
-    ("CANTILEVER CANOPY" . "CC")))
+    ("CANTILEVER CANOPY" . "CC") ("PETROL CANOPY" . "PP") ("PETROL PUMP" . "PP")))
 
 (defun peb-frame-display-to-code (s / up pair)
   (setq up (strcase (vl-string-trim " " s)))
-  (cond ((member up '("CS" "SS" "MS" "LT" "MG" "FR" "RC" "ACS" "AMS" "BF" "CC")) up)
+  (cond ((member up '("CS" "SS" "MS" "LT" "MG" "FR" "RC" "ACS" "AMS" "BF" "CC" "PP")) up)
         ((setq pair (assoc up *PEB-FRAME-CODE-MAP*)) (cdr pair))
         ;; fuzzy fallbacks (owner 8-Jul) — the IF sends VERBOSE option strings that don't match the
         ;; exact alist keys (e.g. "Roof System without steel columns (rafter is fixed on RCC columns)",
         ;; "Multi-Gable (CS & MS)", "Arch Clear Span (ACS)"), which previously all defaulted to CS.
         ;; Order: most specific first (ARCH-MULTI before ARCH; MULTI-GABLE before MULTI-SPAN).
-        ((wcmatch up "*RCC*,*ON RCC*,*OVER RCC*,*RC COLUMN*") "RC")
+        ((wcmatch up "*ROOF*SYSTEM*,*RCC*,*ON RCC*,*OVER RCC*,*RC COLUMN*") "RC")
+        ((wcmatch up "*PETROL*,*CNG*,*FUEL*")                 "PP")
         ((wcmatch up "*FLAT*")                                "FR")
         ((wcmatch up "*BUTTERFLY*")                           "BF")
         ((wcmatch up "*ARCH*MULTI*")                          "AMS")
         ((wcmatch up "*ARCH*")                                "ACS")
         ((wcmatch up "*MULTI*GABLE*")                         "MG")
-        ((wcmatch up "*SINGLE*SLOPE*")                        "SS")
+        ((wcmatch up "*SINGLE*SLOPE*,*MONO*")                 "SS")
         ((wcmatch up "*LEAN*")                                "LT")
-        ((wcmatch up "*CANTILEVER*")                          "CC")
+        ((wcmatch up "*CANTILEVER*,*SINGLE*SIDED*,*ONE*SIDED*") "CC")
         ((wcmatch up "*MULTI*SPAN*")                          "MS")
         (T                                                    "CS")))
 
@@ -1358,6 +1359,7 @@
     ((= stype "FR") "FLAT ROOF")
     ((= stype "RC") "ROOF ON RCC COLUMNS - NO STEEL COLUMNS")
     ((= stype "CC") "CANTILEVER CANOPY")
+    ((= stype "PP") "PETROL PUMP CANOPY")
     ((= stype "BF") "BUTTERFLY STRUCTURE")
     (T "CLEAR SPAN GABLE")
   )
