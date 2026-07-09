@@ -1299,9 +1299,26 @@
             (arrow-up-big   sx (+ mgY (* mgGableW 0.375)) fallU)   ; owner 5-Jul: 3/4 from gable ridge
             (arrow-down-big sx (- mgY (* mgGableW 0.375)) fallU))))
       ((= stype "BF")
+        ;; BF covers BOTH 2-wing canopies (centre column at wid/2), mirroring the Section dispatch:
+        ;;   CC_FALCON_PEAK=Yes -> FALCON: centre PEAK, wings slope outward, drains at the outer eaves.
+        ;;   default            -> BUTTERFLY: centre VALLEY, wings slope inward, drains at the centre.
+        (if (= (strcase (peb-tb-or (MSPL-Get-Str data "CC_FALCON_PEAK") "")) "YES")
+          (foreach sx slopeXs
+            (arrow-up-big   sx (* wid 0.875) fallU)   ; upper wing falls out toward FSW
+            (arrow-down-big sx (* wid 0.125) fallU))  ; lower wing falls out toward NSW
+          (foreach sx slopeXs
+            (arrow-down-big sx (* wid 0.875) fallU)   ; upper wing falls in toward the centre valley
+            (arrow-up-big   sx (* wid 0.125) fallU))))
+      ((= stype "CC")
+        ;; 1-wing cantilever canopy: back support column line on NSW (y=0), free edge on FSW (y=wid)
+        ;; -- see the CC column branch below.  ONE continuous fall across the width (no ridge), so a
+        ;; single mid-width arrow like SS.  Direction mirrors the Section's draw-cc-frame lowAtCol:
+        ;;   CC_LOW_AT_COLUMN=Yes -> BUTTERFLY 1-wing: low at the column, drains AT the column (NSW).
+        ;;   default              -> FALCON 1-wing: high at the column, drains at the free end (FSW).
         (foreach sx slopeXs
-          (arrow-down-big sx (* wid 0.875) fallU)   ; owner 5-Jul: 3/4 from ridge -> near wall
-          (arrow-up-big   sx (* wid 0.125) fallU)))
+          (if (= (strcase (peb-tb-or (MSPL-Get-Str data "CC_LOW_AT_COLUMN") "")) "YES")
+            (arrow-down-big sx (* wid 0.5) fallU)
+            (arrow-up-big   sx (* wid 0.5) fallU))))
       ((= stype "FR")
         ;; flat roof drains INWARD to a central drain line (owner/Mammut §4.5): arrows from both
         ;; sidewalls toward the centreline, + a dashed centre drain line along the length.
