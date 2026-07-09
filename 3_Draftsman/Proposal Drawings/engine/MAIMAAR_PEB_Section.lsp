@@ -4933,9 +4933,11 @@
         "FALCON CANOPY (CENTRE PEAK)"
         "BUTTERFLY CANOPY (VALLEY)"))
     ((= stype "CC")
+      ;; short forms (owner 9-Jul): UPWARD = slope towards the columns (low at the column, rises to
+      ;; the free end); DOWNWARD = otherwise.  Slope read from the column outward to the free edge.
       (if (= (strcase (peb-tb-or (MSPL-Get-Str data "CC_LOW_AT_COLUMN") "")) "YES")
-        "SINGLE-SIDED CANTILEVER (TOWARDS COLUMNS)"
-        "SINGLE-SIDED CANTILEVER (AWAY FROM COLUMNS)"))
+        "CANTILEVER - SLOPES UPWARD"
+        "CANTILEVER - SLOPES DOWNWARD"))
     (T nil)
   )
 )

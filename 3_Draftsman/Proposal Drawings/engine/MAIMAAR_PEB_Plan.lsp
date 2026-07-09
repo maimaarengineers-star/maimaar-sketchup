@@ -1393,9 +1393,15 @@
         "FALCON CANOPY (CENTRE PEAK)"
         "BUTTERFLY CANOPY (VALLEY)"))
     ((= stype "CC")
+      ;; shortened 9-Jul (owner: "you may say upward, downward").  Slope is read FROM THE COLUMN
+      ;; OUTWARD TO THE FREE EDGE, which is the only direction the single column line allows:
+      ;;   CC_LOW_AT_COLUMN=Yes -> low at the column, rises to the free end  -> SLOPES UPWARD
+      ;;   default              -> high at the column, falls to the free end -> SLOPES DOWNWARD
+      ;; The IF's full proper names stay "Single-Sided Cantilever - Slope Towards / Away From
+      ;; Columns"; these are the sheet's short forms (was 41/43 chars vs the 38-char longest peer).
       (if (= (strcase (peb-tb-or (MSPL-Get-Str data "CC_LOW_AT_COLUMN") "")) "YES")
-        "SINGLE-SIDED CANTILEVER (TOWARDS COLUMNS)"
-        "SINGLE-SIDED CANTILEVER (AWAY FROM COLUMNS)"))
+        "CANTILEVER - SLOPES UPWARD"
+        "CANTILEVER - SLOPES DOWNWARD"))
     (T nil)
   )
 )
