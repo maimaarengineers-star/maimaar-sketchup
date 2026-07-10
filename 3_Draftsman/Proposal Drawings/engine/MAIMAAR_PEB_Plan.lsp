@@ -5299,11 +5299,19 @@
 ;; owner 5-Jul: when `sheeting` is T (the SHEETING outline, not the column line), ALSO skip a wall whose
 ;; IF condition is FULLY open for access (*PEB-WOPEN-*) — no sheeting line there.  So a common wall set
 ;; 'Full Height Open for Access' reads as an open passage between the areas.
+;; owner 10-Jul: "whenever there are 2 areas, there is ALWAYS ONE line of sheeting at the common wall,
+;; due to the difference in area."  So a common wall carries exactly ONE sheeting line, not two and not
+;; none.  That falls out naturally: the ATTACHED area omits the wall entirely (*PEB-OMIT-WALL*), while
+;; the REFERENCE still clads it.  An earlier reading of "single sheeting line, NOT 2" also suppressed
+;; the reference's sheeting there, leaving ZERO — measured on 19/20/22/23: COL-OUTER only.
+;; *PEB-REF-SHARED* therefore governs the wall LABEL, the DIM stack and the GRID row (all interior
+;; now), but NOT the sheeting: the cladding is real.  Only a wall the IF marks fully open for access
+;; (*PEB-WOPEN-*) loses its sheeting line.
 (defun peb-draw-outline (x0 y0 x1 y1 sheeting)
-  (if (not (or (peb-omit-wall-p "NSW") (and sheeting (or *PEB-WOPEN-NSW* (peb-ref-shared-p "NSW"))))) (command "_.LINE" (list x0 y0) (list x1 y0) ""))
-  (if (not (or (peb-omit-wall-p "FSW") (and sheeting (or *PEB-WOPEN-FSW* (peb-ref-shared-p "FSW"))))) (command "_.LINE" (list x0 y1) (list x1 y1) ""))
-  (if (not (or (peb-omit-wall-p "LEW") (and sheeting (or *PEB-WOPEN-LEW* (peb-ref-shared-p "LEW"))))) (command "_.LINE" (list x0 y0) (list x0 y1) ""))
-  (if (not (or (peb-omit-wall-p "REW") (and sheeting (or *PEB-WOPEN-REW* (peb-ref-shared-p "REW"))))) (command "_.LINE" (list x1 y0) (list x1 y1) ""))
+  (if (not (or (peb-omit-wall-p "NSW") (and sheeting *PEB-WOPEN-NSW*))) (command "_.LINE" (list x0 y0) (list x1 y0) ""))
+  (if (not (or (peb-omit-wall-p "FSW") (and sheeting *PEB-WOPEN-FSW*))) (command "_.LINE" (list x0 y1) (list x1 y1) ""))
+  (if (not (or (peb-omit-wall-p "LEW") (and sheeting *PEB-WOPEN-LEW*))) (command "_.LINE" (list x0 y0) (list x0 y1) ""))
+  (if (not (or (peb-omit-wall-p "REW") (and sheeting *PEB-WOPEN-REW*))) (command "_.LINE" (list x1 y0) (list x1 y1) ""))
   (princ))
 
 ;; wall of THIS area that is common with its reference, given its attach position (for *PEB-OMIT-WALL*)
