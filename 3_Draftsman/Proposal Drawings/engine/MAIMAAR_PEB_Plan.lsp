@@ -3372,7 +3372,9 @@
   (setq i 1)
   ;; owner 5-Jul (multi-area): the top length-grid sits on the FSW side — skip it when FSW is the wall
   ;; SHARED with an attached area (the grid continues from the reference; avoids the overlap at the join).
-  (if (not (peb-omit-wall-p "FSW"))
+  ;; owner 10-Jul: also skip it when THIS area is the reference and an area is attached ABOVE — that FSW
+  ;; is now an interior wall, and both areas were drawing a top number row (numbers came out 1 1 2 2 ...).
+  (if (not (or (peb-omit-wall-p "FSW") (peb-sheet-omit-p "FSW")))
     (foreach x bayPts
       ;; owner 5-Jul (multi-area): at a SHARED end wall (Left/Right) the length-grid bubble MERGES — the
       ;; attached area skips its endpoint on the common LEW/REW so it isn't drawn twice at the join.
@@ -3398,7 +3400,8 @@
   ;; owner 5-Jul (multi-area): the LEFT width grid sits on the LEW side — skip it when LEW is the shared
   ;; end wall (Left/Right side-by-side); the outer area carries the one width grid.
   (setq j 0 nWid (length gridWpts))
-  (if (not (peb-hide-wall-label-p "LEW"))
+  ;; ... and skip the letter column when an area is attached to THIS area's LEW (mirror of the FSW case)
+  (if (not (or (peb-hide-wall-label-p "LEW") (peb-sheet-omit-p "LEW")))
   (foreach y gridWpts
     ;; owner 5-Jul (multi-area): at a SHARED side wall (Below/Above) the grid bubble MERGES — the attached
     ;; area skips its endpoint bubble/line on the common wall so it isn't drawn twice at the join.
@@ -5119,6 +5122,38 @@
       (close f)))
   pos)
 
+;; ---- STATIC grid-station counts, from the DATA alone (no drawing) --------------------------------
+;; Needed because an area attached ABOVE / LEFT must make the REFERENCE carry the grid offset, and the
+;; reference is drawn FIRST — we cannot wait for the attached area's own *PEB-MA-*GRID-N*.  Mirrors the
+;; drawer: width stations = {0, wid} U module stations U end-wall stations (the EW spans are RESCALED to
+;; close on wid, exactly as the drawer does at ~3096); bay stations = bay spans + 1.
+(defun peb-count-wgrid (d / wid ewE mdE spans sts acc sum sc s)
+  (setq wid (MSPL-Get-Num d "WIDTH"))
+  (if (or (null wid) (<= wid 0.0)) (setq wid 30000.0))
+  (setq sts (list 0.0 wid))
+  ;; module (interior-column) stations
+  (setq mdE (MSPL-Get-Str d "MODEXPR") spans (if (/= mdE "") (peb-parse-mod-expression mdE) nil))
+  (if spans
+    (progn (setq acc 0.0)
+      (foreach s spans (setq acc (+ acc s)) (if (< acc (- wid 1.0)) (setq sts (cons acc sts))))))
+  ;; end-wall stations, scaled to close on wid
+  (setq ewE (MSPL-Get-Str d "EWLEXPR") spans (if (/= ewE "") (peb-parse-mod-expression ewE) nil))
+  (if spans
+    (progn (setq sum 0.0) (foreach s spans (setq sum (+ sum s)))
+      (if (> sum 0.0)
+        (progn (setq sc (/ wid sum) acc 0.0)
+          (foreach s spans (setq acc (+ acc (* s sc)))
+            (if (< acc (- wid 1.0)) (setq sts (cons acc sts))))))))
+  ;; unique within 1 mm
+  (setq acc nil)
+  (foreach s (vl-sort sts '<)
+    (if (not (vl-some '(lambda (p) (< (abs (- p s)) 1.0)) acc)) (setq acc (cons s acc))))
+  (length acc))
+
+(defun peb-count-lgrid (d / spans)
+  (setq spans (peb-parse-mod-expression (MSPL-Get-Str d "BAYEXPR")))
+  (if spans (1+ (length spans)) 2))
+
 ;; The REFERENCE area's wall that an attached area sits against — the mirror of peb-common-wall, which
 ;; returns the ATTACHED area's own common wall.  Below => the attached area hangs off the reference's NSW.
 (defun peb-ref-shared-wall (pos / p)
@@ -5215,19 +5250,31 @@
 ;; title-block state quirk).  Single-area is unaffected.  e.g.:
 ;;   (progn (peb-plan-multi-from-files (list ...)) (command "_.ZOOM" "_E") (command "_.DXFOUT" f "16"))
 (defun peb-plan-multi-from-files (paths / placed prev-last off aNum pos ref gap w l refbnds i
-                                        wgrids adata apos aref rw shared d2 p2 r2 w2 aNo)
-  (setq *PEB-SUPPRESS-TB* T *PEB-MULTI-MODE* T placed nil wgrids nil i 0
+                                        wgrids lgrids adata apos aref rw rl shared refLet refNum
+                                        d2 p2 r2 w2 aNo)
+  (setq *PEB-SUPPRESS-TB* T *PEB-MULTI-MODE* T placed nil wgrids nil lgrids nil i 0
         *PEB-GRID-LET-OFS* nil *PEB-GRID-NUM-OFS* nil *PEB-SHEET-OMIT* nil)
   ;; PRE-PASS (owner 10-Jul): the reference area is drawn FIRST and never learns that something attached
   ;; to it, so it kept cladding its own shared wall (two lines at the join).  Scan every file up front and
   ;; record, per REFERENCE area number, which of ITS walls an area sits against.
-  (setq shared nil)
+  ;; ALSO: an area attached ABOVE / LEFT grows AGAINST the letter/number direction (letters run A at the
+  ;; top downward, numbers 1 at the left rightward).  There the OUTER area is the attached one, so the
+  ;; REFERENCE must carry the offset — and the reference draws first.  Compute the attached area's station
+  ;; count statically (peb-count-wgrid / peb-count-lgrid) and hand the offset to the reference.
+  (setq shared nil refLet nil refNum nil)
   (foreach path paths
     (setq d2 (MSPL-Read-Data path)
           p2 (MSPL-Get-Str d2 "AR_POSITION")
           r2 (MSPL-Get-Int d2 "AR_REF_AREA")
           w2 (peb-ref-shared-wall p2))
-    (if (and r2 (> r2 0) w2) (setq shared (cons (cons r2 w2) shared))))
+    (if (and r2 (> r2 0) w2)
+      (progn
+        (setq shared (cons (cons r2 w2) shared))
+        (cond
+          ((wcmatch (strcase p2) "*ABOVE*")
+            (setq refLet (cons (cons r2 (1- (peb-count-wgrid d2))) refLet)))
+          ((wcmatch (strcase p2) "*LEFT*")
+            (setq refNum (cons (cons r2 (1- (peb-count-lgrid d2))) refNum)))))))
   (foreach path paths
     (setq prev-last (entlast) *PEB-DATA-FILE* path)
     ;; CROSS-AREA GRID CONTINUITY (owner 10-Jul).  *PEB-GRID-LET-OFS* / *PEB-GRID-NUM-OFS* are READ by
@@ -5239,23 +5286,33 @@
     ;; on the *PEB-AR-* globals, which C:PEB-PLAN only fills in as it draws.
     ;; ABOVE / LEFT / RIGHT are deliberately left at nil (unchanged): they grow against the letter/number
     ;; direction and need their own rule — wiring them blind would renumber existing multi-area sheets.
-    (setq *PEB-GRID-LET-OFS* nil *PEB-GRID-NUM-OFS* nil)
     (setq adata (MSPL-Read-Data path)
           aNo   (MSPL-Get-Int adata "AREA_NUM"))
-    ;; if THIS area is a reference that something attaches to, drop its sheeting on that wall
+    ;; if THIS area is a reference that something attaches to, drop its sheeting on that wall,
+    ;; and take any offset an ABOVE/LEFT attachment pushed onto it
     (setq *PEB-SHEET-OMIT* (if aNo (cdr (assoc aNo shared))))
+    (setq *PEB-GRID-LET-OFS* (if aNo (cdr (assoc aNo refLet)))
+          *PEB-GRID-NUM-OFS* (if aNo (cdr (assoc aNo refNum))))
     (if (> i 0)
       (progn
         (setq apos (strcase (MSPL-Get-Str adata "AR_POSITION"))
               aref (MSPL-Get-Int adata "AR_REF_AREA"))
-        (setq rw (if aref (cdr (assoc aref wgrids))))
+        (setq rw (if aref (cdr (assoc aref wgrids)))    ; reference's letter count (width stations)
+              rl (if aref (cdr (assoc aref lgrids))))   ; reference's number count (bay stations)
+        ;; BELOW: letters run A at the top downward, so the attached area continues at refLetters-1
+        ;; (the shared wall's letter belongs to the reference and is counted once).
         (if (and rw (> rw 1) (wcmatch apos "*BELOW*"))
-          (setq *PEB-GRID-LET-OFS* (1- rw)))))
+          (setq *PEB-GRID-LET-OFS* (1- rw)))
+        ;; RIGHT: numbers run 1..n left to right — exactly symmetric. The attached area omits its shared
+        ;; LEW station, so its first DRAWN station (i=2) must read refBays+1 => offset = refBays-1.
+        (if (and rl (> rl 1) (wcmatch apos "*RIGHT*"))
+          (setq *PEB-GRID-NUM-OFS* (1- rl)))))
     ;; C:PEB-PLAN itself sets *PEB-OMIT-WALL* from AR_POSITION (it already reads the data) — no re-open here
     (vl-catch-all-apply (function (lambda () (C:PEB-PLAN))))
     (setq w *PEB-MA-WID* l *PEB-MA-LEN* aNum *PEB-AR-NUM*
           pos *PEB-AR-POS* ref *PEB-AR-REF* gap *PEB-AR-GAP*)
-    (setq wgrids (cons (cons aNum *PEB-MA-WGRID-N*) wgrids))   ; letters this area used, for the next one
+    (setq wgrids (cons (cons aNum *PEB-MA-WGRID-N*) wgrids)    ; letters this area used, for the next one
+          lgrids (cons (cons aNum *PEB-MA-LGRID-N*) lgrids))   ; numbers this area used
     ;; the reference (first) area fixes the title-block size so it stays CONSTANT (not stretched to the set)
     (if (= i 0) (setq *PEB-MA-FIRST-SHEETH* *PEB-MA-SHEETH* *PEB-MA-FIRST-TBW* *PEB-MA-TBSTRIPW*))
     (setq refbnds (if ref (cdr (assoc ref placed))))
