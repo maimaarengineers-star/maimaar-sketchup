@@ -5169,14 +5169,35 @@
 ;; in acad /b, the script reader stalls on the NEXT top-level form after the multi-area draw (an ActiveX/
 ;; title-block state quirk).  Single-area is unaffected.  e.g.:
 ;;   (progn (peb-plan-multi-from-files (list ...)) (command "_.ZOOM" "_E") (command "_.DXFOUT" f "16"))
-(defun peb-plan-multi-from-files (paths / placed prev-last off aNum pos ref gap w l refbnds i)
-  (setq *PEB-SUPPRESS-TB* T *PEB-MULTI-MODE* T placed nil i 0)
+(defun peb-plan-multi-from-files (paths / placed prev-last off aNum pos ref gap w l refbnds i
+                                        wgrids adata apos aref rw)
+  (setq *PEB-SUPPRESS-TB* T *PEB-MULTI-MODE* T placed nil wgrids nil i 0
+        *PEB-GRID-LET-OFS* nil *PEB-GRID-NUM-OFS* nil)
   (foreach path paths
     (setq prev-last (entlast) *PEB-DATA-FILE* path)
+    ;; CROSS-AREA GRID CONTINUITY (owner 10-Jul).  *PEB-GRID-LET-OFS* / *PEB-GRID-NUM-OFS* are READ by
+    ;; the bubble loops (~3363 / ~3388) but were never SET by anyone, so every attached area restarted
+    ;; its letters at A — a lean-to under a 6-letter main building came out B,C instead of G,H.
+    ;; Letters run A at the TOP (FSW) downward, so an area attached BELOW continues at refLetters-1
+    ;; (the shared wall's letter is counted once, by the reference).  Must be set BEFORE C:PEB-PLAN,
+    ;; which draws the bubbles — so read AR_POSITION/AR_REF_AREA from the file here rather than relying
+    ;; on the *PEB-AR-* globals, which C:PEB-PLAN only fills in as it draws.
+    ;; ABOVE / LEFT / RIGHT are deliberately left at nil (unchanged): they grow against the letter/number
+    ;; direction and need their own rule — wiring them blind would renumber existing multi-area sheets.
+    (setq *PEB-GRID-LET-OFS* nil *PEB-GRID-NUM-OFS* nil)
+    (if (> i 0)
+      (progn
+        (setq adata (MSPL-Read-Data path))
+        (setq apos (strcase (MSPL-Get-Str adata "AR_POSITION"))
+              aref (MSPL-Get-Int adata "AR_REF_AREA"))
+        (setq rw (if aref (cdr (assoc aref wgrids))))
+        (if (and rw (> rw 1) (wcmatch apos "*BELOW*"))
+          (setq *PEB-GRID-LET-OFS* (1- rw)))))
     ;; C:PEB-PLAN itself sets *PEB-OMIT-WALL* from AR_POSITION (it already reads the data) — no re-open here
     (vl-catch-all-apply (function (lambda () (C:PEB-PLAN))))
     (setq w *PEB-MA-WID* l *PEB-MA-LEN* aNum *PEB-AR-NUM*
           pos *PEB-AR-POS* ref *PEB-AR-REF* gap *PEB-AR-GAP*)
+    (setq wgrids (cons (cons aNum *PEB-MA-WGRID-N*) wgrids))   ; letters this area used, for the next one
     ;; the reference (first) area fixes the title-block size so it stays CONSTANT (not stretched to the set)
     (if (= i 0) (setq *PEB-MA-FIRST-SHEETH* *PEB-MA-SHEETH* *PEB-MA-FIRST-TBW* *PEB-MA-TBSTRIPW*))
     (setq refbnds (if ref (cdr (assoc ref placed))))
@@ -5186,7 +5207,8 @@
     (peb-move-since prev-last off)
     (setq placed (cons (cons aNum (list (car off) (+ (car off) l) (cadr off) (+ (cadr off) w))) placed)
           i (1+ i)))
-  (setq *PEB-SUPPRESS-TB* nil *PEB-OMIT-WALL* nil *PEB-MULTI-MODE* nil)
+  (setq *PEB-SUPPRESS-TB* nil *PEB-OMIT-WALL* nil *PEB-MULTI-MODE* nil
+        *PEB-GRID-LET-OFS* nil *PEB-GRID-NUM-OFS* nil)   ; globals: never leak into the next drawing
   (peb-draw-combined-frame)
   (princ))
 
