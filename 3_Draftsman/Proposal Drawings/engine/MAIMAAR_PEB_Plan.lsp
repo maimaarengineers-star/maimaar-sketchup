@@ -1937,7 +1937,7 @@
 
 ;; one canopy on wall w: outline extruded from the wall by proj, along the wall by
 ;; alen (default full), + outward FALL arrow + projection & coverage-length dims + label.
-(defun peb-comp-canopy-one (w proj alen len wid u / wl a0 a1 bx by ex ey nx ny mcx mcy horiz su full)
+(defun peb-comp-canopy-one (w proj alen len wid u / wl a0 a1 bx by ex ey nx ny mcx mcy lx ly horiz su full)
   (setq horiz (member w '("NSW" "FSW")) wl (if horiz len wid)
         full (or (null alen) (<= alen 0.0) (>= alen wl)))
   (if full (setq a0 0.0 a1 wl) (setq a0 (/ (- wl alen) 2.0) a1 (+ a0 alen)))
@@ -1956,7 +1956,13 @@
   (if horiz (peb-comp-fall (+ bx (* (- ex bx) 0.30)) mcy nx ny su)
             (peb-comp-fall mcx (+ by (* (- ey by) 0.30)) nx ny su))
   (setvar "CLAYER" "COMP-CANOPY")
-  (txt-bold "MC" (list mcx mcy) (/ su (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) (if horiz 0.0 90.0) "CANOPY")
+  ;; owner 10-Jul: the label used to sit at mid-wall (0.50), where the CLP already prints
+  ;; "CROSS BRACING (TYP.)" / "RAFTER" on a side wall and the "<wall> - ... WALL" name on an end wall.
+  ;; Measured overlap on NSW: 513 mm. Push it to 0.72 along the wall — the FALL arrow holds 0.30, so the
+  ;; two annotations bracket the strip instead of stacking on the centre.
+  (setq lx (if horiz (+ bx (* (- ex bx) 0.72)) mcx)
+        ly (if horiz mcy (+ by (* (- ey by) 0.72))))
+  (txt-bold "MC" (list lx ly) (/ su (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) (if horiz 0.0 90.0) "CANOPY")
   ;; projection dim ALWAYS; coverage dim only if PARTIAL (a full-wall canopy's extent is already the
   ;; building length/width dim, so re-drawing it just collides with the wall labels).
   (if horiz
