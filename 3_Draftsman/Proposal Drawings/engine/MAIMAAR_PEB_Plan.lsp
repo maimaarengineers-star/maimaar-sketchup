@@ -1299,38 +1299,55 @@
 ;;     the ratio travels with the arrow instead of floating on a separate line)
 ;;   * "FALL" vertical below, unchanged.
 ;; Drawn with peb-* entmake primitives (project rule: sheet engines never draw raw), BYLAYER on FALL.
-(defun peb-fall-marker (x y dir u / prev a ts hw bh sy ah hw2 cr ccy fyy fh)
+;; owner 10-Jul: "render the FALL symbol 100% the same as Mammut Roshan Packages."
+;; MEASURED from reference/03_proposal_drawings/DXF/MAMMUT_09_Roshan_MultiSpan_JackBeams.dxf
+;; (glyph beside each CLP "FALL" text).  The real symbol is a HOUSE/ARROW OUTLINE — apex, two barbs,
+;; a straight body — with a CIRCLE centred on the shoulder line so it pokes up into the head.  Mammut
+;; drew four near-identical offset copies to fake a bold stroke; we have real lineweights (FALL lw 0.35).
+;;
+;;   Reference numbers (mm), outermost closed polyline, centred on its own axis:
+;;     apex          (0, 4221.9)          total height H = 1848.4   (apex 4221.9 -> tail 2373.5)
+;;     barb          (+/-1024.05, 3093.1) barb  half-width = 0.5540 H
+;;     body          (+/- 736.25, 3093.1) body  half-width = 0.3983 H
+;;     tail          (+/- 736.25, 2373.5) shoulder = 0.3893 H above the tail
+;;     CIRCLE        centre (0, 3067.6) r 645.9  ->  centre 0.3756 H above tail, r = 0.3494 H
+;;   "FALL" is TEXT colour 7 (WHITE) in Roshan — and also in MAMMUT_07_Zealcon.  The 7-Jul note that
+;;   it should be red was mistaken; both references say white.  Ratio text sits below "FALL"
+;;   (Roshan prints "ONE:15"); we keep the IF's own ratio format.
+;;
+;; NOTE: this REPLACES the 10-Jul filled arrowhead+shaft+ring. That was a departure from Mammut, not a
+;; match to it — the owner asked for the Roshan symbol exactly.
+(defun peb-fall-marker (x y dir u / prev a ts hh bodyH barbH shY tailY apexY ccy cr fh fyy syy)
   (setq prev (getvar "CLAYER") a u ts (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)
-        hw  (* 0.20 a)    ; SHAFT half-width — slender, so the head reads as a true arrowhead
-        bh  (* 0.50 a)    ; shaft tail, opposite the fall direction (long enough not to look stubby)
-        sy  (* 0.30 a)    ; shoulder = where the head meets the shaft
-        ah  (* 1.05 a)    ; apex
-        hw2 (* 0.85 a)    ; arrowhead half-width
-        cr  (* 0.40 a)    ; ring radius, clear of the shaft
-        ccy (* 1.12 a)    ; ring centre, clear BELOW the shaft tail (ring stroke is heavy — leave ~0.2*a)
-        ;; "FALL" is rotated 90 deg, so it extends along Y by its LENGTH (4 chars * 0.74 * fh = 0.74*a),
-        ;; NOT its height.  Centre it a half-length + gap below the ring, or the L collides with the ring.
-        fyy (* 2.50 a)
-        fh  (/ (* 0.50 a) ts))
+        hh    (* 1.70 a)               ; H — total glyph height (keeps the old footprint)
+        bodyH (* 0.3983 hh)            ; body  half-width   (Roshan ratio)
+        barbH (* 0.5540 hh)            ; barb  half-width   (Roshan ratio)
+        tailY (- y (* dir 0.55 hh))    ; tail, so the glyph straddles y like the old one did
+        shY   (+ tailY (* dir 0.3893 hh))
+        apexY (+ tailY (* dir 1.0    hh))
+        ccy   (+ tailY (* dir 0.3756 hh))
+        cr    (* 0.3494 hh)
+        fh    (/ (* 0.55 a) ts))
   (setvar "CLAYER" "FALL")
-  ;; shaft — FILLED, so the whole arrow is a solid mass against the black sheet
-  (peb-solid (list (- x hw) (- y (* dir bh)))
-             (list (+ x hw) (- y (* dir bh)))
-             (list (- x hw) (+ y (* dir sy)))
-             (list (+ x hw) (+ y (* dir sy)))
-             "FALL")
-  ;; arrowhead — FILLED triangle (p3 = p4: the bowtie-safe SOLID convention used by tb-solid-tri)
-  (peb-solid (list (- x hw2) (+ y (* dir sy)))
-             (list (+ x hw2) (+ y (* dir sy)))
-             (list x (+ y (* dir ah)))
-             (list x (+ y (* dir ah)))
-             "FALL")
-  ;; ring below the shaft, carrying the slope ratio — the ratio travels WITH the arrow (typical PEB)
-  (peb-circle x (- y (* dir ccy)) cr "FALL")
-  ;; ratio height so a 4-char "1:10" (romans advance ~0.74*h) stays inside the 0.80*a ring
-  (txt "MC" (list x (- y (* dir ccy))) (/ (* 0.22 a) ts) 0.0 (peb-slope-text))
-  ;; "FALL" vertical, clear below the ring (RED like the glyph — owner 7-Jul Mammut mirror)
-  (txt "MC" (list x (- y (* dir fyy))) fh 90.0 "FALL")
+  ;; house/arrow outline: apex -> left barb -> left body -> tail -> right body -> right barb (closed)
+  (peb-poly (list (list x apexY)
+                  (list (- x barbH) shY)
+                  (list (- x bodyH) shY)
+                  (list (- x bodyH) tailY)
+                  (list (+ x bodyH) tailY)
+                  (list (+ x bodyH) shY)
+                  (list (+ x barbH) shY))
+            "FALL" T)
+  ;; circle on the shoulder line — it deliberately overlaps the head, exactly as Roshan draws it
+  (peb-circle x ccy cr "FALL")
+  ;; "FALL" vertical below the glyph, WHITE (TEXT layer).  Rotated text extends along Y by its LENGTH
+  ;; (4 chars * ~0.74 * fh), not its height — centre it a half-length + gap below the tail.
+  (setq fyy (- tailY (* dir (+ (* 0.5 4.0 0.74 (* fh ts)) (* 0.34 a)))))
+  (setvar "CLAYER" "TEXT")
+  (txt "MC" (list x fyy) fh 90.0 "FALL")
+  ;; slope ratio, small + horizontal, below "FALL"
+  (setq syy (- fyy (* dir (+ (* 0.5 4.0 0.74 (* fh ts)) (* 0.42 a)))))
+  (txt "MC" (list x syy) (/ (* 0.38 a) ts) 0.0 (peb-slope-text))
   (setvar "CLAYER" prev))
 
 (defun arrow-up-big   (x y u) (peb-fall-marker x y  1.0 u)) ; fall toward FSW (up)
@@ -2943,6 +2960,9 @@
   ;; outline, width grid and dims are all drawn early, so this must be set before ANY of them (not just
   ;; before the columns).  nil => single-area, draw everything.
   (setq *PEB-OMIT-WALL* (if (and *PEB-MULTI-MODE* data) (peb-common-wall (MSPL-Get-Str data "AR_POSITION")) nil))
+  ;; single-area: never inherit a shared-wall sheeting omission left over from a previous multi-area run
+  ;; in the same acad session (the orchestrator sets it per area and clears it at the end).
+  (if (not *PEB-MULTI-MODE*) (setq *PEB-SHEET-OMIT* nil))
   ;; owner 5-Jul: per-wall open-for-access state (IF Wall Conditions: OW_NSW/FSW/LEW/REW) — drives whether
   ;; the SHEETING line is drawn on that wall.  Area 01 draws as usual (its own conditions); an associated
   ;; area omits its common wall entirely, so the shared wall follows Area 01's condition.
@@ -3533,7 +3553,13 @@
           (if (= x 0) (setq xdraw leftX) (if (> x (- len 1)) (setq xdraw rightX) (setq xdraw x)))
           (draw-I-column-lengthwise xdraw botY))
         (setvar "CLAYER" "TEXT")
-        (txt-bold "MC" (list (/ len 2.0) (* wid 0.86)) 600 0 "ATTACHED SIDE / EXISTING BUILDING OR WALL")
+        ;; owner 10-Jul: "no need to write the word of existing PEB building etc. — automatically define
+        ;; that the lean-to area is connected with the adjacent building."  When the lean-to is an ATTACHED
+        ;; area of a multi-area plan the adjacent building is DRAWN right next to it, so the attachment is
+        ;; self-evident and the label only crowds an 8 m strip.  A STANDALONE lean-to still needs to say
+        ;; what it leans on, because that building is not on the sheet.
+        (if (not *PEB-MULTI-MODE*)
+          (txt-bold "MC" (list (/ len 2.0) (* wid 0.86)) 600 0 "ATTACHED SIDE / EXISTING BUILDING OR WALL"))
         (txt-bold "MC" (list (/ len 2.0) (* wid 0.14)) 600 0 "OUTER STEEL COLUMN LINE")
       )
     )
@@ -5089,16 +5115,31 @@
       (close f)))
   pos)
 
+;; The REFERENCE area's wall that an attached area sits against — the mirror of peb-common-wall, which
+;; returns the ATTACHED area's own common wall.  Below => the attached area hangs off the reference's NSW.
+(defun peb-ref-shared-wall (pos / p)
+  (setq p (strcase (if pos pos "")))
+  (cond ((wcmatch p "*BELOW*") "NSW") ((wcmatch p "*ABOVE*") "FSW")
+        ((wcmatch p "*RIGHT*") "REW") ((wcmatch p "*LEFT*")  "LEW") (T nil)))
+
+;; owner 10-Jul: "there must be a single sheeting line, NOT 2."  At the join the reference area was still
+;; drawing its own SHEETING line (its cladding) even though an area is attached there — so the shared wall
+;; showed the steel COL-OUTER line PLUS a sheeting line 230 mm inside it.  An interior shared wall carries
+;; no cladding, so the reference omits its sheeting on that wall.  The COL-OUTER line stays: the columns
+;; are real.  The attached area already omits the wall entirely via *PEB-OMIT-WALL*.
+(defun peb-sheet-omit-p (w)
+  (and *PEB-SHEET-OMIT* (= (strcase *PEB-SHEET-OMIT*) (strcase w))))
+
 ;; draw a building-outline rectangle EDGE-BY-EDGE, skipping the wall shared with an attached area
 ;; (*PEB-OMIT-WALL*).  NSW=bottom(y0) FSW=top(y1) LEW=left(x0) REW=right(x1).  nil => all 4 (normal).
 ;; owner 5-Jul: when `sheeting` is T (the SHEETING outline, not the column line), ALSO skip a wall whose
 ;; IF condition is FULLY open for access (*PEB-WOPEN-*) — no sheeting line there.  So a common wall set
 ;; 'Full Height Open for Access' reads as an open passage between the areas.
 (defun peb-draw-outline (x0 y0 x1 y1 sheeting)
-  (if (not (or (peb-omit-wall-p "NSW") (and sheeting *PEB-WOPEN-NSW*))) (command "_.LINE" (list x0 y0) (list x1 y0) ""))
-  (if (not (or (peb-omit-wall-p "FSW") (and sheeting *PEB-WOPEN-FSW*))) (command "_.LINE" (list x0 y1) (list x1 y1) ""))
-  (if (not (or (peb-omit-wall-p "LEW") (and sheeting *PEB-WOPEN-LEW*))) (command "_.LINE" (list x0 y0) (list x0 y1) ""))
-  (if (not (or (peb-omit-wall-p "REW") (and sheeting *PEB-WOPEN-REW*))) (command "_.LINE" (list x1 y0) (list x1 y1) ""))
+  (if (not (or (peb-omit-wall-p "NSW") (and sheeting (or *PEB-WOPEN-NSW* (peb-sheet-omit-p "NSW"))))) (command "_.LINE" (list x0 y0) (list x1 y0) ""))
+  (if (not (or (peb-omit-wall-p "FSW") (and sheeting (or *PEB-WOPEN-FSW* (peb-sheet-omit-p "FSW"))))) (command "_.LINE" (list x0 y1) (list x1 y1) ""))
+  (if (not (or (peb-omit-wall-p "LEW") (and sheeting (or *PEB-WOPEN-LEW* (peb-sheet-omit-p "LEW"))))) (command "_.LINE" (list x0 y0) (list x0 y1) ""))
+  (if (not (or (peb-omit-wall-p "REW") (and sheeting (or *PEB-WOPEN-REW* (peb-sheet-omit-p "REW"))))) (command "_.LINE" (list x1 y0) (list x1 y1) ""))
   (princ))
 
 ;; wall of THIS area that is common with its reference, given its attach position (for *PEB-OMIT-WALL*)
@@ -5170,9 +5211,19 @@
 ;; title-block state quirk).  Single-area is unaffected.  e.g.:
 ;;   (progn (peb-plan-multi-from-files (list ...)) (command "_.ZOOM" "_E") (command "_.DXFOUT" f "16"))
 (defun peb-plan-multi-from-files (paths / placed prev-last off aNum pos ref gap w l refbnds i
-                                        wgrids adata apos aref rw)
+                                        wgrids adata apos aref rw shared d2 p2 r2 w2 aNo)
   (setq *PEB-SUPPRESS-TB* T *PEB-MULTI-MODE* T placed nil wgrids nil i 0
-        *PEB-GRID-LET-OFS* nil *PEB-GRID-NUM-OFS* nil)
+        *PEB-GRID-LET-OFS* nil *PEB-GRID-NUM-OFS* nil *PEB-SHEET-OMIT* nil)
+  ;; PRE-PASS (owner 10-Jul): the reference area is drawn FIRST and never learns that something attached
+  ;; to it, so it kept cladding its own shared wall (two lines at the join).  Scan every file up front and
+  ;; record, per REFERENCE area number, which of ITS walls an area sits against.
+  (setq shared nil)
+  (foreach path paths
+    (setq d2 (MSPL-Read-Data path)
+          p2 (MSPL-Get-Str d2 "AR_POSITION")
+          r2 (MSPL-Get-Int d2 "AR_REF_AREA")
+          w2 (peb-ref-shared-wall p2))
+    (if (and r2 (> r2 0) w2) (setq shared (cons (cons r2 w2) shared))))
   (foreach path paths
     (setq prev-last (entlast) *PEB-DATA-FILE* path)
     ;; CROSS-AREA GRID CONTINUITY (owner 10-Jul).  *PEB-GRID-LET-OFS* / *PEB-GRID-NUM-OFS* are READ by
@@ -5185,9 +5236,12 @@
     ;; ABOVE / LEFT / RIGHT are deliberately left at nil (unchanged): they grow against the letter/number
     ;; direction and need their own rule — wiring them blind would renumber existing multi-area sheets.
     (setq *PEB-GRID-LET-OFS* nil *PEB-GRID-NUM-OFS* nil)
+    (setq adata (MSPL-Read-Data path)
+          aNo   (MSPL-Get-Int adata "AREA_NUM"))
+    ;; if THIS area is a reference that something attaches to, drop its sheeting on that wall
+    (setq *PEB-SHEET-OMIT* (if aNo (cdr (assoc aNo shared))))
     (if (> i 0)
       (progn
-        (setq adata (MSPL-Read-Data path))
         (setq apos (strcase (MSPL-Get-Str adata "AR_POSITION"))
               aref (MSPL-Get-Int adata "AR_REF_AREA"))
         (setq rw (if aref (cdr (assoc aref wgrids))))
@@ -5208,7 +5262,7 @@
     (setq placed (cons (cons aNum (list (car off) (+ (car off) l) (cadr off) (+ (cadr off) w))) placed)
           i (1+ i)))
   (setq *PEB-SUPPRESS-TB* nil *PEB-OMIT-WALL* nil *PEB-MULTI-MODE* nil
-        *PEB-GRID-LET-OFS* nil *PEB-GRID-NUM-OFS* nil)   ; globals: never leak into the next drawing
+        *PEB-GRID-LET-OFS* nil *PEB-GRID-NUM-OFS* nil *PEB-SHEET-OMIT* nil)   ; globals: never leak into the next drawing
   (peb-draw-combined-frame)
   (princ))
 
