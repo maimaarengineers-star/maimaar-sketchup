@@ -2964,9 +2964,9 @@
   ;; outline, width grid and dims are all drawn early, so this must be set before ANY of them (not just
   ;; before the columns).  nil => single-area, draw everything.
   (setq *PEB-OMIT-WALL* (if (and *PEB-MULTI-MODE* data) (peb-common-wall (MSPL-Get-Str data "AR_POSITION")) nil))
-  ;; single-area: never inherit a shared-wall sheeting omission left over from a previous multi-area run
-  ;; in the same acad session (the orchestrator sets it per area and clears it at the end).
-  (if (not *PEB-MULTI-MODE*) (setq *PEB-SHEET-OMIT* nil))
+  ;; single-area: never inherit a shared-wall marking left over from a previous multi-area run in the
+  ;; same acad session (the orchestrator sets it per area and clears it at both ends).
+  (if (not *PEB-MULTI-MODE*) (setq *PEB-REF-SHARED* nil))
   ;; owner 5-Jul: per-wall open-for-access state (IF Wall Conditions: OW_NSW/FSW/LEW/REW) — drives whether
   ;; the SHEETING line is drawn on that wall.  Area 01 draws as usual (its own conditions); an associated
   ;; area omits its common wall entirely, so the shared wall follows Area 01's condition.
@@ -3374,7 +3374,7 @@
   ;; SHARED with an attached area (the grid continues from the reference; avoids the overlap at the join).
   ;; owner 10-Jul: also skip it when THIS area is the reference and an area is attached ABOVE — that FSW
   ;; is now an interior wall, and both areas were drawing a top number row (numbers came out 1 1 2 2 ...).
-  (if (not (or (peb-omit-wall-p "FSW") (peb-sheet-omit-p "FSW")))
+  (if (not (peb-hide-wall-label-p "FSW"))
     (foreach x bayPts
       ;; owner 5-Jul (multi-area): at a SHARED end wall (Left/Right) the length-grid bubble MERGES — the
       ;; attached area skips its endpoint on the common LEW/REW so it isn't drawn twice at the join.
@@ -3401,7 +3401,7 @@
   ;; end wall (Left/Right side-by-side); the outer area carries the one width grid.
   (setq j 0 nWid (length gridWpts))
   ;; ... and skip the letter column when an area is attached to THIS area's LEW (mirror of the FSW case)
-  (if (not (or (peb-hide-wall-label-p "LEW") (peb-sheet-omit-p "LEW")))
+  (if (not (peb-hide-wall-label-p "LEW"))
   (foreach y gridWpts
     ;; owner 5-Jul (multi-area): at a SHARED side wall (Below/Above) the grid bubble MERGES — the attached
     ;; area skips its endpoint bubble/line on the common wall so it isn't drawn twice at the join.
@@ -5106,10 +5106,7 @@
 ;; wall, OR (b) the REFERENCE area's wall that another area attaches to (*PEB-REF-SHARED*, set per direction
 ;; for the reference — it KEEPS its columns there, only drops the now-internal wall label).
 (defun peb-hide-wall-label-p (w)
-  (or (peb-omit-wall-p w)
-      (and *PEB-REF-SHARED*
-           (member (strcase w)
-                   (mapcar 'strcase (if (listp *PEB-REF-SHARED*) *PEB-REF-SHARED* (list *PEB-REF-SHARED*)))))))
+  (or (peb-omit-wall-p w) (peb-ref-shared-p w)))
 
 ;; read AR_POSITION from a data file without drawing (to decide the omitted wall BEFORE C:PEB-PLAN runs)
 (defun peb-read-ar-position (path / f line pos)
@@ -5161,13 +5158,17 @@
   (cond ((wcmatch p "*BELOW*") "NSW") ((wcmatch p "*ABOVE*") "FSW")
         ((wcmatch p "*RIGHT*") "REW") ((wcmatch p "*LEFT*")  "LEW") (T nil)))
 
-;; owner 10-Jul: "there must be a single sheeting line, NOT 2."  At the join the reference area was still
-;; drawing its own SHEETING line (its cladding) even though an area is attached there — so the shared wall
-;; showed the steel COL-OUTER line PLUS a sheeting line 230 mm inside it.  An interior shared wall carries
-;; no cladding, so the reference omits its sheeting on that wall.  The COL-OUTER line stays: the columns
-;; are real.  The attached area already omits the wall entirely via *PEB-OMIT-WALL*.
-(defun peb-sheet-omit-p (w)
-  (and *PEB-SHEET-OMIT* (= (strcase *PEB-SHEET-OMIT*) (strcase w))))
+;; TRUE when w is a wall of THIS area that an attached area sits against — i.e. this area is the
+;; REFERENCE and that wall is now interior.  *PEB-REF-SHARED* was already consulted by
+;; peb-hide-wall-label-p but NOTHING ever set it (scaffolded, never wired); the orchestrator now does.
+;; It gates, in one place: the wall LABEL, the length/width DIM stack, the grid bubbles, and the SHEETING
+;; line.  owner 10-Jul: "there must be a single sheeting line, NOT 2" — an interior shared wall carries no
+;; cladding, so the reference omits its sheeting there.  The COL-OUTER line stays: the columns are real.
+;; The ATTACHED area already omits the wall entirely via *PEB-OMIT-WALL*.
+(defun peb-ref-shared-p (w)
+  (and *PEB-REF-SHARED*
+       (member (strcase w)
+               (mapcar 'strcase (if (listp *PEB-REF-SHARED*) *PEB-REF-SHARED* (list *PEB-REF-SHARED*))))))
 
 ;; draw a building-outline rectangle EDGE-BY-EDGE, skipping the wall shared with an attached area
 ;; (*PEB-OMIT-WALL*).  NSW=bottom(y0) FSW=top(y1) LEW=left(x0) REW=right(x1).  nil => all 4 (normal).
@@ -5175,10 +5176,10 @@
 ;; IF condition is FULLY open for access (*PEB-WOPEN-*) — no sheeting line there.  So a common wall set
 ;; 'Full Height Open for Access' reads as an open passage between the areas.
 (defun peb-draw-outline (x0 y0 x1 y1 sheeting)
-  (if (not (or (peb-omit-wall-p "NSW") (and sheeting (or *PEB-WOPEN-NSW* (peb-sheet-omit-p "NSW"))))) (command "_.LINE" (list x0 y0) (list x1 y0) ""))
-  (if (not (or (peb-omit-wall-p "FSW") (and sheeting (or *PEB-WOPEN-FSW* (peb-sheet-omit-p "FSW"))))) (command "_.LINE" (list x0 y1) (list x1 y1) ""))
-  (if (not (or (peb-omit-wall-p "LEW") (and sheeting (or *PEB-WOPEN-LEW* (peb-sheet-omit-p "LEW"))))) (command "_.LINE" (list x0 y0) (list x0 y1) ""))
-  (if (not (or (peb-omit-wall-p "REW") (and sheeting (or *PEB-WOPEN-REW* (peb-sheet-omit-p "REW"))))) (command "_.LINE" (list x1 y0) (list x1 y1) ""))
+  (if (not (or (peb-omit-wall-p "NSW") (and sheeting (or *PEB-WOPEN-NSW* (peb-ref-shared-p "NSW"))))) (command "_.LINE" (list x0 y0) (list x1 y0) ""))
+  (if (not (or (peb-omit-wall-p "FSW") (and sheeting (or *PEB-WOPEN-FSW* (peb-ref-shared-p "FSW"))))) (command "_.LINE" (list x0 y1) (list x1 y1) ""))
+  (if (not (or (peb-omit-wall-p "LEW") (and sheeting (or *PEB-WOPEN-LEW* (peb-ref-shared-p "LEW"))))) (command "_.LINE" (list x0 y0) (list x0 y1) ""))
+  (if (not (or (peb-omit-wall-p "REW") (and sheeting (or *PEB-WOPEN-REW* (peb-ref-shared-p "REW"))))) (command "_.LINE" (list x1 y0) (list x1 y1) ""))
   (princ))
 
 ;; wall of THIS area that is common with its reference, given its attach position (for *PEB-OMIT-WALL*)
@@ -5253,7 +5254,7 @@
                                         wgrids lgrids adata apos aref rw rl shared refLet refNum
                                         d2 p2 r2 w2 aNo)
   (setq *PEB-SUPPRESS-TB* T *PEB-MULTI-MODE* T placed nil wgrids nil lgrids nil i 0
-        *PEB-GRID-LET-OFS* nil *PEB-GRID-NUM-OFS* nil *PEB-SHEET-OMIT* nil)
+        *PEB-GRID-LET-OFS* nil *PEB-GRID-NUM-OFS* nil *PEB-REF-SHARED* nil)
   ;; PRE-PASS (owner 10-Jul): the reference area is drawn FIRST and never learns that something attached
   ;; to it, so it kept cladding its own shared wall (two lines at the join).  Scan every file up front and
   ;; record, per REFERENCE area number, which of ITS walls an area sits against.
@@ -5288,9 +5289,10 @@
     ;; direction and need their own rule — wiring them blind would renumber existing multi-area sheets.
     (setq adata (MSPL-Read-Data path)
           aNo   (MSPL-Get-Int adata "AREA_NUM"))
-    ;; if THIS area is a reference that something attaches to, drop its sheeting on that wall,
-    ;; and take any offset an ABOVE/LEFT attachment pushed onto it
-    (setq *PEB-SHEET-OMIT* (if aNo (cdr (assoc aNo shared))))
+    ;; if THIS area is a reference that something attaches to, mark that wall SHARED (hides its wall
+    ;; label, its dim stack, its grid bubbles and its sheeting line), and take any offset an ABOVE/LEFT
+    ;; attachment pushed onto it
+    (setq *PEB-REF-SHARED* (if aNo (cdr (assoc aNo shared))))
     (setq *PEB-GRID-LET-OFS* (if aNo (cdr (assoc aNo refLet)))
           *PEB-GRID-NUM-OFS* (if aNo (cdr (assoc aNo refNum))))
     (if (> i 0)
@@ -5323,7 +5325,7 @@
     (setq placed (cons (cons aNum (list (car off) (+ (car off) l) (cadr off) (+ (cadr off) w))) placed)
           i (1+ i)))
   (setq *PEB-SUPPRESS-TB* nil *PEB-OMIT-WALL* nil *PEB-MULTI-MODE* nil
-        *PEB-GRID-LET-OFS* nil *PEB-GRID-NUM-OFS* nil *PEB-SHEET-OMIT* nil)   ; globals: never leak into the next drawing
+        *PEB-GRID-LET-OFS* nil *PEB-GRID-NUM-OFS* nil *PEB-REF-SHARED* nil)   ; globals: never leak into the next drawing
   (peb-draw-combined-frame)
   (princ))
 
