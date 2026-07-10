@@ -3012,6 +3012,7 @@
     logoX logoY logoScale
     endBayL endBayR roofSlope
     mgGableW mgSpanW mgRidgePts mgValleyPts mgColumnPts mgSpans mgGables mgY loadValX
+    mgWs sc2 gw base valley colY acc s
     numBays numMod sp bayNum modNum
     tblHeaderH tblBodyRowH tblBodyH tblTotalH tblColWs tblHeaders tblBodies
     tblMerges tblObj tblScaleX
@@ -3176,41 +3177,52 @@
   ;; ── Width points ─────────────────────────────────────────────
   (cond
     ((= stype "MG")
+      ;; owner 10-Jul: "two adjacent areas of the SAME height and the SAME length are one MULTI-GABLE
+      ;; building WITH MODULES — e.g. width module 1@30 + 1@12."  A multi-gable's gables are therefore
+      ;; NOT necessarily equal: each WIDTH MODULE is one gable, with its own ridge at its mid-width and
+      ;; a VALLEY at every internal module boundary.  The old code split the width EQUALLY
+      ;; (mgGableW = wid / mgGables), so a 30 + 12 building drew two 21 m gables and put the valley in
+      ;; the wrong place.  Fall back to equal division only when the IF gives no modules.
       (progn
-        (setq mgGables (MSPL-Get-Int data "NUMGABLES"))
-        (setq mgSpans  (MSPL-Get-Int data "SPANSPERGABLE"))
-        (if (or (null mgGables) (< mgGables 2)) (setq mgGables 2))
-        (if (or (null mgSpans)  (< mgSpans  1)) (setq mgSpans  1))
+        (setq mgSpans (MSPL-Get-Int data "SPANSPERGABLE"))
+        (if (or (null mgSpans) (< mgSpans 1)) (setq mgSpans 1))
         (if (> mgSpans 4) (setq mgSpans 4))
-        (setq mgGableW (/ wid mgGables))
-        (setq mgSpanW  (/ mgGableW mgSpans))
-        (setq mgRidgePts '())
-        (setq mgValleyPts '())
-        (setq mgColumnPts (list 0.0 wid))
-        (setq i 0)
-        (while (< i mgGables)
-          (setq base (* i mgGableW))
-          (setq mgRidgePts (append mgRidgePts (list (+ base (/ mgGableW 2.0)))))
-          (if (< i (1- mgGables))
+        (setq mgWs (peb-parse-mod-expression (MSPL-Get-Str data "MODEXPR")))
+        (if (and mgWs (> (length mgWs) 1))
+          (progn                                   ; gables FROM the width modules, scaled to close on wid
+            (setq acc 0.0)
+            (foreach s mgWs (setq acc (+ acc s)))
+            (setq sc2 (if (> acc 0.0) (/ wid acc) 1.0))
+            (setq mgWs (mapcar '(lambda (s) (* s sc2)) mgWs)))
+          (progn                                   ; no modules -> the old equal division
+            (setq mgGables (MSPL-Get-Int data "NUMGABLES"))
+            (if (or (null mgGables) (< mgGables 2)) (setq mgGables 2))
+            (setq mgWs '() i 0)
+            (while (< i mgGables)
+              (setq mgWs (append mgWs (list (/ wid mgGables))) i (1+ i)))))
+        (setq mgGables (length mgWs))
+        ;; the NARROWEST gable drives the FALL-arrow offset, so an arrow can never spill out of the
+        ;; small gable of an unequal pair (peb-fall-glyph-set places them at +/- 0.375 * mgGableW).
+        (setq mgGableW (apply 'min mgWs))
+        (setq mgRidgePts '() mgValleyPts '() mgColumnPts (list 0.0 wid))
+        (setq base 0.0 i 0)
+        (foreach gw mgWs
+          (setq mgRidgePts (append mgRidgePts (list (+ base (/ gw 2.0)))))
+          (setq i (1+ i))
+          (if (< i mgGables)                        ; a valley at every INTERNAL module boundary
             (progn
-              (setq valley (+ base mgGableW))
+              (setq valley (+ base gw))
               (setq mgValleyPts (append mgValleyPts (list valley)))
-              (setq mgColumnPts (append mgColumnPts (list valley)))
-            )
-          )
-          (if (> mgSpans 1)
+              (setq mgColumnPts (append mgColumnPts (list valley)))))
+          (if (> mgSpans 1)                         ; interior column lines WITHIN this gable
             (progn
-              (setq j 1)
+              (setq mgSpanW (/ gw mgSpans) j 1)
               (while (< j mgSpans)
                 (setq colY (+ base (* j mgSpanW)))
                 (if (and (> colY 0) (< colY wid))
                   (setq mgColumnPts (append mgColumnPts (list colY))))
-                (setq j (1+ j))
-              )
-            )
-          )
-          (setq i (1+ i))
-        )
+                (setq j (1+ j)))))
+          (setq base (+ base gw)))
         (setq mgColumnPts (vl-sort mgColumnPts '<))
         (setq widthPts mgColumnPts)
       )
