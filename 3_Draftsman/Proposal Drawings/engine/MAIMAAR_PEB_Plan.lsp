@@ -3436,15 +3436,19 @@
   ;; neighbours — but measured on 01_clear_span the tag clears the nearest BRACED BAY by 577 mm, since
   ;; the label sits BELOW the area box and the bay text runs vertically beside it.  audit_tagclash.py.
   ;;
-  ;; It stacks UNDER the roof label (~3608), which prints at wid/2 - 1300*TS.  The tag used to hang off
-  ;; the area BOX at wid/2 - 1085*TS — only 215*TS clear of a label 400 tall, so the two always
-  ;; overlapped wherever a roof label is drawn (measured on the lean-to: 'CLEAR HT. 6,000' buried
-  ;; 'LEAN-TO' over 2763 x 247 mm).  01_clear_span hid it: its branch folds the roof label elsewhere.
-  ;; Both labels are now placed off the SAME datum, one text line apart, so they cannot converge again.
+  ;; It goes ABOVE the area box, because everything else claims the space BELOW it.  Measured lanes in
+  ;; the 8 m-deep lean-to of 30_open_common_wall (area centre y = -4000, box half-height 785):
+  ;;     -4000  AREA NO. 02 (in the box)
+  ;;     -5447  <- old position, off the box bottom : buried 'LEAN-TO'            2763 x 247 mm
+  ;;     -6000  LEAN-TO        (the roof label, ~3608)
+  ;;     -6667  <- one line under the roof label    : buried 'OUTER STEEL COLUMN LINE' 5920 x 453 mm
+  ;;     -7280  OUTER STEEL COLUMN LINE
+  ;; A shallow area simply has no room under the box: ~583 mm of gap for a 533 mm tag.  Above the box
+  ;; there is clear air in every fixture.  Do NOT raise it a second line — that lands on 'RAFTER'
+  ;; (3136 x 375 mm).  Verified with try_tagpos.py, which reproduces audit_textclash's verdicts exactly.
   (setq aEave (MSPL-Get-Num data "BP_EAVE_HEIGHT"))
   (if (and aEave (> aEave 0.0))
-    ;; (/ aTxH 620.0) IS *PEB-TEXT-SCALE*, already nil-guarded at aTxH — no new local, no dynamic-scope trap.
-    (txt-bold "MC" (list aCx (- aCy (/ (* 2000.0 aTxH) 620.0))) 400 0
+    (txt-bold "MC" (list aCx (+ aCy aBh (* aTxH 0.80))) 400 0
               (strcat (peb-height-tag-label (MSPL-Get-Str data "HEIGHT_REF")) " "
                       (peb-comma (rtos aEave 2 0)))))
 
