@@ -2367,14 +2367,22 @@
   (if (>= b0 b1) (setq b0 inset b1 (- wid inset)))     ; nonsense extent -> fall back to full width
   (list b0 b1))
 
-;; The main frame's INTERIOR column lines (width stations strictly between the two side walls).
+;; EVERY width station where a MAIN-FRAME column already stands: the two SIDE-WALL column centres
+;; (colOff = D/2 and wid-D/2, exactly where botY/topY put them) plus the INTERIOR module lines.
+;;
 ;; owner 10-Jul: "existing columns as-is; NEW columns (up to the mezzanine beam bottom) encircled."
-;; A mezzanine stub must NOT be drawn where a building column already stands — on a multi-span the
-;; mezzanine module can land exactly on an interior column line, and the drawer would then stack a
-;; second I-section on top of the existing one AND encircle it, calling an existing column new.
-;; Derived from BP_WIDTH_MOD (MODEXPR), the same expression the plan uses for widthPts.
-(defun peb-main-interior-ys (data wid / expr spans acc out s)
-  (setq expr (MSPL-Get-Str data "MODEXPR") out '())
+;; A mezzanine stub must NOT be drawn where a building column already stands, or the drawer stacks a
+;; second I-section on the existing one AND encircles it, calling an existing column new.
+;;   * INTERIOR lines matter on a multi-span, where the mezzanine module can land on one.
+;;   * The SIDE-WALL lines matter ALWAYS: the stub grid starts at the wall clearance (inset, 1000),
+;;     which is inside half a column depth of the side-wall column centre (550) — measured, 7 stubs
+;;     landed on them.  The drawer's own comment already said "the existing PEB frame columns carry
+;;     the beam at the walls"; it just never acted on it.
+;; Interior lines derive from BP_WIDTH_MOD (MODEXPR), the same expression the plan uses for widthPts.
+(defun peb-main-column-ys (data wid / expr spans acc out s colOff)
+  (setq colOff (/ (peb-col-web-depth wid) 2.0))
+  (setq out (list colOff (- wid colOff)))          ; the two side-wall column lines
+  (setq expr (MSPL-Get-Str data "MODEXPR"))
   (if (and expr (/= expr ""))
     (progn
       (setq spans (peb-parse-mod-expression expr) acc 0.0)
@@ -2603,14 +2611,11 @@
                   ;; appear on a steel-building plan (owner 8-Jul).
                   ;;
                   ;; owner 10-Jul: "EXISTING columns as-is; NEW columns (up to the mezzanine beam
-                  ;; bottom) will be ENCIRCLED."  A mezzanine width module can land exactly on a
-                  ;; MULTI-SPAN's interior column line — the drawer would then stack a second
-                  ;; I-section on the existing column and encircle it, calling an existing column
-                  ;; new.  Skip those stations entirely: the building column already carries the
-                  ;; beam there and is left exactly as the frame drew it.  (The side walls were
-                  ;; already safe: fy0/fy1 are inset from them, so botY/topY never coincide.)
+                  ;; bottom) will be ENCIRCLED."  Skip every station where a building column already
+                  ;; stands — both the SIDE-WALL lines and a MULTI-SPAN's interior lines.  The
+                  ;; building column carries the beam there and is left exactly as the frame drew it.
                   (progn
-                    (setq mainYs (peb-main-interior-ys data wid)
+                    (setq mainYs (peb-main-column-ys data wid)
                           mainTol (* 0.5 (peb-col-web-depth wid)))   ; within half a column depth = the same column
                     (foreach x xs
                       (foreach y ys
@@ -2681,7 +2686,7 @@
                         u sc n pre span cap typ cls loc runlen
                         numBays cum i sp rem bayPts
                         nums cur k ch g1 g2 tmp
-                        x0 x1 yLo yHi bcx hcx hcy hr dg s bx capLbl)
+                        x0 x1 yLo yHi bcx hcx hcy hr dg s bx capLbl capY clsY)
   (if (= (strcase (MSPL-Get-Str data "CR_TOGGLE")) "YES")
     (progn
       (setq u  (max 400.0 (min 3000.0 (/ (max len wid) 70.0))))
@@ -2767,9 +2772,17 @@
                                (list 10 hcx hcy 0.0) (cons 40 hr)))
 
                 ;; (3) capacity + class label  ("05MT TOP RUNNING (TR) CRANE")
+                ;; owner 10-Jul (measured, audit_textclash.py): both labels used to straddle the HOOK,
+                ;; which sits at the crane's mid-width — and the CLP prints the vertical "BRACED BAY"
+                ;; text centred at the BUILDING's mid-width.  On a centred crane those are the same
+                ;; band, and the capacity label overlapped "BRACED BAY" by 427 x 471 mm.  Anchor both
+                ;; labels BELOW the lower runway instead: that is always further from mid-width than the
+                ;; hook, whatever the span.  Clamped so a very wide crane cannot push them off the plan.
                 (setq capLbl (strcat (rtos cap 2 0) "MT " typ " CRANE"))
-                (txt-bold "MC" (list hcx (+ hcy (* u 1.1))) (/ (* u 0.55) sc) 0.0 capLbl)
-                (txt-bold "MC" (list hcx (- hcy (* u 1.1))) (/ (* u 0.45) sc) 0.0
+                (setq capY (max (- yLo (* u 1.15)) (* wid 0.05))
+                      clsY (max (- yLo (* u 1.95)) (* wid 0.02)))
+                (txt-bold "MC" (list hcx capY) (/ (* u 0.55) sc) 0.0 capLbl)
+                (txt-bold "MC" (list hcx clsY) (/ (* u 0.45) sc) 0.0
                           (strcat "CMAA CLASS " cls))
 
                 ;; span & runway-length dims (soft — never break the sheet)
