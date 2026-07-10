@@ -2415,7 +2415,7 @@
     ft fx0 fx1 fy0 fy1 partial cx cy lcy hlab fflStr fflv
     ys xs acc h hh x y
     numBays bayPts2 sp2 rem2 bx colD savedWeb circR host rcc mzRcc rccXs rccYs
-    module rr gap nsub yi yy0 yy1 glF glT glX0 glX1
+    module rr gap nsub yi yy0 yy1 glF glT glX0 glX1 offF offT
     mzBand mzB0 mzB1 mzPart mainYs mainTol sy0 sy1 )
 
   (if (/= (strcase (MSPL-Get-Str data "MZ_TOGGLE")) "YES")
@@ -2466,8 +2466,19 @@
 
       ;; grid-line LENGTH extent (owner 8-Jul): a partial mezzanine can be defined by the grid it
       ;; covers — bays Grid <from>..<to>.  Map those grid numbers to the building bay stations.
+      ;;
+      ;; owner 10-Jul: "if the mezzanine is ENDING between grid lines, we must have some option of
+      ;; giving the offset reference in the IF."  Grid numbers alone snap each edge onto a bay line; a
+      ;; deck that stops mid-bay could not be drawn.  MZ_OFFSET_FROM / MZ_OFFSET_TO (mm, signed, +toward
+      ;; the far end) shift each edge off its grid line.  Both blank/0 => bit-for-bit the old behaviour.
+      ;; The stub COLUMNS still land on the building bay lines that fall inside the deck (xs, ~2543); an
+      ;; offset only moves the deck EDGE, which is correct — a mezzanine ending mid-bay has no column at
+      ;; the edge, its edge beam spans back to the last grid-line column.
       (setq glF (MSPL-Get-Int data "MZ_GRID_BAY_FROM") glT (MSPL-Get-Int data "MZ_GRID_BAY_TO")
+            offF (MSPL-Get-Num data "MZ_OFFSET_FROM") offT (MSPL-Get-Num data "MZ_OFFSET_TO")
             glX0 nil glX1 nil)
+      (if (null offF) (setq offF 0.0))
+      (if (null offT) (setq offT 0.0))
       (if (and glF glT (> glF 0) (> glT glF))
         (progn
           (setq numBays (MSPL-Get-Int data "NUMBAYS"))
@@ -2480,7 +2491,14 @@
                   (T                               (setq sp2 (/ rem2 (float (- numBays k))))))
             (setq acc (+ acc sp2) bayPts2 (append bayPts2 (list acc)) k (1+ k)))
           (if (<= glT (length bayPts2))
-            (setq glX0 (nth (1- glF) bayPts2) glX1 (nth (1- glT) bayPts2)))))
+            (progn
+              (setq glX0 (+ (nth (1- glF) bayPts2) offF)
+                    glX1 (+ (nth (1- glT) bayPts2) offT))
+              ;; clamp inside the building and keep from < to; a bad offset falls back to the grid lines.
+              (setq glX0 (max 0.0 (min glX0 len))
+                    glX1 (max 0.0 (min glX1 len)))
+              (if (>= glX0 glX1)
+                (setq glX0 (nth (1- glF) bayPts2) glX1 (nth (1- glT) bayPts2)))))))
 
       ;; WIDTH placement (owner 10-Jul) — MZ_WIDTH_ANCHOR + MZ_WIDTH_EXTENT.  Blank => full width,
       ;; so every existing drawing is bit-for-bit unchanged.
