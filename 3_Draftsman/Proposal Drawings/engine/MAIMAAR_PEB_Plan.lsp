@@ -1338,15 +1338,19 @@
                   (list (+ x bodyH) shY)
                   (list (+ x barbH) shY))
             "FALL" T)
-  ;; circle on the shoulder line — it deliberately overlaps the head, exactly as Roshan draws it
-  (peb-circle x ccy cr "FALL")
+  ;; circle on the shoulder line — it deliberately overlaps the head, exactly as Roshan draws it.
+  ;; owner 10-Jul: FILLED solid red (peb-disc) so the symbol reads instantly at sheet scale; Roshan's
+  ;; own circle is hollow, but this is the one polish the owner asked for on top of the exact geometry.
+  ;; Falls back to a hollow circle if an older Standard.lsp (no peb-disc) is loaded.
+  (if (boundp 'peb-disc) (peb-disc x ccy cr "FALL") (peb-circle x ccy cr "FALL"))
   ;; "FALL" vertical below the glyph, WHITE (TEXT layer).  Rotated text extends along Y by its LENGTH
   ;; (4 chars * ~0.74 * fh), not its height — centre it a half-length + gap below the tail.
   (setq fyy (- tailY (* dir (+ (* 0.5 4.0 0.74 (* fh ts)) (* 0.34 a)))))
   (setvar "CLAYER" "TEXT")
   (txt "MC" (list x fyy) fh 90.0 "FALL")
   ;; slope ratio, small + horizontal, below "FALL"
-  (setq syy (- fyy (* dir (+ (* 0.5 4.0 0.74 (* fh ts)) (* 0.42 a)))))
+  ;; gap must clear BOTH the FALL half-length (rotated text) and the ratio's own half-height (~0.19*a)
+  (setq syy (- fyy (* dir (+ (* 0.5 4.0 0.74 (* fh ts)) (* 0.62 a)))))
   (txt "MC" (list x syy) (/ (* 0.38 a) ts) 0.0 (peb-slope-text))
   (setvar "CLAYER" prev))
 

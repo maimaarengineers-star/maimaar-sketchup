@@ -254,6 +254,18 @@
 (defun peb-circle (cx cy r lay)
   (entmake (list (cons 0 "CIRCLE") (cons 8 lay) (list 10 cx cy 0.0) (cons 40 r))))
 
+;; FILLED DISC of radius r — the AutoCAD DONUT with inner diameter 0: a CLOSED 2-vertex LWPOLYLINE of
+;; two 180-degree arcs (bulge 1) whose centreline radius is r/2, carrying a CONSTANT WIDTH of r.  The
+;; stroke then runs from radius 0 to r, i.e. a solid disc.
+;; entmake, NOT (command "_.DONUT"): the donut/hatch commands pull in the "_ClosedFilled" block, which
+;; this engine has already seen fail under acad /b (see the multi-call TILING note).  Needs FILLMODE 1
+;; (AutoCAD default) for the fill to show.
+(defun peb-disc (cx cy r lay)
+  (entmake (list (cons 0 "LWPOLYLINE") (cons 100 "AcDbEntity") (cons 8 lay)
+                 (cons 100 "AcDbPolyline") (cons 90 2) (cons 70 1) (cons 43 r)
+                 (list 10 (- cx (/ r 2.0)) cy) (cons 42 1.0)
+                 (list 10 (+ cx (/ r 2.0)) cy) (cons 42 1.0))))
+
 ;; ARC — a1,a2 in DEGREES (CCW).
 (defun peb-arc (cx cy r a1 a2 lay)
   (entmake (list (cons 0 "ARC") (cons 8 lay) (list 10 cx cy 0.0) (cons 40 r)
