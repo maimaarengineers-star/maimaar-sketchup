@@ -3435,9 +3435,16 @@
   ;; bay CAN be braced (the rule is 2nd + 2nd-last + even interior <= 27 m), so they really can be
   ;; neighbours — but measured on 01_clear_span the tag clears the nearest BRACED BAY by 577 mm, since
   ;; the label sits BELOW the area box and the bay text runs vertically beside it.  audit_tagclash.py.
+  ;;
+  ;; It stacks UNDER the roof label (~3608), which prints at wid/2 - 1300*TS.  The tag used to hang off
+  ;; the area BOX at wid/2 - 1085*TS — only 215*TS clear of a label 400 tall, so the two always
+  ;; overlapped wherever a roof label is drawn (measured on the lean-to: 'CLEAR HT. 6,000' buried
+  ;; 'LEAN-TO' over 2763 x 247 mm).  01_clear_span hid it: its branch folds the roof label elsewhere.
+  ;; Both labels are now placed off the SAME datum, one text line apart, so they cannot converge again.
   (setq aEave (MSPL-Get-Num data "BP_EAVE_HEIGHT"))
   (if (and aEave (> aEave 0.0))
-    (txt-bold "MC" (list aCx (- aFB (* aTxH 0.80))) 400 0
+    ;; (/ aTxH 620.0) IS *PEB-TEXT-SCALE*, already nil-guarded at aTxH — no new local, no dynamic-scope trap.
+    (txt-bold "MC" (list aCx (- aCy (/ (* 2000.0 aTxH) 620.0))) 400 0
               (strcat (peb-height-tag-label (MSPL-Get-Str data "HEIGHT_REF")) " "
                       (peb-comma (rtos aEave 2 0)))))
 
@@ -5285,33 +5292,47 @@
 ;; TRUE when w is a wall of THIS area that an attached area sits against — i.e. this area is the
 ;; REFERENCE and that wall is now interior.  *PEB-REF-SHARED* was already consulted by
 ;; peb-hide-wall-label-p but NOTHING ever set it (scaffolded, never wired); the orchestrator now does.
-;; It gates, in one place: the wall LABEL, the length/width DIM stack, the grid bubbles, and the SHEETING
-;; line.  owner 10-Jul: "there must be a single sheeting line, NOT 2" — an interior shared wall carries no
-;; cladding, so the reference omits its sheeting there.  The COL-OUTER line stays: the columns are real.
-;; The ATTACHED area already omits the wall entirely via *PEB-OMIT-WALL*.
+;; It gates, in one place: the wall LABEL, the length/width DIM stack, and the grid bubbles — all of
+;; which are genuinely interior once an area attaches.  It does NOT gate the sheeting: a common wall is
+;; always clad above the lower area's roof (see peb-wall-clad-p).  It instead FORCES that cladding on,
+;; overriding a 'Full Height Open for Access' condition, which on a common wall means open only up to
+;; the low roof.  The ATTACHED area omits the wall entirely via *PEB-OMIT-WALL*, so exactly one line.
 (defun peb-ref-shared-p (w)
   (and *PEB-REF-SHARED*
        (member (strcase w)
                (mapcar 'strcase (if (listp *PEB-REF-SHARED*) *PEB-REF-SHARED* (list *PEB-REF-SHARED*))))))
 
+;; T when a wall must carry a line on THIS pass.  `sheeting` nil = the COL-OUTER pass (the columns are
+;; real, so it always draws); T = the SHEETING outline, which asks whether the wall is clad.
+;;
+;; A COMMON wall is always clad.  Owner 10-Jul, giving the reason: "why are we giving the sheeting line?
+;; the reason is that when there is a difference in height.  Sheeting will be either full height, or the
+;; common area open and above sheeting.  Both cases the sheeting line will come."  The two areas differ
+;; in height (that is what makes them two areas), so above the LOWER area's roof the taller area's wall
+;; is exterior and must be clad.  Hence a common wall set 'Full Height Open for Access' is open only up
+;; to the low roof — there is still a sheeted strip above it, and in PLAN that strip is the sheeting
+;; line.  The IF's own list says the same: 'Open up to .. M for Access, Rest Height Sheeted' keeps its
+;; line already (peb-wall-open-p is nil for it — it matches *SHEET*).
+;;
+;; Exactly ONE line results at the join: the ATTACHED area omits the wall entirely (*PEB-OMIT-WALL*),
+;; the REFERENCE clads it.  *PEB-REF-SHARED* governs that wall's LABEL, DIM stack and GRID row (all
+;; genuinely interior), but never its sheeting.  Only a fully-open EXTERNAL wall loses the line.
+(defun peb-wall-clad-p (w open sheeting)
+  (or (not sheeting)                ; COL-OUTER pass — the column line is always drawn
+      (peb-ref-shared-p w)          ; common wall — clad above the lower area's roof, always
+      (not open)))                  ; external wall — clad unless fully open for access
+
 ;; draw a building-outline rectangle EDGE-BY-EDGE, skipping the wall shared with an attached area
 ;; (*PEB-OMIT-WALL*).  NSW=bottom(y0) FSW=top(y1) LEW=left(x0) REW=right(x1).  nil => all 4 (normal).
-;; owner 5-Jul: when `sheeting` is T (the SHEETING outline, not the column line), ALSO skip a wall whose
-;; IF condition is FULLY open for access (*PEB-WOPEN-*) — no sheeting line there.  So a common wall set
-;; 'Full Height Open for Access' reads as an open passage between the areas.
-;; owner 10-Jul: "whenever there are 2 areas, there is ALWAYS ONE line of sheeting at the common wall,
-;; due to the difference in area."  So a common wall carries exactly ONE sheeting line, not two and not
-;; none.  That falls out naturally: the ATTACHED area omits the wall entirely (*PEB-OMIT-WALL*), while
-;; the REFERENCE still clads it.  An earlier reading of "single sheeting line, NOT 2" also suppressed
-;; the reference's sheeting there, leaving ZERO — measured on 19/20/22/23: COL-OUTER only.
-;; *PEB-REF-SHARED* therefore governs the wall LABEL, the DIM stack and the GRID row (all interior
-;; now), but NOT the sheeting: the cladding is real.  Only a wall the IF marks fully open for access
-;; (*PEB-WOPEN-*) loses its sheeting line.
 (defun peb-draw-outline (x0 y0 x1 y1 sheeting)
-  (if (not (or (peb-omit-wall-p "NSW") (and sheeting *PEB-WOPEN-NSW*))) (command "_.LINE" (list x0 y0) (list x1 y0) ""))
-  (if (not (or (peb-omit-wall-p "FSW") (and sheeting *PEB-WOPEN-FSW*))) (command "_.LINE" (list x0 y1) (list x1 y1) ""))
-  (if (not (or (peb-omit-wall-p "LEW") (and sheeting *PEB-WOPEN-LEW*))) (command "_.LINE" (list x0 y0) (list x0 y1) ""))
-  (if (not (or (peb-omit-wall-p "REW") (and sheeting *PEB-WOPEN-REW*))) (command "_.LINE" (list x1 y0) (list x1 y1) ""))
+  (if (and (not (peb-omit-wall-p "NSW")) (peb-wall-clad-p "NSW" *PEB-WOPEN-NSW* sheeting))
+    (command "_.LINE" (list x0 y0) (list x1 y0) ""))
+  (if (and (not (peb-omit-wall-p "FSW")) (peb-wall-clad-p "FSW" *PEB-WOPEN-FSW* sheeting))
+    (command "_.LINE" (list x0 y1) (list x1 y1) ""))
+  (if (and (not (peb-omit-wall-p "LEW")) (peb-wall-clad-p "LEW" *PEB-WOPEN-LEW* sheeting))
+    (command "_.LINE" (list x0 y0) (list x0 y1) ""))
+  (if (and (not (peb-omit-wall-p "REW")) (peb-wall-clad-p "REW" *PEB-WOPEN-REW* sheeting))
+    (command "_.LINE" (list x1 y0) (list x1 y1) ""))
   (princ))
 
 ;; wall of THIS area that is common with its reference, given its attach position (for *PEB-OMIT-WALL*)
