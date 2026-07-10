@@ -2340,13 +2340,58 @@
   (and (= (strcase (peb-tb-or (MSPL-Get-Str data "MZ_TOGGLE") "")) "YES")
        (= (strcase (peb-tb-or (MSPL-Get-Str data "MZ_RCC")    "")) "YES")))
 
+;; The MEZZANINE FLOOR's placement ACROSS THE WIDTH (owner 10-Jul: "there must be a field in the IF
+;; for placement of the mezzanine floor, and it must show on the CLP at the defined location").
+;; Length placement already exists (MZ_GRID_BAY_FROM/TO).  Width placement did not: the footprint was
+;; ALWAYS the full interior width.  MZ_WIDTH_ANCHOR names the wall it grows from; MZ_WIDTH_EXTENT is
+;; how deep it runs (mm).  Blank / "FULL" / no extent => full interior width, i.e. the old behaviour.
+;; Returns (b0 b1) clamped inside the wall clearance.
+(defun peb-mz-width-band (data wid inset / anc ext b0 b1)
+  (setq anc (strcase (peb-tb-or (MSPL-Get-Str data "MZ_WIDTH_ANCHOR") ""))
+        ext (MSPL-Get-Num data "MZ_WIDTH_EXTENT")
+        b0  inset
+        b1  (- wid inset))
+  ;; The extent is measured FROM THE WALL (y=0 for NSW, y=wid for FSW).  A mezzanine slab ABUTS the
+  ;; wall, so the anchored deck runs wall-to-extent and its depth dim then prints the IF's own number.
+  ;; (Insetting the wall side drew 11 000 for a 12 m mezzanine — a label that disagrees with the
+  ;; geometry, the same class of error as the O/O dim.)  FULL WIDTH keeps the old inset-both-sides
+  ;; footprint, and never prints a width dim anyway (dims are drawn only when partial).
+  (if (and ext (> ext 0.0) (< ext wid))
+    (cond
+      ((wcmatch anc "*NSW*,*NEAR*")  (setq b0 0.0 b1 ext))                  ; grows up from NSW (y=0)
+      ((wcmatch anc "*FSW*,*FAR*")   (setq b0 (- wid ext) b1 wid))          ; grows down from FSW (y=wid)
+      ((wcmatch anc "*CENTR*,*MID*") (setq b0 (- (/ wid 2.0) (/ ext 2.0))   ; centred on the width
+                                           b1 (+ b0 ext)))))
+  ;; clamp to the building, and never invert
+  (setq b0 (max 0.0 b0) b1 (min wid b1))
+  (if (>= b0 b1) (setq b0 inset b1 (- wid inset)))     ; nonsense extent -> fall back to full width
+  (list b0 b1))
+
+;; The main frame's INTERIOR column lines (width stations strictly between the two side walls).
+;; owner 10-Jul: "existing columns as-is; NEW columns (up to the mezzanine beam bottom) encircled."
+;; A mezzanine stub must NOT be drawn where a building column already stands — on a multi-span the
+;; mezzanine module can land exactly on an interior column line, and the drawer would then stack a
+;; second I-section on top of the existing one AND encircle it, calling an existing column new.
+;; Derived from BP_WIDTH_MOD (MODEXPR), the same expression the plan uses for widthPts.
+(defun peb-main-interior-ys (data wid / expr spans acc out s)
+  (setq expr (MSPL-Get-Str data "MODEXPR") out '())
+  (if (and expr (/= expr ""))
+    (progn
+      (setq spans (peb-parse-mod-expression expr) acc 0.0)
+      (foreach s spans
+        (setq acc (+ acc s))
+        (if (and (> acc 1.0) (< acc (- wid 1.0))) (setq out (append out (list acc)))))))
+  out)
+
 ;; ---- component drawer: peb-draw-mezzanine (merged from comp_mezzanine.lsp) ----
 ;; ============================================================================
 ;; MEZZANINE component drawer  —  Column Layout Plan (TOP VIEW)
 ;; Owner rule (Ch.11 §11.1-11.2, catalogue §11): a CLEAN FOOTPRINT, not a framing
 ;; plan.  Draw only: (1) decking OUTLINE rectangle over the footprint, (2) its OWN
-;; interior stub-column grid (small filled squares, NOT the big I-section),
-;; (3) "MEZZANINE" label + "F.F.L" tag, (4) footprint dims only when PARTIAL.
+;; interior stub-column grid — I-section + 4 anchor bolts, capped with a CIRCLE that
+;; marks it a STUB rising only to the mezzanine-beam underside (owner 8-Jul; the
+;; older "small filled squares" note was superseded), (3) "MEZZANINE" label +
+;; "F.F.L" tag, (4) footprint dims only when PARTIAL.
 ;;
 ;; Self-contained: reuses engine helpers (MSPL-Get-*, peb-comp-layer, peb-comp-poly,
 ;; txt-bold, peb-comma, peb-dim-h-stretch, peb-dim-height-stretch) but every risky
@@ -2362,7 +2407,8 @@
     ft fx0 fx1 fy0 fy1 partial cx cy lcy hlab fflStr fflv
     ys xs acc h hh x y
     numBays bayPts2 sp2 rem2 bx colD savedWeb circR host rcc mzRcc rccXs rccYs
-    module rr gap nsub yi yy0 yy1 glF glT glX0 glX1 )
+    module rr gap nsub yi yy0 yy1 glF glT glX0 glX1
+    mzBand mzB0 mzB1 mzPart mainYs mainTol sy0 sy1 )
 
   (if (/= (strcase (MSPL-Get-Str data "MZ_TOGGLE")) "YES")
     (princ)                                    ; not requested — do nothing
@@ -2428,11 +2474,17 @@
           (if (<= glT (length bayPts2))
             (setq glX0 (nth (1- glF) bayPts2) glX1 (nth (1- glT) bayPts2)))))
 
+      ;; WIDTH placement (owner 10-Jul) — MZ_WIDTH_ANCHOR + MZ_WIDTH_EXTENT.  Blank => full width,
+      ;; so every existing drawing is bit-for-bit unchanged.
+      (setq mzBand (peb-mz-width-band data wid inset)
+            mzB0   (nth 0 mzBand)
+            mzB1   (nth 1 mzBand)
+            mzPart (or (> mzB0 (+ inset 1.0)) (< mzB1 (- (- wid inset) 1.0))))  ; narrowed => partial
       (setq foots '())
       (cond
-        ;; grid-line extent → one footprint spanning those bays (full interior width)
+        ;; grid-line extent → one footprint spanning those bays, over the placed width band
         ((and glX0 glX1 (> glX1 glX0))
-         (setq foots (list (list glX0 glX1 inset (- wid inset) T (MSPL-Get-Num data "MZ1_CH_FFL_BEAM")))))
+         (setq foots (list (list glX0 glX1 mzB0 mzB1 T (MSPL-Get-Num data "MZ1_CH_FFL_BEAM")))))
         (specs
           (setq cx0 inset)                       ; one or more dimensioned footprints
           (foreach sp specs
@@ -2443,8 +2495,8 @@
               (setq foots (append foots (list (list a0 a1 b0 b1 T ff)))))
             (setq cx0 (+ a1 (max u 2000.0)))))    ; gap before next tiled mezz
         (T
-          (setq foots (list (list inset (- len inset) inset (- wid inset)
-                                  nil (MSPL-Get-Num data "MZ1_CH_FFL_BEAM"))))))
+          (setq foots (list (list inset (- len inset) mzB0 mzB1
+                                  mzPart (MSPL-Get-Num data "MZ1_CH_FFL_BEAM"))))))
 
       ;; --- draw each footprint --------------------------------------------------
       (peb-comp-layer "COMP-MEZZ" 6)             ; magenta
@@ -2484,12 +2536,18 @@
                 (foreach bx bayPts2
                   (if (and (>= bx (- fx0 1.0)) (<= bx (+ fx1 1.0))) (setq xs (append xs (list bx)))))
                 (if (null xs) (setq xs (list fx0 fx1)))
-                ;; width (y) stations = mezzanine column module (MZ_COL_SPACING) across the footprint
-                (setq ys (list fy0) acc fy0)
+                ;; width (y) stations = mezzanine column module (MZ_COL_SPACING) across the footprint.
+                ;; The DECK may abut a wall (an anchored placement runs wall-to-extent), but a STUB must
+                ;; not land on the side-wall column that already carries the beam there — so the stub
+                ;; grid is kept inside the wall clearance even when the deck edge is not.  For a
+                ;; full-width footprint sy0/sy1 == fy0/fy1, so nothing changes.
+                (setq sy0 (max fy0 inset)
+                      sy1 (min fy1 (- wid inset)))
+                (setq ys (list sy0) acc sy0)
                 (foreach s2 spList
                   (setq acc (+ acc s2))
-                  (if (< acc (- fy1 (* post 0.6))) (setq ys (append ys (list acc)))))
-                (setq ys (append ys (list fy1)))
+                  (if (< acc (- sy1 (* post 0.6))) (setq ys (append ys (list acc)))))
+                (setq ys (append ys (list sy1)))
                 ;; mezzanine stub-column section depth — sized off the width module (lighter
                 ;; than the main frame); override the global col depth for the stub, then restore.
                 (setq colD     (peb-col-web-depth (apply 'max (cons 6000.0 spList)))
@@ -2541,14 +2599,26 @@
                       (txt-bold "ML" (list (+ (car rccXs) (* colD 1.2)) (+ (cadr rccYs) (* colD 1.2)))
                                 (/ 520.0 scale) 0.0 "BEAM CHEM. ANCHORED TO RCC COL (TYP.)")))))
                   ;; ── PEB (STEEL) BUILDING ───────────────────────────────────────────────
-                  ;; New steel mezzanine columns only (I + bolts + circle stub).  NO RCC columns
+                  ;; NEW steel mezzanine columns only (I + 4 bolts + circle stub).  NO RCC columns
                   ;; appear on a steel-building plan (owner 8-Jul).
-                  (foreach x xs
-                    (foreach y ys
-                      (vl-catch-all-apply (function (lambda ()
-                        (draw-I-column-lengthwise x y)
-                        (setvar "CLAYER" "COMP-MEZZ")
-                        (command "_.CIRCLE" (list x y) circR)))))))
+                  ;;
+                  ;; owner 10-Jul: "EXISTING columns as-is; NEW columns (up to the mezzanine beam
+                  ;; bottom) will be ENCIRCLED."  A mezzanine width module can land exactly on a
+                  ;; MULTI-SPAN's interior column line — the drawer would then stack a second
+                  ;; I-section on the existing column and encircle it, calling an existing column
+                  ;; new.  Skip those stations entirely: the building column already carries the
+                  ;; beam there and is left exactly as the frame drew it.  (The side walls were
+                  ;; already safe: fy0/fy1 are inset from them, so botY/topY never coincide.)
+                  (progn
+                    (setq mainYs (peb-main-interior-ys data wid)
+                          mainTol (* 0.5 (peb-col-web-depth wid)))   ; within half a column depth = the same column
+                    (foreach x xs
+                      (foreach y ys
+                        (if (not (vl-some '(lambda (my) (< (abs (- my y)) mainTol)) mainYs))
+                          (vl-catch-all-apply (function (lambda ()
+                            (draw-I-column-lengthwise x y)
+                            (setvar "CLAYER" "COMP-MEZZ")
+                            (command "_.CIRCLE" (list x y) circR)))))))))
                 (setq *PEB-COL-WEB* savedWeb)
 
                 ;; (3) label + F.F.L tag (centred on the decking)
