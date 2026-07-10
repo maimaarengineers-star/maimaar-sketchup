@@ -98,13 +98,17 @@
         ((wcmatch up "*ROOF*SYSTEM*,*RCC*,*ON RCC*,*RC COLUMN*") "RC")
         ((wcmatch up "*PETROL*,*CNG*,*FUEL*") "PP")
         ((wcmatch up "*FLAT*") "FR")
-        ((wcmatch up "*BUTTERFLY*") "BF")
+        ((wcmatch up "*BUTTERFLY*,*FALCON*") "BF")     ; Falcon = 2-wing centre PEAK; no "butterfly" in its label
         ((wcmatch up "*ARCH*MULTI*") "AMS")
         ((wcmatch up "*ARCH*") "ACS")
         ((wcmatch up "*MULTI*GABLE*") "MG")
+        ;; CANTILEVER BEFORE SINGLE-SLOPE: "Single-Sided Cantilever - Slope Towards Columns" contains
+        ;; SINGLE ... SLOPE in order, so "*SINGLE*SLOPE*" used to swallow it. Mirrors Plan.lsp.
+        ((wcmatch up "*CANTILEVER*,*SINGLE*SIDED*,*ONE*SIDED*") "CC")
         ((wcmatch up "*SINGLE*SLOPE*,*MONO*") "SS")
         ((wcmatch up "*LEAN*") "LT")
-        ((wcmatch up "*CANTILEVER*,*SINGLE*SIDED*,*ONE*SIDED*") "CC")
+        ((wcmatch up "*MULTI*SPAN*") "MS")             ; the exact alist already catches "Multi-Span"; this covers verbose variants (Plan.lsp had it, Section did not)
+        ((wcmatch up "*CLEAR*SPAN*") "CS")             ; explicit, not by fall-through
         (T "CS")))
 
 (defun peb-slope-to-denom (slopeStr customStr / s pos)

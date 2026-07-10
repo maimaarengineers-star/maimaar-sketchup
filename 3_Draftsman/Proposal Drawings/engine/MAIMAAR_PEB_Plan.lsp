@@ -103,14 +103,22 @@
         ((wcmatch up "*ROOF*SYSTEM*,*RCC*,*ON RCC*,*OVER RCC*,*RC COLUMN*") "RC")
         ((wcmatch up "*PETROL*,*CNG*,*FUEL*")                 "PP")
         ((wcmatch up "*FLAT*")                                "FR")
-        ((wcmatch up "*BUTTERFLY*")                           "BF")
+        ;; FALCON is a 2-wing canopy like the butterfly (centre PEAK vs valley) — it carries no
+        ;; "butterfly" in its label, so without this it fell through to the CS default.
+        ((wcmatch up "*BUTTERFLY*,*FALCON*")                  "BF")
         ((wcmatch up "*ARCH*MULTI*")                          "AMS")
         ((wcmatch up "*ARCH*")                                "ACS")
         ((wcmatch up "*MULTI*GABLE*")                         "MG")
+        ;; CANTILEVER MUST BE TESTED BEFORE SINGLE-SLOPE.  The canopy label
+        ;; "Single-Sided Cantilever - Slope Towards Columns" contains SINGLE ... SLOPE in order, so
+        ;; "*SINGLE*SLOPE*" swallowed it and drew a mono-slope box building instead of a canopy.
+        ;; drawingData.ts normalises canopies to "Cantilever Canopy" before writing BP_FRAME_TYPE, so
+        ;; this is latent on the live path — but a hand-edited PEB_Data would hit it silently.
+        ((wcmatch up "*CANTILEVER*,*SINGLE*SIDED*,*ONE*SIDED*") "CC")
         ((wcmatch up "*SINGLE*SLOPE*,*MONO*")                 "SS")
         ((wcmatch up "*LEAN*")                                "LT")
-        ((wcmatch up "*CANTILEVER*,*SINGLE*SIDED*,*ONE*SIDED*") "CC")
         ((wcmatch up "*MULTI*SPAN*")                          "MS")
+        ((wcmatch up "*CLEAR*SPAN*")                          "CS")   ; explicit, not by fall-through
         (T                                                    "CS")))
 
 (defun peb-slope-to-denom (slopeStr customStr / s pos)
@@ -3091,7 +3099,17 @@
     ((= stype "BF")
       (setq widthPts (list 0.0 (/ wid 2.0) wid))
     )
-    ((= stype "MS")
+    ;; owner 10-Jul (frameInvariants.js, RULES/05): SINGLE SLOPE is class 'either' — "built as Clear
+    ;; Span Single Slope OR Multi-Span Single Slope (2/3/4 spans)", interior columns "none or 1+".
+    ;; FLAT ROOF likewise ("per grid"). Both used to fall to the (T …) branch below, so widthPts
+    ;; collapsed to (0 wid): no interior column lines, no width-module dim chain, no interior bracing —
+    ;; a multi-span single slope drew as a clear span. Take the module branch whenever the IF actually
+    ;; supplies modules (NUMMODULES > 1); with none, nothing changes.
+    ;; (AMS already reaches here: line ~3003 rewrites stype "AMS" -> "MS" behind *PEB-ARCHED*.)
+    ((or (= stype "MS")
+         (and (member stype '("SS" "FR"))
+              (setq numMod (MSPL-Get-Int data "NUMMODULES"))
+              (> numMod 1)))
       (progn
         (setq numMod (MSPL-Get-Int data "NUMMODULES"))
         (if (or (null numMod) (< numMod 1)) (setq numMod 1))
