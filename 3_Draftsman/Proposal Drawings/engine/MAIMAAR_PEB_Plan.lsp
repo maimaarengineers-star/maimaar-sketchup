@@ -1205,10 +1205,27 @@
     (setq s (strcat s (if first "" " + ") (itoa (nth 2 g)) "@" (rtos (nth 3 g) 2 0)) first nil))
   s)
 
+;; T when the IF expression's total equals the span actually drawn by pts (1 mm / 0.1 % tolerance).
+;; The end-wall stations are RESCALED to close on the real width (ewScale, ~line 3096), so an IF
+;; expression whose total disagrees with the width is drawn at one spacing and would be LABELLED at
+;; another. Guard the mirror with this check so a stale IF value can never print a false dimension.
+(defun peb-chain-expr-fits (ifExpr pts / spans exprSum ptsSum tol s)
+  (setq spans (peb-parse-mod-expression ifExpr))
+  (if (or (null spans) (null pts) (< (length pts) 2))
+    T                                             ; nothing to check against -> keep mirroring
+    (progn
+      (setq exprSum 0.0)
+      (foreach s spans (setq exprSum (+ exprSum s)))
+      (setq ptsSum (abs (- (last pts) (car pts))))
+      (setq tol (max 1.0 (* 0.001 ptsSum)))
+      (<= (abs (- exprSum ptsSum)) tol))))
+
 ;; Inner-chain label = MIRROR the IF spacing expression verbatim (owner 4-Jul: "dimensions must be a
-;; mirror of the IF, the way it is presented in the IF"); derive from the grid only when the IF has none.
+;; mirror of the IF, the way it is presented in the IF"); derive from the grid when the IF has none —
+;; or when the IF expression does not close on the drawn span (then the mirror would be a lie).
 (defun peb-chain-text (ifExpr pts)
-  (if (and ifExpr (/= ifExpr "") (vl-string-search "@" ifExpr))
+  (if (and ifExpr (/= ifExpr "") (vl-string-search "@" ifExpr)
+           (peb-chain-expr-fits ifExpr pts))
     (peb-fmt-expr ifExpr)
     (peb-fmt-chain (peb-group-equal-spans pts))))
 
@@ -1264,21 +1281,48 @@
 ;; apex pointing in the FALL direction) with a CIRCLE inside, "FALL" text VERTICAL BELOW the pentagon, and
 ;; the slope ratio SMALL + HORIZONTAL below that.  a = scale (u, autosizes with the building); dir (+/-1)
 ;; points the apex in the fall direction.  Text sized PROPORTIONAL to a (txt re-scales by TS -> pass a/TS).
-(defun peb-fall-marker (x y dir u / prev a ts hw bh sy ah fh sh)
-  ;; house = tall rectangular BODY (base at -dir*bh, shoulders at +dir*sy) capped by a wide TRIANGULAR roof
-  ;; (apex at +dir*ah), with the CIRCLE sitting in the body so it never pokes past the narrowing roof.
+;; owner 10-Jul: "polish the FALL arrow — more beautiful and contrast … refine per typical PEB".
+;; Reference-first (MAMMUT_07_Zealcon, glyph beside each REW 'FALL' text): the real symbol is an APEX with
+;; two mirrored legs wrapping a small CIRCLE.  Mammut faked boldness by stacking several zero-width offset
+;; outlines; we have real lineweights + fills, so we draw it properly:
+;;   * a SOLID filled arrowhead (the apex) — the contrast that was missing when everything was hollow
+;;   * a bold body outline, slightly narrower than the head so the head reads as a true arrow
+;;   * a crisp ring in the body carrying the SLOPE RATIO inside it (typical PEB roof-plan practice:
+;;     the ratio travels with the arrow instead of floating on a separate line)
+;;   * "FALL" vertical below, unchanged.
+;; Drawn with peb-* entmake primitives (project rule: sheet engines never draw raw), BYLAYER on FALL.
+(defun peb-fall-marker (x y dir u / prev a ts hw bh sy ah hw2 cr ccy fyy fh)
   (setq prev (getvar "CLAYER") a u ts (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)
-        hw (* 0.70 a) bh (* 0.74 a) sy (* 0.34 a) ah (* 0.90 a)
-        fh (/ (* 0.50 a) ts) sh (/ (* 0.36 a) ts))
+        hw  (* 0.20 a)    ; SHAFT half-width — slender, so the head reads as a true arrowhead
+        bh  (* 0.50 a)    ; shaft tail, opposite the fall direction (long enough not to look stubby)
+        sy  (* 0.30 a)    ; shoulder = where the head meets the shaft
+        ah  (* 1.05 a)    ; apex
+        hw2 (* 0.85 a)    ; arrowhead half-width
+        cr  (* 0.40 a)    ; ring radius, clear of the shaft
+        ccy (* 1.12 a)    ; ring centre, clear BELOW the shaft tail (ring stroke is heavy — leave ~0.2*a)
+        ;; "FALL" is rotated 90 deg, so it extends along Y by its LENGTH (4 chars * 0.74 * fh = 0.74*a),
+        ;; NOT its height.  Centre it a half-length + gap below the ring, or the L collides with the ring.
+        fyy (* 2.50 a)
+        fh  (/ (* 0.50 a) ts))
   (setvar "CLAYER" "FALL")
-  (command "_.PLINE"
-    (list (- x hw) (- y (* dir bh))) (list (+ x hw) (- y (* dir bh)))                 ; body base
-    (list (+ x hw) (+ y (* dir sy))) (list x (+ y (* dir ah))) (list (- x hw) (+ y (* dir sy)))  ; roof shoulders + apex
-    "_C")
-  (command "_.CIRCLE" (list x (- y (* dir 0.09 a))) (* 0.50 a))                        ; circle in the body
-  (setvar "CLAYER" "FALL")   ; owner 7-Jul (Mammut mirror): FALL text is RED like the glyph, not white
-  (txt "MC" (list x (- y (* dir (+ bh (* 1.00 a))))) fh 90.0 "FALL")                   ; FALL vertical, clear below the pentagon
-  (txt "MC" (list x (- y (* dir (+ bh (* 1.92 a))))) sh  0.0 (peb-slope-text))         ; slope small + horizontal, below FALL
+  ;; shaft — FILLED, so the whole arrow is a solid mass against the black sheet
+  (peb-solid (list (- x hw) (- y (* dir bh)))
+             (list (+ x hw) (- y (* dir bh)))
+             (list (- x hw) (+ y (* dir sy)))
+             (list (+ x hw) (+ y (* dir sy)))
+             "FALL")
+  ;; arrowhead — FILLED triangle (p3 = p4: the bowtie-safe SOLID convention used by tb-solid-tri)
+  (peb-solid (list (- x hw2) (+ y (* dir sy)))
+             (list (+ x hw2) (+ y (* dir sy)))
+             (list x (+ y (* dir ah)))
+             (list x (+ y (* dir ah)))
+             "FALL")
+  ;; ring below the shaft, carrying the slope ratio — the ratio travels WITH the arrow (typical PEB)
+  (peb-circle x (- y (* dir ccy)) cr "FALL")
+  ;; ratio height so a 4-char "1:10" (romans advance ~0.74*h) stays inside the 0.80*a ring
+  (txt "MC" (list x (- y (* dir ccy))) (/ (* 0.22 a) ts) 0.0 (peb-slope-text))
+  ;; "FALL" vertical, clear below the ring (RED like the glyph — owner 7-Jul Mammut mirror)
+  (txt "MC" (list x (- y (* dir fyy))) fh 90.0 "FALL")
   (setvar "CLAYER" prev))
 
 (defun arrow-up-big   (x y u) (peb-fall-marker x y  1.0 u)) ; fall toward FSW (up)
@@ -2830,7 +2874,7 @@
     slopeXs slopeStep rafterStep sx grp clearH
     lewFrameRaw rewFrameRaw lewFrameLabel rewFrameLabel
     mainHalfY endHalfX sheetGap
-    gridY1 gridY2 gridX1 gridX2 ovrTxtH bubR nWid
+    gridY1 gridY2 gridX1 gridX2 ovrTxtH bubR bubStand nWid
   )
 
   ;; Initialize MAIMAAR-DIM dimstyle (Section-spec native dims).
@@ -3231,7 +3275,12 @@
   ;; owner 4-Jul: bubbles must be big enough to READ. Floor 650, grow with the building (620*scale),
   ;; only shrink if bays are tight (0.42*minSp so bubbles still never touch).
   (setq *PEB-BUBRAD* (max 900.0 (min (* 720.0 *PEB-TEXT-SCALE*) (* 0.48 minSp))))
-  (setq bubR (+ *PEB-BUBRAD* (* 60.0 *PEB-TEXT-SCALE*)))       ; stem stops just outside the bubble
+  (setq bubR (+ *PEB-BUBRAD* (* 60.0 *PEB-TEXT-SCALE*)))       ; circle edge (kept for reference)
+  ;; owner 10-Jul: "the vertical dotted lines go INSIDE the bubble".  bubR only cleared the CIRCLE, but
+  ;; grid-bubble also draws a tangent POINTER whose apex sits at (r + tail) = 2.15*r from the centre —
+  ;; so a stem ending at the circle ran straight through the V.  Stop the stem clear of the APEX instead,
+  ;; leaving a small gap; the pointer itself is then the "small line" below/right of the bubble.
+  (setq bubStand (+ (* 2.15 *PEB-BUBRAD*) (* 140.0 *PEB-TEXT-SCALE*)))
   ;; TOP stack (upward from the FSW edge y=wid). owner 4-Jul: FIXED, UNIFORM gap between dimension rows
   ;; (dimGap) so dim spacing is consistent everywhere; generous, equal spacing (txtGap) between the FSW
   ;; label, the area-description banner, the "COLUMN LAYOUT PLAN" title, and the border.
@@ -3244,7 +3293,9 @@
   (setq yBayDim (+ wid topGap))                                         ; per-bay dim chain
   (setq yOvrDim (+ yBayDim topGap))                                     ; overall-length dim (same gap)
   (setq ovrTxtH (* 490.0 *PEB-DIM-SCALE*))                             ; outer-dim TEXT height (DIMTXT 440*DS) — clear it snugly
-  (setq gridY2  (+ yOvrDim ovrTxtH topGap *PEB-BUBRAD*))                ; grid bubble CENTRE — gap ABOVE the dim text (owner 5-Jul)
+  ;; owner 10-Jul: push the number bubbles LIGHTLY upward (0.55*r) so the stem/pointer reads as a short
+  ;; connector below the bubble instead of the dotted line crowding it.
+  (setq gridY2  (+ yOvrDim ovrTxtH topGap *PEB-BUBRAD* (* 0.55 *PEB-BUBRAD*)))   ; grid bubble CENTRE
   (setq yFsw    (+ gridY2 *PEB-BUBRAD* txtGap))                         ; FSW wall label
   (setq ySub    (+ yFsw txtGap))                                        ; area-description banner
   (setq yTtl    (+ ySub txtGap))                                        ; COLUMN LAYOUT PLAN title
@@ -3252,7 +3303,8 @@
   ;; LEFT stack (leftward from the LEW edge x=0): overall-width dim (-3500 DS) then letter bubbles
   ;; letter bubble CENTRE — anchored 0.9*dimGap BEYOND the outermost (-3*dimGap) width dim, + bubble radius,
   ;; so it FOLLOWS dimGap and can never collide with the overall-width chain no matter how wide the spacing.
-  (setq gridX1  (- (- 0.0 (* 3.0 dimGap) ovrTxtH topGap) *PEB-BUBRAD*))  ; bubble LEFT of the outer-dim text + a gap (owner 5-Jul)
+  ;; owner 10-Jul: and LIGHTLY leftward (0.55*r) for the letter column, same reason.
+  (setq gridX1  (- (- 0.0 (* 3.0 dimGap) ovrTxtH topGap) *PEB-BUBRAD* (* 0.55 *PEB-BUBRAD*)))  ; bubble CENTRE, left of the outer-dim text
 
   (setq i 1)
   ;; owner 5-Jul (multi-area): the top length-grid sits on the FSW side — skip it when FSW is the wall
@@ -3267,7 +3319,7 @@
           (setvar "CLAYER" "GRID-LINES")
           ;; RULE (owner 4-Jul): grid marking line runs from the OUTER dimension line (overall length dim,
           ;; yOvrDim) up to the inner side of the bubble — not through the building.
-          (command "LINE" (list x (+ yOvrDim ovrTxtH)) (list x (- gridY2 bubR)) "")   ; owner 5-Jul: start just ABOVE the outer-dim text
+          (command "LINE" (list x (+ yOvrDim ovrTxtH)) (list x (- gridY2 bubStand)) "")   ; stop clear of the pointer apex (owner 10-Jul)
           (setvar "CLAYER" "GRID")
           (grid-bubble x gridY2 (itoa (+ i (if *PEB-GRID-NUM-OFS* *PEB-GRID-NUM-OFS* 0))) "D")))   ; owner 5-Jul: number offset -> grid CONTINUES across side-by-side areas
       (setq i (1+ i))
@@ -3292,7 +3344,7 @@
       (progn
         (setvar "CLAYER" "GRID-LINES")
         ;; RULE (owner 4-Jul): grid marking line from the OUTER width dimension line (-3*dimGap) to the bubble.
-        (command "LINE" (list (- (- 0.0 (* 3.0 dimGap)) ovrTxtH) y) (list (+ gridX1 bubR) y) "")   ; owner 5-Jul: start just LEFT of the outer-dim text
+        (command "LINE" (list (- (- 0.0 (* 3.0 dimGap)) ovrTxtH) y) (list (+ gridX1 bubStand) y) "")   ; stop clear of the pointer apex (owner 10-Jul)
         (setvar "CLAYER" "GRID")
         (grid-bubble gridX1 y (chr (+ 65 (- nWid 1 j) (if *PEB-GRID-LET-OFS* *PEB-GRID-LET-OFS* 0))) "R")))   ; owner 5-Jul: letter offset -> grid CONTINUES across stacked areas
     (setq j (1+ j))
