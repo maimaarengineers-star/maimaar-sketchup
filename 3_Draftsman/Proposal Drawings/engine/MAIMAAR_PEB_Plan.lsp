@@ -1125,6 +1125,18 @@
             (strcat " " suffix)
             "")))
 
+;; The per-area height tag's LABEL, from the IF's height basis (BP_HEIGHT_REF -> HEIGHT_REF).
+;; The IF stores ONE height number; the basis says what it means. Options are
+;;   "Clear Height at Eave" | "Clear Height at Low Eave" | "Eave Height"
+;; TRAP: "Clear Height at Eave" contains BOTH "CLEAR" and "EAVE" — CLEAR must be tested FIRST, or every
+;; clear height gets labelled as an eave height (which is what the hardcoded tag used to do).
+;; Blank basis -> "CLEAR HT.": the IF's heightBasis list defaults to "Clear Height at Eave".
+(defun peb-height-tag-label (ref / u)
+  (setq u (strcase (if ref ref "")))
+  (cond ((wcmatch u "*CLEAR*") "CLEAR HT.")
+        ((wcmatch u "*EAVE*")  "EAVE HT.")
+        (T                     "CLEAR HT.")))
+
 ;; map an IF "Measured At" basis string -> the Mammut-style dim-label suffix.
 (defun peb-basis-suffix (b / u)
   ;; Abbreviated to save space (owner 4-Jul): O/O = out to out, C/C = centre to centre, I/I = in to in.
@@ -2908,7 +2920,7 @@
     lewBrace rewBrace extType intType
     minSp prevp yBayDim yOvrDim yFsw ySub yTtl yFrmTop dimGap topGap txtGap
     ewExpr ewSpans ewSum ewScale ewAcc
-    x y i j colOff botY topY leftX rightX
+    x y i j colOff botY topY leftX rightX endHalf
     xdraw idx ypt prevY currY
     c0 c1 c2 c3 c4 c5 c6
     tbTop tbBot tbW tbScale tbXShift
@@ -3214,16 +3226,24 @@
   (setq gridWpts (vl-sort gridWpts '<))
 
   (setq areaM2 (/ (* len wid) 1000000.0))
-  ;; Phase-2A v23: column placement so OUTER flange sits ON the grid
-  ;; line (Mammut convention).  Sidewall columns inset h/2 = 350 from
-  ;; NSW/FSW grid; end-wall columns inset w/2 = 230 from LEW/REW grid.
-  ;; Maimaar-typical column web depth BY SPAN → drives the symbol + the inset.
+  ;; Phase-2A v23: column placement so the OUTER FLANGE sits ON the grid line (Mammut convention).
+  ;; Every inset is HALF THE DRAWN COLUMN DEPTH, so it tracks the section at any building size.
+  ;;   side-wall  (draw-I-column-lengthwise, ~684): depth D  = *PEB-COL-WEB*        -> inset D/2
+  ;;   end-wall   (draw-I-column-widthwise,  ~708): depth De = 0.5*D (peb-rule)     -> inset De/2
+  ;;
+  ;; owner 10-Jul: "the dim shows O/O of steel column but the arrow is not coming on the outer side of
+  ;; the flanges."  leftX/rightX were the HARDCODED 230 while botY/topY were derived — 230 only equals
+  ;; De/2 when *PEB-COL-WEB* = 920.  On a 30 m building (D=1100, De=550) the end column was inset 230
+  ;; instead of 275, so its outer flange face sat at x = -45 while the bay chain's arrow sat at x = 0.
+  ;; Derive it from the SAME peb-rule the drawer uses, so the Rule Book still governs the section.
+  ;; NOTE: sheetGap (~3274) and peb-draw-baseplate's bolt gauge (~673) are DIFFERENT 230s — leave them.
   (setq *PEB-COL-WEB* (peb-col-web-depth wid))
+  (setq endHalf (/ (* (peb-rule "endwall_depth_x_main" 0.5) *PEB-COL-WEB*) 2.0))   ; De/2
   (setq colOff  (/ *PEB-COL-WEB* 2.0)
         botY    (/ *PEB-COL-WEB* 2.0)
         topY    (- wid (/ *PEB-COL-WEB* 2.0))
-        leftX   230.0
-        rightX  (- len 230.0))
+        leftX   endHalf
+        rightX  (- len endHalf))
 
   (command "UNDO" "BEGIN")
 
@@ -3309,13 +3329,22 @@
   ;; centred area label inside the box (real number)
   (setvar "CLAYER" "TEXT")
   (txt-bold "MC" (list aCx aCy) 550 0 aLbl)
-  ;; owner 5-Jul: EAVE-HEIGHT tag just below the box so, at a glance, you see which area is high / low.
+  ;; HEIGHT tag just below the box so, at a glance, you see which area is high / low.
+  ;; owner 10-Jul: "show the CLEAR height on each plan (not eave) ... on each area."
+  ;; The IF carries ONE height number (BP_EAVE_HEIGHT) whose MEANING is declared by BP_HEIGHT_REF
+  ;; ("Clear Height at Eave" | "Clear Height at Low Eave" | "Eave Height").  peb-v3-to-legacy maps that
+  ;; same number to CLEARHEIGHT.  The tag used to be hardcoded "EAVE HT.", which MISLABELS a clear
+  ;; height as an eave height — the exact class of error the IF's own Clear-vs-Eave fix guarded against.
+  ;; Label it from the basis: never call an eave height "clear", and never call a clear height "eave".
+  ;; Now drawn on EVERY plan (was multi-area only, because of the vertical "BRACED BAY" text).  A centre
+  ;; bay CAN be braced (the rule is 2nd + 2nd-last + even interior <= 27 m), so they really can be
+  ;; neighbours — but measured on 01_clear_span the tag clears the nearest BRACED BAY by 577 mm, since
+  ;; the label sits BELOW the area box and the bay text runs vertically beside it.  audit_tagclash.py.
   (setq aEave (MSPL-Get-Num data "BP_EAVE_HEIGHT"))
-  ;; owner 7-Jul (presentation audit): the eave tag is only useful in MULTI-area (compare high/low areas)
-  ;; and it collided with the vertical "BRACED BAY" text; single-area already shows the eave in the title
-  ;; block + section, so gate it to multi-area — declutters the common single-area plan.
-  (if (and *PEB-MULTI-MODE* aEave (> aEave 0.0))
-    (txt-bold "MC" (list aCx (- aFB (* aTxH 0.80))) 400 0 (strcat "EAVE HT. " (peb-comma (rtos aEave 2 0)))))
+  (if (and aEave (> aEave 0.0))
+    (txt-bold "MC" (list aCx (- aFB (* aTxH 0.80))) 400 0
+              (strcat (peb-height-tag-label (MSPL-Get-Str data "HEIGHT_REF")) " "
+                      (peb-comma (rtos aEave 2 0)))))
 
   ;; ── Grid lines (Phase-2A v19 — extend to sheeting outer lines) ──
   ;; Bay lines run from NSW sheeting outer to FSW sheeting outer.
