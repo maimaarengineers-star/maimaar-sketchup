@@ -5308,12 +5308,20 @@
   (tb-mtext (+ X0 (* W 0.04)) (- bt (* lbl 1.3)) lbl cw 1 "CUSTOMER :" grey)
   (tb-mtext midX (+ yCur (* rh 0.28)) (tb-fith (tb-get "CUSTOMER") (* 1.6 cw) bv) cw 5 (tb-get "CUSTOMER") green)
   (tb-hdiv yCur)
-  ;; STEEL CONTRACTOR : real Maimaar logo + address
+  ;; STEEL CONTRACTOR : enlarged logo + MAIMAAR wordmark + address (owner 10-Jul; mirrors Plan.lsp).
+  ;; Hierarchy LOGO > NAME > ADDRESS.  The address used to sit inside the logo box and print white;
+  ;; it is now below the wordmark, in grey.  Wordmark capped at bv (= the CUSTOMER value height) so a
+  ;; proposal sheet still reads as addressed to the client.
   (setq bt yCur rh (* H 0.175) yCur (- yCur rh))
   (tb-mtext (+ X0 (* W 0.04)) (- bt (* lbl 1.3)) lbl cw 1 "STEEL CONTRACTOR :" grey)
-  (peb-tb-place-logo (+ X0 (* W 0.10)) (+ yCur (* rh 0.52))
-                     (+ X0 (* W 0.90)) (- bt (* lbl 2.4)))
-  (tb-mtext (+ X0 (* W 0.06)) (+ yCur (* rh 0.48)) sm cw 1 (tb-get "ADDR") white)
+  (peb-tb-place-logo (+ X0 (* W 0.14)) (+ yCur (* rh 0.60))
+                     (+ X0 (* W 0.86)) (- bt (* lbl 2.4)))
+  ;; MTEXT width 0 = no wrap; fit to 0.80*cw because bold caps advance ~0.82 (tb-fith assumes 0.74).
+  ;; A two-line "…(PVT)" / "LTD" in an ezdxf PNG preview is a renderer artifact, not the drawing.
+  (tb-mtext midX (+ yCur (* rh 0.48))
+            (tb-fith "MAIMAAR STEEL (PVT) LTD" (* cw 0.80) bv) 0 5
+            "{\\fArial|b1;MAIMAAR STEEL (PVT) LTD}" white)
+  (tb-mtext (+ X0 (* W 0.06)) (+ yCur (* rh 0.39)) (* sm 0.72) cw 1 (tb-get "ADDR") grey)
   (tb-hdiv yCur)
   ;; quote / bldg rows
   (foreach pr (list (list "QUOTE NO." (tb-get "QUOTE"))

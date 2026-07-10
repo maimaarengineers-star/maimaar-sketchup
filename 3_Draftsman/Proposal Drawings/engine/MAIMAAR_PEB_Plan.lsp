@@ -1811,12 +1811,27 @@
   (tb-mtext (+ X0 (* W 0.04)) (- bt (* lbl 1.3)) lbl cw 1 "CUSTOMER :" grey)
   (tb-mtext midX (+ yCur (* rh 0.28)) (tb-fith (tb-get "CUSTOMER") (* 1.6 cw) bv) cw 5 (tb-get "CUSTOMER") green)
   (tb-hdiv yCur)
-  ;; STEEL CONTRACTOR : real Maimaar logo + address
-  (setq bt yCur rh (* H 0.118) yCur (- yCur rh))   ; owner 5-Jul: narrower (tighter gaps around logo/address; frees footer room)
+  ;; STEEL CONTRACTOR : enlarged logo + MAIMAAR wordmark + address (owner 10-Jul: "make Maimaar Steel
+  ;; Pvt Ltd prominent in the right side table").  Hierarchy is LOGO > NAME > ADDRESS:
+  ;;   * the old cell had NO company name at all — the name lived only in the red disclaimer
+  ;;   * the address (white) was placed at 0.66*rh, INSIDE the logo box that started at 0.52*rh,
+  ;;     so the logo and "LAHORE OFFICE" overlapped.  Address now sits BELOW the wordmark, in grey.
+  ;;   * wordmark is capped at bv — the same height as the CUSTOMER value — so a proposal drawing
+  ;;     still reads as addressed to the client rather than as an advertisement.
+  ;; Cell grown 0.118H -> 0.140H; the bottom block had 0.066H of footer slack, now 0.044H (still ~4*lbl).
+  (setq bt yCur rh (* H 0.140) yCur (- yCur rh))
   (tb-mtext (+ X0 (* W 0.04)) (- bt (* lbl 1.3)) lbl cw 1 "STEEL CONTRACTOR :" grey)
-  (peb-tb-place-logo (+ X0 (* W 0.10)) (+ yCur (* rh 0.52))
-                     (+ X0 (* W 0.90)) (- bt (* lbl 2.4)))
-  (tb-mtext (+ X0 (* W 0.06)) (+ yCur (* rh 0.66)) (* sm 0.70) cw 1 (tb-get "ADDR") white)  ; owner 7-Jul: shrunk more (0.84->0.70) + raised so the 6-line address (…CELL…) never crosses into the quote row
+  (peb-tb-place-logo (+ X0 (* W 0.14)) (+ yCur (* rh 0.56))
+                     (+ X0 (* W 0.86)) (- bt (* lbl 2.4)))
+  ;; wordmark — ONE line: MTEXT width 0 = no wrap.  tb-fith assumes a 0.74 advance while bold caps run
+  ;; ~0.82, so fit to 0.80*cw to keep the bold string inside the strip.
+  ;; NOTE for anyone reviewing a PNG preview: ezdxf's matplotlib backend WRAPS an RTF-wrapped MTEXT
+  ;; ("{\fArial|b1;...}") even when width=0 — a plain MTEXT with the same width renders on one line.
+  ;; That two-line "…(PVT)" / "LTD" you may see in a preview is a RENDERER artifact, not the drawing.
+  (tb-mtext midX (+ yCur (* rh 0.44))
+            (tb-fith "MAIMAAR STEEL (PVT) LTD" (* cw 0.80) bv) 0 5
+            "{\\fArial|b1;MAIMAAR STEEL (PVT) LTD}" white)
+  (tb-mtext (+ X0 (* W 0.06)) (+ yCur (* rh 0.355)) (* sm 0.52) cw 1 (tb-get "ADDR") grey)
   (tb-hdiv yCur)
   ;; quote / bldg rows
   (foreach pr (list (list "QUOTE NO." (tb-get "QUOTE"))
