@@ -6000,13 +6000,12 @@
         (txt "MC" (list (/ (+ fx0 fx1) 2.0) (+ fy1 (/ 900.0 sc))) (/ 300.0 sc) 0.0
              (strcat "JOISTS ALONG LENGTH @ " (peb-comma (rtos jspSys 2 0)) " C/C")))))))
 
-  ;; MAIN BEAMS — heavy DOUBLE-line (flange + depth), in BOTH directions (owner 12-Jul): column-to-column
-  ;; along the WIDTH at each bay/length line (xs), AND along the LENGTH at each mezz width-module line
-  ;; (ys).  The light joists sit between them.  Drawn AFTER the joists so the heavy beams read on top.
+  ;; MAIN BEAMS — heavy DOUBLE-line (flange + depth), in the WIDTH direction only (owner 12-Jul: "heavy
+  ;; beams in the width direction, column to column"), one at each bay/length column line (xs).  The
+  ;; light joists run the LENGTH between them.  Drawn AFTER the joists so the heavy beams read on top.
   (peb-comp-layer "COMP-MEZZ-BEAM" 5)
   (setq beamHalf (max 250.0 (* (apply 'max (cons 6000.0 spList)) 0.075)))
   (foreach x xs (vl-catch-all-apply (function (lambda () (peb-mezz-mainbeam x fy0 x fy1 beamHalf)))))
-  (foreach y ys (vl-catch-all-apply (function (lambda () (peb-mezz-mainbeam fx0 y fx1 y beamHalf)))))
   (setvar "CLAYER" "COMP-MEZZ-BEAM")
   (if (> (length xs) 1)
     (vl-catch-all-apply (function (lambda ()
