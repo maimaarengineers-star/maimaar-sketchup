@@ -1963,25 +1963,49 @@
 
 ;; ---- CANOPY (attached, per wall CN_<W>_*) — owner: outer steel outline + slope/
 ;;      FALL sign + coverage dims; NO columns at the free (cantilever) edge. ----
-(defun peb-draw-canopy (data len wid / u proj alen)
+;; Width grid stations from the width modules (mirror of peb-mzfp-bays for the WIDTH axis) — used to place
+;; an endwall component between width grid letters. Clear span (no modules) → (0 wid) = grids A..B.
+(defun peb-comp-width-pts (data wid / nm pts cum i sp rem)
+  (setq nm (MSPL-Get-Int data "NUMMODULES")) (if (or (null nm) (< nm 1)) (setq nm 1))
+  (setq pts (list 0.0) cum 0.0 i 0)
+  (while (< i nm)
+    (setq sp (MSPL-Get-Num data (strcat "MODULE" (itoa (1+ i)))) rem (- wid cum))
+    (cond ((= i (1- nm)) (setq sp rem)) ((and sp (> sp 0.0) (< sp rem)) T) (T (setq sp (/ rem (float (- nm i))))))
+    (setq cum (+ cum sp) pts (append pts (list cum)) i (1+ i)))
+  pts)
+
+(defun peb-draw-canopy (data len wid / u proj alen bayPts wPts horiz stn gf gt ga0 ga1)
   (if (= (strcase (MSPL-Get-Str data "CN_TOGGLE")) "YES")
     (progn
       (setq u (max 400.0 (min 3000.0 (/ (max len wid) 70.0))))
+      (setq bayPts (peb-mzfp-bays data len) wPts (peb-comp-width-pts data wid))
       (foreach w (list "NSW" "FSW" "LEW" "REW")
         (if (= (strcase (MSPL-Get-Str data (strcat "CN_" w "_TOGGLE"))) "YES")
           (progn
             (setq proj (MSPL-Get-Num data (strcat "CN_" w "_WIDTH")))   ; projection from wall
             (setq alen (MSPL-Get-Num data (strcat "CN_" w "_LEN")))     ; length along wall (0 = full)
-            (if (or (null proj) (<= proj 0.0)) (setq proj 1500.0))      ; Mammut std 1500 mm
-            (vl-catch-all-apply (function (lambda () (peb-comp-canopy-one w proj alen len wid u)))))))))
+            (if (or (null proj) (<= proj 0.0)) (setq proj 1500.0))      ; std 1500 mm
+            ;; Grid-line placement (owner 11-Jul): position along the wall from CN_<w>_GRID_FROM/TO into the
+            ;; grid stations — bay points on a sidewall, width points on an endwall. nil -> full/centered.
+            (setq horiz (or (= w "NSW") (= w "FSW")) stn (if horiz bayPts wPts)
+                  gf (MSPL-Get-Int data (strcat "CN_" w "_GRID_FROM"))
+                  gt (MSPL-Get-Int data (strcat "CN_" w "_GRID_TO")))
+            (if (and gf gt (> gf 0) (> gt gf) stn (<= gt (length stn)))
+              (setq ga0 (nth (1- gf) stn) ga1 (nth (1- gt) stn))
+              (setq ga0 nil ga1 nil))
+            (vl-catch-all-apply (function (lambda () (peb-comp-canopy-one w proj alen len wid u ga0 ga1)))))))))
   (princ))
 
 ;; one canopy on wall w: outline extruded from the wall by proj, along the wall by
 ;; alen (default full), + outward FALL arrow + projection & coverage-length dims + label.
-(defun peb-comp-canopy-one (w proj alen len wid u / wl a0 a1 bx by ex ey nx ny mcx mcy lx ly horiz su full)
-  (setq horiz (member w '("NSW" "FSW")) wl (if horiz len wid)
-        full (or (null alen) (<= alen 0.0) (>= alen wl)))
-  (if full (setq a0 0.0 a1 wl) (setq a0 (/ (- wl alen) 2.0) a1 (+ a0 alen)))
+(defun peb-comp-canopy-one (w proj alen len wid u ga0 ga1 / wl a0 a1 bx by ex ey nx ny mcx mcy lx ly horiz su full)
+  (setq horiz (member w '("NSW" "FSW")) wl (if horiz len wid))
+  ;; Placement along the wall: grid range (owner 11-Jul) if given, else a partial coverage is centred, else full.
+  (cond
+    ((and ga0 ga1 (> ga1 ga0)) (setq a0 ga0 a1 ga1))
+    ((or (null alen) (<= alen 0.0) (>= alen wl)) (setq a0 0.0 a1 wl))
+    (T (setq a0 (/ (- wl alen) 2.0) a1 (+ a0 alen))))
+  (setq full (and (< a0 1.0) (> a1 (- wl 1.0))))
   (cond
     ((= w "NSW") (setq bx a0 by 0.0 ex a1 ey 0.0  nx 0.0 ny -1.0))
     ((= w "FSW") (setq bx a0 by wid ex a1 ey wid  nx 0.0 ny 1.0))
@@ -2035,10 +2059,11 @@
 ;; dispatch — mirror of peb-draw-canopy: iterate the four walls, draw each
 ;; toggled-on roof extension.  proj = RX_<W>_WIDTH (projection from the wall);
 ;; alen = RX_<W>_LEN (coverage along the wall, 0/blank = full).
-(defun peb-draw-roof-ext (data len wid / u proj alen eave)
+(defun peb-draw-roof-ext (data len wid / u proj alen eave bayPts wPts horiz stn gf gt ga0 ga1)
   (if (= (strcase (MSPL-Get-Str data "RX_TOGGLE")) "YES")
     (progn
       (setq u (max 400.0 (min 3000.0 (/ (max len wid) 70.0))))
+      (setq bayPts (peb-mzfp-bays data len) wPts (peb-comp-width-pts data wid))
       (foreach w (list "NSW" "FSW" "LEW" "REW")
         (if (= (strcase (MSPL-Get-Str data (strcat "RX_" w "_TOGGLE"))) "YES")
           (progn
@@ -2046,18 +2071,29 @@
             (setq alen (MSPL-Get-Num data (strcat "RX_" w "_LEN")))     ; length along wall (0 = full)
             (setq eave (MSPL-Get-Str data (strcat "RX_" w "_EAVE")))    ; eave-edge condition
             (if (or (null proj) (<= proj 0.0)) (setq proj 1000.0))      ; std overhang 1000 mm
+            ;; Grid-line placement (owner 11-Jul): RX_<w>_GRID_FROM/TO → grid stations (bays / width pts).
+            (setq horiz (or (= w "NSW") (= w "FSW")) stn (if horiz bayPts wPts)
+                  gf (MSPL-Get-Int data (strcat "RX_" w "_GRID_FROM"))
+                  gt (MSPL-Get-Int data (strcat "RX_" w "_GRID_TO")))
+            (if (and gf gt (> gf 0) (> gt gf) stn (<= gt (length stn)))
+              (setq ga0 (nth (1- gf) stn) ga1 (nth (1- gt) stn))
+              (setq ga0 nil ga1 nil))
             (vl-catch-all-apply
-              (function (lambda () (peb-comp-roof-ext-one w proj alen eave len wid u)))))))))
+              (function (lambda () (peb-comp-roof-ext-one w proj alen eave len wid u ga0 ga1)))))))))
   (princ))
 
 ;; one roof extension on wall w: outline extruded from the wall by proj, along the
 ;; wall by alen (default full), + projection & coverage-length dims + label +
 ;; eave-condition note.  Same NSW/FSW/LEW/REW geometry + horiz/dims logic as
 ;; peb-comp-canopy-one, minus the FALL arrow (roof extension shares the roof plane).
-(defun peb-comp-roof-ext-one (w proj alen eave len wid u / wl a0 a1 bx by ex ey nx ny mcx mcy horiz su full)
-  (setq horiz (member w '("NSW" "FSW")) wl (if horiz len wid)
-        full (or (null alen) (<= alen 0.0) (>= alen wl)))
-  (if full (setq a0 0.0 a1 wl) (setq a0 (/ (- wl alen) 2.0) a1 (+ a0 alen)))
+(defun peb-comp-roof-ext-one (w proj alen eave len wid u ga0 ga1 / wl a0 a1 bx by ex ey nx ny mcx mcy horiz su full)
+  (setq horiz (member w '("NSW" "FSW")) wl (if horiz len wid))
+  ;; Placement along the wall: grid range (owner 11-Jul) if given, else centred partial, else full.
+  (cond
+    ((and ga0 ga1 (> ga1 ga0)) (setq a0 ga0 a1 ga1))
+    ((or (null alen) (<= alen 0.0) (>= alen wl)) (setq a0 0.0 a1 wl))
+    (T (setq a0 (/ (- wl alen) 2.0) a1 (+ a0 alen))))
+  (setq full (and (< a0 1.0) (> a1 (- wl 1.0))))
   (cond
     ((= w "NSW") (setq bx a0 by 0.0 ex a1 ey 0.0  nx 0.0 ny -1.0))
     ((= w "FSW") (setq bx a0 by wid ex a1 ey wid  nx 0.0 ny 1.0))
@@ -2173,7 +2209,7 @@
 ;; the monitor is partial.  NO columns.
 ;; ============================================================================
 (defun peb-draw-monitor (data len wid
-                         / u ridge ow rmlen half x0 x1 yTop yBot mcx su lay lyr)
+                         / u ridge ow rmlen half x0 x1 yTop yBot mcx su lay lyr bayPts gf gt)
   (if (= (strcase (MSPL-Get-Str data "RM_TOGGLE")) "YES")
     (progn
       ;; ---- size unit (same formula the other drawers use) ----------------
@@ -2187,10 +2223,15 @@
             half  (/ ow 2.0)
             yTop  (+ ridge half)
             yBot  (- ridge half))
-      ;; length span (centred if partial) ----------------------------------
-      (if (or (null rmlen) (<= rmlen 0.0) (>= rmlen len))
-        (setq x0 0.0 x1 len)                                ; full length, LEW->REW
-        (setq x0 (/ (- len rmlen) 2.0) x1 (+ x0 rmlen)))    ; centred partial
+      ;; length span — grid range (owner 11-Jul: RM_GRID_FROM/TO into the bay grid) if set, else centred
+      ;; if partial, else full LEW->REW.
+      (setq bayPts (peb-mzfp-bays data len)
+            gf (MSPL-Get-Int data "RM_GRID_FROM") gt (MSPL-Get-Int data "RM_GRID_TO"))
+      (cond
+        ((and gf gt (> gf 0) (> gt gf) bayPts (<= gt (length bayPts)))
+         (setq x0 (nth (1- gf) bayPts) x1 (nth (1- gt) bayPts)))
+        ((or (null rmlen) (<= rmlen 0.0) (>= rmlen len)) (setq x0 0.0 x1 len))
+        (T (setq x0 (/ (- len rmlen) 2.0) x1 (+ x0 rmlen))))
       (setq mcx (/ (+ x0 x1) 2.0)
             su  (max 300.0 (min u (* ow 0.30))))            ; annotation size scaled to the strip depth
       ;; ---- layer ---------------------------------------------------------
