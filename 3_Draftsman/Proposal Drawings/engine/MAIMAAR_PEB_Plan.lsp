@@ -2747,6 +2747,20 @@
                 (if (/= fflStr "")
                   (vl-catch-all-apply (function (lambda ()
                     (txt-bold "MC" (list cx (- lcy (* hlab 1.7))) (/ (* hlab 0.65) scale) 0.0 fflStr)))))
+                ;; mezzanine column SECTION size (owner 11-Jul: "mention the mezzanine column dimensions").
+                ;; The real section is finalised at design (SAP) — not in the IF — so the drawer shows the
+                ;; INDICATIVE built-up I it draws (flange width x depth from *PEB-COL-WEB*), tagged BY DESIGN.
+                ;; Only when the mezzanine HAS its own columns: on a 10 m module carried by the PEB columns
+                ;; (1@10, no interior stub) there is no separate mezzanine column, so the note is skipped.
+                (if (and colD (> colD 0.0)
+                         (or (null mainYs)
+                             (vl-some '(lambda (yv)
+                                         (not (vl-some '(lambda (my) (< (abs (- my yv)) (if mainTol mainTol 500.0))) mainYs)))
+                                      ys)))
+                  (vl-catch-all-apply (function (lambda ()
+                    (txt-bold "MC" (list cx (- lcy (* hlab 2.9))) (/ (* hlab 0.5) scale) 0.0
+                              (strcat "MEZZ. COL. I-" (rtos (* 0.40 colD) 2 0) "x" (rtos colD 2 0)
+                                      " (BY DESIGN)"))))))
 
                 ;; (3b) SHOW THE MEZZANINE COLUMN SPACING (owner 11-Jul) — a vertical dim chain of the
                 ;; mezz column lines, run just INSIDE the deck's left edge (the building's own width dims
@@ -5986,10 +6000,13 @@
     (grid-bubble (- fx0 (* 2.0 gbr) gbr) y (peb-grid-letter letterIdx) "R")
     (setq letterIdx (1+ letterIdx)))
 
-  ;; deck spec note (what the floor IS), just above the title
+  ;; deck spec note (what the floor IS) + mezzanine column SECTION (owner 11-Jul: "mention the mezzanine
+  ;; column dimensions") — indicative built-up I from *PEB-COL-WEB*, finalised at design.  Just above title.
   (setq specStr (cond ((wcmatch floorSys "*PRECAST*,*HOLLOW*")    "PRECAST / HOLLOW-CORE SLAB (BY OTHERS)")
                       ((wcmatch floorSys "*GRAT*,*CHEQ*,*PLATE*") "STEEL GRATING / CHEQUERED PLATE ON JOISTS")
                       (T                                          "0.7mm DECKING PANEL + 100mm CONCRETE SLAB")))
+  (if (and colD (> colD 0.0))
+    (setq specStr (strcat specStr "      MEZZ. COL. I-" (rtos (* 0.40 colD) 2 0) "x" (rtos colD 2 0) " (BY DESIGN)")))
   (setvar "CLAYER" "TEXT")
   (vl-catch-all-apply (function (lambda ()
     (txt "MC" (list (/ (+ fx0 fx1) 2.0) (- fy0 (/ 1600.0 sc))) (/ 320.0 sc) 0.0 specStr))))
