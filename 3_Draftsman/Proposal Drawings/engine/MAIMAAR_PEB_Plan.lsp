@@ -1935,6 +1935,26 @@
   (setvar "CLAYER" name)
   (princ))
 
+;; Light diagonal HATCH for the mezzanine deck (owner 12-Jul: hatch it like Mammut 33 Option-2, but
+;; "very attractive, light, beautiful").  Real HATCH entities fail under acad /b, so this fills the
+;; rectangle with thin 45-degree LINES on a light-grey layer, drawn BEHIND the framing.  `spacing` is
+;; the perpendicular gap between lines; larger = lighter.  A 45-deg line is y = x + c; c = y-x runs from
+;; the bottom-right corner (y0-x1) to the top-left (y1-x0), stepped by spacing*sqrt(2).
+(defun peb-mezz-hatch (x0 y0 x1 y1 spacing / c cmax step xa xb)
+  (if (or (null spacing) (<= spacing 0.0)) (setq spacing 1600.0))
+  (peb-comp-layer "COMP-MEZZ-HATCH" 9)                 ; LIGHT grey — a soft background, lighter than
+                                                       ; the joists (8) so the framing stays clearest
+  (setq step (* spacing 1.41421356)
+        c    (+ (- y0 x1) step)
+        cmax (- y1 x0))
+  (while (< c cmax)
+    (setq xa (max x0 (- y0 c)) xb (min x1 (- y1 c)))
+    (if (< (+ xa 1.0) xb)
+      (entmake (list (cons 0 "LINE") (cons 8 "COMP-MEZZ-HATCH") (cons 370 5)   ; 0.05 mm — fine
+                     (list 10 xa (+ xa c) 0.0) (list 11 xb (+ xb c) 0.0))))
+    (setq c (+ c step)))
+  (princ))
+
 ;; closed polyline outline on the current layer (pts = list of (x y))
 (defun peb-comp-poly (pts / e)
   (setq e (list (cons 0 "LWPOLYLINE") (cons 100 "AcDbEntity") (cons 8 (getvar "CLAYER"))
@@ -2630,10 +2650,12 @@
                   partial (nth 4 ft) fflv (nth 5 ft))
             (if (and (> fx1 fx0) (> fy1 fy0))
               (progn
+                ;; (0) LIGHT diagonal hatch FIRST so it sits behind the boundary + framing (owner 12-Jul:
+                ;;     hatch the mezzanine area so it is easy to recognise; keep it very light).
+                (vl-catch-all-apply (function (lambda () (peb-mezz-hatch fx0 fy0 fx1 fy1 1600.0))))
                 (peb-comp-layer "COMP-MEZZ" 6)
 
-                ;; (1) mezzanine BOUNDARY — a DASHED demarcation over the footprint (owner 11-Jul:
-                ;;     mark the boundary, do NOT hatch).  Dashed so it never reads as a solid wall/edge.
+                ;; (1) mezzanine BOUNDARY — a DASHED demarcation over the footprint.
                 (peb-comp-poly-lt (list (list fx0 fy0) (list fx1 fy0)
                                         (list fx1 fy1) (list fx0 fy1)) "DASHED" 1.5)
 
@@ -5901,7 +5923,7 @@
 (defun peb-draw-mezz-floor-plan (data len wid floorNum / spList bayPts glF glT offF offT fx0 fx1 fy0 fy1
                                  ys xs acc s2 x y colD savedWeb jx i gbr letterIdx sc band inset
                                  mzRcc rccXs rccYs floorSys jspSys lvl lvlStr specStr mzJoist
-                                 dimX yprev yy)
+                                 dimX yprev yy jy)
   (setq sc (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0))
   (setq inset (max 300.0 (min 1000.0 (* (min len wid) 0.10))))
   (setq spList (peb-mzfp-splist data) bayPts (peb-mzfp-bays data len))
@@ -5934,6 +5956,8 @@
   (foreach x bayPts (if (and (>= x (- fx0 1.0)) (<= x (+ fx1 1.0))) (setq xs (append xs (list x)))))
   (if (null xs) (setq xs (list fx0 fx1)))
 
+  ;; light diagonal hatch first (owner 12-Jul), then the deck outline over it
+  (vl-catch-all-apply (function (lambda () (peb-mezz-hatch fx0 fy0 fx1 fy1 1600.0))))
   ;; deck outline
   (peb-comp-layer "COMP-MEZZ" 6)
   (peb-comp-poly (list (list fx0 fy0) (list fx1 fy0) (list fx1 fy1) (list fx0 fy1)))
@@ -5948,27 +5972,29 @@
         ((wcmatch floorSys "*GRAT*,*PLATE*,*CHEQ*")     (setq jspSys 1220.0))
         (T                                              (setq jspSys mzJoist)))
 
-  ;; joists — light lines across the width, spaced along the length (none for precast)
+  ;; JOISTS — light lines ALONG THE LENGTH of the building, spaced across the width at MZ_JOIST
+  ;; (owner 12-Jul: "joists along the length @ 1.25 m").  None for precast/hollow-core.
   (if jspSys
     (progn
       (peb-comp-layer "COMP-MEZZ-JOIST" 8)
-      (setq jx (+ fx0 jspSys))
-      (while (< jx (- fx1 100.0))
-        (entmake (list (cons 0 "LINE") (cons 8 "COMP-MEZZ-JOIST") (list 10 jx fy0 0.0) (list 11 jx fy1 0.0)))
-        (setq jx (+ jx jspSys)))
-      ;; joist spacing note along the top edge (parallel to the mezz-column spacing dim)
+      (setq jy (+ fy0 jspSys))
+      (while (< jy (- fy1 100.0))
+        (entmake (list (cons 0 "LINE") (cons 8 "COMP-MEZZ-JOIST") (list 10 fx0 jy 0.0) (list 11 fx1 jy 0.0)))
+        (setq jy (+ jy jspSys)))
+      ;; joist label + spacing, along the top edge
       (setvar "CLAYER" "COMP-MEZZ-JOIST")
       (vl-catch-all-apply (function (lambda ()
         (txt "MC" (list (/ (+ fx0 fx1) 2.0) (+ fy1 (/ 900.0 sc))) (/ 300.0 sc) 0.0
-             (strcat "JOISTS @ " (peb-comma (rtos jspSys 2 0)) " C/C (TYP.)")))))))
+             (strcat "JOISTS ALONG LENGTH @ " (peb-comma (rtos jspSys 2 0)) " C/C")))))))
 
-  ;; main beams — along the length at each width column line, + a beam mark
+  ;; MAIN BEAMS — ALONG THE WIDTH, column to column (owner 12-Jul), at each bay/length column line inside
+  ;; the footprint.  Heavier line than the joists.
   (peb-comp-layer "COMP-MEZZ-BEAM" 5)
-  (foreach y ys (entmake (list (cons 0 "LINE") (cons 8 "COMP-MEZZ-BEAM") (list 10 fx0 y 0.0) (list 11 fx1 y 0.0))))
+  (foreach x xs (entmake (list (cons 0 "LINE") (cons 8 "COMP-MEZZ-BEAM") (list 10 x fy0 0.0) (list 11 x fy1 0.0))))
   (setvar "CLAYER" "COMP-MEZZ-BEAM")
-  (if (> (length ys) 1)
+  (if (> (length xs) 1)
     (vl-catch-all-apply (function (lambda ()
-      (txt-bold "MC" (list (/ (+ fx0 fx1) 2.0) (+ (nth 1 ys) (/ 300.0 sc))) (/ 300.0 sc) 0.0 "MEZZ. BEAM (TYP.)")))))
+      (txt-bold "MC" (list (+ (nth 1 xs) (/ 260.0 sc)) (/ (+ fy0 fy1) 2.0)) (/ 300.0 sc) 90.0 "MAIN BEAM (TYP.)")))))
 
   ;; columns — RCC host draws the existing concrete pillars; else steel mezzanine columns
   (setq mzRcc (= (strcase (peb-tb-or (MSPL-Get-Str data "MZ_RCC") "")) "YES"))
