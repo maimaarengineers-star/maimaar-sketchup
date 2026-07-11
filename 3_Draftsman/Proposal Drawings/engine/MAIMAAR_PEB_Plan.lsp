@@ -1927,6 +1927,15 @@
   (foreach p pts (setq e (append e (list (list 10 (car p) (cadr p))))))
   (entmake e))
 
+;; closed polyline with an explicit linetype + entity linetype scale.  Used for the mezzanine boundary:
+;; owner 11-Jul confirmed a DASHED demarcation line (NOT a hatch — hatch is unsafe under acad /b and
+;; would bury the columns the CLP exists to show).  lts scales the dashes against the global LTSCALE.
+(defun peb-comp-poly-lt (pts lt lts / e)
+  (setq e (list (cons 0 "LWPOLYLINE") (cons 100 "AcDbEntity") (cons 8 (getvar "CLAYER"))
+                (cons 6 lt) (cons 48 lts) (cons 100 "AcDbPolyline") (cons 90 (length pts)) (cons 70 1)))
+  (foreach p pts (setq e (append e (list (list 10 (car p) (cadr p))))))
+  (entmake e))
+
 ;; a FALL/slope arrow CENTRED at (cx cy) along unit normal (nx ny), with "FALL"
 ;; text set to the perpendicular SIDE so both stay inside the component strip.
 ;; u = strip-scaled size unit (NOT the building unit) so it never protrudes.
@@ -2387,7 +2396,36 @@
 ;; ALWAYS the full interior width.  MZ_WIDTH_ANCHOR names the wall it grows from; MZ_WIDTH_EXTENT is
 ;; how deep it runs (mm).  Blank / "FULL" / no extent => full interior width, i.e. the old behaviour.
 ;; Returns (b0 b1) clamped inside the wall clearance.
-(defun peb-mz-width-band (data wid inset / anc ext b0 b1)
+;;
+;; owner 11-Jul: the PRIMARY placement is now by GRID LETTER — MZ_WIDTH_GRID_FROM/TO (A,B,C…).  The
+;; letters map to *PEB-WGRID-YS* (the width-letter stations the plan stashes at ~3384) with the SAME
+;; rule the letter bubbles use (~3609): ascending station index j carries letter chr(65 + (nW-1-j) +
+;; *PEB-GRID-LET-OFS*).  So a letter char c inverts to station index j = nW-1-((c-65)-letOfs); A is the
+;; top (FSW), letters increase toward the NSW.  Grid letters WIN when both are given; otherwise the
+;; MZ_WIDTH_ANCHOR + MZ_WIDTH_EXTENT offset fallback (below) applies, exactly as before.
+;; NOTE: the IF letter list skips I (standard grid convention); the engine's bubbles at ~3609 use raw
+;; chr and DO include I.  They agree for <9 width lines (I never appears) — the common case.  A building
+;; with >=9 width grid lines would drift by one past I; fixing the bubble labelling to skip I is a
+;; separate, drawing-wide change (it renumbers existing sheets), tracked for later.
+(defun peb-mz-width-band (data wid inset / anc ext b0 b1 gf gt ys nW vf vt y0 y1 letOfs)
+  ;; --- PRIMARY: width grid letters ---
+  (setq gf (strcase (peb-tb-or (MSPL-Get-Str data "MZ_WIDTH_GRID_FROM") ""))
+        gt (strcase (peb-tb-or (MSPL-Get-Str data "MZ_WIDTH_GRID_TO")   ""))
+        ys (if (and (boundp '*PEB-WGRID-YS*) *PEB-WGRID-YS*) *PEB-WGRID-YS* nil)
+        letOfs (if *PEB-GRID-LET-OFS* *PEB-GRID-LET-OFS* 0))
+  (if (and ys (> (length ys) 1)
+           (= (strlen gf) 1) (= (strlen gt) 1) (>= (ascii gf) 65) (>= (ascii gt) 65))
+    (progn
+      (setq nW (length ys)
+            vf (- (ascii gf) 65 letOfs)
+            vt (- (ascii gt) 65 letOfs)
+            y0 (nth (max 0 (min (1- nW) (- nW 1 vf))) ys)
+            y1 (nth (max 0 (min (1- nW) (- nW 1 vt))) ys))
+      (if (> (abs (- y1 y0)) 1.0)
+        (setq b0 (min y0 y1) b1 (max y0 y1)))))     ; grid placement succeeded
+  (if b0 (list b0 b1)                               ; PRIMARY won -> done
+  (progn
+  ;; --- FALLBACK: MZ_WIDTH_ANCHOR + MZ_WIDTH_EXTENT (Advanced offset) ---
   (setq anc (strcase (peb-tb-or (MSPL-Get-Str data "MZ_WIDTH_ANCHOR") ""))
         ext (MSPL-Get-Num data "MZ_WIDTH_EXTENT")
         b0  inset
@@ -2406,7 +2444,7 @@
   ;; clamp to the building, and never invert
   (setq b0 (max 0.0 b0) b1 (min wid b1))
   (if (>= b0 b1) (setq b0 inset b1 (- wid inset)))     ; nonsense extent -> fall back to full width
-  (list b0 b1))
+  (list b0 b1))))
 
 ;; EVERY width station where a MAIN-FRAME column already stands: the two SIDE-WALL column centres
 ;; (colOff = D/2 and wid-D/2, exactly where botY/topY put them) plus the INTERIOR module lines.
@@ -2576,9 +2614,10 @@
               (progn
                 (peb-comp-layer "COMP-MEZZ" 6)
 
-                ;; (1) decking outline rectangle over the footprint
-                (peb-comp-poly (list (list fx0 fy0) (list fx1 fy0)
-                                     (list fx1 fy1) (list fx0 fy1)))
+                ;; (1) mezzanine BOUNDARY — a DASHED demarcation over the footprint (owner 11-Jul:
+                ;;     mark the boundary, do NOT hatch).  Dashed so it never reads as a solid wall/edge.
+                (peb-comp-poly-lt (list (list fx0 fy0) (list fx1 fy0)
+                                        (list fx1 fy1) (list fx0 fy1)) "DASHED" 1.5)
 
                 ;; (2) OWN column grid — MEZZANINE STUB COLUMNS (owner 8-Jul):
                 ;;     each drawn as an I-section + anchor bolts, EXACTLY like the PEB
@@ -2689,14 +2728,17 @@
                 (setq cx (/ (+ fx0 fx1) 2.0) cy (/ (+ fy0 fy1) 2.0)
                       lcy (+ fy0 (* (- fy1 fy0) 0.80))   ; label block in the UPPER part, clear of the centre AREA marker
                       hlab (max 250.0 (min 900.0 (* u 0.6))))
+                ;; owner 11-Jul: the label carries a description of the HEIGHT — "CLEAR HT. n,nnn"
+                ;; (the FFL-to-beam-bottom clear height, MZ1_CH_FFL_BEAM), under the "MEZZANINE FLOOR" name.
                 (setq fflStr (if (and fflv (> fflv 0.0))
-                               (strcat "F.F.L (C.H. " (peb-comma (rtos fflv 2 0)) ")")
-                               "F.F.L"))
+                               (strcat "CLEAR HT. " (peb-comma (rtos fflv 2 0)))
+                               ""))
                 (setvar "CLAYER" "COMP-MEZZ")
                 (vl-catch-all-apply (function (lambda ()
-                  (txt-bold "MC" (list cx lcy) (/ hlab scale) 0.0 "MEZZANINE"))))
-                (vl-catch-all-apply (function (lambda ()
-                  (txt-bold "MC" (list cx (- lcy (* hlab 1.7))) (/ (* hlab 0.65) scale) 0.0 fflStr))))
+                  (txt-bold "MC" (list cx lcy) (/ hlab scale) 0.0 "MEZZANINE FLOOR"))))
+                (if (/= fflStr "")
+                  (vl-catch-all-apply (function (lambda ()
+                    (txt-bold "MC" (list cx (- lcy (* hlab 1.7))) (/ (* hlab 0.65) scale) 0.0 fflStr)))))
 
                 ;; (4) footprint dims — only when PARTIAL (a full-interior default
                 ;;     rectangle is implied by the building outline, so dims would collide).
@@ -3378,6 +3420,10 @@
     (if (not (vl-some '(lambda (p) (< (abs (- p s)) 1.0)) gridWpts))
       (setq gridWpts (append gridWpts (list s)))))
   (setq gridWpts (vl-sort gridWpts '<))
+  ;; owner 11-Jul: stash the width-letter stations so the mezzanine WIDTH-GRID placement
+  ;; (peb-mz-width-band) maps its A/B/C letters to the SAME lines the plan letters here (~3609).
+  ;; Set AFTER the merge, BEFORE peb-draw-components (~3866), so the drawer reads the final list.
+  (setq *PEB-WGRID-YS* gridWpts)
 
   (setq areaM2 (/ (* len wid) 1000000.0))
   ;; Phase-2A v23: column placement so the OUTER FLANGE sits ON the grid line (Mammut convention).
