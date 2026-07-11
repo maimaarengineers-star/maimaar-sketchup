@@ -1466,7 +1466,10 @@
         (vl-catch-all-apply (function (lambda ()
           (peb-ridge-line (* len 0.04) (* len 0.96) (* wid 0.5)))))   ; central drain line (dash-dot)
         (setvar "CLAYER" "TEXT")
-        (txt "MC" (list (* len 0.50) (* wid 0.55)) 600 0 "ROOF SLOPES TO CENTRE DRAIN"))
+        ;; note lifted to wid*0.70: at 0.55 it sat on the mid-width row where the per-area CLEAR HT tag
+        ;; (now drawn above the area box, ~16.5 k on a 30 m frame) and the vertical BRACED BAY text
+        ;; (~12.8-17.2 k) both live.  0.70 clears the top of the braced-bay text and the tag.
+        (txt "MC" (list (* len 0.50) (* wid 0.70)) 600 0 "ROOF SLOPES TO CENTRE DRAIN"))
       ((= stype "SS")
         ;; single slope: ONE continuous fall high->low across the full width (no ridge). High side =
         ;; RA_MONO_HIGH (FSW default until the IF captures msHighSide). Full-width arrows + HIGH/LOW EAVE tags.
