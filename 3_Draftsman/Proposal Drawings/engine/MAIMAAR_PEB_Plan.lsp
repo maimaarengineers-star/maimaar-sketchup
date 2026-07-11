@@ -2023,29 +2023,18 @@
   (setq mcx (+ (/ (+ bx ex) 2.0) (* nx proj 0.5)) mcy (+ (/ (+ by ey) 2.0) (* ny proj 0.5))
         su (max 300.0 (min u (* (abs proj) 0.30))))        ; annotation size scaled to the STRIP depth
   (peb-comp-layer "COMP-CANOPY" 3)                        ; green
-  (peb-comp-poly (list (list bx by) (list ex ey)
-                       (list (+ ex (* nx proj)) (+ ey (* ny proj)))
-                       (list (+ bx (* nx proj)) (+ by (* ny proj)))))
-  ;; fall arrow (outward to the free/cantilever edge) at ~30% along the strip so it clears the centre label
-  (if horiz (peb-comp-fall (+ bx (* (- ex bx) 0.30)) mcy nx ny su)
-            (peb-comp-fall mcx (+ by (* (- ey by) 0.30)) nx ny su))
+  ;; owner 11-Jul: on the CLP a canopy is shown LIGHT — just the outer DOTTED outline + the name.
+  ;; No FALL arrow, no projection/coverage dims (those belong on the canopy's own detail, not the
+  ;; column layout plan, which is about columns).
+  (peb-comp-poly-lt (list (list bx by) (list ex ey)
+                          (list (+ ex (* nx proj)) (+ ey (* ny proj)))
+                          (list (+ bx (* nx proj)) (+ by (* ny proj)))) "DOT" 1.0)
   (setvar "CLAYER" "COMP-CANOPY")
-  ;; owner 10-Jul: the label used to sit at mid-wall (0.50), where the CLP already prints
-  ;; "CROSS BRACING (TYP.)" / "RAFTER" on a side wall and the "<wall> - ... WALL" name on an end wall.
-  ;; Measured overlap on NSW: 513 mm. Push it to 0.72 along the wall — the FALL arrow holds 0.30, so the
-  ;; two annotations bracket the strip instead of stacking on the centre.
+  ;; label centred along the wall, held at 0.72 (measured 513 mm overlap at 0.50 on 10-Jul against the
+  ;; CLP's own "CROSS BRACING (TYP.)" / "RAFTER" / "<wall> - ... WALL" text).
   (setq lx (if horiz (+ bx (* (- ex bx) 0.72)) mcx)
         ly (if horiz mcy (+ by (* (- ey by) 0.72))))
   (txt-bold "MC" (list lx ly) (/ su (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) (if horiz 0.0 90.0) "CANOPY")
-  ;; projection dim ALWAYS; coverage dim only if PARTIAL (a full-wall canopy's extent is already the
-  ;; building length/width dim, so re-drawing it just collides with the wall labels).
-  (if horiz
-    (progn   ; wall along X: projection dim = vertical, coverage dim = horizontal
-      (vl-catch-all-apply (function (lambda () (peb-dim-height-stretch bx (- bx (* su 1.6)) by (+ by (* ny proj)) (peb-comma (rtos proj 2 0))))))
-      (if (not full) (vl-catch-all-apply (function (lambda () (peb-dim-h-stretch bx ex (+ by (* ny (+ proj (* su 1.6)))) (peb-comma (rtos (abs (- ex bx)) 2 0))))))))
-    (progn   ; wall along Y: projection dim = horizontal, coverage dim = vertical
-      (vl-catch-all-apply (function (lambda () (peb-dim-h-stretch bx (+ bx (* nx proj)) (- by (* su 1.6)) (peb-comma (rtos proj 2 0))))))
-      (if (not full) (vl-catch-all-apply (function (lambda () (peb-dim-height-stretch bx (+ bx (* nx (+ proj (* su 1.6)))) by ey (peb-comma (rtos (abs (- ey by)) 2 0)))))))))
   (princ))
 
 
@@ -2111,30 +2100,14 @@
   (setq mcx (+ (/ (+ bx ex) 2.0) (* nx proj 0.5)) mcy (+ (/ (+ by ey) 2.0) (* ny proj 0.5))
         su (max 300.0 (min u (* (abs proj) 0.30))))        ; annotation size scaled to the STRIP depth
   (peb-comp-layer "COMP-ROOF-EXT" 5)                       ; blue
-  (peb-comp-poly (list (list bx by) (list ex ey)
-                       (list (+ ex (* nx proj)) (+ ey (* ny proj)))
-                       (list (+ bx (* nx proj)) (+ by (* ny proj)))))
+  ;; owner 11-Jul: on the CLP a roof extension is shown LIGHT — just the outer DOTTED outline + the
+  ;; name.  No EAVE note, no projection/coverage dims (they belong on the roof plan / detail).
+  (peb-comp-poly-lt (list (list bx by) (list ex ey)
+                          (list (+ ex (* nx proj)) (+ ey (* ny proj)))
+                          (list (+ bx (* nx proj)) (+ by (* ny proj)))) "DOT" 1.0)
   (setvar "CLAYER" "COMP-ROOF-EXT")
   ;; centre label (reads along the strip)
-  (txt-bold "MC" (list mcx mcy) (/ su (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) (if horiz 0.0 90.0) "ROOF EXTN")
-  ;; eave-condition note at the free edge (~72% across the strip so it clears the centre label);
-  ;; no FALL arrow — same roof plane as the main roof.
-  (if (and eave (/= eave ""))
-    (progn
-      (if horiz
-        (txt-bold "MC" (list (+ bx (* (- ex bx) 0.72)) (+ by (* ny proj 0.75)))
-                  (/ (* su 0.55) (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0.0 (strcat "EAVE: " eave))
-        (txt-bold "MC" (list (+ bx (* nx proj 0.75)) (+ by (* (- ey by) 0.72)))
-                  (/ (* su 0.55) (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 90.0 (strcat "EAVE: " eave)))))
-  ;; projection dim ALWAYS; coverage dim only if PARTIAL (a full-wall extension's
-  ;; extent already equals the building length/width dim, so re-drawing it collides).
-  (if horiz
-    (progn   ; wall along X: projection dim = vertical, coverage dim = horizontal
-      (vl-catch-all-apply (function (lambda () (peb-dim-height-stretch bx (- bx (* su 1.6)) by (+ by (* ny proj)) (peb-comma (rtos proj 2 0))))))
-      (if (not full) (vl-catch-all-apply (function (lambda () (peb-dim-h-stretch bx ex (+ by (* ny (+ proj (* su 1.6)))) (peb-comma (rtos (abs (- ex bx)) 2 0))))))))
-    (progn   ; wall along Y: projection dim = horizontal, coverage dim = vertical
-      (vl-catch-all-apply (function (lambda () (peb-dim-h-stretch bx (+ bx (* nx proj)) (- by (* su 1.6)) (peb-comma (rtos proj 2 0))))))
-      (if (not full) (vl-catch-all-apply (function (lambda () (peb-dim-height-stretch bx (+ bx (* nx (+ proj (* su 1.6)))) by ey (peb-comma (rtos (abs (- ey by)) 2 0)))))))))
+  (txt-bold "MC" (list mcx mcy) (/ su (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) (if horiz 0.0 90.0) "ROOF EXTENSION")
   (princ))
 
 ;; ---- component drawer: peb-draw-fascia (merged from comp_fascia.lsp) ----
@@ -2787,7 +2760,8 @@
                         u sc n pre span cap typ cls loc runlen
                         numBays cum i sp rem bayPts
                         nums cur k ch g1 g2 tmp
-                        x0 x1 yLo yHi bcx hcx hcy hr dg s bx capLbl capY clsY)
+                        x0 x1 yLo yHi bcx hcx hcy hr dg s bx capLbl capY clsY
+                        gw etL etW yr)
   (if (= (strcase (MSPL-Get-Str data "CR_TOGGLE")) "YES")
     (progn
       (setq u  (max 400.0 (min 3000.0 (/ (max len wid) 70.0))))
@@ -2864,13 +2838,31 @@
                 (txt-bold "MC" (list (+ x0 (* (- x1 x0) 0.75)) (- yHi (* u 0.6)))
                           (/ (* u 0.5) sc) 0.0 "CRANE BEAM")
 
-                ;; (2) BRIDGE across the width at a representative x, + HOOK circle
+                ;; (2) BRIDGE GIRDER + END TRUCKS + TROLLEY/HOOK — the plan shape of an EOT bridge crane,
+                ;;     matching MAMMUT_07 (Zealcon): the bridge is a GIRDER (double line) spanning the two
+                ;;     runways; an END TRUCK carriage straddles each runway at the bridge ends; the TROLLEY
+                ;;     (small square) carries the HOOK circle at mid-span.
                 (setq bcx (/ (+ x0 x1) 2.0)
-                      hcx bcx hcy (/ (+ yLo yHi) 2.0) hr (* u 0.4))
+                      hcx bcx hcy (/ (+ yLo yHi) 2.0) hr (* u 0.4)
+                      gw  (* u 0.30)        ; bridge girder half-width (along x)
+                      etL (* u 1.20)        ; end-truck length (rides along the runway, x)
+                      etW (* u 0.55))       ; end-truck width (straddles the runway, y)
+                ;; bridge girder = two parallel lines
                 (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE")
-                               (list 10 bcx yLo 0.0) (list 11 bcx yHi 0.0)))
+                               (list 10 (- bcx gw) yLo 0.0) (list 11 (- bcx gw) yHi 0.0)))
+                (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE")
+                               (list 10 (+ bcx gw) yLo 0.0) (list 11 (+ bcx gw) yHi 0.0)))
+                ;; end trucks — a rectangle straddling each runway where the bridge lands on it
+                (foreach yr (list yLo yHi)
+                  (peb-comp-poly (list (list (- bcx (/ etL 2.0)) (- yr (/ etW 2.0)))
+                                       (list (+ bcx (/ etL 2.0)) (- yr (/ etW 2.0)))
+                                       (list (+ bcx (/ etL 2.0)) (+ yr (/ etW 2.0)))
+                                       (list (- bcx (/ etL 2.0)) (+ yr (/ etW 2.0))))))
+                ;; trolley (small square) + hook circle at mid-span
+                (peb-comp-poly (list (list (- hcx hr) (- hcy hr)) (list (+ hcx hr) (- hcy hr))
+                                     (list (+ hcx hr) (+ hcy hr)) (list (- hcx hr) (+ hcy hr))))
                 (entmake (list (cons 0 "CIRCLE") (cons 8 "COMP-CRANE")
-                               (list 10 hcx hcy 0.0) (cons 40 hr)))
+                               (list 10 hcx hcy 0.0) (cons 40 (* hr 0.6))))
 
                 ;; (3) capacity + class label  ("05MT TOP RUNNING (TR) CRANE")
                 ;; owner 10-Jul (measured, audit_textclash.py): both labels used to straddle the HOOK,
