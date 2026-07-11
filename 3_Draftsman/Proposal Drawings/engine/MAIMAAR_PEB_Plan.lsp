@@ -3752,9 +3752,14 @@
         (foreach mgY mgValleyPts
           (vl-catch-all-apply
             (function (lambda ()
+              ;; owner defect: at 0.80*len the label sat on the last braced bay's vertical "BRACED BAY"
+              ;; text (~48750 on a 60 m frame); at 0.60*len it hit the centre AREA/CLEAR-HT tag.  When the
+              ;; gables are equal the valley runs down the MID-WIDTH — the same crowded row as the area tag
+              ;; and every BRACED BAY.  0.32*len drops it into the clear gap between the two close interior
+              ;; braces (the 2nd + 2nd-last brace rule leaves ~15 m open there), left of the centre tag.
               (peb-label-with-leader "VALLEY GUTTER LINE"
-                                     (list (* len 0.80) (+ mgY (* 1200 *PEB-TEXT-SCALE*)))
-                                     (list (* len 0.75) mgY)
+                                     (list (* len 0.32) (+ mgY (* 1200 *PEB-TEXT-SCALE*)))
+                                     (list (* len 0.30) mgY)
                                      "S" 600.0)))))
         (setvar "CLAYER" "TEXT")
         (txt "MC" (list (* len 0.50) (+ wid (* 700 *PEB-TEXT-SCALE*))) 300 0
