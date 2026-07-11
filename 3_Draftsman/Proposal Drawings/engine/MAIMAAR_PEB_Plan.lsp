@@ -2455,6 +2455,36 @@
         (if (and (> acc 1.0) (< acc (- wid 1.0))) (setq out (append out (list acc)))))))
   out)
 
+;; Mezzanine column WIDTH stations — the mezzanine columns are distributed WITHIN each MAIN width
+;; module, EQUALLY subdivided BETWEEN the main PEB columns (owner 11-Jul: "the distribution of mezzanine
+;; columns is WITHIN, between the columns of the main PEB building"; a 3@10 m module gets 2@5 m mezz
+;; columns per module, NOT one spacing walked across the whole width).
+;;   1. Main width-module boundaries come from MODEXPR (0, m1, m1+m2, …, wid); a clear span is one
+;;      module (0, wid).
+;;   2. Each module is split into N EQUAL sub-bays, N chosen so the sub-bay is closest to targetSp (the
+;;      representative mezz spacing from MZ_COL_SPACING / the IF load band).  The split points are the
+;;      mezzanine column lines.
+;;   3. Clip to the footprint [fy0, fy1] and dedupe.
+;; The caller's existing-column skip (peb-main-column-ys ± mainTol) then drops the stubs that land on a
+;; main column line, leaving the interior subdivisions as the NEW encircled mezzanine columns.
+(defun peb-mezz-col-ys (data wid fy0 fy1 targetSp / expr bnds acc out prev b0 b1 n k g y)
+  (if (or (null targetSp) (<= targetSp 0.0)) (setq targetSp 6000.0))
+  (setq expr (MSPL-Get-Str data "MODEXPR") bnds (list 0.0) acc 0.0)
+  (if (and expr (/= expr ""))
+    (foreach s (peb-parse-mod-expression expr)
+      (setq acc (+ acc s)) (if (< acc (- wid 1.0)) (setq bnds (append bnds (list acc))))))
+  (setq bnds (append bnds (list wid)))
+  (setq out '() b0 (car bnds))
+  (foreach b1 (cdr bnds)
+    (setq g (- b1 b0) n (max 1 (fix (+ 0.5 (/ g targetSp)))) k 0)
+    (while (< k n) (setq out (append out (list (+ b0 (* g (/ (float k) (float n))))))) (setq k (1+ k)))
+    (setq b0 b1))
+  (setq out (append out (list wid)) out (vl-sort out '<) bnds '() prev nil)
+  (foreach y out
+    (if (and (>= y (- fy0 1.0)) (<= y (+ fy1 1.0)) (or (null prev) (> (- y prev) 1.0)))
+      (progn (setq bnds (append bnds (list y))) (setq prev y))))
+  bnds)
+
 ;; ---- component drawer: peb-draw-mezzanine (merged from comp_mezzanine.lsp) ----
 ;; ============================================================================
 ;; MEZZANINE component drawer  —  Column Layout Plan (TOP VIEW)
@@ -2480,7 +2510,7 @@
     ys xs acc h hh x y
     numBays bayPts2 sp2 rem2 bx colD savedWeb circR host rcc mzRcc rccXs rccYs
     module rr gap nsub yi yy0 yy1 glF glT glX0 glX1 offF offT
-    mzBand mzB0 mzB1 mzPart mainYs mainTol sy0 sy1 )
+    mzBand mzB0 mzB1 mzPart mainYs mainTol sy0 sy1 dimX yprev yy )
 
   (if (/= (strcase (MSPL-Get-Str data "MZ_TOGGLE")) "YES")
     (princ)                                    ; not requested — do nothing
@@ -2627,18 +2657,11 @@
                 (foreach bx bayPts2
                   (if (and (>= bx (- fx0 1.0)) (<= bx (+ fx1 1.0))) (setq xs (append xs (list bx)))))
                 (if (null xs) (setq xs (list fx0 fx1)))
-                ;; width (y) stations = mezzanine column module (MZ_COL_SPACING) across the footprint.
-                ;; The DECK may abut a wall (an anchored placement runs wall-to-extent), but a STUB must
-                ;; not land on the side-wall column that already carries the beam there — so the stub
-                ;; grid is kept inside the wall clearance even when the deck edge is not.  For a
-                ;; full-width footprint sy0/sy1 == fy0/fy1, so nothing changes.
-                (setq sy0 (max fy0 inset)
-                      sy1 (min fy1 (- wid inset)))
-                (setq ys (list sy0) acc sy0)
-                (foreach s2 spList
-                  (setq acc (+ acc s2))
-                  (if (< acc (- sy1 (* post 0.6))) (setq ys (append ys (list acc)))))
-                (setq ys (append ys (list sy1)))
+                ;; width (y) stations — the mezzanine columns subdivide EACH main width module equally,
+                ;; between the main PEB columns (owner 11-Jul), NOT one spacing walked across the width.
+                ;; peb-mezz-col-ys builds them from the module boundaries; the existing-column skip below
+                ;; drops the stubs on a main line, leaving the interior subdivisions as the new columns.
+                (setq ys (peb-mezz-col-ys data wid fy0 fy1 (if spList (car spList) 6000.0)))
                 ;; mezzanine stub-column section depth — sized off the width module (lighter
                 ;; than the main frame); override the global col depth for the stub, then restore.
                 (setq colD     (peb-col-web-depth (apply 'max (cons 6000.0 spList)))
@@ -2724,6 +2747,17 @@
                 (if (/= fflStr "")
                   (vl-catch-all-apply (function (lambda ()
                     (txt-bold "MC" (list cx (- lcy (* hlab 1.7))) (/ (* hlab 0.65) scale) 0.0 fflStr)))))
+
+                ;; (3b) SHOW THE MEZZANINE COLUMN SPACING (owner 11-Jul) — a vertical dim chain of the
+                ;; mezz column lines, run just INSIDE the deck's left edge (the building's own width dims
+                ;; already occupy the space outside the LEW wall).
+                (if (> (length ys) 1)
+                  (progn
+                    (setq dimX (+ fx0 (* u 1.3)) yprev (car ys))
+                    (foreach yy (cdr ys)
+                      (vl-catch-all-apply (function (lambda ()
+                        (peb-dim-height-stretch fx0 dimX yprev yy (peb-comma (rtos (- yy yprev) 2 0))))))
+                      (setq yprev yy))))
 
                 ;; (4) footprint dims — only when PARTIAL (a full-interior default
                 ;;     rectangle is implied by the building outline, so dims would collide).
@@ -5844,7 +5878,8 @@
 
 (defun peb-draw-mezz-floor-plan (data len wid floorNum / spList bayPts glF glT offF offT fx0 fx1 fy0 fy1
                                  ys xs acc s2 x y colD savedWeb jx i gbr letterIdx sc band inset
-                                 mzRcc rccXs rccYs floorSys jspSys lvl lvlStr specStr mzJoist)
+                                 mzRcc rccXs rccYs floorSys jspSys lvl lvlStr specStr mzJoist
+                                 dimX yprev yy)
   (setq sc (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0))
   (setq inset (max 300.0 (min 1000.0 (* (min len wid) 0.10))))
   (setq spList (peb-mzfp-splist data) bayPts (peb-mzfp-bays data len))
@@ -5868,10 +5903,11 @@
       (if (>= fx0 fx1) (setq fx0 (nth (1- glF) bayPts) fx1 (nth (1- glT) bayPts))))
     (setq fx0 (* len 0.06) fx1 (- len (* len 0.06))))
 
-  ;; width column lines (ys) from MZ_COL_SPACING + bay lines within the footprint (xs)
-  (setq ys (list fy0) acc fy0)
-  (foreach s2 spList (setq acc (+ acc s2)) (if (< acc (- fy1 300.0)) (setq ys (append ys (list acc)))))
-  (setq ys (append ys (list fy1)))
+  ;; width column lines (ys) — mezzanine columns subdivide EACH main width module between the main PEB
+  ;; columns (owner 11-Jul), the same rule as the CLP overlay, so the two sheets agree.  Beams + columns
+  ;; are drawn at every station (this is the mezzanine's own framing plan — the main-line columns show
+  ;; too, unlike the CLP overlay which encircles only the NEW ones).
+  (setq ys (peb-mezz-col-ys data wid fy0 fy1 (if spList (car spList) 6000.0)))
   (setq xs '())
   (foreach x bayPts (if (and (>= x (- fx0 1.0)) (<= x (+ fx1 1.0))) (setq xs (append xs (list x)))))
   (if (null xs) (setq xs (list fx0 fx1)))
@@ -5922,6 +5958,16 @@
       (foreach y ys
         (vl-catch-all-apply (function (lambda () (draw-I-column-lengthwise x y)))))))
   (setq *PEB-COL-WEB* savedWeb)
+
+  ;; SHOW THE MEZZANINE COLUMN SPACING (owner 11-Jul) — a vertical dim chain of the column lines, just
+  ;; inside the deck's left edge.
+  (if (> (length ys) 1)
+    (progn
+      (setq dimX (+ fx0 (* (min len wid) 0.03)) yprev (car ys))
+      (foreach yy (cdr ys)
+        (vl-catch-all-apply (function (lambda ()
+          (peb-dim-height-stretch fx0 dimX yprev yy (peb-comma (rtos (- yy yprev) 2 0))))))
+        (setq yprev yy))))
 
   ;; grid bubbles — building bay NUMBERS along the top, width LETTERS down the left (A at the top)
   (setq gbr (max 900.0 (* 620.0 sc)) i 0)
