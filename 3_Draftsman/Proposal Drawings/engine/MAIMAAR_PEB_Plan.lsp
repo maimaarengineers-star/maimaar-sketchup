@@ -3855,7 +3855,12 @@
             (progn (if (not (peb-omit-wall-p "LEW")) (draw-I-column-widthwise leftX y))
                    (if (not (peb-omit-wall-p "REW")) (draw-I-column-widthwise rightX y))))
         )
-        (if (member stype '("MS" "MG"))
+        ;; Interior columns on every interior width-module line.  MS/MG always; SS (single slope) and FR
+        ;; (flat roof) too now (owner 10-Jul: a multi-span single slope / modular flat roof has interior
+        ;; columns and must not draw as a clear span).  Safe to add: their widthPts is only modularized
+        ;; when NUMMODULES>1 (~3334); a CLEAR-SPAN SS/FR keeps widthPts=(0 wid), so the loop finds no
+        ;; interior ypt and draws nothing — identical to before.
+        (if (member stype '("MS" "MG" "SS" "FR"))
           (progn
             (foreach ypt widthPts
               (if (and (> ypt 0) (< ypt wid))
