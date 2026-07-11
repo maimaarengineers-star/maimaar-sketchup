@@ -432,6 +432,18 @@
 )
 
 ;; Grid bubble — Mammut MIRROR (owner 7-Jul): a GREEN shield/pennant = circle + a triangular pointer
+;; Width grid LETTER for a 0-based index, SKIPPING "I" (standard structural grid convention; matches the
+;; IF letter list A..H, J, K, … — owner 11-Jul "skip I").  idx 0-7 -> A-H; idx 8 -> J; 9 -> K; …  Only I
+;; is skipped (not O): the IF list runs A..N with no O, so the engine agrees for every real building.
+(defun peb-grid-letter (idx)
+  (chr (+ 65 idx (if (>= idx 8) 1 0))))
+
+;; Inverse: a grid-letter char -> its 0-based index, accounting for the skipped I.  'A'->0 … 'H'->7,
+;; 'J'->8, 'K'->9 …  (An 'I', which should never be offered, maps to 8 like 'J' — harmless.)
+(defun peb-grid-letter-index (ch / a)
+  (setq a (ascii (strcase ch)))
+  (- a 65 (if (> a 73) 1 0)))
+
 ;; aimed at the grid line (toward the building), with the number/letter centred in the circle.  dir tells
 ;; which way the pointer aims (toward the building): "D" down (top number row), "U" up (elevation bubbles
 ;; below the wall), "L" left, "R" right (left letter column).  Omitted dir defaults to "R" (never crashes).
@@ -2390,8 +2402,8 @@
            (= (strlen gf) 1) (= (strlen gt) 1) (>= (ascii gf) 65) (>= (ascii gt) 65))
     (progn
       (setq nW (length ys)
-            vf (- (ascii gf) 65 letOfs)
-            vt (- (ascii gt) 65 letOfs)
+            vf (- (peb-grid-letter-index gf) letOfs)   ; skip-I aware (matches the bubble letters)
+            vt (- (peb-grid-letter-index gt) letOfs)
             y0 (nth (max 0 (min (1- nW) (- nW 1 vf))) ys)
             y1 (nth (max 0 (min (1- nW) (- nW 1 vt))) ys))
       (if (> (abs (- y1 y0)) 1.0)
@@ -3644,7 +3656,7 @@
         ;; RULE (owner 4-Jul): grid marking line from the OUTER width dimension line (-3*dimGap) to the bubble.
         (command "LINE" (list (- (- 0.0 (* 3.0 dimGap)) ovrTxtH) y) (list (+ gridX1 bubStand) y) "")   ; stop clear of the pointer apex (owner 10-Jul)
         (setvar "CLAYER" "GRID")
-        (grid-bubble gridX1 y (chr (+ 65 (- nWid 1 j) (if *PEB-GRID-LET-OFS* *PEB-GRID-LET-OFS* 0))) "R")))   ; owner 5-Jul: letter offset -> grid CONTINUES across stacked areas
+        (grid-bubble gridX1 y (peb-grid-letter (+ (- nWid 1 j) (if *PEB-GRID-LET-OFS* *PEB-GRID-LET-OFS* 0))) "R")))   ; owner 5-Jul: letter offset -> grid CONTINUES across stacked areas; skip-I via peb-grid-letter
     (setq j (1+ j))
   ))
 
@@ -5925,7 +5937,7 @@
     (setvar "CLAYER" "GRID-LINES")
     (entmake (list (cons 0 "LINE") (cons 8 "GRID-LINES") (list 10 fx0 y 0.0) (list 11 (- fx0 (* 2.0 gbr)) y 0.0)))
     (setvar "CLAYER" "GRID")
-    (grid-bubble (- fx0 (* 2.0 gbr) gbr) y (chr (+ 65 letterIdx)) "R")
+    (grid-bubble (- fx0 (* 2.0 gbr) gbr) y (peb-grid-letter letterIdx) "R")
     (setq letterIdx (1+ letterIdx)))
 
   ;; deck spec note (what the floor IS), just above the title
