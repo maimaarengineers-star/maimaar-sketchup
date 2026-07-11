@@ -5830,61 +5830,134 @@
   (if (null spList) (setq spList (list 10000.0)))
   spList)
 
-(defun peb-draw-mezz-floor-plan (data len wid floorNum / spList bayPts glF glT fx0 fx1 fy0 fy1
-                                 ys xs acc s2 x y colD savedWeb jsp jx i gbr letterIdx sc)
+(defun peb-draw-mezz-floor-plan (data len wid floorNum / spList bayPts glF glT offF offT fx0 fx1 fy0 fy1
+                                 ys xs acc s2 x y colD savedWeb jx i gbr letterIdx sc band inset
+                                 mzRcc rccXs rccYs floorSys jspSys lvl lvlStr specStr mzJoist)
   (setq sc (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0))
+  (setq inset (max 300.0 (min 1000.0 (* (min len wid) 0.10))))
   (setq spList (peb-mzfp-splist data) bayPts (peb-mzfp-bays data len))
-  (setq glF (MSPL-Get-Int data "MZ_GRID_BAY_FROM") glT (MSPL-Get-Int data "MZ_GRID_BAY_TO"))
-  (setq fy0 (* wid 0.06) fy1 (- wid (* wid 0.06)))
+
+  ;; WIDTH footprint — the SAME peb-mz-width-band as the CLP so the two sheets agree.  This runs
+  ;; STANDALONE (no plan drawn), so seed *PEB-WGRID-YS* from the width module lines to make the
+  ;; grid-LETTER placement work here too; if the plan already set it, keep that.
+  (if (not (and (boundp '*PEB-WGRID-YS*) *PEB-WGRID-YS*))
+    (setq *PEB-WGRID-YS* (vl-sort (peb-main-column-ys data wid) '<)))
+  (setq band (peb-mz-width-band data wid inset) fy0 (car band) fy1 (cadr band))
+
+  ;; LENGTH footprint — grid bays + offsets (mirror the CLP), else a 6% inset.
+  (setq glF (MSPL-Get-Int data "MZ_GRID_BAY_FROM") glT (MSPL-Get-Int data "MZ_GRID_BAY_TO")
+        offF (MSPL-Get-Num data "MZ_OFFSET_FROM") offT (MSPL-Get-Num data "MZ_OFFSET_TO"))
+  (if (null offF) (setq offF 0.0))
+  (if (null offT) (setq offT 0.0))
   (if (and glF glT (> glF 0) (> glT glF) (<= glT (length bayPts)))
-    (setq fx0 (nth (1- glF) bayPts) fx1 (nth (1- glT) bayPts))
+    (progn
+      (setq fx0 (+ (nth (1- glF) bayPts) offF) fx1 (+ (nth (1- glT) bayPts) offT))
+      (setq fx0 (max 0.0 (min fx0 len)) fx1 (max 0.0 (min fx1 len)))
+      (if (>= fx0 fx1) (setq fx0 (nth (1- glF) bayPts) fx1 (nth (1- glT) bayPts))))
     (setq fx0 (* len 0.06) fx1 (- len (* len 0.06))))
-  ;; width column lines (from MZ_COL_SPACING) + bay lines within the footprint
+
+  ;; width column lines (ys) from MZ_COL_SPACING + bay lines within the footprint (xs)
   (setq ys (list fy0) acc fy0)
   (foreach s2 spList (setq acc (+ acc s2)) (if (< acc (- fy1 300.0)) (setq ys (append ys (list acc)))))
   (setq ys (append ys (list fy1)))
   (setq xs '())
   (foreach x bayPts (if (and (>= x (- fx0 1.0)) (<= x (+ fx1 1.0))) (setq xs (append xs (list x)))))
   (if (null xs) (setq xs (list fx0 fx1)))
+
   ;; deck outline
   (peb-comp-layer "COMP-MEZZ" 6)
   (peb-comp-poly (list (list fx0 fy0) (list fx1 fy0) (list fx1 fy1) (list fx0 fy1)))
-  ;; joists — light lines across the width at ~1250 along the length
-  (peb-comp-layer "COMP-MEZZ-JOIST" 8)
-  (setq jsp 1250.0 jx (+ fx0 jsp))
-  (while (< jx (- fx1 100.0)) (command "_.LINE" (list jx fy0) (list jx fy1) "") (setq jx (+ jx jsp)))
-  ;; main beams — along the length at each width column line
+
+  ;; floor system -> joist rule (owner 11-Jul): PRECAST / HOLLOW-CORE = beams only (no joists);
+  ;; GRATING / CHEQUERED PLATE = closer joists at 1220 mm (4 ft); DECK + SLAB = joists at MZ_JOIST.
+  (setq floorSys (strcase (peb-tb-or (MSPL-Get-Str data (strcat "MZ" (itoa floorNum) "_FLOOR"))
+                                     (MSPL-Get-Str data "MZ1_FLOOR"))))
+  (setq mzJoist (MSPL-Get-Num data "MZ_JOIST"))
+  (if (or (null mzJoist) (<= mzJoist 0.0)) (setq mzJoist 1250.0))
+  (cond ((wcmatch floorSys "*PRECAST*,*HOLLOW*")        (setq jspSys nil))
+        ((wcmatch floorSys "*GRAT*,*PLATE*,*CHEQ*")     (setq jspSys 1220.0))
+        (T                                              (setq jspSys mzJoist)))
+
+  ;; joists — light lines across the width, spaced along the length (none for precast)
+  (if jspSys
+    (progn
+      (peb-comp-layer "COMP-MEZZ-JOIST" 8)
+      (setq jx (+ fx0 jspSys))
+      (while (< jx (- fx1 100.0))
+        (entmake (list (cons 0 "LINE") (cons 8 "COMP-MEZZ-JOIST") (list 10 jx fy0 0.0) (list 11 jx fy1 0.0)))
+        (setq jx (+ jx jspSys)))))
+
+  ;; main beams — along the length at each width column line, + a beam mark
   (peb-comp-layer "COMP-MEZZ-BEAM" 5)
-  (foreach y ys (command "_.LINE" (list fx0 y) (list fx1 y) ""))
-  ;; columns (I-section) at bay x module
+  (foreach y ys (entmake (list (cons 0 "LINE") (cons 8 "COMP-MEZZ-BEAM") (list 10 fx0 y 0.0) (list 11 fx1 y 0.0))))
+  (setvar "CLAYER" "COMP-MEZZ-BEAM")
+  (if (> (length ys) 1)
+    (vl-catch-all-apply (function (lambda ()
+      (txt-bold "MC" (list (/ (+ fx0 fx1) 2.0) (+ (nth 1 ys) (/ 300.0 sc))) (/ 300.0 sc) 0.0 "MEZZ. BEAM (TYP.)")))))
+
+  ;; columns — RCC host draws the existing concrete pillars; else steel mezzanine columns
+  (setq mzRcc (= (strcase (peb-tb-or (MSPL-Get-Str data "MZ_RCC") "")) "YES"))
   (setq colD (peb-col-web-depth (apply 'max (cons 6000.0 spList))) savedWeb *PEB-COL-WEB* *PEB-COL-WEB* colD)
-  (foreach x xs (foreach y ys (vl-catch-all-apply (function (lambda () (draw-I-column-lengthwise x y))))))
+  (if mzRcc
+    (progn
+      (peb-comp-layer "COMP-RCC" 8)
+      (setq rccXs (peb-mezz-stations (MSPL-Get-Str data "MZ_RCC_BAY") fx0 fx1)
+            rccYs (peb-mezz-stations (MSPL-Get-Str data "MZ_RCC_COL") fy0 fy1))
+      (foreach x rccXs
+        (foreach y rccYs
+          (vl-catch-all-apply (function (lambda () (peb-draw-rcc-pillar x y (* colD 1.40))))))))
+    (foreach x xs
+      (foreach y ys
+        (vl-catch-all-apply (function (lambda () (draw-I-column-lengthwise x y)))))))
   (setq *PEB-COL-WEB* savedWeb)
-  ;; grid bubbles — building grid NUMBERS along the top at each footprint bay line
+
+  ;; grid bubbles — building bay NUMBERS along the top, width LETTERS down the left (A at the top)
   (setq gbr (max 900.0 (* 620.0 sc)) i 0)
   (foreach x bayPts
     (if (and (>= x (- fx0 1.0)) (<= x (+ fx1 1.0)))
-      (progn (setvar "CLAYER" "GRID")
-             (command "_.LINE" (list x fy1) (list x (+ fy1 (* 2.0 gbr))) "")
+      (progn (setvar "CLAYER" "GRID-LINES")
+             (entmake (list (cons 0 "LINE") (cons 8 "GRID-LINES") (list 10 x fy1 0.0) (list 11 x (+ fy1 (* 2.0 gbr)) 0.0)))
+             (setvar "CLAYER" "GRID")
              (grid-bubble x (+ fy1 (* 2.0 gbr) gbr) (itoa (1+ i)) "D")))
     (setq i (1+ i)))
-  ;; width LETTERS along the left (A at the top)
   (setq letterIdx 0)
   (foreach y (reverse ys)
+    (setvar "CLAYER" "GRID-LINES")
+    (entmake (list (cons 0 "LINE") (cons 8 "GRID-LINES") (list 10 fx0 y 0.0) (list 11 (- fx0 (* 2.0 gbr)) y 0.0)))
     (setvar "CLAYER" "GRID")
-    (command "_.LINE" (list fx0 y) (list (- fx0 (* 2.0 gbr)) y) "")
     (grid-bubble (- fx0 (* 2.0 gbr) gbr) y (chr (+ 65 letterIdx)) "R")
     (setq letterIdx (1+ letterIdx)))
-  ;; blue floor title below the plan
+
+  ;; deck spec note (what the floor IS), just above the title
+  (setq specStr (cond ((wcmatch floorSys "*PRECAST*,*HOLLOW*")    "PRECAST / HOLLOW-CORE SLAB (BY OTHERS)")
+                      ((wcmatch floorSys "*GRAT*,*CHEQ*,*PLATE*") "STEEL GRATING / CHEQUERED PLATE ON JOISTS")
+                      (T                                          "0.7mm DECKING PANEL + 100mm CONCRETE SLAB")))
+  (setvar "CLAYER" "TEXT")
+  (vl-catch-all-apply (function (lambda ()
+    (txt "MC" (list (/ (+ fx0 fx1) 2.0) (- fy0 (/ 1600.0 sc))) (/ 320.0 sc) 0.0 specStr))))
+
+  ;; blue floor TITLE + LEVEL tag below the plan.
+  ;; BUGFIX (owner note): txt-bold already multiplies by *PEB-TEXT-SCALE*, so pass (/ H sc) — the old
+  ;; (* 450 sc) rendered the title at H*sc^2, which blew up on large buildings.
+  (setq lvl (MSPL-Get-Num data "MZ_FLOOR_HT"))
+  (if (null lvl) (setq lvl 0.0))
+  (setq lvlStr (if (> lvl 0.0)
+                 (strcat "  (LEVEL approx. +" (peb-comma (rtos (* lvl floorNum) 2 0)) " MM, BOTTOM OF BEAM)")
+                 ""))
   (setvar "CLAYER" "TEXT") (setvar "CECOLOR" "5")
-  (txt-bold "MC" (list (/ (+ fx0 fx1) 2.0) (- fy0 (* 3200 sc))) (* 450 sc) 0
-            (strcat "MEZZANINE FLOOR-" (itoa floorNum) " LAYOUT PLAN"))
+  (txt-bold "MC" (list (/ (+ fx0 fx1) 2.0) (- fy0 (/ 3200.0 sc))) (/ 700.0 sc) 0
+            (strcat "MEZZANINE FLOOR-" (itoa floorNum) " LAYOUT PLAN" lvlStr))
   (setvar "CECOLOR" "BYLAYER")
   (princ))
 
 (defun C:PEB-MEZZ-FLOOR (/ dataFile data len wid floorNum)
   (setq dataFile (if (and (boundp '*PEB-DATA-FILE*) *PEB-DATA-FILE*) *PEB-DATA-FILE* nil))
   (if (null dataFile) (progn (princ "\nPEB-MEZZ-FLOOR: no data file.") (exit)))
+  ;; Create the standard layers (COLUMNS / BOLTS / GRID / GRID-LINES / TEXT …) the drawer needs.  C:PEB-PLAN
+  ;; runs this at start; the standalone floor-plan path must too, or a bare (setvar "CLAYER" "COLUMNS")
+  ;; errors under acad /b and aborts the sheet (only COMP-* layers, created on demand, survive).
+  (if (boundp 'peb-std-setup)
+    (vl-catch-all-apply (function (lambda () (peb-std-setup)))))
   (setq data (MSPL-Read-Data dataFile))
   (setq len (MSPL-Get-Num data "LENGTH") wid (MSPL-Get-Num data "WIDTH"))
   (if (or (null len) (<= len 0)) (setq len 30000.0))
