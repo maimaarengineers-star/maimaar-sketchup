@@ -1955,6 +1955,19 @@
     (setq c (+ c step)))
   (princ))
 
+;; A MAIN BEAM in plan — two parallel FLANGE lines (heavy) offset +/- half from the centre-line, so it
+;; reads as a deep, wide section against the light single-line joists (owner 12-Jul: "more flange & much
+;; more depth of main beams").  Horizontal beam when y0==y1, else vertical.
+(defun peb-mezz-mainbeam (x0 y0 x1 y1 half)
+  (if (< (abs (- y0 y1)) 1.0)
+    (progn
+      (entmake (list (cons 0 "LINE") (cons 8 "COMP-MEZZ-BEAM") (cons 370 50) (list 10 x0 (- y0 half) 0.0) (list 11 x1 (- y0 half) 0.0)))
+      (entmake (list (cons 0 "LINE") (cons 8 "COMP-MEZZ-BEAM") (cons 370 50) (list 10 x0 (+ y0 half) 0.0) (list 11 x1 (+ y0 half) 0.0))))
+    (progn
+      (entmake (list (cons 0 "LINE") (cons 8 "COMP-MEZZ-BEAM") (cons 370 50) (list 10 (- x0 half) y0 0.0) (list 11 (- x0 half) y1 0.0)))
+      (entmake (list (cons 0 "LINE") (cons 8 "COMP-MEZZ-BEAM") (cons 370 50) (list 10 (+ x0 half) y0 0.0) (list 11 (+ x0 half) y1 0.0)))))
+  (princ))
+
 ;; closed polyline outline on the current layer (pts = list of (x y))
 (defun peb-comp-poly (pts / e)
   (setq e (list (cons 0 "LWPOLYLINE") (cons 100 "AcDbEntity") (cons 8 (getvar "CLAYER"))
@@ -5923,7 +5936,7 @@
 (defun peb-draw-mezz-floor-plan (data len wid floorNum / spList bayPts glF glT offF offT fx0 fx1 fy0 fy1
                                  ys xs acc s2 x y colD savedWeb jx i gbr letterIdx sc band inset
                                  mzRcc rccXs rccYs floorSys jspSys lvl lvlStr specStr mzJoist
-                                 dimX yprev yy jy)
+                                 dimX yprev yy jy beamHalf)
   (setq sc (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0))
   (setq inset (max 300.0 (min 1000.0 (* (min len wid) 0.10))))
   (setq spList (peb-mzfp-splist data) bayPts (peb-mzfp-bays data len))
@@ -5987,14 +6000,17 @@
         (txt "MC" (list (/ (+ fx0 fx1) 2.0) (+ fy1 (/ 900.0 sc))) (/ 300.0 sc) 0.0
              (strcat "JOISTS ALONG LENGTH @ " (peb-comma (rtos jspSys 2 0)) " C/C")))))))
 
-  ;; MAIN BEAMS — ALONG THE WIDTH, column to column (owner 12-Jul), at each bay/length column line inside
-  ;; the footprint.  Heavier line than the joists.
+  ;; MAIN BEAMS — heavy DOUBLE-line (flange + depth), in BOTH directions (owner 12-Jul): column-to-column
+  ;; along the WIDTH at each bay/length line (xs), AND along the LENGTH at each mezz width-module line
+  ;; (ys).  The light joists sit between them.  Drawn AFTER the joists so the heavy beams read on top.
   (peb-comp-layer "COMP-MEZZ-BEAM" 5)
-  (foreach x xs (entmake (list (cons 0 "LINE") (cons 8 "COMP-MEZZ-BEAM") (list 10 x fy0 0.0) (list 11 x fy1 0.0))))
+  (setq beamHalf (max 250.0 (* (apply 'max (cons 6000.0 spList)) 0.075)))
+  (foreach x xs (vl-catch-all-apply (function (lambda () (peb-mezz-mainbeam x fy0 x fy1 beamHalf)))))
+  (foreach y ys (vl-catch-all-apply (function (lambda () (peb-mezz-mainbeam fx0 y fx1 y beamHalf)))))
   (setvar "CLAYER" "COMP-MEZZ-BEAM")
   (if (> (length xs) 1)
     (vl-catch-all-apply (function (lambda ()
-      (txt-bold "MC" (list (+ (nth 1 xs) (/ 260.0 sc)) (/ (+ fy0 fy1) 2.0)) (/ 300.0 sc) 90.0 "MAIN BEAM (TYP.)")))))
+      (txt-bold "MC" (list (+ (nth 1 xs) (+ beamHalf (/ 260.0 sc))) (/ (+ fy0 fy1) 2.0)) (/ 300.0 sc) 90.0 "MAIN BEAM (TYP.)")))))
 
   ;; columns — RCC host draws the existing concrete pillars; else steel mezzanine columns
   (setq mzRcc (= (strcase (peb-tb-or (MSPL-Get-Str data "MZ_RCC") "")) "YES"))
