@@ -5947,7 +5947,12 @@
       (setq jx (+ fx0 jspSys))
       (while (< jx (- fx1 100.0))
         (entmake (list (cons 0 "LINE") (cons 8 "COMP-MEZZ-JOIST") (list 10 jx fy0 0.0) (list 11 jx fy1 0.0)))
-        (setq jx (+ jx jspSys)))))
+        (setq jx (+ jx jspSys)))
+      ;; joist spacing note along the top edge (parallel to the mezz-column spacing dim)
+      (setvar "CLAYER" "COMP-MEZZ-JOIST")
+      (vl-catch-all-apply (function (lambda ()
+        (txt "MC" (list (/ (+ fx0 fx1) 2.0) (+ fy1 (/ 900.0 sc))) (/ 300.0 sc) 0.0
+             (strcat "JOISTS @ " (peb-comma (rtos jspSys 2 0)) " C/C (TYP.)")))))))
 
   ;; main beams — along the length at each width column line, + a beam mark
   (peb-comp-layer "COMP-MEZZ-BEAM" 5)
