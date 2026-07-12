@@ -5366,7 +5366,8 @@
 ;; CONTINUOUSLY from the floor up to the top floor's beam — steel I (PEB) or concrete (existing RCC,
 ;; with a chemical-anchor note).  Extent is full-interior or partial (MZ1_WID width).
 (defun peb-draw-mezz-section (data wid / mzRcc chBeam thk beamD colW x0 x1 mm lst xs acc s prev cx
-                              numFloors floorHt f lvl bTop sTop topLvl)
+                              numFloors floorHt f lvl bTop sTop topLvl
+                              beamBot beamTop jd joistTop deckTop slabTop jsp jw jx labX labY)
   (if (/= (strcase (peb-tb-or (MSPL-Get-Str data "MZ_TOGGLE") "")) "YES")
     (princ)
     (progn
@@ -5406,17 +5407,53 @@
                  (command "_.RECTANG" (list (- cx colW) 0.0) (list (+ cx colW) topLvl)))
           (progn (setvar "CLAYER" "COMP-MEZZ")
                  (command "_.RECTANG" (list (- cx (/ colW 2.0)) 0.0) (list (+ cx (/ colW 2.0)) topLvl)))))
-      ;; ── each stacked floor: deck slab + beam-top (joists) + beam-bottom + label ──
+      ;; ── each stacked floor: a LAYERED build-up (owner 12-Jul: "close details — decking panels,
+      ;;    concrete on top, main beams & joist in section").  From the beam bottom up:
+      ;;      MEZZANINE BEAM (deep)  →  JOISTS (cut ticks)  →  PROFILED DECK (45 rib)  →  R.C. SLAB.
+      ;;    Each on its dedicated layer (COMP-MEZZ-BEAM/JOIST-SEC/JOIST) so colour + line-weight match
+      ;;    the Mezzanine Floor Plan.  Slab top = F.F.L of the floor.  Dims from the Mammut manual. ──
+      (setq jsp (MSPL-Get-Num data "MZ_JOIST"))
+      (if (or (null jsp) (<= jsp 0.0)) (setq jsp 2000.0))
+      (if (> jsp 2250.0) (setq jsp 2250.0))
+      (setq jw 70.0)
       (setq f 1)
       (while (<= f numFloors)
-        (setq lvl (+ chBeam (* (1- f) floorHt)) bTop (+ lvl beamD) sTop (+ lvl beamD thk))
+        (setq lvl      (+ chBeam (* (1- f) floorHt))
+              beamBot  lvl
+              beamTop  (+ lvl beamD)
+              jd       (max 250.0 (* beamD 0.5))
+              joistTop (+ beamTop jd)
+              deckTop  (+ joistTop 45.0)
+              slabTop  (+ deckTop thk))                         ; = F.F.L of this floor
+        ;; (1) MAIN BEAM — deep member, COMP-MEZZ-BEAM (blue 0.50), web mid-line for an I read
+        (setvar "CLAYER" "COMP-MEZZ-BEAM")
+        (command "_.RECTANG" (list x0 beamBot) (list x1 beamTop))
+        (command "_.LINE" (list x0 (+ beamBot (* beamD 0.5))) (list x1 (+ beamBot (* beamD 0.5))) "")
+        ;; (2) JOISTS in section — cut ticks on the beam top, COMP-MEZZ-JOIST-SEC (light), @ jsp
+        (setvar "CLAYER" "COMP-MEZZ-JOIST-SEC")
+        (setq jx (+ x0 jsp))
+        (while (< jx (- x1 1.0))
+          (command "_.RECTANG" (list (- jx jw) beamTop) (list (+ jx jw) joistTop))
+          (setq jx (+ jx jsp)))
+        ;; (3) PROFILED DECK PANEL — thin band joistTop..deckTop (45mm rib), COMP-MEZZ-JOIST
+        (setvar "CLAYER" "COMP-MEZZ-JOIST")
+        (command "_.LINE" (list x0 joistTop) (list x1 joistTop) "")
+        (command "_.LINE" (list x0 deckTop)  (list x1 deckTop)  "")
+        ;; (4) R.C. SLAB (BY OTHERS) — band deckTop..slabTop (top = F.F.L), light concrete hatch
         (setvar "CLAYER" "COMP-MEZZ")
-        (command "_.RECTANG" (list x0 bTop) (list x1 sTop))
-        (command "_.LINE" (list x0 bTop) (list x1 bTop) "")
-        (command "_.LINE" (list x0 lvl)  (list x1 lvl)  "")
+        (command "_.RECTANG" (list x0 deckTop) (list x1 slabTop))
+        (vl-catch-all-apply (function (lambda ()
+          (setvar "CLAYER" "HATCHR")
+          (command "_.-HATCH" "_P" "AR-CONC" (max 1.0 (* thk 0.02)) "0.0" "_S"
+                   (list (/ (+ x0 x1) 2.0) (+ deckTop (/ thk 2.0))) "" ""))))
+        ;; labels: R.C. SLAB (BY OTHERS) above the slab, MEZZANINE BEAM at the beam, MEZZANINE FLOOR tag
         (setvar "CLAYER" "TEXT")
-        (txt "MC" (list (/ (+ x0 x1) 2.0) (+ sTop 300.0)) 260 0
-             (if (> numFloors 1) (strcat "MEZZANINE FLOOR-" (itoa f)) "MEZZANINE FLOOR"))
+        (setq labX (/ (+ x0 x1) 2.0))
+        (txt "MC" (list labX (+ slabTop 260.0)) 240 0 "R.C. SLAB (BY OTHERS) ON PROFILED DECK PANEL")
+        (txt "MC" (list (+ x0 (* (- x1 x0) 0.20)) (+ beamBot (* beamD 0.5))) 220 0 "MEZZANINE BEAM")
+        (txt "MC" (list (+ x0 (* (- x1 x0) 0.65)) (+ joistTop 120.0)) 200 0 "FLOOR JOISTS")
+        (txt "ML" (list (+ x1 200.0) slabTop) 240 0
+             (if (> numFloors 1) (strcat "F.F.L MEZZ-" (itoa f)) "F.F.L MEZZANINE"))
         (setq f (1+ f)))
       ;; existing-RCC host: one chemical-anchor callout
       (if mzRcc
