@@ -3682,7 +3682,7 @@
       ;; to 0.72x the MLEADER body height so the full sandwich fits inside
       ;; the section as a compact leader.
       (setq rCombined
-        (strcat "{\\H0.72x;{\\fArial|b1;" rLine1 "}\\P" rLine2_2L "}"))
+        (strcat "{\\H0.55x;{\\fArial|b1;" rLine1 "}\\P" rLine2_2L "}"))
       ;; --- Try 3-vertex MLEADER with combined text -----------------
       (setq mlResult
         (vl-catch-all-apply 'peb-make-mleader
@@ -3832,7 +3832,7 @@
       ;; to 0.72x the MLEADER body height — compact leader that fits inside
       ;; the section.
       (setq wCombined
-        (strcat "{\\H0.72x;{\\fArial|b1;" wLine1 "}\\P" wLine2_2L "}"))
+        (strcat "{\\H0.55x;{\\fArial|b1;" wLine1 "}\\P" wLine2_2L "}"))
       ;; --- Try 4-vertex MLEADER with combined text -----------------
       ;; Bar (v2-v3) is exactly 300 mm long: v2 at wExtX, v3 at
       ;; wExtX + 300.  Text starts at v3 going RIGHT, landing right
@@ -4087,7 +4087,7 @@
       ;; to 0.72x the MLEADER body height so the full sandwich fits inside
       ;; the section as a compact leader.
       (setq rCombined
-        (strcat "{\\H0.72x;{\\fArial|b1;" rLine1 "}\\P" rLine2_2L "}"))
+        (strcat "{\\H0.55x;{\\fArial|b1;" rLine1 "}\\P" rLine2_2L "}"))
       (setq mlResult
         (vl-catch-all-apply 'peb-make-mleader
           (list
@@ -4166,7 +4166,7 @@
       ;; to 0.72x the MLEADER body height — compact leader that fits inside
       ;; the section.
       (setq wCombined
-        (strcat "{\\H0.72x;{\\fArial|b1;" wLine1 "}\\P" wLine2_2L "}"))
+        (strcat "{\\H0.55x;{\\fArial|b1;" wLine1 "}\\P" wLine2_2L "}"))
       (setq mlResult
         (vl-catch-all-apply 'peb-make-mleader
           (list
