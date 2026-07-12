@@ -5527,6 +5527,39 @@
   (txt "MC" (list (/ wid 2.0) (+ H slabT 500.0)) 300 0 "EXISTING RCC ROOF SLAB (BY OTHERS)")
   (setvar "CLAYER" prev))
 
+;; ── ROOF MONITOR at the peak (owner 13-Jul: "in case of Roof Monitor — show the Roof Monitor @ Peak") ──
+;; A raised ventilator straddling the ridge: two side walls (with louvre slats) rising from the roof to
+;; the monitor eave, and a small gable roof on top, centred on the ridge.  Throat = RM_THROAT_WIDTH
+;; (opening in the main roof); eave height = RM_OPEN_WALL_HT.  Only for frames that HAVE a ridge/peak.
+(defun peb-draw-roof-monitor (data wid H rise ridgeX / prev throat mh roofY sx0 sx1 eaveY peakY ov k ly dx)
+  (setq prev (getvar "CLAYER"))
+  (setq throat (MSPL-Get-Num data "RM_THROAT_WIDTH"))
+  (if (or (null throat) (<= throat 0.0)) (setq throat (MSPL-Get-Num data "RM_OVERALL_WIDTH")))
+  (if (or (null throat) (<= throat 0.0)) (setq throat (min 3500.0 (* wid 0.20))))
+  (setq mh (MSPL-Get-Num data "RM_OPEN_WALL_HT"))
+  (if (or (null mh) (<= mh 0.0)) (setq mh (max 1200.0 (* throat 0.55))))
+  (setq roofY (+ H rise)                                     ; roof top at the ridge
+        sx0   (- ridgeX (/ throat 2.0)) sx1 (+ ridgeX (/ throat 2.0))
+        eaveY (+ roofY mh) ov (* throat 0.12) peakY (+ eaveY (* throat 0.15)))
+  (setvar "CLAYER" "FRAME")
+  (command "_.LINE" (list sx0 roofY) (list sx0 eaveY) "")                         ; L side wall
+  (command "_.LINE" (list sx1 roofY) (list sx1 eaveY) "")                         ; R side wall
+  (command "_.LINE" (list (- sx0 ov) eaveY) (list ridgeX peakY) "")              ; L monitor rafter
+  (command "_.LINE" (list ridgeX peakY) (list (+ sx1 ov) eaveY) "")              ; R monitor rafter
+  (command "_.LINE" (list (- sx0 ov) eaveY) (list (+ sx1 ov) eaveY) "")          ; eave line
+  ;; louvre slats on each side wall (ventilator read)
+  (setvar "CLAYER" "GIRTS")
+  (setq k 1 dx (* throat 0.11))
+  (while (<= k 3)
+    (setq ly (+ roofY (* (/ (- eaveY roofY) 4.0) k)))
+    (command "_.LINE" (list sx0 ly) (list (+ sx0 dx) (- ly (* mh 0.10))) "")
+    (command "_.LINE" (list sx1 ly) (list (- sx1 dx) (- ly (* mh 0.10))) "")
+    (setq k (1+ k)))
+  (setvar "CLAYER" "TEXT")
+  (vl-catch-all-apply (function (lambda () (txt "MC" (list ridgeX (+ peakY 350.0)) 220 0 "ROOF MONITOR"))))
+  (setvar "CLAYER" prev)
+  (princ))
+
 (defun C:PEB-SECTION
   ( / dataFile data
     project client propinput propno fulldate
@@ -5850,6 +5883,11 @@
 
   ;; ── Mezzanine floor in section (deck + beam + support columns) ──
   (vl-catch-all-apply (function (lambda () (peb-draw-mezz-section data wid cols))))
+
+  ;; ── Roof monitor at the peak (owner 13-Jul) — only for frames with a ridge/peak ──
+  (if (and ridges (car ridges)
+           (= (strcase (peb-tb-or (MSPL-Get-Str data "RM_TOGGLE") "")) "YES"))
+    (vl-catch-all-apply (function (lambda () (peb-draw-roof-monitor data wid H rise (car ridges))))))
 
   ;; ── Connection plates ────────────────────────────────────────
   ;; For MG: plates only at HAUNCH columns (left/right outer + valley
