@@ -1539,9 +1539,23 @@
       (list cols ridges))
 
     ((= stype "SS")
-      ;; Single slope: 2 columns at LOW and HIGH ends, no ridge in middle.
-      ;; Empty ridges list signals SS to the polygon builder.
-      (list (list 0.0 W) '()))
+      ;; Single slope: LOW→HIGH columns, NO ridge (empty ridges signals SS to the polygon builder).
+      ;; Multi-span single slope (SSMS) adds interior columns from NUMMODULES/MODULEn, mirroring MS;
+      ;; clear-span single slope (SSCS, NUMMODULES blank/1) collapses to just (0 W) — no regression.
+      (setq numMod (MSPL-Get-Int data "NUMMODULES"))
+      (if (or (null numMod) (< numMod 1)) (setq numMod 1))
+      (if (> numMod 10) (setq numMod 10))
+      (setq cols (list 0.0) cum 0.0 i 0)
+      (while (< i numMod)
+        (setq modw (MSPL-Get-Num data (strcat "MODULE" (itoa (1+ i)))))
+        (cond
+          ((= i (1- numMod))     (setq sp (- W cum)))
+          ((and modw (> modw 0)) (setq sp modw))
+          (T                     (setq sp (/ (- W cum) (- numMod i)))))
+        (setq cum (+ cum sp))
+        (setq cols (append cols (list cum)))
+        (setq i (1+ i)))
+      (list cols '()))
 
     ((= stype "RC")
       ;; Roof system on Reinforced Concrete columns.
@@ -1956,6 +1970,23 @@
   (foreach p pts (command p))
   (command "C")
 )
+
+;; SSMS interior columns: for a MULTI-SPAN single slope, each interior station rises to the STRAIGHT
+;; rafter underside (NOT the cigar/ridge formula — single slope has no ridge).  The underside runs
+;; linearly from the low haunch (H−ht) to the high haunch (H+slopeRise−ht), so at station x:
+;;   yTop(x) = (H − ht) + slopeRise·(x/W).  Web width reuses ms-col-web-at (module-sized).  SSCS (2 cols)
+;; skips this entirely.  (Called AFTER draw-ss-frame from the dispatcher.)
+(defun draw-ss-interior-cols (cols W H slopeRise ht / i x rafterY thisColW halfW numCols)
+  (setvar "CLAYER" "FRAME")
+  (setq numCols (length cols) i 1)
+  (while (< i (1- numCols))
+    (setq x        (nth i cols)
+          thisColW (ms-col-web-at cols i)
+          halfW    (/ thisColW 2.0)
+          rafterY  (+ (- H ht) (* slopeRise (/ x W))))
+    (command "_.RECTANG" (list (- x halfW) 0.0) (list (+ x halfW) rafterY))
+    (setq i (1+ i)))
+  (princ))
 
 (defun draw-rcc-columns (cols H rccW)
   ;;  RCC (Reinforced Concrete) columns drawn as filled rectangles
@@ -5764,7 +5795,9 @@
       (draw-rcc-building-frame cols wid H cb))
     ((= stype "SS")
       (setq slopeRise (/ wid slopeD))
-      (draw-ss-frame wid H slopeRise ht cb))
+      (draw-ss-frame wid H slopeRise ht cb)
+      ;; SSMS: draw the interior columns (clear-span SSCS has none — cols = (0 W))
+      (if (> (length cols) 2) (draw-ss-interior-cols cols wid H slopeRise ht)))
     ((= stype "RC")
       (draw-rc-frame wid H rise ht rd))
     ((= stype "LT")
