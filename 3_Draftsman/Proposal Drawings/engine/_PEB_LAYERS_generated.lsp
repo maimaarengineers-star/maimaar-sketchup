@@ -41,5 +41,8 @@
     ("GROUND-HATCH" 8    "Continuous" 0.09)
     ("HATCHR"       32   "Continuous" 0.30)
     ("HATCH"        8    "Continuous" 0.05)
+    ("COMP-MEZZ-BEAM"      5    "Continuous" 0.50)
+    ("COMP-MEZZ-JOIST"     8    "Continuous" 0.25)
+    ("COMP-MEZZ-JOIST-SEC" 8    "Continuous" 0.13)
    ))
 (princ)

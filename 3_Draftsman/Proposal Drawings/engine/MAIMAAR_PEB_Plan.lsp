@@ -1955,17 +1955,20 @@
     (setq c (+ c step)))
   (princ))
 
-;; A MAIN BEAM in plan — two parallel FLANGE lines (heavy) offset +/- half from the centre-line, so it
-;; reads as a deep, wide section against the light single-line joists (owner 12-Jul: "more flange & much
-;; more depth of main beams").  Horizontal beam when y0==y1, else vertical.
-(defun peb-mezz-mainbeam (x0 y0 x1 y1 half)
+;; A framing member in plan drawn as its TOP FLANGE — two parallel lines offset +/- half from the
+;; member centre-line, so the top-flange WIDTH (= 2*half) shows to scale (owner 12-Jul: main beam
+;; 200mm, joist 150mm, secondary joist 100mm).  Drawn on the CURRENT layer, so COLOUR + LINEWEIGHT
+;; come BYLAYER (beam 0.50/blue, joist 0.25/grey, sec-joist 0.13/grey — set the layer before calling).
+;; Horizontal member when y0==y1, else vertical.
+(defun peb-mezz-mainbeam (x0 y0 x1 y1 half / lay)
+  (setq lay (getvar "CLAYER"))
   (if (< (abs (- y0 y1)) 1.0)
     (progn
-      (entmake (list (cons 0 "LINE") (cons 8 "COMP-MEZZ-BEAM") (cons 370 50) (list 10 x0 (- y0 half) 0.0) (list 11 x1 (- y0 half) 0.0)))
-      (entmake (list (cons 0 "LINE") (cons 8 "COMP-MEZZ-BEAM") (cons 370 50) (list 10 x0 (+ y0 half) 0.0) (list 11 x1 (+ y0 half) 0.0))))
+      (entmake (list (cons 0 "LINE") (cons 8 lay) (list 10 x0 (- y0 half) 0.0) (list 11 x1 (- y0 half) 0.0)))
+      (entmake (list (cons 0 "LINE") (cons 8 lay) (list 10 x0 (+ y0 half) 0.0) (list 11 x1 (+ y0 half) 0.0))))
     (progn
-      (entmake (list (cons 0 "LINE") (cons 8 "COMP-MEZZ-BEAM") (cons 370 50) (list 10 (- x0 half) y0 0.0) (list 11 (- x0 half) y1 0.0)))
-      (entmake (list (cons 0 "LINE") (cons 8 "COMP-MEZZ-BEAM") (cons 370 50) (list 10 (+ x0 half) y0 0.0) (list 11 (+ x0 half) y1 0.0)))))
+      (entmake (list (cons 0 "LINE") (cons 8 lay) (list 10 (- x0 half) y0 0.0) (list 11 (- x0 half) y1 0.0)))
+      (entmake (list (cons 0 "LINE") (cons 8 lay) (list 10 (+ x0 half) y0 0.0) (list 11 (+ x0 half) y1 0.0)))))
   (princ))
 
 ;; closed polyline outline on the current layer (pts = list of (x y))
@@ -2801,20 +2804,9 @@
                 (if (/= fflStr "")
                   (vl-catch-all-apply (function (lambda ()
                     (txt-bold "MC" (list cx (- lcy (* hlab 1.7))) (/ (* hlab 0.65) scale) 0.0 fflStr)))))
-                ;; mezzanine column SECTION size (owner 11-Jul: "mention the mezzanine column dimensions").
-                ;; The real section is finalised at design (SAP) — not in the IF — so the drawer shows the
-                ;; INDICATIVE built-up I it draws (flange width x depth from *PEB-COL-WEB*), tagged BY DESIGN.
-                ;; Only when the mezzanine HAS its own columns: on a 10 m module carried by the PEB columns
-                ;; (1@10, no interior stub) there is no separate mezzanine column, so the note is skipped.
-                (if (and colD (> colD 0.0)
-                         (or (null mainYs)
-                             (vl-some '(lambda (yv)
-                                         (not (vl-some '(lambda (my) (< (abs (- my yv)) (if mainTol mainTol 500.0))) mainYs)))
-                                      ys)))
-                  (vl-catch-all-apply (function (lambda ()
-                    (txt-bold "MC" (list cx (- lcy (* hlab 2.9))) (/ (* hlab 0.5) scale) 0.0
-                              (strcat "MEZZ. COL. I-" (rtos (* 0.40 colD) 2 0) "x" (rtos colD 2 0)
-                                      " (BY DESIGN)"))))))
+                ;; mezzanine column SECTION size intentionally NOT shown (owner 12-Jul: "no need to show
+                ;; the size of mezzanine columns" — reverses the 11-Jul request; the section is finalised
+                ;; at design/SAP, not on the proposal CLP).  The encircled stub columns are still drawn.
 
                 ;; (3b) SHOW THE MEZZANINE COLUMN SPACING (owner 11-Jul) — a vertical dim chain of the
                 ;; mezz column lines, run just INSIDE the deck's left edge (the building's own width dims
@@ -5942,7 +5934,8 @@
 (defun peb-draw-mezz-floor-plan (data len wid floorNum / spList bayPts glF glT offF offT fx0 fx1 fy0 fy1
                                  ys xs acc s2 x y colD savedWeb jx i gbr letterIdx sc band inset
                                  mzRcc rccXs rccYs floorSys jspSys lvl lvlStr specStr mzJoist
-                                 dimX yprev yy jy beamHalf)
+                                 dimX yprev yy jy beamHalf joistHalf secHalf secSp sx isGrating
+                                 bayA bayB legX legY rowH sampleLen L)
   (setq sc (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0))
   (setq inset (max 300.0 (min 1000.0 (* (min len wid) 0.10))))
   (setq spList (peb-mzfp-splist data) bayPts (peb-mzfp-bays data len))
@@ -5986,36 +5979,76 @@
   (setq floorSys (strcase (peb-tb-or (MSPL-Get-Str data (strcat "MZ" (itoa floorNum) "_FLOOR"))
                                      (MSPL-Get-Str data "MZ1_FLOOR"))))
   (setq mzJoist (MSPL-Get-Num data "MZ_JOIST"))
-  (if (or (null mzJoist) (<= mzJoist 0.0)) (setq mzJoist 1250.0))
+  (if (or (null mzJoist) (<= mzJoist 0.0)) (setq mzJoist 1500.0))
   (cond ((wcmatch floorSys "*PRECAST*,*HOLLOW*")        (setq jspSys nil))
         ((wcmatch floorSys "*GRAT*,*PLATE*,*CHEQ*")     (setq jspSys 1220.0))
         (T                                              (setq jspSys mzJoist)))
 
-  ;; JOISTS — light lines ALONG THE LENGTH of the building, spaced across the width at MZ_JOIST
-  ;; (owner 12-Jul: "joists along the length @ 1.25 m").  None for precast/hollow-core.
+  ;; ---- FRAMING MEMBERS drawn as their TOP FLANGE to scale (owner 12-Jul): main beam 200mm, joist
+  ;; 150mm, secondary joist 100mm top flange.  Each on its own layer so COLOUR + LINE-THICKNESS come
+  ;; BYLAYER (beam blue/0.50, joist grey/0.25, sec-joist grey/0.13 — the "material" line-weight standard).
+  ;; Floor-system content: decking sheet -> beams + joists; hollow-core/precast -> beams only;
+  ;; grating/chequered plate -> beams + joists + SECONDARY joists. ----
+  (setq beamHalf 100.0 joistHalf 75.0 secHalf 50.0)          ; half of the 200 / 150 / 100 mm flanges
+  (setq isGrating (wcmatch floorSys "*GRAT*,*CHEQ*,*PLATE*"))
+
+  ;; JOISTS — 150mm double-line flange ALONG THE LENGTH, spaced across the width at jspSys.  None for
+  ;; precast / hollow-core (jspSys nil).
   (if jspSys
     (progn
       (peb-comp-layer "COMP-MEZZ-JOIST" 8)
+      (setvar "CLAYER" "COMP-MEZZ-JOIST")
       (setq jy (+ fy0 jspSys))
       (while (< jy (- fy1 100.0))
-        (entmake (list (cons 0 "LINE") (cons 8 "COMP-MEZZ-JOIST") (list 10 fx0 jy 0.0) (list 11 fx1 jy 0.0)))
+        (vl-catch-all-apply (function (lambda () (peb-mezz-mainbeam fx0 jy fx1 jy joistHalf))))
         (setq jy (+ jy jspSys)))
-      ;; joist label + spacing, along the top edge
-      (setvar "CLAYER" "COMP-MEZZ-JOIST")
       (vl-catch-all-apply (function (lambda ()
         (txt "MC" (list (/ (+ fx0 fx1) 2.0) (+ fy1 (/ 900.0 sc))) (/ 300.0 sc) 0.0
              (strcat "JOISTS ALONG LENGTH @ " (peb-comma (rtos jspSys 2 0)) " C/C")))))))
 
-  ;; MAIN BEAMS — heavy DOUBLE-line (flange + depth), in the WIDTH direction only (owner 12-Jul: "heavy
-  ;; beams in the width direction, column to column"), one at each bay/length column line (xs).  The
-  ;; light joists run the LENGTH between them.  Drawn AFTER the joists so the heavy beams read on top.
+  ;; SECONDARY JOISTS — grating / chequered plate only: 100mm double-line flange PERPENDICULAR to the
+  ;; joists (WIDTH direction), spaced along the length at HALF the joist spacing.  Shown in ONE
+  ;; representative bay as TYPICAL (a full grid of them across the floor buries the plan) — owner 12-Jul.
+  (if (and jspSys isGrating (> (length xs) 1))
+    (progn
+      (peb-comp-layer "COMP-MEZZ-JOIST-SEC" 8)
+      (setvar "CLAYER" "COMP-MEZZ-JOIST-SEC")
+      (setq secSp (/ jspSys 2.0) bayA (nth 0 xs) bayB (nth 1 xs) sx (+ bayA secSp))
+      (while (< sx (- bayB 1.0))
+        (vl-catch-all-apply (function (lambda () (peb-mezz-mainbeam sx fy0 sx fy1 secHalf))))
+        (setq sx (+ sx secSp)))
+      (vl-catch-all-apply (function (lambda ()
+        (txt "MC" (list (/ (+ bayA bayB) 2.0) (- fy0 (/ 900.0 sc))) (/ 280.0 sc) 0.0
+             (strcat "SECONDARY JOISTS @ " (peb-comma (rtos secSp 2 0)) " C/C (TYP.)")))))))
+
+  ;; MAIN BEAMS — 200mm double-line flange (heaviest), in the WIDTH direction, column to column, one at
+  ;; each length column line (xs).  Drawn LAST so the heavy beams read on top of the joists + secondaries.
   (peb-comp-layer "COMP-MEZZ-BEAM" 5)
-  (setq beamHalf (max 250.0 (* (apply 'max (cons 6000.0 spList)) 0.075)))
-  (foreach x xs (vl-catch-all-apply (function (lambda () (peb-mezz-mainbeam x fy0 x fy1 beamHalf)))))
   (setvar "CLAYER" "COMP-MEZZ-BEAM")
+  (foreach x xs (vl-catch-all-apply (function (lambda () (peb-mezz-mainbeam x fy0 x fy1 beamHalf)))))
   (if (> (length xs) 1)
     (vl-catch-all-apply (function (lambda ()
       (txt-bold "MC" (list (+ (nth 1 xs) (+ beamHalf (/ 260.0 sc))) (/ (+ fy0 fy1) 2.0)) (/ 300.0 sc) 90.0 "MAIN BEAM (TYP.)")))))
+
+  ;; ---- LEGEND / KEY (owner 12-Jul "beautiful") — the framing members, each sample drawn on its own
+  ;; layer so it shows the real colour + line-thickness + top-flange width, with its NAME.  Lower-left,
+  ;; below the plan (secondary joist row only when this floor system has secondaries). ----
+  (setq legX fx0
+        legY (- fy0 (/ 1300.0 sc))
+        rowH (/ 640.0 sc)
+        sampleLen (max 2000.0 (* (- fx1 fx0) 0.05)))
+  (foreach L (list (list "COMP-MEZZ-BEAM"      5 beamHalf  "MAIN BEAM"       T)
+                   (list "COMP-MEZZ-JOIST"     8 joistHalf "JOIST"           (if jspSys T nil))
+                   (list "COMP-MEZZ-JOIST-SEC" 8 secHalf   "SECONDARY JOIST" (if (and jspSys isGrating) T nil)))
+    (if (nth 4 L)
+      (progn
+        (peb-comp-layer (nth 0 L) (nth 1 L))
+        (setvar "CLAYER" (nth 0 L))
+        (vl-catch-all-apply (function (lambda () (peb-mezz-mainbeam legX legY (+ legX sampleLen) legY (nth 2 L)))))
+        (setvar "CLAYER" "TEXT")
+        (vl-catch-all-apply (function (lambda ()
+          (txt "ML" (list (+ legX sampleLen (/ 500.0 sc)) legY) (/ 300.0 sc) 0.0 (nth 3 L)))))
+        (setq legY (- legY rowH)))))
 
   ;; columns — RCC host draws the existing concrete pillars; else steel mezzanine columns
   (setq mzRcc (= (strcase (peb-tb-or (MSPL-Get-Str data "MZ_RCC") "")) "YES"))
@@ -6060,13 +6093,12 @@
     (grid-bubble (- fx0 (* 2.0 gbr) gbr) y (peb-grid-letter letterIdx) "R")
     (setq letterIdx (1+ letterIdx)))
 
-  ;; deck spec note (what the floor IS) + mezzanine column SECTION (owner 11-Jul: "mention the mezzanine
-  ;; column dimensions") — indicative built-up I from *PEB-COL-WEB*, finalised at design.  Just above title.
+  ;; deck spec note (what the floor IS).  The members are distinguished by their flange width + BYLAYER
+  ;; line-weight ("material" = line thickness, owner 12-Jul) and are NAMED on the plan (MAIN BEAM / JOISTS
+  ;; / SECONDARY JOISTS); no steel-section text and no mezzanine column SIZE are shown here.
   (setq specStr (cond ((wcmatch floorSys "*PRECAST*,*HOLLOW*")    "PRECAST / HOLLOW-CORE SLAB (BY OTHERS)")
                       ((wcmatch floorSys "*GRAT*,*CHEQ*,*PLATE*") "STEEL GRATING / CHEQUERED PLATE ON JOISTS")
                       (T                                          "0.7mm DECKING PANEL + 100mm CONCRETE SLAB")))
-  (if (and colD (> colD 0.0))
-    (setq specStr (strcat specStr "      MEZZ. COL. I-" (rtos (* 0.40 colD) 2 0) "x" (rtos colD 2 0) " (BY DESIGN)")))
   (setvar "CLAYER" "TEXT")
   (vl-catch-all-apply (function (lambda ()
     (txt "MC" (list (/ (+ fx0 fx1) 2.0) (- fy0 (/ 1600.0 sc))) (/ 320.0 sc) 0.0 specStr))))

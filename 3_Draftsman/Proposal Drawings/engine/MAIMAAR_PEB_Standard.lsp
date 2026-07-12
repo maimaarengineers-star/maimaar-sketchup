@@ -81,6 +81,10 @@
     ("GROUND-HATCH" 8   "Continuous" 0.09)
     ("HATCHR"       32  "Continuous" 0.30)   ; RCC / concrete poché (orange) — exemplar-exact
     ("HATCH"        8   "Continuous" 0.05)   ; light fill (existing / future)
+    ;; --- mezzanine framing "material" = line-thickness standard (owner 12-Jul); COLOURS kept from the CLP ---
+    ("COMP-MEZZ-BEAM"      5  "Continuous" 0.50)   ; MAIN BEAM  — heavy (200mm top flange), blue
+    ("COMP-MEZZ-JOIST"     8  "Continuous" 0.25)   ; JOIST      — medium (150mm top flange), grey
+    ("COMP-MEZZ-JOIST-SEC" 8  "Continuous" 0.13)   ; SEC. JOIST — light (100mm top flange), grey
    ))
 
 ;; ---- SINGLE-SOURCE OVERRIDE  (Rule Book -> engine) -------------------------
