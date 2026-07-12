@@ -5396,9 +5396,10 @@
 ;; a "MEZZANINE FLOOR-n" label, at level = MZ1_CH_FFL_BEAM + (n-1)*MZ_FLOOR_HT.  Support columns run
 ;; CONTINUOUSLY from the floor up to the top floor's beam — steel I (PEB) or concrete (existing RCC,
 ;; with a chemical-anchor note).  Extent is full-interior or partial (MZ1_WID width).
-(defun peb-draw-mezz-section (data wid / mzRcc chBeam thk beamD colW x0 x1 mm lst xs acc s prev cx
+(defun peb-draw-mezz-section (data wid frameCols / mzRcc chBeam thk beamD colW x0 x1 mm lst xs acc s prev cx
                               numFloors floorHt f lvl bTop sTop topLvl
-                              beamBot beamTop jd joistTop deckTop slabTop jsp jw jx labX labY)
+                              beamBot beamTop jd joistTop deckTop slabTop jsp jw jx labX labY
+                              fcs s0 s1 g nsub i j)
   (if (/= (strcase (peb-tb-or (MSPL-Get-Str data "MZ_TOGGLE") "")) "YES")
     (princ)
     (progn
@@ -5423,13 +5424,23 @@
       (setq x0 (* wid 0.06) x1 (- wid (* wid 0.06)))
       (setq mm (MSPL-Get-Num data "MZ1_WID"))
       (if (and mm (> mm 0.0)) (setq x1 (min (- wid (* wid 0.04)) (+ x0 mm))))
-      ;; support-column stations from MZ_COL_SPACING across [x0,x1]
-      (setq lst (peb-parse-mod-expression (MSPL-Get-Str data "MZ_COL_SPACING")))
-      (setq xs (list x0) acc x0)
-      (if lst
-        (progn (foreach s lst (setq acc (+ acc s)) (if (< acc (- x1 1.0)) (setq xs (append xs (list acc)))))
-               (setq xs (append xs (list x1))))
-        (setq xs (list x0 (/ (+ x0 x1) 2.0) x1)))
+      ;; support-column stations MODULE-TO-MODULE (owner 12-Jul): subdivide each PEB frame-column gap
+      ;; by ~6 m (economical mezz spacing) and place stubs ONLY at the intermediate points — NEVER at a
+      ;; frame column, because the PEB column already carries the mezz beam there.  This stops two
+      ;; columns (the full-height PEB column + a mezz stub) landing in the same place (owner: "2 columns
+      ;; coming at the same place").  A clear span (frame cols only at the two ends) gets evenly-spaced
+      ;; intermediate stubs.  Falls back to the two walls if no frame cols were passed.
+      (setq fcs (vl-sort (if (and frameCols (> (length frameCols) 1)) frameCols (list 0.0 wid)) '<))
+      (setq xs '() i 0)
+      (while (< i (1- (length fcs)))
+        (setq s0 (nth i fcs) s1 (nth (1+ i) fcs) g (- s1 s0))
+        (setq nsub (max 1 (fix (+ 0.5 (/ g 6000.0)))))
+        (setq j 1)
+        (while (< j nsub)
+          (setq acc (+ s0 (* (/ g (float nsub)) j)))
+          (if (and (> acc (+ x0 1.0)) (< acc (- x1 1.0))) (setq xs (append xs (list acc))))
+          (setq j (1+ j)))
+        (setq i (1+ i)))
       (setq topLvl (+ chBeam (* (1- numFloors) floorHt)))    ; beam-bottom of the TOP floor
       ;; ── continuous support columns FFL → top floor beam (steel PEB / concrete RCC) ──
       (foreach cx xs
@@ -5840,7 +5851,7 @@
       (draw-frame-outline cols ridges H rise ht rd cb)))
 
   ;; ── Mezzanine floor in section (deck + beam + support columns) ──
-  (vl-catch-all-apply (function (lambda () (peb-draw-mezz-section data wid))))
+  (vl-catch-all-apply (function (lambda () (peb-draw-mezz-section data wid cols))))
 
   ;; ── Connection plates ────────────────────────────────────────
   ;; For MG: plates only at HAUNCH columns (left/right outer + valley
