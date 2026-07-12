@@ -3682,7 +3682,7 @@
       ;; to 0.72x the MLEADER body height so the full sandwich fits inside
       ;; the section as a compact leader.
       (setq rCombined
-        (strcat "{\\H0.55x;{\\fArial|b1;" rLine1 "}\\P" rLine2_2L "}"))
+        (strcat "{\\C7;\\H0.42x;{\\fArial|b1;" rLine1 "}\\P" rLine2_2L "}"))
       ;; --- Try 3-vertex MLEADER with combined text -----------------
       (setq mlResult
         (vl-catch-all-apply 'peb-make-mleader
@@ -3832,7 +3832,7 @@
       ;; to 0.72x the MLEADER body height — compact leader that fits inside
       ;; the section.
       (setq wCombined
-        (strcat "{\\H0.55x;{\\fArial|b1;" wLine1 "}\\P" wLine2_2L "}"))
+        (strcat "{\\C7;\\H0.42x;{\\fArial|b1;" wLine1 "}\\P" wLine2_2L "}"))
       ;; --- Try 4-vertex MLEADER with combined text -----------------
       ;; Bar (v2-v3) is exactly 300 mm long: v2 at wExtX, v3 at
       ;; wExtX + 300.  Text starts at v3 going RIGHT, landing right
@@ -4087,7 +4087,7 @@
       ;; to 0.72x the MLEADER body height so the full sandwich fits inside
       ;; the section as a compact leader.
       (setq rCombined
-        (strcat "{\\H0.55x;{\\fArial|b1;" rLine1 "}\\P" rLine2_2L "}"))
+        (strcat "{\\C7;\\H0.42x;{\\fArial|b1;" rLine1 "}\\P" rLine2_2L "}"))
       (setq mlResult
         (vl-catch-all-apply 'peb-make-mleader
           (list
@@ -4166,7 +4166,7 @@
       ;; to 0.72x the MLEADER body height — compact leader that fits inside
       ;; the section.
       (setq wCombined
-        (strcat "{\\H0.55x;{\\fArial|b1;" wLine1 "}\\P" wLine2_2L "}"))
+        (strcat "{\\C7;\\H0.42x;{\\fArial|b1;" wLine1 "}\\P" wLine2_2L "}"))
       (setq mlResult
         (vl-catch-all-apply 'peb-make-mleader
           (list
@@ -5006,18 +5006,16 @@
 
 ;; ===================== MAIN COMMAND =====================
 
-(defun split-at-first-digit (s / i ch result)
-  ;;  Split string at first digit position. Returns (prefix suffix-or-nil).
-  (setq i 1)
-  (setq result nil)
-  (while (and (<= i (strlen s)) (not result))
-    (setq ch (substr s i 1))
-    (if (and (>= (ascii ch) 48) (<= (ascii ch) 57))
-      (setq result i))
-    (setq i (1+ i)))
-  (if result
-    (list (vl-string-trim " " (substr s 1 (1- result)))
-          (substr s result))
+(defun split-at-first-digit (s / p)
+  ;;  Split a sheeting label "<X> SHEETING  <spec>" into ("<X> SHEETING" "<spec>") — the heading is
+  ;;  ALWAYS "... SHEETING" and the material (which may start with a letter like "AZ") stays in the spec
+  ;;  (owner 13-Jul: the heading must read "WALL SHEETING", not "WALL SHEETING AZ").  Splitting at the
+  ;;  first digit put "AZ" (or any letters before the first number) into the heading — wrong.  Fall back
+  ;;  to the old first-digit split only if "SHEETING" is somehow absent.
+  (setq p (vl-string-search "SHEETING" (strcase s)))
+  (if p
+    (list (vl-string-trim " " (substr s 1 (+ p 8)))       ; up to & incl "SHEETING" (8 chars)
+          (vl-string-trim " " (substr s (+ p 9))))         ; the spec (may start with "AZ ...")
     (list s nil)))
 
 (defun peb-split-2-lines (txt / words idx total halfTotal acc line1 line2 w)
