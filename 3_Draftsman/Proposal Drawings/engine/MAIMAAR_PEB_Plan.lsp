@@ -2875,7 +2875,8 @@
                         numBays cum i sp rem bayPts
                         nums cur k ch g1 g2 tmp
                         x0 x1 yLo yHi bcx hcx hcy hr dg s bx capLbl capY clsY
-                        gw etL etW yr)
+                        gw etL etW yr
+                        midx runTxt capInt byoth craneIdx runY ah a ax dir capX clX clY)
   (if (= (strcase (MSPL-Get-Str data "CR_TOGGLE")) "YES")
     (progn
       (setq u  (max 400.0 (min 3000.0 (/ (max len wid) 70.0))))
@@ -2895,7 +2896,7 @@
         (setq cum (+ cum sp) bayPts (append bayPts (list cum)) i (1+ i)))
 
       ;; ── one strip per crane (catch-wrapped so one bad crane can't kill the rest) ──
-      (setq n 1)
+      (setq n 1 craneIdx 0)
       (while (<= n 3)
         (setq pre (strcat "CR" (itoa n) "_"))
         (if (= (strcase (MSPL-Get-Str data (strcat pre "TOGGLE"))) "YES")
@@ -2913,12 +2914,6 @@
                 (if (or (null cap)  (<= cap  0.0)) (setq cap  5.0))
                 (if (= typ "") (setq typ "Top Running (TR)"))
                 (if (= cls "") (setq cls "C"))
-
-                ;; --- runway y positions (c/c = span), clamped inside the shell ---
-                (setq yLo (/ (- wid span) 2.0)
-                      yHi (/ (+ wid span) 2.0))
-                (if (< yLo 250.0)          (setq yLo 250.0))
-                (if (> yHi (- wid 250.0))  (setq yHi (- wid 250.0)))
 
                 ;; --- runway x-range: prefer "Between Grids", else RUN_LENGTH, else full ---
                 (setq x0 0.0 x1 len)
@@ -2939,90 +2934,67 @@
                   ((and runlen (> runlen 0.0) (< runlen len))
                    (setq x0 (/ (- len runlen) 2.0) x1 (+ x0 runlen))))
 
+                (setq midx    (/ (+ x0 x1) 2.0)
+                      runTxt  (peb-comma (rtos (- x1 x0) 2 0))
+                      capInt  (rtos cap 2 0)
+                      byoth   (= (strcase (MSPL-Get-Str data (strcat pre "BY_OTHERS"))) "YES")
+                      craneIdx (1+ craneIdx))
+
                 (peb-comp-layer "COMP-CRANE" 1)                 ; red
-
-                ;; (1) two RUNWAY (crane beam) lines along the LENGTH
-                (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE")
-                               (list 10 x0 yLo 0.0) (list 11 x1 yLo 0.0)))
-                (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE")
-                               (list 10 x0 yHi 0.0) (list 11 x1 yHi 0.0)))
                 (setvar "CLAYER" "COMP-CRANE")
-                (txt-bold "MC" (list (+ x0 (* (- x1 x0) 0.25)) (+ yLo (* u 0.6)))
-                          (/ (* u 0.5) sc) 0.0 "CRANE BEAM")
-                (txt-bold "MC" (list (+ x0 (* (- x1 x0) 0.75)) (- yHi (* u 0.6)))
-                          (/ (* u 0.5) sc) 0.0 "CRANE BEAM")
 
-                ;; (2) BRIDGE GIRDER + END TRUCKS + TROLLEY/HOOK — the plan shape of an EOT bridge crane,
-                ;;     matching MAMMUT_07 (Zealcon): the bridge is a GIRDER (double line) spanning the two
-                ;;     runways; an END TRUCK carriage straddles each runway at the bridge ends; the TROLLEY
-                ;;     (small square) carries the HOOK circle at mid-span.
-                (setq bcx (/ (+ x0 x1) 2.0)
-                      hcx bcx hcy (/ (+ yLo yHi) 2.0) hr (* u 0.4)
-                      gw  (* u 0.30)        ; bridge girder half-width (along x)
-                      etL (* u 1.20)        ; end-truck length (rides along the runway, x)
-                      etW (* u 0.55))       ; end-truck width (straddles the runway, y)
-                ;; bridge girder = two parallel lines
+                ;; Maimaar house style (Thal 125-23, HBA 034-23 crane-shed CLPs): on the Column
+                ;; Layout Plan the crane is NOT an EOT bridge symbol — it is a RUNNING-LENGTH arrow
+                ;; along the length near the eave + a centred "OVER HEAD CRANE / nn TONES" label +
+                ;; a "C/L OF RAFTER" bridge centreline.  The runway rides on BRACKETS off the main
+                ;; columns, so no separate crane columns are drawn (true even for the 50 t crane).
+
+                ;; (1) RUNNING-LENGTH double-headed arrow along the length, just inside the near
+                ;;     eave; a 2nd/3rd crane in series stacks downward.  Capacity + run ride on it.
+                (setq runY (- wid (* u 1.35 craneIdx))
+                      ah   (* u 0.40))
+                (if (< runY (* wid 0.55)) (setq runY (* wid 0.55)))
                 (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE")
-                               (list 10 (- bcx gw) yLo 0.0) (list 11 (- bcx gw) yHi 0.0)))
-                (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE")
-                               (list 10 (+ bcx gw) yLo 0.0) (list 11 (+ bcx gw) yHi 0.0)))
-                ;; end trucks — a rectangle straddling each runway where the bridge lands on it
-                (foreach yr (list yLo yHi)
-                  (peb-comp-poly (list (list (- bcx (/ etL 2.0)) (- yr (/ etW 2.0)))
-                                       (list (+ bcx (/ etL 2.0)) (- yr (/ etW 2.0)))
-                                       (list (+ bcx (/ etL 2.0)) (+ yr (/ etW 2.0)))
-                                       (list (- bcx (/ etL 2.0)) (+ yr (/ etW 2.0))))))
-                ;; trolley (small square) + hook circle at mid-span
-                (peb-comp-poly (list (list (- hcx hr) (- hcy hr)) (list (+ hcx hr) (- hcy hr))
-                                     (list (+ hcx hr) (+ hcy hr)) (list (- hcx hr) (+ hcy hr))))
-                (entmake (list (cons 0 "CIRCLE") (cons 8 "COMP-CRANE")
-                               (list 10 hcx hcy 0.0) (cons 40 (* hr 0.6))))
+                               (list 10 x0 runY 0.0) (list 11 x1 runY 0.0)))
+                (foreach a (list (list x0 1.0) (list x1 -1.0))
+                  (setq ax (car a) dir (cadr a))
+                  (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE")
+                                 (list 10 ax runY 0.0)
+                                 (list 11 (+ ax (* dir ah)) (+ runY (* ah 0.30)) 0.0)))
+                  (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE")
+                                 (list 10 ax runY 0.0)
+                                 (list 11 (+ ax (* dir ah)) (- runY (* ah 0.30)) 0.0))))
+                (txt-bold "MC" (list midx (+ runY (* u 0.32))) (/ (* u 0.42) sc) 0.0
+                          (strcat capInt " TONES CRANE RUNNING LENGTH : " runTxt))
 
-                ;; (3) capacity + class label  ("05MT TOP RUNNING (TR) CRANE")
-                ;; owner 10-Jul (measured, audit_textclash.py): both labels used to straddle the HOOK,
-                ;; which sits at the crane's mid-width — and the CLP prints the vertical "BRACED BAY"
-                ;; text centred at the BUILDING's mid-width.  On a centred crane those are the same
-                ;; band, and the capacity label overlapped "BRACED BAY" by 427 x 471 mm.  Anchor both
-                ;; labels BELOW the lower runway instead: that is always further from mid-width than the
-                ;; hook, whatever the span.  Clamped so a very wide crane cannot push them off the plan.
-                (setq capLbl (strcat (rtos cap 2 0) "MT " typ " CRANE"))
-                (setq capY (max (- yLo (* u 1.15)) (* wid 0.05))
-                      clsY (max (- yLo (* u 1.95)) (* wid 0.02)))
-                (txt-bold "MC" (list hcx capY) (/ (* u 0.55) sc) 0.0 capLbl)
-                (txt-bold "MC" (list hcx clsY) (/ (* u 0.45) sc) 0.0
-                          (strcat "CMAA CLASS " cls))
-
-                ;; span & runway-length dims (soft — never break the sheet)
-                (setq dg (* u 1.6))
-                ;; span dim placed INBOARD between the runways (~15% along the run) so it never collides
-                ;; with the building's outboard width-dim chain; clear of the central hook/capacity labels.
-                (vl-catch-all-apply (function (lambda ()
-                  (peb-dim-height-stretch (+ x0 (* (- x1 x0) 0.15)) (+ x0 (* (- x1 x0) 0.15) dg)
-                                          yLo yHi (peb-comma (rtos span 2 0))))))
-                (vl-catch-all-apply (function (lambda ()
-                  (peb-dim-h-stretch x0 x1 (- yLo dg)
-                    (strcat "CRANE RUN: " (peb-comma (rtos (- x1 x0) 2 0)))))))
-
-                ;; (4) SEPARATE crane-column row ONLY where the load is real:
-                ;;     capacity > 20 t  OR  span > 15000 mm  → small square posts
-                ;;     under each runway at the grid stations inside the run.
-                (if (or (> cap 20.0) (> span 15000.0))
-                  (progn
-                    (peb-comp-layer "COMP-CRANE" 1)
-                    (setq s (* u 0.7))
-                    (foreach bx bayPts
-                      (if (and (>= bx (- x0 1.0)) (<= bx (+ x1 1.0)))
-                        (progn
-                          (peb-comp-poly (list (list (- bx (/ s 2.0)) (- yLo (/ s 2.0)))
-                                               (list (+ bx (/ s 2.0)) (- yLo (/ s 2.0)))
-                                               (list (+ bx (/ s 2.0)) (+ yLo (/ s 2.0)))
-                                               (list (- bx (/ s 2.0)) (+ yLo (/ s 2.0)))))
-                          (peb-comp-poly (list (list (- bx (/ s 2.0)) (- yHi (/ s 2.0)))
-                                               (list (+ bx (/ s 2.0)) (- yHi (/ s 2.0)))
-                                               (list (+ bx (/ s 2.0)) (+ yHi (/ s 2.0)))
-                                               (list (- bx (/ s 2.0)) (+ yHi (/ s 2.0))))))))))
+                ;; (2) capacity label, off-centre on the run so it clears the central vertical
+                ;;     "BRACED BAY" text (and, when two cranes overlap, each other).
+                (setq capX (+ x0 (* (- x1 x0)
+                                    (if (= (* 2 (/ craneIdx 2)) craneIdx) 0.62 0.38)))
+                      capY (* wid 0.50))
+                (txt-bold "MC" (list capX (+ capY (* u 0.35))) (/ (* u 0.50) sc) 0.0
+                          "OVER HEAD CRANE")
+                (txt-bold "MC" (list capX (- capY (* u 0.35))) (/ (* u 0.50) sc) 0.0
+                          (strcat capInt " TONES"))
+                (if byoth
+                  (txt-bold "MC" (list capX (- capY (* u 1.05))) (/ (* u 0.42) sc) 0.0
+                            "(BY OTHERS)"))
                 (princ))))) ; end lambda / catch
         (setq n (1+ n)))))
+      ;; C/L OF RAFTER — the crane bridge runs symmetric about the rafter centreline
+      ;; (drawn once, only when at least one crane was placed).  The label is lifted ABOVE
+      ;; the vertical "BRACED BAY" text band (which tops out around wid*0.55) with a short
+      ;; leader down to the true centreline at wid/2, so it never overlaps a braced-bay tag.
+      (if (and craneIdx (> craneIdx 0))
+        (progn
+          (peb-comp-layer "COMP-CRANE" 1)
+          (setvar "CLAYER" "COMP-CRANE")
+          (setq clX (min (* len 0.92) (+ x0 (* (- x1 x0) 0.85)))
+                clY (* wid 0.66))
+          (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE")
+                         (list 10 clX (/ wid 2.0) 0.0)
+                         (list 11 clX (- clY (* u 0.30)) 0.0)))
+          (txt-bold "MC" (list clX clY) (/ (* u 0.42) sc) 0.0 "C/L OF RAFTER")))
   (setvar "CLAYER" "0")
   (princ))
 
