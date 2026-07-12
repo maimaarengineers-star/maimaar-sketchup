@@ -2876,7 +2876,8 @@
                         nums cur k ch g1 g2 tmp
                         x0 x1 yLo yHi bcx hcx hcy hr dg s bx capLbl capY clsY
                         gw etL etW yr
-                        midx runTxt capInt byoth craneIdx runY ah a ax dir capX clX clY)
+                        midx runTxt capInt byoth craneIdx runY ah a ax dir capX clX clY
+                        bracedXs usedCapX b bestX bestD cand dmin bxc px fr)
   (if (= (strcase (MSPL-Get-Str data "CR_TOGGLE")) "YES")
     (progn
       (setq u  (max 400.0 (min 3000.0 (/ (max len wid) 70.0))))
@@ -2895,8 +2896,18 @@
               (T                              (setq sp (/ rem (float (- numBays i))))))
         (setq cum (+ cum sp) bayPts (append bayPts (list cum)) i (1+ i)))
 
+      ;; ── braced-bay centre x's, so a capacity label never lands on the vertical
+      ;;    "BRACED BAY" text (which the CLP prints at each braced bay's midpoint) ──
+      (setq bracedXs '())
+      (if (boundp 'peb-braced-bays)
+        (vl-catch-all-apply (function (lambda ()
+          (foreach b (peb-braced-bays bayPts)
+            (if (and (>= b 0) (< (1+ b) (length bayPts)))
+              (setq bracedXs (cons (/ (+ (nth b bayPts) (nth (1+ b) bayPts)) 2.0)
+                                   bracedXs))))))))
+
       ;; ── one strip per crane (catch-wrapped so one bad crane can't kill the rest) ──
-      (setq n 1 craneIdx 0)
+      (setq n 1 craneIdx 0 usedCapX '())
       (while (<= n 3)
         (setq pre (strcat "CR" (itoa n) "_"))
         (if (= (strcase (MSPL-Get-Str data (strcat pre "TOGGLE"))) "YES")
@@ -2967,11 +2978,18 @@
                 (txt-bold "MC" (list midx (+ runY (* u 0.32))) (/ (* u 0.42) sc) 0.0
                           (strcat capInt " TONES CRANE RUNNING LENGTH : " runTxt))
 
-                ;; (2) capacity label, off-centre on the run so it clears the central vertical
-                ;;     "BRACED BAY" text (and, when two cranes overlap, each other).
-                (setq capX (+ x0 (* (- x1 x0)
-                                    (if (= (* 2 (/ craneIdx 2)) craneIdx) 0.62 0.38)))
-                      capY (* wid 0.50))
+                ;; (2) capacity label — placed on the run at the interior point with the MOST
+                ;;     clearance from any braced-bay "BRACED BAY" text AND from any capacity label
+                ;;     already placed (so 2-3 cranes never stack on a braced bay or on each other).
+                (setq bestX nil bestD -1.0)
+                (foreach fr (list 0.30 0.40 0.50 0.60 0.70)
+                  (setq cand (+ x0 (* (- x1 x0) fr)) dmin 1.0e12)
+                  (foreach bxc bracedXs (setq dmin (min dmin (abs (- cand bxc)))))
+                  (foreach px  usedCapX (setq dmin (min dmin (abs (- cand px)))))
+                  (if (> dmin bestD) (setq bestD dmin bestX cand)))
+                (setq capX    (if bestX bestX (/ (+ x0 x1) 2.0))
+                      usedCapX (cons capX usedCapX)
+                      capY     (* wid 0.50))
                 (txt-bold "MC" (list capX (+ capY (* u 0.35))) (/ (* u 0.50) sc) 0.0
                           "OVER HEAD CRANE")
                 (txt-bold "MC" (list capX (- capY (* u 0.35))) (/ (* u 0.50) sc) 0.0
