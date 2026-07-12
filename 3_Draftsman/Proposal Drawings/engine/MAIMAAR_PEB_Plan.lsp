@@ -5935,7 +5935,7 @@
                                  ys xs acc s2 x y colD savedWeb jx i gbr letterIdx sc band inset
                                  mzRcc rccXs rccYs floorSys jspSys lvl lvlStr specStr mzJoist
                                  dimX yprev yy jy beamHalf joistHalf secHalf secSp sx isGrating
-                                 bayA bayB legX legY rowH sampleLen L)
+                                 bayA bayB legX legY rowH sampleLen L colR)
   (setq sc (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0))
   (setq inset (max 300.0 (min 1000.0 (* (min len wid) 0.10))))
   (setq spList (peb-mzfp-splist data) bayPts (peb-mzfp-bays data len))
@@ -6061,9 +6061,17 @@
       (foreach x rccXs
         (foreach y rccYs
           (vl-catch-all-apply (function (lambda () (peb-draw-rcc-pillar x y (* colD 1.40))))))))
-    (foreach x xs
-      (foreach y ys
-        (vl-catch-all-apply (function (lambda () (draw-I-column-lengthwise x y)))))))
+    ;; steel mezzanine columns drawn as TUBE (round) columns — a CIRCLE — to match the Mammut mezzanine
+    ;; plan (033: "MEZZ COLUMN" = circles), the design manual (mezz columns preferably tube), and the
+    ;; CLP overlay's encircled columns.  On COLUMNS (red), like the reference.
+    (progn
+      (peb-comp-layer "COLUMNS" 1)
+      (setvar "CLAYER" "COLUMNS")
+      (setq colR (max 150.0 (* colD 0.45)))
+      (foreach x xs
+        (foreach y ys
+          (vl-catch-all-apply (function (lambda ()
+            (entmake (list (cons 0 "CIRCLE") (cons 8 "COLUMNS") (list 10 x y 0.0) (cons 40 colR))))))))))
   (setq *PEB-COL-WEB* savedWeb)
 
   ;; SHOW THE MEZZANINE COLUMN SPACING (owner 11-Jul) — a vertical dim chain of the column lines, just
