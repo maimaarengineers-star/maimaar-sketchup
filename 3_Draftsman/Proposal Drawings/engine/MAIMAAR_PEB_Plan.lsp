@@ -2503,23 +2503,39 @@
 ;;   3. Clip to the footprint [fy0, fy1] and dedupe.
 ;; The caller's existing-column skip (peb-main-column-ys ± mainTol) then drops the stubs that land on a
 ;; main column line, leaving the interior subdivisions as the NEW encircled mezzanine columns.
-(defun peb-mezz-col-ys (data wid fy0 fy1 targetSp / expr bnds acc out prev b0 b1 n k g y)
+(defun peb-mezz-col-ys (data wid fy0 fy1 targetSp / expr bnds acc out prev b0 b1 n k g y s sp2 sumSp sc2 span)
   (if (or (null targetSp) (<= targetSp 0.0)) (setq targetSp 6000.0))
-  (setq expr (MSPL-Get-Str data "MODEXPR") bnds (list 0.0) acc 0.0)
-  (if (and expr (/= expr ""))
-    (foreach s (peb-parse-mod-expression expr)
-      (setq acc (+ acc s)) (if (< acc (- wid 1.0)) (setq bnds (append bnds (list acc))))))
-  (setq bnds (append bnds (list wid)))
-  (setq out '() b0 (car bnds))
-  (foreach b1 (cdr bnds)
-    (setq g (- b1 b0) n (max 1 (fix (+ 0.5 (/ g targetSp)))) k 0)
-    (while (< k n) (setq out (append out (list (+ b0 (* g (/ (float k) (float n))))))) (setq k (1+ k)))
-    (setq b0 b1))
-  (setq out (append out (list wid)) out (vl-sort out '<) bnds '() prev nil)
-  (foreach y out
-    (if (and (>= y (- fy0 1.0)) (<= y (+ fy1 1.0)) (or (null prev) (> (- y prev) 1.0)))
-      (progn (setq bnds (append bnds (list y))) (setq prev y))))
-  bnds)
+  (setq span (- fy1 fy0))
+  ;; USER-PLACED width module (owner 12-Jul: "the user will place the width module in the IF if they do
+  ;; NOT want the width module by auto-division").  If MZ_COL_SPACING is a multi-bay expression summing
+  ;; to ~ the mezzanine width (or the building width), WALK it directly across the footprint (scaled to
+  ;; close exactly) — the estimator's own grid, no auto-subdivision.
+  (setq sp2 (peb-parse-mod-expression (peb-tb-or (MSPL-Get-Str data "MZ_COL_SPACING") "")))
+  (setq sumSp 0.0) (foreach s sp2 (setq sumSp (+ sumSp s)))
+  (if (and sp2 (> (length sp2) 1) (> sumSp 0.0)
+           (or (< (abs (- sumSp span)) (* 0.12 span))
+               (< (abs (- sumSp wid))  (* 0.12 wid))))
+    (progn
+      (setq sc2 (/ span sumSp) out (list fy0) acc fy0)
+      (foreach s sp2 (setq acc (+ acc (* s sc2))) (if (< acc (- fy1 1.0)) (setq out (append out (list acc)))))
+      (append out (list fy1)))
+    ;; else AUTO-DIVIDE each MAIN width module (the default) — columns between the main PEB columns
+    (progn
+      (setq expr (MSPL-Get-Str data "MODEXPR") bnds (list 0.0) acc 0.0)
+      (if (and expr (/= expr ""))
+        (foreach s (peb-parse-mod-expression expr)
+          (setq acc (+ acc s)) (if (< acc (- wid 1.0)) (setq bnds (append bnds (list acc))))))
+      (setq bnds (append bnds (list wid)))
+      (setq out '() b0 (car bnds))
+      (foreach b1 (cdr bnds)
+        (setq g (- b1 b0) n (max 1 (fix (+ 0.5 (/ g targetSp)))) k 0)
+        (while (< k n) (setq out (append out (list (+ b0 (* g (/ (float k) (float n))))))) (setq k (1+ k)))
+        (setq b0 b1))
+      (setq out (append out (list wid)) out (vl-sort out '<) bnds '() prev nil)
+      (foreach y out
+        (if (and (>= y (- fy0 1.0)) (<= y (+ fy1 1.0)) (or (null prev) (> (- y prev) 1.0)))
+          (progn (setq bnds (append bnds (list y))) (setq prev y))))
+      bnds)))
 
 ;; ---- component drawer: peb-draw-mezzanine (merged from comp_mezzanine.lsp) ----
 ;; ============================================================================
