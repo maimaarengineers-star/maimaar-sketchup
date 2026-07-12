@@ -1955,20 +1955,22 @@
     (setq c (+ c step)))
   (princ))
 
-;; A framing member in plan drawn as its TOP FLANGE — two parallel lines offset +/- half from the
-;; member centre-line, so the top-flange WIDTH (= 2*half) shows to scale (owner 12-Jul: main beam
-;; 200mm, joist 150mm, secondary joist 100mm).  Drawn on the CURRENT layer, so COLOUR + LINEWEIGHT
-;; come BYLAYER (beam 0.50/blue, joist 0.25/grey, sec-joist 0.13/grey — set the layer before calling).
-;; Horizontal member when y0==y1, else vertical.
+;; A framing member in plan drawn as a STEEL I-SECTION in top view (owner 12-Jul: "draw as real steel
+;; profiles"): the two FLANGE edges offset +/- half from the centre-line PLUS a WEB centre-line, so it
+;; reads as an I (flange | web | flange) rather than a plain double line.  Drawn on the CURRENT layer,
+;; so COLOUR + LINEWEIGHT come BYLAYER (beam 0.50/blue, joist 0.25/grey, sec-joist 0.13/grey — set the
+;; layer before calling).  Horizontal member when y0==y1, else vertical.
 (defun peb-mezz-mainbeam (x0 y0 x1 y1 half / lay)
   (setq lay (getvar "CLAYER"))
   (if (< (abs (- y0 y1)) 1.0)
     (progn
-      (entmake (list (cons 0 "LINE") (cons 8 lay) (list 10 x0 (- y0 half) 0.0) (list 11 x1 (- y0 half) 0.0)))
-      (entmake (list (cons 0 "LINE") (cons 8 lay) (list 10 x0 (+ y0 half) 0.0) (list 11 x1 (+ y0 half) 0.0))))
+      (entmake (list (cons 0 "LINE") (cons 8 lay) (list 10 x0 (- y0 half) 0.0) (list 11 x1 (- y0 half) 0.0)))   ; flange
+      (entmake (list (cons 0 "LINE") (cons 8 lay) (list 10 x0 (+ y0 half) 0.0) (list 11 x1 (+ y0 half) 0.0)))   ; flange
+      (entmake (list (cons 0 "LINE") (cons 8 lay) (list 10 x0 y0 0.0) (list 11 x1 y0 0.0))))                    ; web c/l
     (progn
-      (entmake (list (cons 0 "LINE") (cons 8 lay) (list 10 (- x0 half) y0 0.0) (list 11 (- x0 half) y1 0.0)))
-      (entmake (list (cons 0 "LINE") (cons 8 lay) (list 10 (+ x0 half) y0 0.0) (list 11 (+ x0 half) y1 0.0)))))
+      (entmake (list (cons 0 "LINE") (cons 8 lay) (list 10 (- x0 half) y0 0.0) (list 11 (- x0 half) y1 0.0)))   ; flange
+      (entmake (list (cons 0 "LINE") (cons 8 lay) (list 10 (+ x0 half) y0 0.0) (list 11 (+ x0 half) y1 0.0)))   ; flange
+      (entmake (list (cons 0 "LINE") (cons 8 lay) (list 10 x0 y0 0.0) (list 11 x0 y1 0.0)))))                   ; web c/l
   (princ))
 
 ;; closed polyline outline on the current layer (pts = list of (x y))
@@ -5989,7 +5991,9 @@
   ;; BYLAYER (beam blue/0.50, joist grey/0.25, sec-joist grey/0.13 — the "material" line-weight standard).
   ;; Floor-system content: decking sheet -> beams + joists; hollow-core/precast -> beams only;
   ;; grating/chequered plate -> beams + joists + SECONDARY joists. ----
-  (setq beamHalf 100.0 joistHalf 75.0 secHalf 50.0)          ; half of the 200 / 150 / 100 mm flanges
+  ;; flange HALF-widths, exaggerated ~2.5x from the true 200/150/100mm so the I-profiles READ at plan
+  ;; scale (owner 12-Jul: "draw as real steel profiles ... visibly exaggerated") — proportions kept.
+  (setq beamHalf 250.0 joistHalf 180.0 secHalf 120.0)
   (setq isGrating (wcmatch floorSys "*GRAT*,*CHEQ*,*PLATE*"))
 
   ;; JOISTS — 150mm double-line flange ALONG THE LENGTH, spaced across the width at jspSys.  None for
