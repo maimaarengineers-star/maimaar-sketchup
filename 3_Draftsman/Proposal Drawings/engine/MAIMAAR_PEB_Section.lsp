@@ -6198,6 +6198,19 @@
       (draw-girts         wid H brickH)
       (draw-downpipes     wid H brickH)
       (draw-eave-features wid H)
+      ;; ── Curved roof cladding: arcs offset above the rafter (2 lines = sheet thickness) ──
+      ;; Same 3-point arcs as the frame's rafter (draw-acs-frame / draw-ams-frame), lifted 200/235.
+      (setvar "CLAYER" "CLADDING")
+      (if (= stype "ACS")
+        (progn
+          (command "ARC" (list 0.0 (+ H 200.0)) (list (/ wid 2.0) (+ H rise 200.0)) (list wid (+ H 200.0)))
+          (command "ARC" (list 0.0 (+ H 235.0)) (list (/ wid 2.0) (+ H rise 235.0)) (list wid (+ H 235.0))))
+        (progn                                   ; AMS: two arches meeting at the centre peak
+          (setq amHalf (/ wid 2.0) amQ1 (/ wid 4.0) amQ3 (* wid 0.75) amPk (+ H (* rise 0.85)))
+          (command "ARC" (list 0.0 (+ H 200.0)) (list amQ1 (+ amPk 200.0)) (list amHalf (+ H rise 200.0)))
+          (command "ARC" (list 0.0 (+ H 235.0)) (list amQ1 (+ amPk 235.0)) (list amHalf (+ H rise 235.0)))
+          (command "ARC" (list amHalf (+ H rise 200.0)) (list amQ3 (+ amPk 200.0)) (list wid (+ H 200.0)))
+          (command "ARC" (list amHalf (+ H rise 235.0)) (list amQ3 (+ amPk 235.0)) (list wid (+ H 235.0)))))
       ;; "CURVED ROOF RAFTER" label — single MLEADER pointing at the
       ;; arch's apex (or quarter-arch).  Same style as the standard
       ;; RAFTER MLEADER (reversed PURLIN with text below arrow), but
