@@ -270,6 +270,25 @@
 (defun peb-build-sheeting-string (data prefix)
   (strcat prefix " SHEETING  " (peb-panel-label data prefix)))
 
+;;  peb-arch-sheeting-labels — ROOF + WALL SHEETING callouts for sections that draw their own
+;;  cladding and so bypass draw-cladding's built-in labels (currently the ARCHED types ACS/AMS).
+;;  Same MLEADER format as the gable path: bold heading + (<=2-line) build-up spec, white text so it
+;;  plots black.  Placed top-right (roof) and top-left (wall) with L-leaders, like the gable labels.
+(defun peb-arch-sheeting-labels (data W H rise / rspec wspec rc wc topY rx ry)
+  (setvar "CLAYER" "TEXT")
+  (setq topY  (+ H rise (* 2600 *PEB-TEXT-SCALE*)))
+  (setq rspec (peb-split-2-lines (peb-panel-label data "ROOF")))
+  (setq wspec (peb-split-2-lines (peb-panel-label data "WALL")))
+  (setq rc (strcat "{\\C7;\\H0.42x;{\\fArial|b1;ROOF SHEETING:}\\P" rspec "}"))
+  (setq wc (strcat "{\\C7;\\H0.42x;{\\fArial|b1;WALL SHEETING:}\\P" wspec "}"))
+  ;; ROOF: arrow on the roof arc at ~68% span, L-leg up to the label band (top-right)
+  (setq rx (* W 0.68) ry (+ H (* rise 0.82) 235.0))
+  (vl-catch-all-apply 'peb-make-mleader
+    (list (list (list rx ry) (list rx topY) (list (+ rx 300.0) topY)) rc))
+  ;; WALL: arrow on the LEFT wall, L-leader up to the label band (top-left)
+  (vl-catch-all-apply 'peb-make-mleader
+    (list (list (list -235.0 (* H 0.55)) (list -1735.0 (* H 0.55)) (list -1735.0 topY)) wc)))
+
 (defun peb-v3-to-legacy (v3 / out project client proposal bldgno revno
                               len wid heightVal brick slope slopeRaw slopeCustom
                               stype stypeRaw modExpr modList numMod i m
@@ -6274,6 +6293,8 @@
           (command "ARC" (list 0.0 (+ H 235.0)) (list amQ1 (+ amPk 235.0)) (list amHalf (+ H rise 235.0)))
           (command "ARC" (list amHalf (+ H rise 200.0)) (list amQ3 (+ amPk 200.0)) (list wid (+ H 200.0)))
           (command "ARC" (list amHalf (+ H rise 235.0)) (list amQ3 (+ amPk 235.0)) (list wid (+ H 235.0)))))
+      ;; ROOF + WALL SHEETING callouts (arches bypass draw-cladding, so add them here)
+      (peb-arch-sheeting-labels data wid H rise)
       ;; "CURVED ROOF RAFTER" label — single MLEADER pointing at the
       ;; arch's apex (or quarter-arch).  Same style as the standard
       ;; RAFTER MLEADER (reversed PURLIN with text below arrow), but
