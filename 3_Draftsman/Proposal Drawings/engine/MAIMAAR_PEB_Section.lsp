@@ -3568,7 +3568,7 @@
   )
 )
 
-(defun draw-cladding (data W H rise brickH monoRise /
+(defun draw-cladding (data W H rise brickH monoRise rightH / rHt
                        cladThk purlinH girtDepth slopeLen sa ca y d xT yT slpDrop ribStep roofLbl wallLbl
                        labRX labRY labWX labWY leadX leadYStart leadYEnd
                        rParts rLine1 rLine2 rBarY rBarLen rTargetY rDx rTextW rWrapW
@@ -3612,17 +3612,20 @@
   )
 
   ;; --- RIGHT wall sheeting (2 vertical lines OUTSIDE girts, 50mm overlap on brick) ---
-  (if (< brickH H)
+  ;; rightH (optional) lets a SINGLE-SLOPE building carry the sheeting up to its HIGH eave
+  ;; (H + monoRise) instead of the low H, so the tall wall isn't left bare.
+  (setq rHt (if rightH rightH H))
+  (if (< brickH rHt)
     (progn
       (command "LINE"
         (list (+ W girtDepth) (- brickH 50.0))
-        (list (+ W girtDepth) H) "")
+        (list (+ W girtDepth) rHt) "")
       (command "LINE"
         (list (+ W girtDepth cladThk) (- brickH 50.0))
-        (list (+ W girtDepth cladThk) H) "")
+        (list (+ W girtDepth cladThk) rHt) "")
       (command "LINE"
-        (list (+ W girtDepth)         H)
-        (list (+ W girtDepth cladThk) H) "")
+        (list (+ W girtDepth)         rHt)
+        (list (+ W girtDepth cladThk) rHt) "")
       (command "LINE"
         (list (+ W girtDepth)         (- brickH 50.0))
         (list (+ W girtDepth cladThk) (- brickH 50.0)) "")
@@ -4557,8 +4560,9 @@
   (setvar "PLINEWID" 0.0)
 )
 
-(defun draw-girts (W H brickH / depth wtop wbot lip lipDx lipDy
+(defun draw-girts (W H brickH rightH / depth wtop wbot lip lipDx lipDy
                    girtSpacing nG y topY botY desSpacing labGX labGY
+                   topYr nGr girtSpacingR
                    v1x v1y v2x v2y v3x v3y v4x v4y v5x v5y v6x v6y)
   ;;  Z-section girt profile (200Z15 typical) attached to the OUTSIDE
   ;;  face of the side wall column.  Web runs HORIZONTALLY perpendicular
@@ -4614,9 +4618,13 @@
     (command "FILLET" "P" (entlast))
     (setq y (+ y girtSpacing)))
 
-  ;; RIGHT wall girts: from botY to topY
+  ;; RIGHT wall girts: from botY to topYr.  rightH (optional, = high eave of a single slope)
+  ;; makes the right girts climb to the HIGH eave; otherwise topYr = topY (symmetric gable).
+  (setq topYr (if rightH (- rightH 160.0) topY))
+  (setq nGr   (max 1 (fix (+ 0.5 (/ (- topYr botY) desSpacing)))))
+  (setq girtSpacingR (/ (- topYr botY) nGr))
   (setq y botY)
-  (while (<= y (+ topY 0.5))
+  (while (<= y (+ topYr 0.5))
     ;; Mirror transform: WX = W + v_local; WY = y + u_local
     (setq v6x (+ W lipDy))
     (setq v6y (+ y (- lipDx wbot)))
@@ -4637,7 +4645,7 @@
       (list v3x v3y) (list v2x v2y) (list v1x v1y) "")
     (setvar "FILLETRAD" 4.0)   ; smaller radius to keep lip visible
     (command "FILLET" "P" (entlast))
-    (setq y (+ y girtSpacing)))
+    (setq y (+ y girtSpacingR)))
 
   ;; "GIRT" leader label — native MLEADER with grouped fallback.
   ;; Arrow tip snapped to an actual girt position (2nd girt from bottom).
@@ -4822,7 +4830,7 @@
   (setvar "PLINEWID" 0.0)
 )
 
-(defun draw-downpipes (W H brickH / dpW dpOff dpX1L dpX2L dpX1R dpX2R dpTop
+(defun draw-downpipes (W H brickH mono / dpW dpOff dpX1L dpX2L dpX1R dpX2R dpTop
                                     labDX labDY labCX labCY mlResult)
   ;;  Vertical down-pipes on the OUTSIDE of the wall sheeting (one per side).
   ;;  Pipe runs from FFL up to just below the eave gutter.
@@ -4839,13 +4847,15 @@
   (command "LINE" (list dpX2L 0.0)   (list dpX2L dpTop) "")
   (command "LINE" (list dpX1L dpTop) (list dpX2L dpTop) "")
   (command "LINE" (list dpX1L 0.0)   (list dpX2L 0.0)   "")
-  ;; RIGHT side pipe (no label)
-  (setq dpX1R (+ W dpOff))
-  (setq dpX2R (+ dpX1R dpW))
-  (command "LINE" (list dpX1R 0.0)   (list dpX1R dpTop) "")
-  (command "LINE" (list dpX2R 0.0)   (list dpX2R dpTop) "")
-  (command "LINE" (list dpX1R dpTop) (list dpX2R dpTop) "")
-  (command "LINE" (list dpX1R 0.0)   (list dpX2R 0.0)   "")
+  ;; RIGHT side pipe (no label) — SKIPPED for a mono roof (drains to the LOW/left eave only)
+  (if (not mono)
+    (progn
+      (setq dpX1R (+ W dpOff))
+      (setq dpX2R (+ dpX1R dpW))
+      (command "LINE" (list dpX1R 0.0)   (list dpX1R dpTop) "")
+      (command "LINE" (list dpX2R 0.0)   (list dpX2R dpTop) "")
+      (command "LINE" (list dpX1R dpTop) (list dpX2R dpTop) "")
+      (command "LINE" (list dpX1R 0.0)   (list dpX2R 0.0)   "")))
   ;; "DOWN PIPE" leader label — native MLEADER with grouped fallback.
   ;; LEFT side only, INSIDE the building, mid-height of brick wall.
   (setvar "CLAYER" "TEXT")
@@ -4874,7 +4884,7 @@
   (setvar "PLINEWID" 0.0)
 )
 
-(defun draw-eave-features (W H /
+(defun draw-eave-features (W H mono /
                           inH outH botW innerX outerX
                           gyTopIn gyBot gyTopOut
                           tx ty ax arrowX arrowY)
@@ -4915,7 +4925,9 @@
     (list (+ outerX 25.0) gyTopOut)                ; outer lip end (25mm into gutter)
     "")
 
-  ;; ----- RIGHT side eave gutter (mirrored: lip extends +x into gutter) -----
+  ;; ----- RIGHT side eave gutter — SKIPPED for a mono roof (water drains to the LOW/left eave) -----
+  (if (not mono)
+  (progn
   (setq innerX (+ W 200.0))
   (setq outerX (+ innerX botW))
   (command "PLINE"
@@ -4930,7 +4942,7 @@
     (list outerX        (- gyTopOut 70.0))
     (list outerX gyTopOut)
     (list (- outerX 25.0) gyTopOut)               ; outer lip end (25mm into gutter)
-    "")
+    "")))
 
   ;; ----- "EAVE GUTTER" labels — same rule as PURLIN/wall sheeting --
   ;; Arrow segment vertical 1200·TS (so MLEADER renders arrowhead),
@@ -4946,15 +4958,17 @@
                          (list ax gyTopOut)          ; arrowPt
                          "V"
                          220)
-  ;; RIGHT label  (arrow at right of building)
-  (setq ax (+ W botW (* 100 *PEB-TEXT-SCALE*)))      ; arrow X
-  (setq tx (+ ax 300.0))                             ; text 300 right of arrow
-  (setq ty (+ gyTopOut (* 1200.0 *PEB-TEXT-SCALE*)))
-  (peb-label-with-leader "EAVE GUTTER"
-                         (list tx ty)
-                         (list ax gyTopOut)
-                         "V"
-                         220)
+  ;; RIGHT label  (arrow at right of building) — SKIPPED for a mono roof (no right gutter)
+  (if (not mono)
+    (progn
+      (setq ax (+ W botW (* 100 *PEB-TEXT-SCALE*)))      ; arrow X
+      (setq tx (+ ax 300.0))                             ; text 300 right of arrow
+      (setq ty (+ gyTopOut (* 1200.0 *PEB-TEXT-SCALE*)))
+      (peb-label-with-leader "EAVE GUTTER"
+                             (list tx ty)
+                             (list ax gyTopOut)
+                             "V"
+                             220)))
   (setvar "PLINEWID" 0.0)
 )
 
@@ -6310,10 +6324,23 @@
                              (list (- ppOvh 2400.0) (* H 0.5))
                              (list (- ppOvh 160.0)  (* H 0.5))
                              "H" 220))
+    ((= stype "SS")
+      ;; SINGLE SLOPE: low (left) eave = H, HIGH (right) eave = H + monoRise.  The RIGHT wall
+      ;; sheeting + girts must climb to the HIGH eave (not the low H, which left the tall wall
+      ;; bare); the roof drains DOWN-slope to the LOW eave, so the gutter + downpipe live on the
+      ;; LOW (left) side only.  Roof cladding follows the ONE mono slope (monoRise).
+      (setq monoRise (/ wid slopeD))
+      (setq ssHR (+ H monoRise))
+      (draw-brick-wall    wid brickH)
+      (draw-cladding      data wid H rise brickH monoRise ssHR)   ; rightH = high eave
+      (draw-purlins       wid H rise)
+      (draw-girts         wid H brickH ssHR)                      ; right girts to the high eave
+      (draw-downpipes     wid H brickH T)                         ; mono -> low-side downpipe only
+      (draw-eave-features wid H T)                                ; mono -> low-side gutter only
+      (draw-rafter-label  wid H rise ht))
     (T
-      ;; SS / LT are SINGLE-SLOPE: pass monoRise so the roof cladding follows ONE slope (low->high),
-      ;; not a gable (which crossed the mono-slope rafter). CS etc. pass nil = gable.
-      (setq monoRise (if (member stype '("SS" "LT")) (/ wid slopeD) nil))
+      ;; Gable frames (CS / MS): symmetric eaves at H, gable roof cladding (monoRise nil).
+      (setq monoRise nil)
       (draw-brick-wall    wid brickH)
       (draw-cladding      data wid H rise brickH monoRise)
       (draw-purlins       wid H rise)
