@@ -289,6 +289,29 @@
   (vl-catch-all-apply 'peb-make-mleader
     (list (list (list -235.0 (* H 0.55)) (list -1735.0 (* H 0.55)) (list -1735.0 topY)) wc)))
 
+;;  peb-deck-purlins — short purlin ticks perpendicular to a canopy deck segment (x0,y0)->(x1,y1),
+;;  ~1500 mm apart, on the PURLINS layer (owner 13-Jul: "show the purlin on top like Clear Span").
+(defun peb-deck-purlins (x0 y0 x1 y1 / dx dy len ux uy nx ny n i tt px py)
+  (setvar "CLAYER" "PURLINS")
+  (setq dx (- x1 x0) dy (- y1 y0) len (sqrt (+ (* dx dx) (* dy dy))))
+  (if (> len 1.0)
+    (progn
+      (setq ux (/ dx len) uy (/ dy len) nx (- 0 uy) ny ux)   ; along / perpendicular-up
+      (setq n (fix (/ len 1500.0)) i 1)
+      (while (< i n)
+        (setq tt (* i 1500.0) px (+ x0 (* ux tt)) py (+ y0 (* uy tt)))
+        (command "LINE" (list (+ px (* nx 90.0)) (+ py (* ny 90.0)))
+                        (list (- px (* nx 45.0)) (- py (* ny 45.0))) "")
+        (setq i (1+ i))))))
+
+;;  peb-canopy-roof-label — one ROOF SHEETING callout for a canopy deck (no walls).
+(defun peb-canopy-roof-label (data ax ay topY / spec rc)
+  (setvar "CLAYER" "TEXT")
+  (setq spec (peb-split-2-lines (peb-panel-label data "ROOF")))
+  (setq rc (strcat "{\\C7;\\H0.42x;{\\fArial|b1;ROOF SHEETING:}\\P" spec "}"))
+  (vl-catch-all-apply 'peb-make-mleader
+    (list (list (list ax ay) (list ax topY) (list (+ ax 300.0) topY)) rc)))
+
 (defun peb-v3-to-legacy (v3 / out project client proposal bldgno revno
                               len wid heightVal brick slope slopeRaw slopeCustom
                               stype stypeRaw modExpr modList numMod i m
@@ -6235,7 +6258,12 @@
       (txt "MC" (list (* wid 0.74) (+ H (* rise 0.55) 700.0)) 240 0 "FALL")
       ;; TWO slope tags — left wing rises up-LEFT (upRight=-1), right wing up-RIGHT (upRight=+1)
       (draw-slope-tag (* bfcx 0.5) (+ H (- rise (* rise 0.5)) 235.0 (* 300 *PEB-TEXT-SCALE*)) slopeD -1)
-      (draw-slope-tag (* bfcx 1.5) (+ H (- rise (* rise 0.5)) 235.0 (* 300 *PEB-TEXT-SCALE*)) slopeD  1))
+      (draw-slope-tag (* bfcx 1.5) (+ H (- rise (* rise 0.5)) 235.0 (* 300 *PEB-TEXT-SCALE*)) slopeD  1)
+      ;; Purlins on both wings + ROOF SHEETING callout (like Clear Span)
+      (peb-deck-purlins 0.0 (+ H rise 200.0) bfcx (+ H 200.0))
+      (peb-deck-purlins bfcx (+ H 200.0) wid (+ H rise 200.0))
+      (peb-canopy-roof-label data (* wid 0.72) (+ H (* rise 0.44) 200.0)
+                             (+ H rise (* 2600 *PEB-TEXT-SCALE*))))
     ;; ── CC (Cantilever Canopy): one back column, open front ──
     ;; Add COLUMN label pointing at the back (left) column inner flange.
     ((= stype "CC")
@@ -6281,7 +6309,11 @@
         (peb-label-with-leader "DOWN SPOUT"
                                (list -2100.0 (* H 0.5))
                                (list -220.0  (* H 0.5))
-                               "H" 220)))
+                               "H" 220))
+      ;; Purlins along the wing + ROOF SHEETING callout (like Clear Span)
+      (peb-deck-purlins 0.0 (+ ccEL 200.0) wid (+ ccER 200.0))
+      (peb-canopy-roof-label data (* wid 0.60) (+ ccEL (* ccS (* wid 0.60)) 200.0)
+                             (+ (max ccEL ccER) (* 2600 *PEB-TEXT-SCALE*))))
     ;; ── LT (Lean-To): one PEB column on left, masonry wall on right ──
     ;; LT has a sloped roof (single slope from low eave to wall top), so
     ;; it gets the full set of labels: COLUMN (left), GIRTS, DOWN PIPE
