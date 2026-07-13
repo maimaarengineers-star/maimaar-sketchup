@@ -2026,19 +2026,24 @@
   (command "C")
 )
 
-(defun build-ss-polygon (W H slopeRise ht cb)
+(defun build-ss-polygon (W H slopeRise ht cb / midD midY)
   ;;  Single Slope (mono-slope) frame outline.
   ;;  LOW column on left (eave at H), HIGH column on right (eave at H+slopeRise).
   ;;  One continuous rafter sloping from low to high.
+  ;;  RAFTER IS TAPERED (owner 13-Jul: all PEB rafters taper) -- DEEP at both knees (ht),
+  ;;  THIN at mid-span (midD).  The mid-span underside point gives the cigar taper.
+  (setq midD (max 300.0 (* ht 0.45)))                 ; thin mid-span web depth
+  (setq midY (- (+ H (/ slopeRise 2.0)) midD))        ; underside at mid-span (thin)
   (list
     (list 0.0          0.0)                          ; 1 bottom-left outside
-    (list 0.0          H)                             ; 2 low eave outside
-    (list W            (+ H slopeRise))               ; 3 high eave outside
+    (list 0.0          H)                             ; 2 low eave outside (rafter top)
+    (list W            (+ H slopeRise))               ; 3 high eave outside (rafter top)
     (list W            0.0)                           ; 4 bottom-right outside
     (list (- W cb)     0.0)                           ; 5 right column inside-base
-    (list (- W ht)     (- (+ H slopeRise) ht))        ; 6 right haunch (high side)
-    (list ht           (- H ht))                      ; 7 left haunch (low side)
-    (list cb           0.0)                           ; 8 left column inside-base
+    (list (- W ht)     (- (+ H slopeRise) ht))        ; 6 right haunch (high knee, deep ht)
+    (list (/ W 2.0)    midY)                          ; 7 MID-SPAN underside (thin) -> taper
+    (list ht           (- H ht))                      ; 8 left haunch (low knee, deep ht)
+    (list cb           0.0)                           ; 9 left column inside-base
   )
 )
 
@@ -2366,13 +2371,15 @@
   ;; tip, for a 12 m wing (scaled by the projection W).
   (setq ds (max 450.0 (* (/ W 12000.0) 1100.0)))   ; support web depth
   (setq dt (max 250.0 (* (/ W 12000.0)  500.0)))   ; tip web depth
+  ;; STRAIGHT column (owner 13-Jul: cantilever columns are NOT tapered) -- the inner face is
+  ;; vertical at x = ht, so the column is a constant-width member; the deep rafter cantilevers off its top.
   (command "PLINE"
     (list 0.0       0.0)                   ; column base outside
     (list 0.0       eL)                    ; eave-left outside (column)
     (list W         eR)                    ; eave-right outside (free end, open)
     (list W         (- eR dt))             ; rafter tip inside-bottom (THIN ~500 at the free end)
-    (list ht        (- eL ds))             ; support underside (DEEP ~1100 at the column)
-    (list cb        0.0)                   ; column inside-base
+    (list ht        (- eL ds))             ; support underside (DEEP ~1100 at the column top)
+    (list ht        0.0)                   ; column inside-base -> vertical inner face = STRAIGHT column
     "C")
 )
 
@@ -6141,14 +6148,14 @@
           (setq eLp (if (= (strcase (peb-tb-or (MSPL-Get-Str data "CC_LOW_AT_COLUMN") "")) "YES")
                         H (+ H (/ wid slopeD))))
           (setq dsP (max 450.0 (* (/ wid 12000.0) 1100.0)))
-          (draw-base-plate-at 0.0 cb ep (* 25 *PEB-TEXT-SCALE*))
-          (peb-conn-plate-pair ht (- eLp dsP) (* ht 0.9) ep 3))
+          (draw-base-plate-at 0.0 ht ep (* 25 *PEB-TEXT-SCALE*))   ; base matches the straight column width (ht)
+          (peb-conn-plate-pair (/ ht 2.0) (- eLp dsP) (+ (/ ht 2.0) 100.0) ep 3))
         (progn
           (setq dpP (max 350.0 (* (/ wid 24000.0) 700.0)))
           (setq mastTopY (if (= (strcase (peb-tb-or (MSPL-Get-Str data "CC_FALCON_PEAK") "")) "YES")
                              (+ H rise (- 0 dpP)) (- H dpP)))
           (draw-base-plate-at (- (/ wid 2.0) 200.0) (+ (/ wid 2.0) 200.0) ep (* 25 *PEB-TEXT-SCALE*))
-          (peb-conn-plate-pair (/ wid 2.0) mastTopY 350.0 ep 3))))
+          (peb-conn-plate-pair (/ wid 2.0) mastTopY 300.0 ep 3))))   ; mast half 200 + 100mm each side
     (T
       (progn
         (draw-base-plates   wid cb ep)
