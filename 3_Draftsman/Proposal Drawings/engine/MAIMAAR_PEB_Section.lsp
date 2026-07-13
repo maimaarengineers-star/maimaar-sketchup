@@ -170,64 +170,97 @@
 ;;  Reads the v3 PN_<KEY>_* keys (same fields the CRM's pushPanel emits); the
 ;;  sheet THICKNESS is embedded in PN_<KEY>_OUTER_MAT ("0.50 mm AZ150").  Empty
 ;;  parts are omitted gracefully; blank skin -> standard 0.50mm AZ 150.
-(defun peb-panel-label (data key / typ outMat pirThk pirDens pirType innerMat
-                                    linerMat outer core inner thkNum coreU
-                                    isSandwich hasInner isLiner lbl)
+;;  peb-finish-code — the pre-paint/coating code shown after a skin material,
+;;  derived from the coating in the material string + the finish field:
+;;    Galvalume (AZ) painted -> "(PPGL)"   unpainted -> "(GL)"
+;;    Galvanized (GI / Z)     -> "(PPGI)"  unpainted -> "(GI)"
+;;  Owner 13-Jul: sheeting skins read e.g. "0.50mm AZ 150 (PPGL)".
+(defun peb-finish-code (mat finish / m f painted)
+  (setq m (strcase (if mat mat "")) f (strcase (if finish finish "")))
+  (setq painted (or (wcmatch f "*PAINT*") (wcmatch f "*PPG*")
+                    (wcmatch f "*POLYESTER*") (wcmatch f "*PVDF*")))
+  (cond
+    ((wcmatch m "*AZ*")               (if painted " (PPGL)" " (GL)"))   ; Aluzinc / galvalume
+    ((wcmatch m "*GALVALUME*")        (if painted " (PPGL)" " (GL)"))
+    ((or (wcmatch m "*GI*") (wcmatch m "*GALVANI*")) (if painted " (PPGI)" " (GI)"))
+    (T "")))
+
+;;  peb-panel-label — compose the FULL sheeting sandwich for KEY = "ROOF"/"WALL".
+;;  Owner 13-Jul spec, sourced from the BS:
+;;    single skin           : "0.50mm AZ 150 (PPGL)"
+;;    + insulation          : "... + 50mm Fiberglass Insulation (12kg/m3)"
+;;    + insulation + liner  : "... + ... + 0.50mm AZ 150 (PPGL) Liner"
+;;    SANDWICH PANEL        : "0.50mm AZ 150 + 50mm PIR Core (38kg/m3 Density) + 0.50mm AZ 150 (PPGL)"
+;;  IMPORTANT: for a SINGLE-SKIN panel the insulation is read from the roof/wall
+;;  ACCESSORIES (PN_<KEY>_INSUL_*), NOT the panel description; the PIR core is read
+;;  from the panel only for a SANDWICH.  Density is always shown when present.
+(defun peb-panel-label (data key / typ outMat outFin insThk insType insDens
+                                    pirThk pirDens pirType innerMat linerMat
+                                    outer core inner coreU isSandwich isLiner finOut lbl)
   (setq typ      (peb-alist-get data (strcat "PN_" key "_TYPE")))
   (setq outMat   (peb-alist-get data (strcat "PN_" key "_OUTER_MAT")))
+  (setq outFin   (peb-alist-get data (strcat "PN_" key "_OUTER_FINISH")))
   (setq pirThk   (peb-alist-get data (strcat "PN_" key "_PIR_THK")))
   (setq pirDens  (peb-alist-get data (strcat "PN_" key "_PIR_DENS")))
   (setq pirType  (peb-alist-get data (strcat "PN_" key "_PIR_TYPE")))
   (setq innerMat (peb-alist-get data (strcat "PN_" key "_INNER_MAT")))
   (setq linerMat (peb-alist-get data "PN_LINER_OUTER_MAT"))
-  (setq isSandwich (or (= (strcase typ) "SANDWICH PANEL")
-                       (= (strcase typ) "SANDWICH")))
-  ;; --- OUTER skin (thickness+material embedded in OUTER_MAT) ---
-  (setq outer  (peb-panel-clean-mat outMat))
+  ;; INSULATION from the ACCESSORIES (single-skin case), not the panel description.
+  (setq insThk  (peb-panel-digits (peb-alist-get data (strcat "PN_" key "_INSUL_THK"))))
+  (setq insType (peb-alist-get data (strcat "PN_" key "_INSUL_TYPE")))
+  (setq insDens (peb-panel-digits (peb-alist-get data (strcat "PN_" key "_INSUL_DENS"))))
+  (setq isSandwich (or (= (strcase typ) "SANDWICH PANEL") (= (strcase typ) "SANDWICH")))
+  (setq finOut (peb-finish-code outMat outFin))
+  ;; --- OUTER skin (+ finish code, except on a sandwich where the code sits on the inner skin) ---
+  (setq outer (strcat (peb-panel-clean-mat outMat) (if isSandwich "" finOut)))
   ;; --- CORE / INSULATION ---
-  (setq thkNum (peb-panel-digits pirThk))
-  (setq coreU  (strcase pirType))
-  ;; an inner skin exists if one is authored, or the panel is a (PIR) sandwich
-  (setq hasInner (or (/= (vl-string-trim " " innerMat) "") isSandwich))
   (cond
-    ;; no thickness AND not a sandwich => single skin, no core part
-    ((and (= thkNum "") (not isSandwich)) (setq core ""))
-    ;; PIR core => "50 PIR Core Density 38kg/m3"  (density optional)
-    ((or (wcmatch coreU "*PIR*") isSandwich)
-      (setq core (strcat (if (= thkNum "") "50" thkNum) " PIR Core"
-                         (if (/= (peb-panel-digits pirDens) "")
-                           (strcat " Density " (peb-panel-digits pirDens) "kg/m3")
-                           ""))))
-    ;; Fibreglass / glass-wool / mineral / rock wool => "50mm Fiberglass[ Insulation]"
-    ((or (wcmatch coreU "*FIBER*") (wcmatch coreU "*FIBRE*")
-         (wcmatch coreU "*GLASS*") (wcmatch coreU "*WOOL*")
-         (wcmatch coreU "*MINERAL*") (wcmatch coreU "*ROCK*"))
-      (setq core (strcat thkNum "mm Fiberglass" (if hasInner "" " Insulation"))))
-    ;; any other named insulation carrying a thickness
-    (T (setq core (strcat thkNum "mm "
-                          (if (= (vl-string-trim " " pirType) "")
-                            "Insulation" (vl-string-trim " " pirType))))))
+    ;; SANDWICH: core from the PANEL (PIR / EPS / named), with density
+    (isSandwich
+      (setq coreU (strcase (if pirType pirType "")))
+      (setq core
+        (strcat (if (= (peb-panel-digits pirThk) "") "50" (peb-panel-digits pirThk)) "mm "
+                (cond ((or (= coreU "") (wcmatch coreU "*PIR*")) "PIR")
+                      ((wcmatch coreU "*EPS*") "EPS")
+                      ((or (wcmatch coreU "*ROCK*") (wcmatch coreU "*MINERAL*")) "Rock Wool")
+                      (T (vl-string-trim " " pirType)))
+                " Core"
+                (if (/= (peb-panel-digits pirDens) "")
+                  (strcat " (" (peb-panel-digits pirDens) "kg/m3 Density)") ""))))
+    ;; SINGLE SKIN + accessory insulation
+    ((/= insThk "")
+      (setq coreU (strcase (if insType insType "")))
+      (setq core
+        (strcat insThk "mm "
+                (cond ((or (wcmatch coreU "*FIBER*") (wcmatch coreU "*FIBRE*")
+                           (wcmatch coreU "*GLASS*")) "Fiberglass")
+                      ((or (wcmatch coreU "*ROCK*") (wcmatch coreU "*MINERAL*")) "Rock Wool")
+                      ((= coreU "") "Fiberglass")
+                      (T (vl-string-trim " " insType)))
+                " Insulation"
+                (if (/= insDens "") (strcat " (" insDens "kg/m3)") ""))))
+    (T (setq core "")))
   ;; --- INNER skin / LINER ---
-  (setq inner   (vl-string-trim " " innerMat))
   (setq isLiner nil)
   (cond
-    ;; sandwich: inner skin is integral to the panel (never tagged "(Liner)")
-    (isSandwich (setq inner (peb-panel-clean-mat innerMat)))
-    ;; single skin + an authored inner sheet => that sheet is the liner
-    ((/= inner "") (setq inner (peb-panel-clean-mat innerMat) isLiner T))
-    ;; single skin + a standalone liner panel (PN_LINER_*) => liner, but ONLY when the
-    ;; liner is actually specified for this face.  PN_LINER_OUTER_MAT carries a DEFAULT
-    ;; ("0.50 mm AZ150") even when no liner is wanted, so gate on LN_<key>_COVERAGE:
-    ;; a liner is present only if coverage is set and not "Not Required".
+    ;; sandwich: inner skin is integral (material + finish, no "Liner" tag)
+    (isSandwich
+      (setq inner (strcat (peb-panel-clean-mat innerMat) (peb-finish-code innerMat outFin))))
+    ;; single skin + an authored inner sheet => liner
+    ((/= (vl-string-trim " " innerMat) "")
+      (setq inner (strcat (peb-panel-clean-mat innerMat) finOut) isLiner T))
+    ;; single skin + a standalone liner panel (PN_LINER_*), gated on coverage.  PN_LINER_OUTER_MAT
+    ;; carries a DEFAULT even when no liner is wanted, so a liner is present only if
+    ;; LN_<key>_COVERAGE is set and not "Not Required".
     ((and (/= (vl-string-trim " " linerMat) "")
           (/= (strcase (vl-string-trim " " (peb-alist-get data (strcat "LN_" key "_COVERAGE")))) "")
           (/= (strcase (vl-string-trim " " (peb-alist-get data (strcat "LN_" key "_COVERAGE")))) "NOT REQUIRED"))
-      (setq inner (peb-panel-clean-mat linerMat) isLiner T))
+      (setq inner (strcat (peb-panel-clean-mat linerMat) finOut) isLiner T))
     (T (setq inner "")))
   ;; --- COMPOSE: outer [+ core] [+ inner (Liner?)] ---
   (setq lbl outer)
   (if (/= core "")  (setq lbl (strcat lbl " + " core)))
-  (if (/= inner "") (setq lbl (strcat lbl " + " inner (if isLiner " (Liner)" ""))))
+  (if (/= inner "") (setq lbl (strcat lbl " + " inner (if isLiner " Liner" ""))))
   lbl)
 
 ;;  Legacy entry point kept for the drawing code: heading + full build-up.
