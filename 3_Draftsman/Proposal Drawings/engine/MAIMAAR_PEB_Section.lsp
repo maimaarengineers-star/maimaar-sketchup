@@ -6090,7 +6090,33 @@
           (command "RECTANG"
             (list (- 0.0 200.0) 0.0)
             (list 0.0 brickH))
-          (command "HATCH" "BRICK" 150 0 "L" ""))))
+          (command "HATCH" "BRICK" 150 0 "L" "")))
+      ;; ── Roof sheeting (SINGLE slope, low LEFT eave -> existing wall RIGHT) ──
+      ;; The right side tucks against the existing masonry wall, so there is NO
+      ;; right wall sheeting and NO gutter overhang on the right (unlike a gable).
+      (setq monoRise (/ wid slopeD))               ; = draw-lt-frame's slopeRise
+      (setvar "CLAYER" "CLADDING")
+      ;; two parallel sloped lines (35mm sheet thk): left overhang -270, right tucks to wall face (wid)
+      (command "LINE" (list -270.0 (+ H 200.0 (- 0 (* 270.0 (/ monoRise wid)))))
+                      (list wid    (+ H monoRise 200.0)) "")
+      (command "LINE" (list -270.0 (+ H 235.0 (- 0 (* 270.0 (/ monoRise wid)))))
+                      (list wid    (+ H monoRise 235.0)) "")
+      (command "LINE" (list -270.0 (+ H 200.0 (- 0 (* 270.0 (/ monoRise wid)))))     ; left eave cap
+                      (list -270.0 (+ H 235.0 (- 0 (* 270.0 (/ monoRise wid))))) "")
+      (command "LINE" (list wid (+ H monoRise 200.0))                                ; right cap at wall
+                      (list wid (+ H monoRise 235.0)) "")
+      ;; LEFT wall sheeting (2 vertical lines outside the girts, 50mm brick overlap)
+      (if (and brickH (< brickH H))
+        (progn
+          (command "LINE" (list -200.0 (- brickH 50.0)) (list -200.0 H) "")
+          (command "LINE" (list -235.0 (- brickH 50.0)) (list -235.0 H) "")
+          (command "LINE" (list -200.0 H)               (list -235.0 H) "")
+          (command "LINE" (list -200.0 (- brickH 50.0)) (list -235.0 (- brickH 50.0)) "")))
+      ;; ROOF SHEETING label along the slope (~30% span, clear of the eave)
+      (peb-label-with-leader "ROOF SHEETING"
+                             (list (* wid 0.28) (+ H (* monoRise 0.28) 200.0 900.0))
+                             (list (* wid 0.42) (+ H (* monoRise 0.42) 235.0))
+                             "V" 220))
     ((member stype '("ACS" "AMS"))
       ;; Arched frames — brick walls + girts + downpipes + eave features
       ;; apply normally (they're at column locations).  Cladding/purlins
