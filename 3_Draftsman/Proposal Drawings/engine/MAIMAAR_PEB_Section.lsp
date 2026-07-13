@@ -2016,26 +2016,31 @@
   )
 )
 
-(defun build-rc-rafter-polygon (W H rise ht rd)
-  ;;  Just the steel rafter (gable shape) for buildings on RCC columns.
-  ;;  Rafter sits ON TOP of concrete columns at eave height H.
+(defun build-rc-rafter-polygon (W H rise de dp)
+  ;;  Roof System on RCC columns: the steel rafter is PINNED on the concrete
+  ;;  columns at both eaves (no moment haunch), so its web is CONTINUOUSLY
+  ;;  TAPERED -- SHALLOW at the eaves (min moment at the pinned ends) and
+  ;;  DEEPEST at the peak (max moment at mid-span / ridge).  Owner 13-Jul,
+  ;;  matching the design-manual shape.  de = eave depth, dp = peak depth.
   (list
-    (list 0.0       H)                       ; left eave outside (rafter top)
-    (list (/ W 2.0) (+ H rise))              ; ridge top
-    (list W         H)                       ; right eave outside
-    (list (- W ht)  (- H ht))                ; right haunch corner
-    (list (/ W 2.0) (+ H rise (- 0 rd)))     ; ridge bottom
-    (list ht        (- H ht))                ; left haunch corner
+    (list 0.0       H)                       ; left eave TOP (bears on column)
+    (list (/ W 2.0) (+ H rise))              ; ridge TOP
+    (list W         H)                       ; right eave TOP (bears on column)
+    (list W         (- H de))                ; right eave UNDERSIDE (shallow)
+    (list (/ W 2.0) (+ H rise (- 0 dp)))     ; ridge UNDERSIDE (deep)
+    (list 0.0       (- H de))                ; left eave UNDERSIDE (shallow)
   )
 )
 
-(defun draw-rc-frame (W H rise ht rd / pts rccW)
-  ;;  Draw RCC columns + steel rafter (separate entities).
-  (setq rccW 500.0)        ; typical RCC column width (mm)
-  (draw-rcc-columns (list 0.0 W) (- H ht) rccW)   ; columns end at haunch knee
+(defun draw-rc-frame (W H rise ht rd / pts rccW de dp)
+  ;;  Draw RCC columns + a continuously-tapered steel rafter (separate entities).
+  (setq rccW 500.0)                       ; typical RCC column width (mm)
+  (setq de (max 200.0 (* ht 0.35)))       ; shallow eave rafter depth
+  (setq dp (max 600.0 (* ht 1.10)))       ; deep peak rafter depth
+  (draw-rcc-columns (list 0.0 W) (- H de) rccW)   ; columns bear the rafter at the eave underside
   (setvar "CLAYER" "FRAME")
   (setvar "PLINEWID" 0.0)
-  (setq pts (build-rc-rafter-polygon W H rise ht rd))
+  (setq pts (build-rc-rafter-polygon W H rise de dp))
   (command "PLINE")
   (foreach p pts (command p))
   (command "C")
