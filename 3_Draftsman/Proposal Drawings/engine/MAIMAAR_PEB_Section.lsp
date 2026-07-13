@@ -2329,7 +2329,7 @@
     (list (+ cx2 (/ colw 2.0)) (- H rt)) (list (+ cx2 (/ colw 2.0)) 0.0) "C")
 )
 
-(defun draw-cc-frame (W H slopeRise ht cb lowAtCol / eL eR)
+(defun draw-cc-frame (W H slopeRise ht cb lowAtCol / eL eR ds dt)
   ;;  SINGLE-SIDED CANTILEVER: ONE column on the LEFT (back), rafter cantilevers out to the right
   ;;  (open front).  No right column.  TWO slope types (owner 8-Jul; names corrected 9-Jul -- these
   ;;  are NOT "Falcon/Butterfly 1-wing"; Falcon and Butterfly name only the 2-wing pair):
@@ -2339,12 +2339,16 @@
         eR (if lowAtCol (+ H slopeRise) H))              ; right / free-end eave
   (setvar "CLAYER" "FRAME")
   (setvar "PLINEWID" 0.0)
+  ;; SINGLE-SIDE cantilever web (owner 13-Jul): DEEP ~1100mm at the support, ~500mm at the free
+  ;; tip, for a 12 m wing (scaled by the projection W).
+  (setq ds (max 450.0 (* (/ W 12000.0) 1100.0)))   ; support web depth
+  (setq dt (max 250.0 (* (/ W 12000.0)  500.0)))   ; tip web depth
   (command "PLINE"
     (list 0.0       0.0)                   ; column base outside
     (list 0.0       eL)                    ; eave-left outside (column)
     (list W         eR)                    ; eave-right outside (free end, open)
-    (list W         (- eR (* ht 0.5)))     ; rafter tip inside-bottom (thin at the free end)
-    (list ht        (- eL ht))             ; column haunch corner (deep at the support)
+    (list W         (- eR dt))             ; rafter tip inside-bottom (THIN ~500 at the free end)
+    (list ht        (- eL ds))             ; support underside (DEEP ~1100 at the column)
     (list cb        0.0)                   ; column inside-base
     "C")
 )
@@ -2466,48 +2470,59 @@
   (command "LINE" (list halfW peakY) (list halfW (- peakY innerH)) "")
 )
 
-(defun draw-bf-frame (W H rise ht cb intColW / cx)
+(defun draw-bf-frame (W H rise ht cb intColW / cx de dp halfCol)
   ;;  Butterfly: CENTER column only, NO side columns.
   ;;  Two rafters slope UP-OUTWARD from center valley to high side eaves.
+  ;;  Wings are TAPERED (owner 13-Jul): DEEP at the mast (ht, max moment on the
+  ;;  cantilever) and THIN at the free tips (de).
   (setq cx (/ W 2.0))
   (setq intColW (max intColW 400.0))
+  (setq halfCol (/ intColW 2.0))
+  ;; TWO-side cantilever web (owner 13-Jul): lighter than single-side -- ~700mm at the mast,
+  ;; ~400mm at the tip, for a 12 m wing (each wing spans W/2).
+  (setq dp (max 350.0 (* (/ W 24000.0) 700.0)))   ; mast (deep) web depth
+  (setq de (max 200.0 (* (/ W 24000.0) 400.0)))   ; tip (thin) web depth
 
-  ;; Center column (rectangular)
+  ;; Center column (rectangular) — top at the mast underside (deep web)
   (setvar "CLAYER" "FRAME")
   (command "RECTANG"
-    (list (- cx (/ intColW 2.0)) 0.0)
-    (list (+ cx (/ intColW 2.0)) (- H ht)))
+    (list (- cx halfCol) 0.0)
+    (list (+ cx halfCol) (- H dp)))
 
-  ;; Frame outline: butterfly shape (V at top, valley at centre)
+  ;; Frame outline: butterfly (V top), underside tapers de (tip) -> dp (mast)
   (command "PLINE"
-    (list 0.0       (+ H rise))            ; LEFT high eave outside
-    (list cx        H)                     ; VALLEY (centre, lowest point of roof)
-    (list W         (+ H rise))            ; RIGHT high eave outside
-    (list (- W ht)  (+ H rise (- 0 ht)))   ; right rafter inside-bottom near eave
-    (list (+ cx (/ intColW 2.0)) (- H ht)) ; valley right haunch (column right top)
-    (list (- cx (/ intColW 2.0)) (- H ht)) ; valley left haunch (column left top)
-    (list ht        (+ H rise (- 0 ht)))   ; left rafter inside-bottom near eave
+    (list 0.0       (+ H rise))                 ; LEFT high eave outside (tip top)
+    (list cx        H)                          ; VALLEY (centre top, lowest roof point)
+    (list W         (+ H rise))                 ; RIGHT high eave outside (tip top)
+    (list W         (+ H rise (- 0 de)))        ; right tip UNDERSIDE (thin ~400)
+    (list (+ cx halfCol) (- H dp))              ; mast right haunch (column top, deep ~700)
+    (list (- cx halfCol) (- H dp))              ; mast left haunch (column top, deep ~700)
+    (list 0.0       (+ H rise (- 0 de)))        ; left tip UNDERSIDE (thin ~400)
     "C")
 )
 
-(defun draw-falcon2-frame (W H rise ht cb intColW / cx)
+(defun draw-falcon2-frame (W H rise ht cb intColW / cx de dp halfCol)
   ;;  FALCON (2 wings) — CENTER column, PEAK at centre, two wings slope DOWN-OUTWARD to the LOW
   ;;  side eaves (drains at the free ends).  The vertical MIRROR of the Butterfly (owner 8-Jul).
+  ;;  TWO-side cantilever web (owner 13-Jul): DEEP ~700 at the mast, THIN ~400 at the tips (per 12m wing).
   (setq cx (/ W 2.0) intColW (max intColW 400.0))
-  ;; Center column (up to the peak underside)
+  (setq halfCol (/ intColW 2.0))
+  (setq dp (max 350.0 (* (/ W 24000.0) 700.0)))   ; mast (deep) web depth
+  (setq de (max 200.0 (* (/ W 24000.0) 400.0)))   ; tip (thin) web depth
+  ;; Center column (up to the peak underside, deep web)
   (setvar "CLAYER" "FRAME")
   (command "RECTANG"
-    (list (- cx (/ intColW 2.0)) 0.0)
-    (list (+ cx (/ intColW 2.0)) (+ H rise (- 0 ht))))
-  ;; Frame outline: peak at centre, low outer eaves (drains outward)
+    (list (- cx halfCol) 0.0)
+    (list (+ cx halfCol) (+ H rise (- 0 dp))))
+  ;; Frame outline: peak top; underside tapers de (tip) -> dp (mast)
   (command "PLINE"
-    (list 0.0       H)                      ; LEFT low eave outside
-    (list cx        (+ H rise))             ; PEAK (centre, highest)
-    (list W         H)                      ; RIGHT low eave outside
-    (list (- W ht)  (- H (* ht 0.4)))       ; right rafter inside-bottom (thin at the low tip)
-    (list (+ cx (/ intColW 2.0)) (+ H rise (- 0 ht))) ; peak right haunch (column top)
-    (list (- cx (/ intColW 2.0)) (+ H rise (- 0 ht))) ; peak left haunch (column top)
-    (list ht        (- H (* ht 0.4)))       ; left rafter inside-bottom (thin at the low tip)
+    (list 0.0       H)                            ; LEFT low eave (tip top)
+    (list cx        (+ H rise))                   ; PEAK (centre top, highest)
+    (list W         H)                            ; RIGHT low eave (tip top)
+    (list W         (- H de))                     ; right tip UNDERSIDE (thin ~400)
+    (list (+ cx halfCol) (+ H rise (- 0 dp)))     ; mast right haunch (column top, deep ~700)
+    (list (- cx halfCol) (+ H rise (- 0 dp)))     ; mast left haunch (column top, deep ~700)
+    (list 0.0       (- H de))                     ; left tip UNDERSIDE (thin ~400)
     "C")
 )
 
@@ -2578,6 +2593,41 @@
   (draw-base-plate-at 0.0     cb        ep boltR)   ; LEFT
   (draw-base-plate-at (- W cb) W        ep boltR)   ; RIGHT
 )
+
+;;  peb-conn-plate-pair — the STANDARD rafter-column connection: an upper (rafter) end plate
+;;  over a lower (column) cap plate, bolted at the interface.  Owner 13-Jul: the detail is common
+;;  to every frame; only LOCATION and SIZE change.  Drawn as a horizontal stack centred at cx with
+;;  the plate TOP at topY (= column top / rafter underside), reaching halfSpan each side.
+(defun peb-conn-plate-pair (cx topY halfSpan ep nBolt / boltR i bx)
+  (setvar "CLAYER" "PLATES")
+  (setq boltR (* 25 *PEB-TEXT-SCALE*))
+  (command "RECTANG" (list (- cx halfSpan) (- topY ep))      (list (+ cx halfSpan) topY))            ; upper (rafter) plate
+  (command "RECTANG" (list (- cx halfSpan) (- topY ep ep))   (list (+ cx halfSpan) (- topY ep)))     ; lower (column) plate
+  (setq i 1)
+  (while (<= i nBolt)
+    (setq bx (+ (- cx halfSpan) (* (/ (float i) (1+ nBolt)) (* 2.0 halfSpan))))
+    (command "DONUT" 0 (* boltR 2) (list bx (- topY ep)) "")
+    (setq i (1+ i))))
+
+;;  draw-arch-conn-plates — connection plates for the ARCHED types (owner 13-Jul): a plate pair at
+;;  each column-arch SPRINGING, plus mid-arch SPLICE plate pairs every <=12 m along the arch (the arch
+;;  is a continuous member spliced to <=12 m shipping pieces).  Splice Y follows the parabolic arch.
+(defun draw-arch-conn-plates (stype W H rise ep / innerH step x ay t2)
+  (setq innerH 200.0)                                       ; arch web depth (matches the frame)
+  ;; SPRINGING plates at the column-arch junctions
+  (peb-conn-plate-pair 0.0 (- H innerH) 250.0 ep 2)
+  (peb-conn-plate-pair W   (- H innerH) 250.0 ep 2)
+  (if (= stype "AMS") (peb-conn-plate-pair (/ W 2.0) (- (+ H rise) innerH) 250.0 ep 2))  ; centre-peak col
+  ;; SPLICE plates every <=12 m along the arch
+  (setq step (/ W (float (1+ (fix (/ W 12000.0))))))
+  (setq x step)
+  (while (< x (- W 1.0))
+    (if (> (abs (- x (/ W 2.0))) 400.0)                     ; skip if it lands on the peak springing
+      (progn
+        (setq t2 (/ (- x (/ W 2.0)) (/ W 2.0)))
+        (setq ay (+ H (* rise (- 1.0 (* t2 t2)))))          ; parabolic arch outer Y at x
+        (peb-conn-plate-pair x (- ay innerH) 180.0 ep 2)))
+    (setq x (+ x step))))
 
 (defun draw-base-plates-multi (cols cb ep intColW / boltR x i n thisW)
   ;;  Base plates for MS / MG with intermediate columns.
@@ -6045,12 +6095,28 @@
         (if msApexX
           (draw-mg-ridge-col-plates msApexX H rise rd ep))))
     ((member stype '("ACS" "AMS"))
-      ;; Arched frames — base plates only.  No haunch plates or
-      ;; rafter stiffeners (arches don't have classic haunches; the
-      ;; arch acts as a continuous member).
+      ;; Arched frames — base plates + column-arch SPRINGING plates + mid-arch SPLICE plates
+      ;; every <=12 m (owner 13-Jul).  Handled by draw-arch-conn-plates.
       (cond
         ((= stype "ACS") (draw-base-plates wid cb ep))
-        ((= stype "AMS") (draw-base-plates-multi cols cb ep 400.0))))
+        ((= stype "AMS") (draw-base-plates-multi cols cb ep 400.0)))
+      (draw-arch-conn-plates stype wid H rise ep))
+    ((member stype '("BF" "CC"))
+      ;; Canopies (owner 13-Jul): NO plates at the free wing tips.  Base plate at the mast/support
+      ;; column base + the STANDARD 2-plate rafter-column connection at the mast/support column TOP.
+      (if (= stype "CC")
+        (progn
+          (setq eLp (if (= (strcase (peb-tb-or (MSPL-Get-Str data "CC_LOW_AT_COLUMN") "")) "YES")
+                        H (+ H (/ wid slopeD))))
+          (setq dsP (max 450.0 (* (/ wid 12000.0) 1100.0)))
+          (draw-base-plate-at 0.0 cb ep (* 25 *PEB-TEXT-SCALE*))
+          (peb-conn-plate-pair ht (- eLp dsP) (* ht 0.9) ep 3))
+        (progn
+          (setq dpP (max 350.0 (* (/ wid 24000.0) 700.0)))
+          (setq mastTopY (if (= (strcase (peb-tb-or (MSPL-Get-Str data "CC_FALCON_PEAK") "")) "YES")
+                             (+ H rise (- 0 dpP)) (- H dpP)))
+          (draw-base-plate-at (- (/ wid 2.0) 200.0) (+ (/ wid 2.0) 200.0) ep (* 25 *PEB-TEXT-SCALE*))
+          (peb-conn-plate-pair (/ wid 2.0) mastTopY 350.0 ep 3))))
     (T
       (progn
         (draw-base-plates   wid cb ep)
