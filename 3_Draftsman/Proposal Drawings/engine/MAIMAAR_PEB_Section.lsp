@@ -6363,11 +6363,10 @@
           (command "LINE" (list -235.0 (- brickH 50.0)) (list -235.0 H) "")
           (command "LINE" (list -200.0 H)               (list -235.0 H) "")
           (command "LINE" (list -200.0 (- brickH 50.0)) (list -235.0 (- brickH 50.0)) "")))
-      ;; ROOF SHEETING label along the slope (~30% span, clear of the eave)
-      (peb-label-with-leader "ROOF SHEETING"
-                             (list (* wid 0.28) (+ H (* monoRise 0.28) 200.0 900.0))
-                             (list (* wid 0.42) (+ H (* monoRise 0.42) 235.0))
-                             "V" 220))
+      ;; Purlins along the slope + ROOF/WALL SHEETING callouts (full build-up + PPGL).
+      ;; monoRise passed as the "rise" arg places the labels at the LT roof band.
+      (peb-deck-purlins 0.0 (+ H 200.0) wid (+ H monoRise 200.0))
+      (peb-arch-sheeting-labels data wid H monoRise))
     ((member stype '("ACS" "AMS"))
       ;; Arched frames — brick walls + girts + downpipes + eave features
       ;; apply normally (they're at column locations).  Cladding/purlins
@@ -6428,6 +6427,9 @@
       ;; roof deck: 2 flat lines just above the slab, overhang both sides
       (command "LINE" (list -270.0 (+ H 200.0)) (list (+ wid 270.0) (+ H 200.0)) "")
       (command "LINE" (list -270.0 (+ H 235.0)) (list (+ wid 270.0) (+ H 235.0)) "")
+      ;; Purlins on the flat deck + ROOF SHEETING callout (like Clear Span)
+      (peb-deck-purlins 0.0 (+ H 200.0) wid (+ H 200.0))
+      (peb-canopy-roof-label data (* wid 0.60) (+ H 200.0) (+ H (* 2600 *PEB-TEXT-SCALE*)))
       ;; FASCIA — the deep signage band at the (left) roof edge
       (peb-label-with-leader "FASCIA"
                              (list -2400.0 (- H 250.0))
