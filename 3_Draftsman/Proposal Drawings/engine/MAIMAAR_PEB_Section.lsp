@@ -3525,7 +3525,7 @@
   )
 )
 
-(defun draw-cladding (data W H rise brickH /
+(defun draw-cladding (data W H rise brickH monoRise /
                        cladThk purlinH girtDepth slopeLen sa ca y d xT yT slpDrop ribStep roofLbl wallLbl
                        labRX labRY labWX labWY leadX leadYStart leadYEnd
                        rParts rLine1 rLine2 rBarY rBarLen rTargetY rDx rTextW rWrapW
@@ -3586,37 +3586,28 @@
     )
   )
 
-  ;; --- ROOF SHEETING: 2 parallel sloped lines, extended 70mm into the
-  ;; gutter at each eave (= 270 mm beyond column outer flange line). ---
-  ;; Slope drop over 270mm = 270 * sa / ca.
-  (setq slpDrop (* 270.0 (/ sa ca)))
-  ;; LEFT half: extend to x = -270, y drops by slpDrop from eave value
-  (command "LINE"
-    (list -270.0    (+ H purlinH (- 0 slpDrop)))
-    (list (/ W 2.0) (+ H rise purlinH))
-    "")
-  (command "LINE"
-    (list -270.0    (+ H purlinH cladThk (- 0 slpDrop)))
-    (list (/ W 2.0) (+ H rise purlinH cladThk))
-    "")
-  ;; RIGHT half: extend to x = W+270
-  (command "LINE"
-    (list (/ W 2.0)   (+ H rise purlinH))
-    (list (+ W 270.0) (+ H purlinH (- 0 slpDrop)))
-    "")
-  (command "LINE"
-    (list (/ W 2.0)   (+ H rise purlinH cladThk))
-    (list (+ W 270.0) (+ H purlinH cladThk (- 0 slpDrop)))
-    "")
-  ;; Eave caps (vertical) at the new extended ends
-  (command "LINE"
-    (list -270.0 (+ H purlinH (- 0 slpDrop)))
-    (list -270.0 (+ H purlinH cladThk (- 0 slpDrop)))
-    "")
-  (command "LINE"
-    (list (+ W 270.0) (+ H purlinH (- 0 slpDrop)))
-    (list (+ W 270.0) (+ H purlinH cladThk (- 0 slpDrop)))
-    "")
+  ;; --- ROOF SHEETING: 2 parallel sloped lines, extended 270mm into the gutter at each eave. ---
+  ;; SINGLE SLOPE (monoRise non-nil): ONE continuous line low-eave(H) -> high-eave(H+monoRise).
+  ;; GABLE (default): two slopes meeting at the ridge (W/2, H+rise).
+  (if monoRise
+    (progn
+      (setq slpDrop (* 270.0 (/ monoRise W)))    ; overhang drop at the low end
+      (command "LINE" (list -270.0 (+ H purlinH (- 0 slpDrop)))
+                      (list (+ W 270.0) (+ H monoRise purlinH slpDrop)) "")
+      (command "LINE" (list -270.0 (+ H purlinH cladThk (- 0 slpDrop)))
+                      (list (+ W 270.0) (+ H monoRise purlinH cladThk slpDrop)) "")
+      (command "LINE" (list -270.0 (+ H purlinH (- 0 slpDrop)))
+                      (list -270.0 (+ H purlinH cladThk (- 0 slpDrop))) "")
+      (command "LINE" (list (+ W 270.0) (+ H monoRise purlinH slpDrop))
+                      (list (+ W 270.0) (+ H monoRise purlinH cladThk slpDrop)) ""))
+    (progn
+      (setq slpDrop (* 270.0 (/ sa ca)))
+      (command "LINE" (list -270.0 (+ H purlinH (- 0 slpDrop))) (list (/ W 2.0) (+ H rise purlinH)) "")
+      (command "LINE" (list -270.0 (+ H purlinH cladThk (- 0 slpDrop))) (list (/ W 2.0) (+ H rise purlinH cladThk)) "")
+      (command "LINE" (list (/ W 2.0) (+ H rise purlinH)) (list (+ W 270.0) (+ H purlinH (- 0 slpDrop))) "")
+      (command "LINE" (list (/ W 2.0) (+ H rise purlinH cladThk)) (list (+ W 270.0) (+ H purlinH cladThk (- 0 slpDrop))) "")
+      (command "LINE" (list -270.0 (+ H purlinH (- 0 slpDrop))) (list -270.0 (+ H purlinH cladThk (- 0 slpDrop))) "")
+      (command "LINE" (list (+ W 270.0) (+ H purlinH (- 0 slpDrop))) (list (+ W 270.0) (+ H purlinH cladThk (- 0 slpDrop))) "")))
 
   ;; --- Labels with L-shaped (90-deg) leader arrows ----
   (setvar "CLAYER" "TEXT")
@@ -6140,8 +6131,11 @@
       ;; (draw-petrol-frame) already document it.  Just the eave gutters/trims at the roof edges.
       (draw-eave-features wid H))
     (T
+      ;; SS / LT are SINGLE-SLOPE: pass monoRise so the roof cladding follows ONE slope (low->high),
+      ;; not a gable (which crossed the mono-slope rafter). CS etc. pass nil = gable.
+      (setq monoRise (if (member stype '("SS" "LT")) (/ wid slopeD) nil))
       (draw-brick-wall    wid brickH)
-      (draw-cladding      data wid H rise brickH)
+      (draw-cladding      data wid H rise brickH monoRise)
       (draw-purlins       wid H rise)
       (draw-eave-strut    wid H rise)
       (draw-girts         wid H brickH)
