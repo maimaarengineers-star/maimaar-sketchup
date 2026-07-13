@@ -6106,20 +6106,22 @@
       (setq ccEL   (if ccLow H (+ H ccRise)))     ; column-side eave
       (setq ccER   (if ccLow (+ H ccRise) H))     ; free-tip eave
       (setq ccS    (/ (- ccER ccEL) wid))         ; deck slope (rise per run)
-      ;; roof deck: two parallel lines 200 above the rafter top, small overhang each end
+      ;; roof deck: two parallel lines 200 above the rafter top, SMALL overhang (150) each end
       (setvar "CLAYER" "CLADDING")
       (command "LINE" (list -200.0 (+ ccEL 200.0 (* ccS -200.0)))
-                      (list (+ wid 350.0) (+ ccER 200.0 (* ccS 350.0))) "")
+                      (list (+ wid 150.0) (+ ccER 200.0 (* ccS 150.0))) "")
       (command "LINE" (list -200.0 (+ ccEL 235.0 (* ccS -200.0)))
-                      (list (+ wid 350.0) (+ ccER 235.0 (* ccS 350.0))) "")
-      ;; tip fascia (vertical band, ~500 deep, at the free end)
-      (command "LINE" (list (+ wid 350.0) (+ ccER 235.0 (* ccS 350.0)))
-                      (list (+ wid 350.0) (- (+ ccER 200.0 (* ccS 350.0)) 500.0)) "")
-      (command "LINE" (list (+ wid 385.0) (+ ccER 235.0 (* ccS 350.0)))
-                      (list (+ wid 385.0) (- (+ ccER 235.0 (* ccS 350.0)) 500.0)) "")
+                      (list (+ wid 150.0) (+ ccER 235.0 (* ccS 150.0))) "")
+      ;; tip fascia: hangs from the deck edge DOWN past the rafter underside, closing the tip
+      (command "LINE" (list (+ wid 150.0) (+ ccER 235.0 (* ccS 150.0)))
+                      (list (+ wid 150.0) (- ccER (* ht 0.5) 50.0)) "")
+      (command "LINE" (list (+ wid 185.0) (+ ccER 235.0 (* ccS 150.0)))
+                      (list (+ wid 185.0) (- ccER (* ht 0.5) 50.0)) "")
+      (command "LINE" (list (+ wid 150.0) (- ccER (* ht 0.5) 50.0))
+                      (list (+ wid 185.0) (- ccER (* ht 0.5) 50.0)) "")   ; fascia bottom cap
       (peb-label-with-leader "FASCIA"
-                             (list (+ wid 1600.0) (- (+ ccER 200.0 (* ccS 350.0)) 250.0))
-                             (list (+ wid 385.0)  (- (+ ccER 200.0 (* ccS 350.0)) 250.0))
+                             (list (+ wid 1700.0) (- ccER (* ht 0.25)))
+                             (list (+ wid 185.0)  (- ccER (* ht 0.25)))
                              "H" 220)
       ;; ONE slope tag on the single rafter — direction follows which side is LOW
       (setq ccTagX (* wid 0.45))
