@@ -6368,6 +6368,12 @@
                  ;; SS / LT are SINGLE-SLOPE: no ridge -- the top height is the HIGH eave.
                  ((member stype '("SS" "LT"))
                   (strcat "HIGH EAVE " (rtos (/ (+ H (/ wid slopeD)) 1000.0) 2 1) "m  |  SLOPE " slopeStr))
+                 ;; ACS / AMS are ARCHED: a curved roof has a CROWN, not a ridge, and no straight slope ratio.
+                 ((member stype '("ACS" "AMS"))
+                  (strcat "ARCHED ROOF  |  CROWN " (rtos (/ (+ H rise) 1000.0) 2 1) "m"))
+                 ;; BF / CC are CANOPIES: a cantilever canopy has a drainage FALL, not a ridge.
+                 ((member stype '("BF" "CC"))
+                  (strcat "CANOPY  |  FALL " slopeStr))
                  (T (strcat "RIDGE " (rtos (/ (+ H rise) 1000.0) 2 1) "m  |  SLOPE " slopeStr)))))
 
   ;; ── Title block (auto-widens for narrow buildings, scales uniformly for big) ──
