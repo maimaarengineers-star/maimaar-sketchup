@@ -6179,7 +6179,16 @@
   ;; SKIPPED for arched frames (ACS, AMS) — no straight slope.  The
   ;; curved rafter geometry self-documents its roof shape; a straight
   ;; rise/run triangle would misrepresent the arch.
-  (if (not (member stype '("ACS" "AMS")))
+  (cond
+    ((member stype '("ACS" "AMS")) nil)   ; arched — curved rafter self-documents; no straight tag
+    ((member stype '("SS" "LT"))
+      ;; SINGLE SLOPE: exactly ONE tag, rising low(left) -> high(right) — a mono
+      ;; roof has no ridge, so the old per-half pair (one up-right, one up-left) was wrong.
+      (setq monoRise (/ wid slopeD))
+      (setq cxM (* wid 0.40))
+      (setq cyM (+ H (* monoRise (/ cxM wid)) 235.0 (* 300 *PEB-TEXT-SCALE*)))
+      (draw-slope-tag cxM cyM slopeD 1))
+    (T
   (foreach rx ridges
     ;; figure out which columns flank this ridge
     (setq leftCol  0.0)
@@ -6222,7 +6231,7 @@
                   (* 300 *PEB-TEXT-SCALE*)))
     (draw-slope-tag cxL cyL slopeD  1)
     (draw-slope-tag cxR cyR slopeD -1)
-  ))                                  ; close (if not arched ...) wrapping
+  )))                                 ; close foreach, T-clause, cond
 
   ;; ── Member labels (proposal-level only) ──────────────────────
   ;; (RAFTER text now drawn between rafter lines via draw-rafter-label)
@@ -6354,9 +6363,12 @@
        200 0
        (strcat (rtos (/ widInput 1000.0) 2 1) "m SPAN  |  "
                "C.H " (rtos (/ (- H ht) 1000.0) 2 1) "m  |  "
-               (if (member stype '("PP" "FR"))
-                 "FLAT ROOF"
-                 (strcat "RIDGE " (rtos (/ (+ H rise) 1000.0) 2 1) "m  |  SLOPE " slopeStr))))
+               (cond
+                 ((member stype '("PP" "FR")) "FLAT ROOF")
+                 ;; SS / LT are SINGLE-SLOPE: no ridge -- the top height is the HIGH eave.
+                 ((member stype '("SS" "LT"))
+                  (strcat "HIGH EAVE " (rtos (/ (+ H (/ wid slopeD)) 1000.0) 2 1) "m  |  SLOPE " slopeStr))
+                 (T (strcat "RIDGE " (rtos (/ (+ H rise) 1000.0) 2 1) "m  |  SLOPE " slopeStr)))))
 
   ;; ── Title block (auto-widens for narrow buildings, scales uniformly for big) ──
   ;; Min: 35 m so small buildings still get readable cells.
