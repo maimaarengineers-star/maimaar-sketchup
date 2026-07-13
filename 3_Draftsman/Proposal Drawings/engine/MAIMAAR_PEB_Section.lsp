@@ -6324,6 +6324,17 @@
                              (list (- ppOvh 2400.0) (* H 0.5))
                              (list (- ppOvh 160.0)  (* H 0.5))
                              "H" 220))
+    ((= stype "FR")
+      ;; FLAT ROOF: draw-fr-frame draws a HORIZONTAL rafter, so the roof sheeting is FLAT too
+      ;; (monoRise 0 -> a level line at H, not a gable peak).  Both eaves at H; nominal drainage
+      ;; slope only.  Excluded from the ridge-pair slope-tag loop below.
+      (draw-brick-wall    wid brickH)
+      (draw-cladding      data wid H rise brickH 0.0 nil)   ; monoRise 0 = flat roof line
+      (draw-purlins       wid H 0.0)                        ; flat purlins
+      (draw-girts         wid H brickH nil)
+      (draw-downpipes     wid H brickH nil)
+      (draw-eave-features wid H nil)
+      (draw-rafter-label  wid H 0.0 ht))
     ((= stype "SS")
       ;; SINGLE SLOPE: low (left) eave = H, HIGH (right) eave = H + monoRise.  The RIGHT wall
       ;; sheeting + girts must climb to the HIGH eave (not the low H, which left the tall wall
@@ -6361,9 +6372,9 @@
   ;; curved rafter geometry self-documents its roof shape; a straight
   ;; rise/run triangle would misrepresent the arch.
   (cond
-    ;; arched (curved rafter self-documents) and canopies (BF/CC draw their OWN direction-correct
-    ;; tag in their label branch; PP is flat) — skip the generic ridge-pair tag loop.
-    ((member stype '("ACS" "AMS" "BF" "CC" "PP")) nil)
+    ;; arched (curved rafter self-documents), canopies (BF/CC draw their OWN direction-correct
+    ;; tag; PP is flat), and FLAT ROOF (level, nominal drainage only) — skip the ridge-pair tag loop.
+    ((member stype '("ACS" "AMS" "BF" "CC" "PP" "FR")) nil)
     ((member stype '("SS" "LT"))
       ;; SINGLE SLOPE: exactly ONE tag, rising low(left) -> high(right) — a mono
       ;; roof has no ridge, so the old per-half pair (one up-right, one up-left) was wrong.
