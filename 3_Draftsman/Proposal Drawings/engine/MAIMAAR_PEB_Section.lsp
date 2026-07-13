@@ -2621,16 +2621,25 @@
 ;;  over a lower (column) cap plate, bolted at the interface.  Owner 13-Jul: the detail is common
 ;;  to every frame; only LOCATION and SIZE change.  Drawn as a horizontal stack centred at cx with
 ;;  the plate TOP at topY (= column top / rafter underside), reaching halfSpan each side.
-(defun peb-conn-plate-pair (cx topY halfSpan ep nBolt / boltR i bx)
+(defun peb-conn-plate-pair (cx topY halfSpan ep nBolt / boltR i bx loBot stH stW xl xr)
   (setvar "CLAYER" "PLATES")
   (setq boltR (* 25 *PEB-TEXT-SCALE*))
-  (command "RECTANG" (list (- cx halfSpan) (- topY ep))      (list (+ cx halfSpan) topY))            ; upper (rafter) plate
-  (command "RECTANG" (list (- cx halfSpan) (- topY ep ep))   (list (+ cx halfSpan) (- topY ep)))     ; lower (column) plate
+  (setq loBot (- topY ep ep) stH 110.0 stW 110.0)
+  (setq xl (- cx halfSpan) xr (+ cx halfSpan))
+  ;; upper (rafter) + lower (column) end plates
+  (command "RECTANG" (list xl (- topY ep))    (list xr topY))
+  (command "RECTANG" (list xl loBot)          (list xr (- topY ep)))
+  ;; bolts through the interface
   (setq i 1)
   (while (<= i nBolt)
-    (setq bx (+ (- cx halfSpan) (* (/ (float i) (1+ nBolt)) (* 2.0 halfSpan))))
+    (setq bx (+ xl (* (/ (float i) (1+ nBolt)) (* 2.0 halfSpan))))
     (command "DONUT" 0 (* boltR 2) (list bx (- topY ep)) "")
-    (setq i (1+ i))))
+    (setq i (1+ i)))
+  ;; stiffener triangles at BOTH ends (above upper plate + below lower plate) — matches the gable knee
+  (draw-stiff-top xl topY  stW stH  1)
+  (draw-stiff-top xr topY  stW stH -1)
+  (draw-stiff-bot xl loBot stW stH  1)
+  (draw-stiff-bot xr loBot stW stH -1))
 
 ;;  draw-arch-conn-plates — connection plates for the ARCHED types (owner 13-Jul): a plate pair at
 ;;  each column-arch SPRINGING, plus mid-arch SPLICE plate pairs every <=12 m along the arch (the arch

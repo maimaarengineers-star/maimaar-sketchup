@@ -1549,6 +1549,8 @@
     ((= stype "RC") "ROOF ON RCC COLUMNS - NO STEEL COLUMNS")
     ((member stype '("CC" "BF")) (if *PEB-CANOPY-NAME* *PEB-CANOPY-NAME* "CANTILEVER CANOPY"))
     ((= stype "PP") "PETROL PUMP CANOPY")
+    ((= stype "ACS") "ARCHED CLEAR SPAN")     ; was missing -> fell through to "CLEAR SPAN GABLE"
+    ((= stype "AMS") "ARCHED MULTI-SPAN")
     (T "CLEAR SPAN GABLE")
   )
 )
