@@ -215,8 +215,13 @@
     (isSandwich (setq inner (peb-panel-clean-mat innerMat)))
     ;; single skin + an authored inner sheet => that sheet is the liner
     ((/= inner "") (setq inner (peb-panel-clean-mat innerMat) isLiner T))
-    ;; single skin + a standalone liner panel (PN_LINER_*) => liner
-    ((/= (vl-string-trim " " linerMat) "")
+    ;; single skin + a standalone liner panel (PN_LINER_*) => liner, but ONLY when the
+    ;; liner is actually specified for this face.  PN_LINER_OUTER_MAT carries a DEFAULT
+    ;; ("0.50 mm AZ150") even when no liner is wanted, so gate on LN_<key>_COVERAGE:
+    ;; a liner is present only if coverage is set and not "Not Required".
+    ((and (/= (vl-string-trim " " linerMat) "")
+          (/= (strcase (vl-string-trim " " (peb-alist-get data (strcat "LN_" key "_COVERAGE")))) "")
+          (/= (strcase (vl-string-trim " " (peb-alist-get data (strcat "LN_" key "_COVERAGE")))) "NOT REQUIRED"))
       (setq inner (peb-panel-clean-mat linerMat) isLiner T))
     (T (setq inner "")))
   ;; --- COMPOSE: outer [+ core] [+ inner (Liner?)] ---
@@ -5014,7 +5019,7 @@
           (vl-string-trim " " (substr s (+ p 9))))         ; the spec (may start with "AZ ...")
     (list s nil)))
 
-(defun peb-split-2-lines (txt / words idx total halfTotal acc line1 line2 w)
+(defun peb-split-2-lines (txt / words idx total halfTotal acc line1 line2 w orig)
   ;;  Split a string into AT MOST 2 lines, joined by MText paragraph
   ;;  break "\\P".  Splits at a word boundary (space) so words don't
   ;;  get cut.  Aim is roughly half the total character count on each
@@ -5027,6 +5032,7 @@
   ;;  txt = input string (single line, words separated by spaces)
   ;;  Returns: "<line1>\\P<line2>"  (or just txt if only 1 word)
   (if (or (null txt) (= txt "")) (setq txt ""))
+  (setq orig txt)                     ; keep the full string for the short-spec test
   ;; Tokenize on spaces.
   (setq words '())
   (while (setq idx (vl-string-search " " txt))
@@ -5036,6 +5042,9 @@
   (setq words (reverse words))
   (cond
     ((<= (length words) 1) (or (car words) ""))
+    ;; Short spec (single-skin, e.g. "0.50 mm AZ150") stays on ONE line -- only the
+    ;; long insulated build-ups ("... + 50mm Fiberglass + ... (Liner)") wrap to two.
+    ((<= (strlen orig) 26) orig)
     (T
       (setq total (apply '+ (mapcar 'strlen words)))
       ;; +1 per gap to roughly account for spaces; not exact but good
