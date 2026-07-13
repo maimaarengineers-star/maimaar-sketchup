@@ -6258,9 +6258,9 @@
       ;; routine; for now skip those, which is acceptable at proposal stage
       ;; (the curved rafter outline already shows the roof geometry).
       (draw-brick-wall    wid brickH)
-      (draw-girts         wid H brickH)
-      (draw-downpipes     wid H brickH)
-      (draw-eave-features wid H)
+      (draw-girts         wid H brickH nil)
+      (draw-downpipes     wid H brickH nil)
+      (draw-eave-features wid H nil)
       ;; ── Curved roof cladding: arcs offset above the rafter (2 lines = sheet thickness) ──
       ;; Same 3-point arcs as the frame's rafter (draw-acs-frame / draw-ams-frame), lifted 200/235.
       (setvar "CLAYER" "CLADDING")
@@ -6294,15 +6294,15 @@
       (draw-cladding-mg   data wid H rise brickH numGab)
       (draw-purlins-mg    wid H rise numGab (/ wid numGab))
       (draw-eave-strut-mg wid (/ wid numGab) H rise)
-      (draw-girts         wid H brickH)
-      (draw-downpipes     wid H brickH)
-      (draw-eave-features wid H)
+      (draw-girts         wid H brickH nil)
+      (draw-downpipes     wid H brickH nil)
+      (draw-eave-features wid H nil)
       (draw-rafter-label  (/ wid numGab) H rise ht))
     ((= stype "PP")
       ;; Petrol Pump / CNG canopy — an OPEN, near-flat canopy: NO brick wall, girts, downpipes,
       ;; eave struts, or gable cladding/purlins.  The flat roof band + inset columns
       ;; (draw-petrol-frame) already document it.  Just the eave gutters/trims at the roof edges.
-      (draw-eave-features wid H)
+      (draw-eave-features wid H nil)
       ;; ── Petrol-canopy finishing: roof deck + fascia + soffit + downspout (island on inset cols) ──
       (setq ppOvh (* wid 0.22))                       ; matches draw-petrol-frame overhang
       (setvar "CLAYER" "CLADDING")
@@ -6342,12 +6342,12 @@
       ;; Gable frames (CS / MS): symmetric eaves at H, gable roof cladding (monoRise nil).
       (setq monoRise nil)
       (draw-brick-wall    wid brickH)
-      (draw-cladding      data wid H rise brickH monoRise)
+      (draw-cladding      data wid H rise brickH monoRise nil)
       (draw-purlins       wid H rise)
       (draw-eave-strut    wid H rise)
-      (draw-girts         wid H brickH)
-      (draw-downpipes     wid H brickH)
-      (draw-eave-features wid H)
+      (draw-girts         wid H brickH nil)
+      (draw-downpipes     wid H brickH nil)
+      (draw-eave-features wid H nil)
       (draw-rafter-label  wid H rise ht)))
 
   ;; ── Slope tags placed 25% in from the RIDGE on each rafter half ──
