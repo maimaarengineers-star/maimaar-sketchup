@@ -6053,7 +6053,43 @@
                              (list (+ (/ wid 2.0) 200.0)      ; arrow at center col R-flange
                                    (- H ht 700.0))
                              "H"
-                             220))
+                             220)
+      ;; ── Butterfly finishing: deck on both wings + central VALLEY GUTTER + DOWN SPOUT + FALL + 2 tags ──
+      ;; Reference (Nestle Butterfly Canopy): wings drain INWARD to a centre valley gutter & downspout.
+      (setq bfcx (/ wid 2.0))
+      (setq bfm  (/ rise bfcx))                   ; wing rise per run (high at eaves, low at valley)
+      (setvar "CLAYER" "CLADDING")
+      ;; LEFT wing deck (2 lines): high eave (x=-270, overhang) down to the valley (bfcx)
+      (command "LINE" (list -270.0 (+ H rise 200.0 (* bfm 270.0))) (list bfcx (+ H 200.0)) "")
+      (command "LINE" (list -270.0 (+ H rise 235.0 (* bfm 270.0))) (list bfcx (+ H 235.0)) "")
+      ;; RIGHT wing deck (2 lines): valley up to the high eave (x=wid+270, overhang)
+      (command "LINE" (list bfcx (+ H 200.0)) (list (+ wid 270.0) (+ H rise 200.0 (* bfm 270.0))) "")
+      (command "LINE" (list bfcx (+ H 235.0)) (list (+ wid 270.0) (+ H rise 235.0 (* bfm 270.0))) "")
+      ;; Tip fascia at both high eaves (short vertical bands)
+      (command "LINE" (list -270.0 (+ H rise 235.0 (* bfm 270.0))) (list -270.0 (- (+ H rise 200.0 (* bfm 270.0)) 500.0)) "")
+      (command "LINE" (list (+ wid 270.0) (+ H rise 235.0 (* bfm 270.0))) (list (+ wid 270.0) (- (+ H rise 200.0 (* bfm 270.0)) 500.0)) "")
+      ;; Central VALLEY GUTTER trough (drains to centre)
+      (setvar "CLAYER" "GUTTER")
+      (setvar "PLINEWID" 0.0)
+      (command "PLINE"
+        (list (- bfcx 320.0) (+ H 250.0))
+        (list (- bfcx 150.0) (+ H  60.0))
+        (list (+ bfcx 150.0) (+ H  60.0))
+        (list (+ bfcx 320.0) (+ H 250.0))
+        "")
+      (setvar "CLAYER" "TEXT")
+      (txt "MC" (list bfcx (+ H rise (* 900 *PEB-TEXT-SCALE*))) 200 0 "VALLEY GUTTER")
+      ;; DOWN SPOUT through the central mast
+      (peb-label-with-leader "DOWN SPOUT"
+                             (list (+ bfcx 2300.0) (* H 0.45))
+                             (list (+ bfcx 220.0)  (* H 0.45))
+                             "H" 220)
+      ;; FALL callouts on each wing (drain toward centre)
+      (txt "MC" (list (* wid 0.26) (+ H (* rise 0.55) 700.0)) 240 0 "FALL")
+      (txt "MC" (list (* wid 0.74) (+ H (* rise 0.55) 700.0)) 240 0 "FALL")
+      ;; TWO slope tags — left wing rises up-LEFT (upRight=-1), right wing up-RIGHT (upRight=+1)
+      (draw-slope-tag (* bfcx 0.5) (+ H (- rise (* rise 0.5)) 235.0 (* 300 *PEB-TEXT-SCALE*)) slopeD -1)
+      (draw-slope-tag (* bfcx 1.5) (+ H (- rise (* rise 0.5)) 235.0 (* 300 *PEB-TEXT-SCALE*)) slopeD  1))
     ;; ── CC (Cantilever Canopy): one back column, open front ──
     ;; Add COLUMN label pointing at the back (left) column inner flange.
     ((= stype "CC")
@@ -6062,7 +6098,42 @@
                                    (- H ht 700.0))
                              (list 250.0 (- H ht 700.0))      ; arrow at left col inner flange
                              "H"
-                             220))
+                             220)
+      ;; ── Cantilever-canopy finishing: roof deck + tip fascia + fall + ONE slope tag + downspout ──
+      ;; TM p42 (canopy = cantilever below/at eave, one-end support) + reference LOADING DECK/FALL.
+      (setq ccLow  (= (strcase (peb-tb-or (MSPL-Get-Str data "CC_LOW_AT_COLUMN") "")) "YES"))
+      (setq ccRise (/ wid slopeD))
+      (setq ccEL   (if ccLow H (+ H ccRise)))     ; column-side eave
+      (setq ccER   (if ccLow (+ H ccRise) H))     ; free-tip eave
+      (setq ccS    (/ (- ccER ccEL) wid))         ; deck slope (rise per run)
+      ;; roof deck: two parallel lines 200 above the rafter top, small overhang each end
+      (setvar "CLAYER" "CLADDING")
+      (command "LINE" (list -200.0 (+ ccEL 200.0 (* ccS -200.0)))
+                      (list (+ wid 350.0) (+ ccER 200.0 (* ccS 350.0))) "")
+      (command "LINE" (list -200.0 (+ ccEL 235.0 (* ccS -200.0)))
+                      (list (+ wid 350.0) (+ ccER 235.0 (* ccS 350.0))) "")
+      ;; tip fascia (vertical band, ~500 deep, at the free end)
+      (command "LINE" (list (+ wid 350.0) (+ ccER 235.0 (* ccS 350.0)))
+                      (list (+ wid 350.0) (- (+ ccER 200.0 (* ccS 350.0)) 500.0)) "")
+      (command "LINE" (list (+ wid 385.0) (+ ccER 235.0 (* ccS 350.0)))
+                      (list (+ wid 385.0) (- (+ ccER 235.0 (* ccS 350.0)) 500.0)) "")
+      (peb-label-with-leader "FASCIA"
+                             (list (+ wid 1600.0) (- (+ ccER 200.0 (* ccS 350.0)) 250.0))
+                             (list (+ wid 385.0)  (- (+ ccER 200.0 (* ccS 350.0)) 250.0))
+                             "H" 220)
+      ;; ONE slope tag on the single rafter — direction follows which side is LOW
+      (setq ccTagX (* wid 0.45))
+      (draw-slope-tag ccTagX (+ ccEL (* ccS ccTagX) 235.0 (* 300 *PEB-TEXT-SCALE*))
+                      slopeD (if ccLow 1 -1))
+      ;; FALL callout at mid-deck
+      (setvar "CLAYER" "TEXT")
+      (txt "MC" (list (* wid 0.62) (+ ccEL (* ccS (* wid 0.62)) 900.0)) 260 0 "FALL")
+      ;; DOWN SPOUT only when the canopy drains at the (back) column — a free-tip drain has no column
+      (if ccLow
+        (peb-label-with-leader "DOWN SPOUT"
+                               (list -2100.0 (* H 0.5))
+                               (list -220.0  (* H 0.5))
+                               "H" 220)))
     ;; ── LT (Lean-To): one PEB column on left, masonry wall on right ──
     ;; LT has a sloped roof (single slope from low eave to wall top), so
     ;; it gets the full set of labels: COLUMN (left), GIRTS, DOWN PIPE
@@ -6155,7 +6226,28 @@
       ;; Petrol Pump / CNG canopy — an OPEN, near-flat canopy: NO brick wall, girts, downpipes,
       ;; eave struts, or gable cladding/purlins.  The flat roof band + inset columns
       ;; (draw-petrol-frame) already document it.  Just the eave gutters/trims at the roof edges.
-      (draw-eave-features wid H))
+      (draw-eave-features wid H)
+      ;; ── Petrol-canopy finishing: roof deck + fascia + soffit + downspout (island on inset cols) ──
+      (setq ppOvh (* wid 0.22))                       ; matches draw-petrol-frame overhang
+      (setvar "CLAYER" "CLADDING")
+      ;; roof deck: 2 flat lines just above the slab, overhang both sides
+      (command "LINE" (list -270.0 (+ H 200.0)) (list (+ wid 270.0) (+ H 200.0)) "")
+      (command "LINE" (list -270.0 (+ H 235.0)) (list (+ wid 270.0) (+ H 235.0)) "")
+      ;; FASCIA — the deep signage band at the (left) roof edge
+      (peb-label-with-leader "FASCIA"
+                             (list -2400.0 (- H 250.0))
+                             (list -20.0   (- H 250.0))
+                             "H" 220)
+      ;; SOFFIT under the roof slab (centre)
+      (peb-label-with-leader "SOFFIT"
+                             (list (/ wid 2.0) (- (- H (max (* ht 0.8) 250.0)) 900.0))
+                             (list (/ wid 2.0) (- H (max (* ht 0.8) 250.0)))
+                             "V" 220)
+      ;; DOWN SPOUT through the (inset) column line
+      (peb-label-with-leader "DOWN SPOUT"
+                             (list (- ppOvh 2400.0) (* H 0.5))
+                             (list (- ppOvh 160.0)  (* H 0.5))
+                             "H" 220))
     (T
       ;; SS / LT are SINGLE-SLOPE: pass monoRise so the roof cladding follows ONE slope (low->high),
       ;; not a gable (which crossed the mono-slope rafter). CS etc. pass nil = gable.
@@ -6180,7 +6272,9 @@
   ;; curved rafter geometry self-documents its roof shape; a straight
   ;; rise/run triangle would misrepresent the arch.
   (cond
-    ((member stype '("ACS" "AMS")) nil)   ; arched — curved rafter self-documents; no straight tag
+    ;; arched (curved rafter self-documents) and canopies (BF/CC draw their OWN direction-correct
+    ;; tag in their label branch; PP is flat) — skip the generic ridge-pair tag loop.
+    ((member stype '("ACS" "AMS" "BF" "CC" "PP")) nil)
     ((member stype '("SS" "LT"))
       ;; SINGLE SLOPE: exactly ONE tag, rising low(left) -> high(right) — a mono
       ;; roof has no ridge, so the old per-half pair (one up-right, one up-left) was wrong.
