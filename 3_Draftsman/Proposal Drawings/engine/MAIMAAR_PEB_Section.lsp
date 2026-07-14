@@ -6156,6 +6156,17 @@
                              (+ H rise (- 0 dpP)) (- H dpP)))
           (draw-base-plate-at (- (/ wid 2.0) 200.0) (+ (/ wid 2.0) 200.0) ep (* 25 *PEB-TEXT-SCALE*))
           (peb-conn-plate-pair (/ wid 2.0) mastTopY 300.0 ep 3))))   ; mast half 200 + 100mm each side
+    ((= stype "SS")
+      ;; SINGLE SLOPE: a connection plate at EACH column-rafter JUNCTION, placed at the height where
+      ;; that column meets the sloped rafter underside -- (H-ht) rises by slopeRise*(x/W) along the mono
+      ;; rafter.  (draw-haunch-plates would put them all at the low H-ht, leaving them floating in air.)
+      (setq slopeRiseP (/ wid slopeD))
+      (if (> (length cols) 2)
+        (draw-base-plates-multi cols cb ep 400.0)     ; SSMS: base plate at every column
+        (draw-base-plates       wid cb ep))           ; SSCS: two end columns
+      (foreach cx cols
+        (peb-conn-plate-pair cx (+ (- H ht) (* slopeRiseP (/ cx wid)))
+                             (+ (/ cb 2.0) 100.0) ep 3)))
     (T
       (progn
         (draw-base-plates   wid cb ep)
