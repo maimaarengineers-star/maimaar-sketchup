@@ -2888,6 +2888,54 @@
   (draw-stiff-bot (+ cx plateT) lo stW stH  1)
   (princ))
 
+;;  peb-cw-one — draw ONE catwalk as OUTER LINES ONLY at a column (owner 14-Jul): a narrow walkway deck
+;;  projecting from the column + a handrail (two posts + top & mid rail).  dir = +1 projects to +x, -1 to
+;;  -x.  Deck top at yWalk; deck a thin band; rail ~1050 high.  No grating hatch — outline only.
+(defun peb-cw-one (xc yWalk cwW railH dir / xo)
+  (setq xo (+ xc (* dir cwW)))                        ; outer (free) edge of the walkway
+  (setvar "CLAYER" "FRAME")
+  ;; walkway deck — thin outline band
+  (command "PLINE" (list xc (- yWalk 60.0)) (list xo (- yWalk 60.0))
+                   (list xo yWalk) (list xc yWalk) "C")
+  ;; handrail — outer post, inner post (at the column), top rail, mid rail
+  (command "LINE" (list xo yWalk) (list xo (+ yWalk railH)) "")
+  (command "LINE" (list xc yWalk) (list xc (+ yWalk railH)) "")
+  (command "LINE" (list xc (+ yWalk railH)) (list xo (+ yWalk railH)) "")
+  (command "LINE" (list xc (+ yWalk (* railH 0.5))) (list xo (+ yWalk (* railH 0.5))) "")
+  (princ))
+
+;;  peb-draw-catwalk — CATWALK in the cross-section (owner 14-Jul, ref manual §Glossary/Ch.11): a narrow
+;;  grated walkway with handrail, its framing connected to the rigid-frame COLUMNS, INSIDE or OUTSIDE the
+;;  shell.  STRICT: draw the OUTER LINES ONLY.  Driven by CW_ keys (blank => nothing drawn):
+;;    CW_TOGGLE   = Yes/No
+;;    CW_LOCATION = Inside | Outside   (side of the column the walkway projects)
+;;    CW_HEIGHT   = walkway level above FFL (mm; default 60% of clear height)
+;;    CW_WIDTH    = walkway width (mm; default 750)
+;;    CW_SIDE     = Both | Left | Right (which eave column; default Both)
+;;  Placed at the eave columns (first/last of cols).  Left column: Inside=+x, Outside=-x; right mirror.
+(defun peb-draw-catwalk (data wid cols H ht / loc cwH cwW side yWalk lc rc railH dirL dirR)
+  (if (= (strcase (peb-tb-or (MSPL-Get-Str data "CW_TOGGLE") "")) "YES")
+    (progn
+      (setq loc  (strcase (peb-tb-or (MSPL-Get-Str data "CW_LOCATION") "INSIDE")))
+      (setq side (strcase (peb-tb-or (MSPL-Get-Str data "CW_SIDE") "BOTH")))
+      (setq cwH  (MSPL-Get-Num data "CW_HEIGHT"))
+      (if (or (null cwH) (<= cwH 0.0)) (setq cwH (* 0.60 (- H ht))))
+      (setq cwW  (MSPL-Get-Num data "CW_WIDTH"))
+      (if (or (null cwW) (<= cwW 0.0)) (setq cwW 750.0))
+      (setq railH 1050.0 yWalk cwH lc (car cols) rc (last cols))
+      ;; project direction: OUTSIDE = away from the shell; INSIDE = into the shell
+      (setq dirL (if (= loc "OUTSIDE") -1 1)          ; left column
+            dirR (if (= loc "OUTSIDE")  1 -1))        ; right column (mirror)
+      (if (member side '("BOTH" "LEFT"))  (peb-cw-one lc yWalk cwW railH dirL))
+      (if (member side '("BOTH" "RIGHT")) (peb-cw-one rc yWalk cwW railH dirR))
+      ;; label with a leader to the deck
+      (setvar "CLAYER" "TEXT")
+      (peb-label-with-leader "CATWALK (OUTER LINE)"
+        (list (+ lc (* dirL (+ cwW 1400.0))) (+ yWalk 300.0))
+        (list (+ lc (* dirL (/ cwW 2.0)))    yWalk)
+        "H" 200)))
+  (princ))
+
 ;;  draw-arch-conn-plates — connection plates for the ARCHED types (owner 13-Jul): a plate pair at
 ;;  each column-arch SPRINGING, plus mid-arch SPLICE plate pairs every <=12 m along the arch (the arch
 ;;  is a continuous member spliced to <=12 m shipping pieces).  Splice Y follows the parabolic arch.
@@ -6281,6 +6329,9 @@
 
   ;; ── Mezzanine floor in section (deck + beam + support columns) ──
   (vl-catch-all-apply (function (lambda () (peb-draw-mezz-section data wid cols))))
+
+  ;; ── Catwalk (owner 14-Jul): OUTER LINES only, installed at the columns INSIDE or OUTSIDE ──
+  (vl-catch-all-apply (function (lambda () (peb-draw-catwalk data wid cols H ht))))
 
   ;; ── Roof monitor at the peak (owner 13-Jul) — only for frames with a ridge/peak ──
   (if (and ridges (car ridges)
