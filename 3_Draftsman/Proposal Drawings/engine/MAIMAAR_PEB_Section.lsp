@@ -1093,6 +1093,17 @@
   )
 )
 
+(defun peb-label-pline-leader (text labelPos arrowPt leaderDir textH / )
+  ;;  owner 14-Jul: COLUMN / GIRT / DOWN PIPE leaders must show a CLEAN arrowhead pointing STRAIGHT AT the
+  ;;  element (horizontal ◄ / ► for a side target) — the native MLEADER arrow renders as a stray downward
+  ;;  triangle.  Bypass the mleader entirely: plain MTEXT/text label + a hand-rolled PLINE L-leader
+  ;;  (draw-l-leader lays a correctly-oriented tapered tip exactly at the target).
+  (if (vl-catch-all-error-p
+        (vl-catch-all-apply 'peb-make-mtext-line (list labelPos textH 0 "ML" text)))
+    (txt "ML" labelPos textH 0 text))
+  (draw-l-leader (car labelPos) (cadr labelPos) (car arrowPt) (cadr arrowPt) leaderDir)
+)
+
 (defun peb-label-no-leader (text labelPos textHeight rotation justify /
                              mtResult)
   ;;  For labels that don't have a leader (RAFTER, BRICK WALL — text
@@ -2845,7 +2856,7 @@
 ;;  dirOut selects which END carries the stiffener triangles (owner 14-Jul, "Sample @ Haunch @ Eave —
 ;;  Stiffener on Outer Side"): -1 = OUTER is the LEFT end (x0), +1 = OUTER is the RIGHT end (x1),
 ;;  nil = both ends (interior column under a continuous rafter).
-(defun draw-knee-hplate (xL xR ySeam plateT nBolt rcc dirOut / boltR ext i bx x0 x1 topY loBot stW stH gH)
+(defun draw-knee-hplate (xL xR ySeam plateT nBolt rcc dirOut / boltR ext i bx x0 x1 topY loBot stW stH gH stTop)
   (setvar "CLAYER" "PLATES")
   (setq ext 100.0)
   (setq x0 (- xL ext) x1 (+ xR ext))
@@ -2872,20 +2883,27 @@
         (setq bx (+ x0 (* (/ (float i) (1+ nBolt)) (- x1 x0))))
         (command "DONUT" 0 (* boltR 2) (list bx ySeam) "")
         (setq i (1+ i)))
-      ;; stiffener triangles CONNECTED TO THE OUTER FLANGE (owner 14-Jul): vertical edge on the member's
-      ;; outer flange (xL = x0+ext / xR = x1-ext), pointing INWARD toward the web — not sticking into space.
-      (if (or (null dirOut) (< dirOut 0))       ; OUTER = left flange (x0+ext), point inward (+)
-        (progn (draw-stiff-top (+ x0 ext) topY stW stH 1) (draw-stiff-bot (+ x0 ext) loBot stW stH 1)))
-      (if (or (null dirOut) (> dirOut 0))       ; OUTER = right flange (x1-ext), point inward (-)
-        (progn (draw-stiff-top (- x1 ext) topY stW stH -1) (draw-stiff-bot (- x1 ext) loBot stW stH -1)))
-      ;; DIAGONAL GUSSET line (owner 14-Jul, "show one line for stiffener…both eave sides"): ONE line from
-      ;; the plate INNER end up to the OUTER flange, spanning the triangular knee region.  Eave knees only
-      ;; (dirOut non-nil); rise = member depth (plate span minus the 100 ext each end).
+      ;; STIFFENER = a LINE extending FROM THE RAFTER OUTER (TOP) FLANGE down to the connection plate (owner
+      ;; 14-Jul, "stiffeners will line extend from rafter outer flange — do as marked").  A VERTICAL
+      ;; stiffener sits on the OUTER flange (x0+ext / x1-ext) rising all the way to the rafter OUTER flange,
+      ;; plus the DIAGONAL gusset from the plate INNER end up to that same top point — the two form the knee
+      ;; triangle on the OUTSIDE.  The caller publishes *PEB-KNEE-TOPY* = the rafter top-flange Y at the eave
+      ;; (= H); without it, fall back to a member-depth rise (plate span minus the ext).  Eave knees only.
       (setq gH (- (- x1 x0) (* 2.0 ext)))
-      (if (and dirOut (< dirOut 0))             ; left eave knee: inner=x1 -> outer flange (x0+ext)
-        (command "LINE" (list x1 topY) (list (+ x0 ext) (+ topY gH)) ""))
-      (if (and dirOut (> dirOut 0))             ; right eave knee: inner=x0 -> outer flange (x1-ext)
-        (command "LINE" (list x0 topY) (list (- x1 ext) (+ topY gH)) ""))))
+      (setq stTop (if (and *PEB-KNEE-TOPY* (> *PEB-KNEE-TOPY* (+ topY gH))) *PEB-KNEE-TOPY* (+ topY gH)))
+      (if (and dirOut (< dirOut 0))             ; LEFT eave knee: outer flange at x0+ext, inner end x1
+        (progn
+          (draw-stiff-top (+ x0 ext) topY stW stH -1)   ; small stiffener OUTSIDE the top flange
+          (draw-stiff-bot (+ x0 ext) loBot stW stH -1)  ; small stiffener OUTSIDE the bottom flange
+          (command "LINE" (list (+ x0 ext) topY) (list (+ x0 ext) stTop) "")   ; vertical stiffener up to rafter outer flange
+          (command "LINE" (list x1 topY)         (list (+ x0 ext) stTop) "")))  ; diagonal gusset
+      (if (and dirOut (> dirOut 0))             ; RIGHT eave knee: outer flange at x1-ext, inner end x0
+        (progn
+          (draw-stiff-top (- x1 ext) topY stW stH 1)    ; small stiffener OUTSIDE the top flange
+          (draw-stiff-bot (- x1 ext) loBot stW stH 1)   ; small stiffener OUTSIDE the bottom flange
+          (command "LINE" (list (- x1 ext) topY) (list (- x1 ext) stTop) "")   ; vertical stiffener up to rafter outer flange
+          (command "LINE" (list x0 topY)         (list (- x1 ext) stTop) "")))))  ; diagonal gusset
+  (setq *PEB-KNEE-TOPY* nil)   ; consume the per-knee top-flange hint so it never leaks to the next frame
   (princ))
 
 ;;  draw-cant-vplate — CANTILEVER connection = the SAME I-shape detail but UN-rotated (VERTICAL), on the
@@ -3413,10 +3431,12 @@
         ;; ROTATED knee (owner 14-Jul): HORIZONTAL base plate welded to the rafter bottom, sitting on
         ;; the column top (seam at H-ht = rafter underside = column top), spanning the column depth (ht)
         ;; inward.  rcc=T (Roof-on-RCC) draws ONE base plate on the concrete with anchor bolts.
+        (setq *PEB-KNEE-TOPY* H)                            ; rafter OUTER (top) flange at the eave
         (draw-knee-hplate x (+ x ht) seamY 45.0 4 rcc -1)   ; left end knee — outer = left
       )
       ;; --- RIGHT END column: horizontal base plate, column depth extends inward (-x) ---
       ((= i (1- nCols))
+        (setq *PEB-KNEE-TOPY* H)                            ; rafter OUTER (top) flange at the eave
         (draw-knee-hplate (- x ht) x seamY 45.0 4 rcc 1)   ; right end knee — outer = right
       )
       ;; --- INTERIOR column ----------------------------------------------
@@ -4050,7 +4070,9 @@
   ;; FROM the right eave (per user clarification: "1/3 from right side
   ;; eave").  rWrapW sized to fit the remaining halfR/3 of available
   ;; space to the right edge minus a small margin.
-  (setq labRX  (- W (/ (/ W 2.0) 3.0)))             ; W - halfR/3
+  ;; owner 14-Jul: shift the ROOF SHEETING M-Ladder + text LEFT of 0.83·W, but keep the leader drop clear
+  ;; of the RIGHT slope symbol (0.75·W landed on it) — settle at 0.80·W.
+  (setq labRX  (- W (/ (/ W 2.0) 2.5)))             ; W - halfR/2.5 = 0.80·W
   (setq rWrapW (max 1500.0
                     (min 8000.0
                          (- (- W labRX) (* 300 *PEB-TEXT-SCALE*)))))
@@ -4156,6 +4178,16 @@
           (vl-catch-all-apply
             (function (lambda ()
               (vla-put-TextRightAttachmentType mlResult 5))))
+          ;; owner 14-Jul: "place arrow as did in Wall MLadder" — the 3-vertex roof MLEADER renders only a
+          ;; small native tip, unlike the wall (whose 4-vertex leader falls back to a bold ▼).  Overlay the
+          ;; SAME explicit 320·TS ▼ on the roof sheeting line so both M-Ladders read identically.
+          (setvar "CLAYER" "ARROWS")
+          (setvar "PLINEWID" 0.0)
+          (command "PLINE"
+            (list labRX (+ rTargetY (* 320 *PEB-TEXT-SCALE*)))
+            "W" (* 320 *PEB-TEXT-SCALE*) 0
+            (list labRX rTargetY) "")
+          (setvar "PLINEWID" 0.0)
         )
       )
     )
@@ -4189,8 +4221,9 @@
   ;; H + 1800·TS ensures the wall text bottom stays well above the
   ;; gutter label across all reasonable scales.
   ;; owner 14-Jul: raise the WALL SHEETING M-Ladder well clear of the EAVE GUTTER text — the spec is now
-  ;; 3 lines (heading + "…(PPGL)" + "(S-Type)"), so the whole block must sit higher.
-  (setq labWY (+ H (* 2200 *PEB-TEXT-SCALE*)))
+  ;; 3 lines (heading + "…(PPGL)" + "(S-Type)"), so the whole block must sit higher.  Re-flagged 14-Jul:
+  ;; the "(S-Type)" bottom line still kissed EAVE GUTTER at 2200 — lift to 3100·TS.
+  (setq labWY (+ H (* 3100 *PEB-TEXT-SCALE*)))
   ;; wWrapW: tighter cap so wall MTEXT doesn't sprawl past mid-rafter
   ;; into the PURLIN label area on narrow buildings.  Was halfL/2 minus
   ;; margin (still 3–4 m wide on a 15 m building); now halfL × 0.3
@@ -4199,6 +4232,11 @@
   (setq wWrapW (max 1200.0
                     (min 8000.0
                          (* (/ W 2.0) 0.3))))
+  ;; owner 14-Jul: a single-skin spec (no "+" build-up) must fit on ONE line so the "(S-Type)" profile
+  ;; suffix stays beside "…(PPGL)".  Widen the wrap only for that case — short text won't sprawl (it keeps
+  ;; its natural width); the wider cap just prevents an unwanted mid-spec wrap.
+  (if (not (vl-string-search "+" wLine2))
+    (setq wWrapW (max wWrapW 5400.0)))
   ;; Hand-rolled Γ-shape leader (apex bar + drop + arrow), grouped after.
   ;; MLEADER attempt was here but disabled.
   ;; Arrow tip Y: raised to 300 mm BELOW the clear-height (eave H) line
@@ -5068,7 +5106,7 @@
   (setvar "CLAYER" "TEXT")
   (setq labGX (max 1800.0 (+ ht 800.0)))
   (setq labGY (+ botY girtSpacing))
-  (peb-label-with-leader "GIRT"
+  (peb-label-pline-leader "GIRT"
                          (list labGX labGY)
                          (list -100.0 labGY)
                          "H"
@@ -5277,7 +5315,7 @@
   (setvar "CLAYER" "TEXT")
   (setq labDX (max 1800.0 (+ ht 800.0)))
   (setq labDY (* brickH 0.5))
-  (peb-label-with-leader "DOWN PIPE"
+  (peb-label-pline-leader "DOWN PIPE"
                          (list labDX labDY)
                          (list (/ (+ dpX1L dpX2L) 2.0) labDY)
                          "H"
@@ -5292,7 +5330,7 @@
   ;;   - arrow auto-points AT the column from inside the building
   (setq labCY (- H ht 700.0))               ; 700 mm below knee/haunch underside
   (setq labCX (max 1800.0 (+ ht 800.0)))    ; same offset as DOWN PIPE / GIRT
-  (peb-label-with-leader "COLUMN"
+  (peb-label-pline-leader "COLUMN"
                          (list labCX labCY)        ; labelPos (inside bldg)
                          (list 250.0 labCY)        ; arrowPt on inner flange
                          "H"
@@ -5505,9 +5543,10 @@
   (setq words (reverse words))
   (cond
     ((<= (length words) 1) (or (car words) ""))
-    ;; Short spec (single-skin, e.g. "0.50 mm AZ150") stays on ONE line -- only the
-    ;; long insulated build-ups ("... + 50mm Fiberglass + ... (Liner)") wrap to two.
-    ((<= (strlen orig) 26) orig)
+    ;; Single-skin specs stay on ONE line — only the "+" build-ups (insulated / sandwich) wrap to two.
+    ;; owner 14-Jul: the profile suffix "(S-Type)" (or "(PPGI)") MUST sit on the SAME line as the finish
+    ;; "…(PPGL)", never wrapped onto its own line.  A single-skin spec has no "+", so gate on that.
+    ((not (vl-string-search "+" orig)) orig)
     (T
       (setq total (apply '+ (mapcar 'strlen words)))
       ;; +1 per gap to roughly account for spaces; not exact but good
@@ -6627,7 +6666,7 @@
     ;; ── BF (Butterfly): center column only, no walls ──
     ;; Add COLUMN label pointing at center column inner flange.
     ((= stype "BF")
-      (peb-label-with-leader "COLUMN"
+      (peb-label-pline-leader "COLUMN"
                              (list (max 1800.0 (+ ht 800.0))
                                    (- H ht 700.0))            ; text Y, 700 below knee
                              (list (+ (/ wid 2.0) 200.0)      ; arrow at center col R-flange
@@ -6720,7 +6759,7 @@
     ;; ── CC (Cantilever Canopy): one back column, open front ──
     ;; Add COLUMN label pointing at the back (left) column inner flange.
     ((= stype "CC")
-      (peb-label-with-leader "COLUMN"
+      (peb-label-pline-leader "COLUMN"
                              (list (max 1800.0 (+ ht 800.0))
                                    (- H ht 700.0))
                              (list 250.0 (- H ht 700.0))      ; arrow at left col inner flange
@@ -6772,7 +6811,7 @@
     ;; it gets the full set of labels: COLUMN (left), GIRTS, DOWN PIPE
     ;; on the wall side, ROOF SHEETING along the slope, and slope tag.
     ((= stype "LT")
-      (peb-label-with-leader "COLUMN"
+      (peb-label-pline-leader "COLUMN"
                              (list (max 1800.0 (+ ht 800.0))
                                    (- H ht 700.0))
                              (list 250.0 (- H ht 700.0))
@@ -7136,19 +7175,25 @@
   ;; offset by peb-dim-text-spacing — auto-adjusts to 3 × scaled
   ;; DIMTXT so the two ROTATED 2-line dim texts always clear each
   ;; other regardless of drawing scale.
-  (setq dimX1 (max (+ wid 800.0)  (+ wid (* 1000 *PEB-DIM-SCALE*))))
+  ;; owner 14-Jul: push the height dims further OUT so the rotated BRICK-MASONRY text clears the eave
+  ;; DOWN PIPE (was wid+800 / wid+1000·scale — the 2-line text reached back over the pipe).
+  (setq dimX1 (max (+ wid 1500.0)  (+ wid (* 1600 *PEB-DIM-SCALE*))))
   (setq dimX2 (+ dimX1 (peb-dim-text-spacing "vertical")))
   ;; Drawn dims, then overridden to colour 0 (ByBlock = displays as
   ;; white in modelspace) via direct entity property since DIMCLR*
   ;; sysvars get reset inside peb-dim-height-stretch.
   (if (and brickH (> brickH 0))
     (progn
-      ;; owner 14-Jul: force the text small so "3048 … BRICK MASONRY" fits WITHIN the two dim arrows
-      (setq *PEB-DIM-TXT* 250.0)
+      ;; owner 14-Jul: force the text small so "3048 … BRICK MASONRY" fits WITHIN the two dim arrows;
+      ;; slightly reduced 250 -> 210 so the block is tighter and clears the down pipe.
+      (setq *PEB-DIM-TXT* 210.0)
       (peb-dim-height-stretch wid dimX1 0.0 brickH "<>\\PBRICK MASONRY")
       (setq *PEB-DIM-TXT* nil)
       (peb-recolor-last-dim 0)))                  ; ByBlock
+  ;; owner 14-Jul: slightly reduce the CLEAR HEIGHT text too (autosize capped ~440 read large).
+  (setq *PEB-DIM-TXT* 340.0)
   (peb-dim-height-stretch wid dimX2 0.0 (- H ht) "<>\\PCLEAR HEIGHT")
+  (setq *PEB-DIM-TXT* nil)
   (peb-recolor-last-dim 0)                        ; ByBlock
 
   ;; Width dimensions at the bottom — VLA path via peb-dim-h-stretch
@@ -7215,9 +7260,9 @@
           (+ H rise (* 5100 *PEB-TEXT-SCALE*))) "")
   ;; Subtitle: short summary line - use widInput (out-to-out of sheeting,
   ;; matches the dimension shown at the bottom of the section).
-  (txt "MC"
+  (txt-bold "MC"
        (list (/ wid 2.0) (+ H rise (* 4400 *PEB-TEXT-SCALE*)))
-       200 0
+       260 0
        (strcat (rtos (/ widInput 1000.0) 2 1) "m SPAN  |  "
                "C.H " (rtos (/ (- H ht) 1000.0) 2 1) "m  |  "
                (cond

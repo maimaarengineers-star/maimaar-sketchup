@@ -5409,8 +5409,18 @@
            (* (peb-longest-line-len override) 0.66
               (if *PEB-DIM-SCALE* *PEB-DIM-SCALE* 1.0)))))))
   ;; owner 14-Jul: an explicit *PEB-DIM-TXT* (mm, global) OVERRIDES the autosize — used to force a tall
-  ;; two-line override (e.g. "3048\PBRICK MASONRY") small enough to sit between the arrows.
-  (if (and *PEB-DIM-TXT* (> *PEB-DIM-TXT* 0)) (peb-safe-setvar "DIMTXT" *PEB-DIM-TXT*))
+  ;; two-line override (e.g. "3048\PBRICK MASONRY") small enough to sit between the arrows.  It ALSO forces
+  ;; the text INSIDE the extension lines (DIMTIX=1) and keeps text+arrows together (DIMATFIT=0) so a label
+  ;; whose rotated width still exceeds the span is centred BETWEEN the arrows instead of floating above the
+  ;; top arrow (owner 14-Jul "shift the dim text between the arrows").  Reset to the house default otherwise.
+  (if (and *PEB-DIM-TXT* (> *PEB-DIM-TXT* 0))
+    (progn
+      (peb-safe-setvar "DIMTXT" *PEB-DIM-TXT*)
+      (peb-safe-setvar "DIMTIX" 1)
+      (peb-safe-setvar "DIMATFIT" 0))
+    (progn
+      (peb-safe-setvar "DIMTIX" 0)
+      (peb-safe-setvar "DIMATFIT" 3)))
   (setvar "CLAYER" "DIMENSIONS")
   (setq result
     (vl-catch-all-apply
