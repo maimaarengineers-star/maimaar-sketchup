@@ -4086,9 +4086,10 @@
   (setq rTargetY (if monoRise
                    (+ H (* monoRise (/ labRX W)) purlinH cladThk)
                    (- (+ H rise purlinH cladThk) (* rise (/ rDx (/ W 2.0))))))
-  ;; owner 14-Jul (revised): raise the ROOF M-Ladder UP to the SAME LEVEL as the WALL M-Ladder (labWY =
-  ;; H + 3100·TS) so both sheeting labels align along the top; the leader leg lengthens to reach the roof.
-  (setq labRY (+ H (* 3100 *PEB-TEXT-SCALE*)))
+  ;; owner 14-Jul (revised): raise the ROOF M-Ladder UP to the SAME LEVEL as the WALL M-Ladder so both
+  ;; sheeting labels align along the top; the leader leg lengthens to reach the roof.  Lifted a further
+  ;; 3 rows (H + 3800·TS) so a LONG sandwich-panel build-up (2 wrapped lines below the bar) clears the roof.
+  (setq labRY (+ H (* 3800 *PEB-TEXT-SCALE*)))
   (setq lastBefore (entlast))
   (cond
     (rLine2
@@ -4221,10 +4222,10 @@
   ;; labWY must clear that band by at least one text height.  Using
   ;; H + 1800·TS ensures the wall text bottom stays well above the
   ;; gutter label across all reasonable scales.
-  ;; owner 14-Jul: raise the WALL SHEETING M-Ladder well clear of the EAVE GUTTER text — the spec is now
-  ;; 3 lines (heading + "…(PPGL)" + "(S-Type)"), so the whole block must sit higher.  Re-flagged 14-Jul:
-  ;; the "(S-Type)" bottom line still kissed EAVE GUTTER at 2200 — lift to 3100·TS.
-  (setq labWY (+ H (* 3100 *PEB-TEXT-SCALE*)))
+  ;; owner 14-Jul: raise the WALL SHEETING M-Ladder well clear of the EAVE GUTTER text; lifted to 3800·TS
+  ;; (3 rows above the earlier 3100) so a LONG sandwich-panel spec wrapping below the bar still clears the
+  ;; frame.  labRY (roof) matches this level so both M-Ladders align along the top.
+  (setq labWY (+ H (* 3800 *PEB-TEXT-SCALE*)))
   ;; wWrapW: tighter cap so wall MTEXT doesn't sprawl past mid-rafter
   ;; into the PURLIN label area on narrow buildings.  Was halfL/2 minus
   ;; margin (still 3–4 m wide on a 15 m building); now halfL × 0.3
@@ -7244,27 +7245,29 @@
   (if (not (member stype '("CS" "SS" "MS" "LT" "MG" "FR" "RC" "CC" "BF" "ACS" "AMS" "PP"))) (setq stype "CS"))
   (setq *PEB-CANOPY-NAME* (peb-canopy-name stype data))   ; re-assert alongside stype (same defensive reason)
   (setvar "CLAYER" "TEXT")
+  ;; owner 14-Jul: lift the whole TITLE BLOCK 3 rows (+700·TS) so the frame sits LOWER relative to the top
+  ;; matter — this keeps the raised sheeting M-Ladders + a long sandwich spec clear of the title.
   ;; Top line: frame type (e.g. CLEAR SPAN GABLE / MULTI-GABLE / SINGLE SLOPE)
   (txt-bold "MC"
-            (list (/ wid 2.0) (+ H rise (* 6300 *PEB-TEXT-SCALE*)))
+            (list (/ wid 2.0) (+ H rise (* 7000 *PEB-TEXT-SCALE*)))
             500 0
             (peb-structure-label stype))
   ;; Second line: generic "BUILDING CROSS-SECTION"
   (txt-bold "MC"
-            (list (/ wid 2.0) (+ H rise (* 5500 *PEB-TEXT-SCALE*)))
+            (list (/ wid 2.0) (+ H rise (* 6200 *PEB-TEXT-SCALE*)))
             350 0
             "BUILDING CROSS-SECTION")
   ;; Underline beneath title
   (setvar "CLAYER" "TEXT")
   (command "LINE"
     (list (- (/ wid 2.0) (* 6000 *PEB-TEXT-SCALE*))
-          (+ H rise (* 5100 *PEB-TEXT-SCALE*)))
+          (+ H rise (* 5800 *PEB-TEXT-SCALE*)))
     (list (+ (/ wid 2.0) (* 6000 *PEB-TEXT-SCALE*))
-          (+ H rise (* 5100 *PEB-TEXT-SCALE*))) "")
+          (+ H rise (* 5800 *PEB-TEXT-SCALE*))) "")
   ;; Subtitle: short summary line - use widInput (out-to-out of sheeting,
   ;; matches the dimension shown at the bottom of the section).
   (txt-bold "MC"
-       (list (/ wid 2.0) (+ H rise (* 4400 *PEB-TEXT-SCALE*)))
+       (list (/ wid 2.0) (+ H rise (* 5100 *PEB-TEXT-SCALE*)))
        260 0
        (strcat (rtos (/ widInput 1000.0) 2 1) "m SPAN  |  "
                "C.H " (rtos (/ (- H ht) 1000.0) 2 1) "m  |  "
