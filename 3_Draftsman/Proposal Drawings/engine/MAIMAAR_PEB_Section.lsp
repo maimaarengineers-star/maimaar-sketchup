@@ -270,9 +270,14 @@
                           (peb-profile-name
                             (if (= (vl-string-trim " " (if innerProf innerProf "")) "")
                               "Micro-Ribbed" innerProf)))))
-    ;; single skin + an authored inner sheet => liner
+    ;; single skin + an authored inner sheet => liner.  Show the liner's OWN profile too when it is
+    ;; explicitly set (owner 14-Jul: "both sides S-Profile") — e.g. "0.50mm AZ150 (PPGL) (S-Type) Liner";
+    ;; a blank inner profile keeps the plain liner (no default suffix) so flat liners stay clean.
     ((/= (vl-string-trim " " innerMat) "")
-      (setq inner (strcat (peb-panel-clean-mat innerMat) finOut) isLiner T))
+      (setq inner (strcat (peb-panel-clean-mat innerMat) finOut
+                          (if (/= (vl-string-trim " " (if innerProf innerProf "")) "")
+                            (peb-profile-name innerProf) ""))
+            isLiner T))
     ;; single skin + a standalone liner panel (PN_LINER_*), gated on coverage.  PN_LINER_OUTER_MAT
     ;; carries a DEFAULT even when no liner is wanted, so a liner is present only if
     ;; LN_<key>_COVERAGE is set and not "Not Required".
