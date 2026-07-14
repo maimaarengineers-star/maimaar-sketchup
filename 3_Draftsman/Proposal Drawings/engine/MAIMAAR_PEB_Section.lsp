@@ -7377,7 +7377,11 @@
   (setq *PEB-DIM-SCALE*  *PEB-OLD-DIM-SCALE*)
   (setvar "CLAYER" "TEXT")
   (setq tbFrmB tbTop)                                   ; deepest point below the frame
-  (setq tbFrmT (+ H rise (* 6800.0 *PEB-TEXT-SCALE*)))  ; above the section heading
+  ;; owner 14-Jul: the top border must sit CLEAR ABOVE the frame label.  The title is drawn at
+  ;; 7000*PEB-TEXT-SCALE (its top edge ~7250*TS); raise the border top to 8000*PEB-TEXT-SCALE so a visible
+  ;; GAP shows between the double-line top border and "CLEAR SPAN GABLE".  MUST use *PEB-TEXT-SCALE* (the
+  ;; SAME scale the title uses) — tbScale differs from it and left the title touching the border.
+  (setq tbFrmT (+ H rise (* 8000.0 *PEB-TEXT-SCALE*)))  ; clear ABOVE the section heading
   (setq tbBldgR (+ wid (* 6000.0 *PEB-DIM-SCALE*)))     ; right of the frame + dims
   (setq tbStripH (- tbFrmT tbFrmB))
   (setq tbStripW (max (* wid 0.26)                      ; not too thin
@@ -7432,10 +7436,15 @@
       (cons "SHEETNO"   (strcat "PRO-" tbBno))))
   (peb-titleblock-mammut tbStripX tbFrmB tbStripW tbStripH tbData)
   ;; Drawing border wraps the section + the title strip.
+  ;; owner 14-Jul STRICT: the RIGHT-SIDE TITLE BLOCK must be FLUSH on all 3 outer sides (right, top,
+  ;; bottom) with the sheet's double-line frame — its own box line coincides with the border's INNER line
+  ;; so the two read as one joined frame.  draw-border draws its inner rectangle 0.6*margin (= 480*TS)
+  ;; OUTSIDE (x1,y1,x2,y2); so pull borderR/T/B 480*TS INSIDE the strip edges to land the inner line
+  ;; exactly on the strip's right/top/bottom.  borderL is left as-is (wraps the section on the left).
   (setq borderL (- (* 6000.0 *PEB-DIM-SCALE*))
-        borderB tbFrmB
-        borderR (+ tbStripX tbStripW (* 1000.0 *PEB-DIM-SCALE*))
-        borderT tbFrmT)
+        borderB (+ tbFrmB (* 480.0 *PEB-TEXT-SCALE*))
+        borderR (- (+ tbStripX tbStripW) (* 480.0 *PEB-TEXT-SCALE*))
+        borderT (- tbFrmT (* 480.0 *PEB-TEXT-SCALE*)))
 
   ;; Restore drawing scales (title block done)
   (setq *PEB-TEXT-SCALE* *PEB-OLD-TEXT-SCALE*)
