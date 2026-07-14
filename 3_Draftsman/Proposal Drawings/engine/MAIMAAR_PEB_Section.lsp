@@ -1961,11 +1961,10 @@
         (command "DONUT" 0 (* boltR 2) (list (+ x (* halfW 0.15)) upBotY) "")
         (command "DONUT" 0 (* boltR 2) (list (+ x (* halfW 0.50)) upBotY) "")
         (command "DONUT" 0 (* boltR 2) (list (+ x (* halfW 0.85)) upBotY) "")
-        ;; Outer-end stiffeners — vertical at column flange (x±halfW),
-        ;; hypotenuse extends OUT to the plate end.
-        (draw-stiff-top (- x halfW) upTopY ext stiffH -1)
+        ;; owner 14-Jul: the UPPER (rafter) plate REPLACES the rafter bottom flange at the connection — it
+        ;; carries NO stiffeners (red X = remove the two top stiffeners).  Keep the LOWER (column) plate
+        ;; stiffeners only.
         (draw-stiff-bot (- x halfW) loBotY ext stiffH -1)
-        (draw-stiff-top (+ x halfW) upTopY ext stiffH  1)
         (draw-stiff-bot (+ x halfW) loBotY ext stiffH  1)))
     (setq i (1+ i)))
 )
@@ -7122,11 +7121,18 @@
     ;; 200·TS keeps the tag tucked right above the sheeting, well clear
     ;; of the roof-sheeting spec which lives 1500·TS above its target.
     (setq tagRun (* 900 *PEB-TEXT-SCALE*))
+    ;; HEIGHT reference for the sheeting line at the tag X: the rafter top rises from the true EAVE to the
+    ;; ridge.  For MULTI-GABLE the interior columns ARE valleys, so the rise is measured valley->ridge
+    ;; (leftCol/rightCol).  For MULTI-SPAN the interior columns sit UNDER a CONTINUOUS rafter, so the rise
+    ;; must be measured from the OUTER eave (0 / wid) — using leftCol there put the tag BELOW the sheeting
+    ;; (owner 14-Jul: slope symbol must sit ABOVE the sheeting line, same as Clear Span).
+    (setq hLref (if (= stype "MG") leftCol  0.0))
+    (setq hRref (if (= stype "MG") rightCol wid))
     (setq cxL (- midLX (/ tagRun 2.0)))
-    (setq cyL (+ H (* rise (/ (- cxL leftCol)  halfL))
+    (setq cyL (+ H (* rise (/ (- cxL hLref) (- rx hLref)))
                   235.0 (* 300 *PEB-TEXT-SCALE*)))   ; slope symbol 50mm ABOVE the sheeting line (owner 14-Jul)
     (setq cxR (+ midRX (/ tagRun 2.0)))
-    (setq cyR (+ H (* rise (/ (- rightCol cxR) halfR))
+    (setq cyR (+ H (* rise (/ (- hRref cxR) (- hRref rx)))
                   235.0 (* 300 *PEB-TEXT-SCALE*)))   ; slope symbol 50mm ABOVE the sheeting line (owner 14-Jul)
     (draw-slope-tag cxL cyL slopeD  1)
     (draw-slope-tag cxR cyR slopeD -1)
@@ -7212,6 +7218,8 @@
   ;;                       wall sheeting, i.e., -235 on LEFT, wid+235 on RIGHT)
   ;; This keeps the sum of modules equal to widInput (Excel input value,
   ;; out-to-out of sheeting line).
+  ;; owner 14-Jul: module dims share the SAME uniform text size (320) as the overall width + height dims.
+  (setq *PEB-DIM-TXT* 320.0)
   (if (> (length cols) 2)
     (progn
       (setq nCols (length cols))
@@ -7227,6 +7235,7 @@
                            nil)
         (peb-recolor-last-dim 0)              ; ByBlock for module dims
         (setq i (1+ i)))))
+  (setq *PEB-DIM-TXT* nil)
   ;; Overall width dimension OUT-TO-OUT OF SHEETING LINE.
   ;; "<>" substitutes measured value at render — stretch updates the
   ;; "75000" while keeping the "0/0 OF SHEETING LINE" suffix as-is.
