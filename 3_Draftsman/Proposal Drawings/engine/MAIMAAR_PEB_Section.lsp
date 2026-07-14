@@ -4086,8 +4086,9 @@
   (setq rTargetY (if monoRise
                    (+ H (* monoRise (/ labRX W)) purlinH cladThk)
                    (- (+ H rise purlinH cladThk) (* rise (/ rDx (/ W 2.0))))))
-  ;; SHORT leader leg (owner 14-Jul): label sits ~900 above the roof arrow, not high above the ridge.
-  (setq labRY (+ rTargetY (* 900 *PEB-TEXT-SCALE*)))
+  ;; owner 14-Jul (revised): raise the ROOF M-Ladder UP to the SAME LEVEL as the WALL M-Ladder (labWY =
+  ;; H + 3100·TS) so both sheeting labels align along the top; the leader leg lengthens to reach the roof.
+  (setq labRY (+ H (* 3100 *PEB-TEXT-SCALE*)))
   (setq lastBefore (entlast))
   (cond
     (rLine2
@@ -7184,14 +7185,14 @@
   ;; sysvars get reset inside peb-dim-height-stretch.
   (if (and brickH (> brickH 0))
     (progn
-      ;; owner 14-Jul: force the text small so "3048 … BRICK MASONRY" fits WITHIN the two dim arrows;
-      ;; slightly reduced 250 -> 210 so the block is tighter and clears the down pipe.
-      (setq *PEB-DIM-TXT* 210.0)
+      ;; owner 14-Jul: UNIFORM dim text — brick / clear-height / overall-width all share ONE size (320) so
+      ;; every dimension reads the same ("both dims same size").  Brick still fits its 3048 span + clears
+      ;; the down pipe now that dimX1 is pushed out.
+      (setq *PEB-DIM-TXT* 320.0)
       (peb-dim-height-stretch wid dimX1 0.0 brickH "<>\\PBRICK MASONRY")
       (setq *PEB-DIM-TXT* nil)
       (peb-recolor-last-dim 0)))                  ; ByBlock
-  ;; owner 14-Jul: slightly reduce the CLEAR HEIGHT text too (autosize capped ~440 read large).
-  (setq *PEB-DIM-TXT* 340.0)
+  (setq *PEB-DIM-TXT* 320.0)
   (peb-dim-height-stretch wid dimX2 0.0 (- H ht) "<>\\PCLEAR HEIGHT")
   (setq *PEB-DIM-TXT* nil)
   (peb-recolor-last-dim 0)                        ; ByBlock
@@ -7226,6 +7227,7 @@
   ;; Y position auto-adjusted: module dim at -1500·DS, overall dim
   ;; offset BELOW that by peb-dim-text-spacing (auto-scales with
   ;; DIMTXT × DIMSCALE so dim texts always have a visible gap).
+  (setq *PEB-DIM-TXT* 320.0)                   ; owner 14-Jul: match the height dims (uniform dim text)
   (peb-dim-h-stretch -235.0 (+ wid 235.0)
                      (- 0.0
                         (+ (if (> (length cols) 2)
@@ -7233,6 +7235,7 @@
                              (* 1500 *PEB-DIM-SCALE*))
                            (* 450 *PEB-DIM-SCALE*)))   ; owner 14-Jul: drop the O/O dim clear of the FFL line + FFL text
                      "<>\\P0/0 OF SHEETING LINE")
+  (setq *PEB-DIM-TXT* nil)
   (peb-recolor-last-dim 0)                    ; ByBlock for overall width dim
 
   ;; ── Title (frame type prominently displayed for review) ─────

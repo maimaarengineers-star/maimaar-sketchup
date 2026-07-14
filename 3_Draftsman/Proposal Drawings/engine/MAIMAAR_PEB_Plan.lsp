@@ -5360,6 +5360,9 @@
   (setq lastBefore (entlast))
   (setq oldLayer   (getvar "CLAYER"))
   (peb-dim-set-vars)
+  ;; owner 14-Jul: honour the global *PEB-DIM-TXT* here too (same hook as peb-dim-height-stretch) so the
+  ;; overall WIDTH dim text can be forced to the SAME size as the height dims ("both dims same size").
+  (if (and *PEB-DIM-TXT* (> *PEB-DIM-TXT* 0)) (peb-safe-setvar "DIMTXT" *PEB-DIM-TXT*))
   (setvar "CLAYER" "DIMENSIONS")
   (setq result
     (vl-catch-all-apply
