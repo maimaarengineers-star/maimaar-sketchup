@@ -1911,7 +1911,7 @@
                                  i n x colWeb halfW colTopY
                                  upTopY upBotY loTopY loBotY
                                  outerX innerX ext stiffH
-                                 yOut yIn mSlp bx f)
+                                 yOut yIn mSlp bx f g)
   ;;  Connection plates at the TOP of every MS interior column, where the
   ;;  rafter underside sits on the column flange.  Two horizontal plates
   ;;  (upper = rafter end-plate, lower = column end-plate), bolts at the
@@ -1930,6 +1930,7 @@
   (setq kneeL  (car  (cigar-taper-lengths W)))
   (setq ridgeL (cadr (cigar-taper-lengths W)))
   (setq boltR  (* 25 *PEB-TEXT-SCALE*))
+  (setq ep     20.0)   ; owner 14-Jul: real 20mm plates, matches the knee detail
   (setq ext    100.0)              ; plate extension beyond column flange
   (setq stiffH 100.0)
   (setq n (length cols))
@@ -1949,21 +1950,17 @@
         (setq yOut (cigar-rafter-underside-y outerX 0.0 W ridgeX H rise ht rd midD kneeL ridgeL))
         (setq yIn  (cigar-rafter-underside-y innerX 0.0 W ridgeX H rise ht rd midD kneeL ridgeL))
         (setq mSlp (/ (- yIn yOut) (- innerX outerX)))   ; bottom-flange slope across the plate
-        ;; Upper (rafter) plate — sloped strip, top edge ON the bottom flange, thickness ep.  It REPLACES
-        ;; the rafter bottom flange at the connection, so it carries NO stiffeners.
-        (command "PLINE" (list outerX yOut) (list innerX yIn)
-                         (list innerX (- yIn ep)) (list outerX (- yOut ep)) "_C")
-        ;; Lower (column) plate — sloped strip just below, sharing the bolted interface.
-        (command "PLINE" (list outerX (- yOut ep)) (list innerX (- yIn ep))
-                         (list innerX (- yIn (* 2 ep))) (list outerX (- yOut (* 2 ep))) "_C")
-        ;; Six bolts along the SLOPED interface (three each side of the column centre).
-        (foreach f '(-0.85 -0.50 -0.15 0.15 0.50 0.85)
-          (setq bx (+ x (* halfW f)))
-          (command "DONUT" 0 (* boltR 2)
-                   (list bx (+ (- yOut ep) (* mSlp (- bx outerX)))) ""))
-        ;; Keep the LOWER (column) plate stiffeners only, at the sloped plate-bottom outer corners.
-        (draw-stiff-bot (- x halfW) (+ (- yOut (* 2 ep)) (* mSlp ext)) ext stiffH -1)
-        (draw-stiff-bot (+ x halfW) (- (- yIn (* 2 ep)) (* mSlp ext)) ext stiffH  1)))
+        (setq g    2.0)                                   ; owner 14-Jul: 2mm gap between the two plates
+        ;; owner 14-Jul: TWO SOLID 20mm plates, sloped parallel to the rafter BOTTOM FLANGE, 2mm gap, NO
+        ;; bolts.  The UPPER plate's top edge lies ON the bottom flange line (it REPLACES the flange at the
+        ;; connection) and carries NO stiffeners.
+        (peb-solid-quad (list outerX (- yOut ep)) (list innerX (- yIn ep))
+                        (list outerX yOut) (list innerX yIn))                       ; rafter plate (SOLID)
+        (peb-solid-quad (list outerX (- yOut (+ ep g ep))) (list innerX (- yIn (+ ep g ep)))
+                        (list outerX (- yOut (+ ep g)))    (list innerX (- yIn (+ ep g))))   ; column plate (SOLID)
+        ;; LOWER (column) plate stiffeners only, at the sloped plate-bottom outer corners.
+        (draw-stiff-bot (- x halfW) (+ (- yOut (+ ep g ep)) (* mSlp ext)) ext stiffH -1)
+        (draw-stiff-bot (+ x halfW) (- (- yIn (+ ep g ep)) (* mSlp ext)) ext stiffH  1)))
     (setq i (1+ i)))
 )
 
@@ -2858,7 +2855,7 @@
 ;;  dirOut selects which END carries the stiffener triangles (owner 14-Jul, "Sample @ Haunch @ Eave —
 ;;  Stiffener on Outer Side"): -1 = OUTER is the LEFT end (x0), +1 = OUTER is the RIGHT end (x1),
 ;;  nil = both ends (interior column under a continuous rafter).
-(defun draw-knee-hplate (xL xR ySeam plateT nBolt rcc dirOut / boltR ext i bx x0 x1 topY loBot stW stH gH stTop)
+(defun draw-knee-hplate (xL xR ySeam plateT nBolt rcc dirOut / boltR ext i bx x0 x1 topY loBot stW stH gH stTop gap)
   (setvar "CLAYER" "PLATES")
   (setq ext 100.0)
   (setq x0 (- xL ext) x1 (+ xR ext))
@@ -2866,8 +2863,9 @@
     ;; RCC ("Roofing System"): ONE base plate welded to the rafter bottom, sitting on the RCC column
     ;; top, with anchor bolts hooking DOWN into the concrete.
     (progn
-      (setq boltR (* 18 *PEB-TEXT-SCALE*))
-      (command "RECTANG" (list x0 ySeam) (list x1 (+ ySeam plateT)))
+      (setq boltR (* 18 *PEB-TEXT-SCALE*) plateT 20.0)   ; real 20mm base plate
+      (peb-solid-quad (list x0 ySeam) (list x1 ySeam)
+                      (list x0 (+ ySeam plateT)) (list x1 (+ ySeam plateT)))   ; SOLID base plate
       (setq i 1)
       (while (<= i nBolt)
         (setq bx (+ x0 (* (/ (float i) (1+ nBolt)) (- x1 x0))))
@@ -2877,14 +2875,17 @@
     ;; STEEL: the STANDARD I-shape connection ROTATED to the corner — upper (rafter-bottom) plate +
     ;; lower (column-top) plate, bolts along the seam, and stiffener triangles on the OUTER side.
     (progn
-      (setq boltR (* 25 *PEB-TEXT-SCALE*) topY (+ ySeam plateT) loBot (- ySeam plateT) stW 110.0 stH 110.0)
-      (command "RECTANG" (list x0 ySeam) (list x1 topY))          ; rafter-bottom plate
-      (command "RECTANG" (list x0 loBot) (list x1 ySeam))         ; column-top plate
-      (setq i 1)
-      (while (<= i nBolt)
-        (setq bx (+ x0 (* (/ (float i) (1+ nBolt)) (- x1 x0))))
-        (command "DONUT" 0 (* boltR 2) (list bx ySeam) "")
-        (setq i (1+ i)))
+      ;; owner 14-Jul (item 7): REAL 20mm plates, 2mm gap between them, NO bolts shown.  Two SOLID plates
+      ;; straddling the seam — upper welded to the rafter bottom (sits AT the column-rafter junction),
+      ;; lower on the column top.
+      (setq plateT 20.0 gap 2.0
+            topY  (+ ySeam (/ gap 2.0) plateT)         ; upper (rafter) plate TOP edge
+            loBot (- ySeam (/ gap 2.0) plateT)         ; lower (column) plate BOTTOM edge
+            stW 110.0 stH 110.0)
+      (peb-solid-quad (list x0 (+ ySeam (/ gap 2.0))) (list x1 (+ ySeam (/ gap 2.0)))
+                      (list x0 topY) (list x1 topY))                            ; rafter-bottom plate (SOLID)
+      (peb-solid-quad (list x0 loBot) (list x1 loBot)
+                      (list x0 (- ySeam (/ gap 2.0))) (list x1 (- ySeam (/ gap 2.0))))  ; column-top plate (SOLID)
       ;; STIFFENER = a LINE extending FROM THE RAFTER OUTER (TOP) FLANGE down to the connection plate (owner
       ;; 14-Jul, "stiffeners will line extend from rafter outer flange — do as marked").  A VERTICAL
       ;; stiffener sits on the OUTER flange (x0+ext / x1-ext) rising all the way to the rafter OUTER flange,
@@ -3020,6 +3021,12 @@
                             (+ x (/ thisW 2.0)) ep boltR)))
     (setq i (1+ i)))
 )
+
+(defun peb-solid-quad (bl br tl tr)
+  ;;  Filled 2D SOLID quad — bl/br = bottom-left/right corners, tl/tr = top-left/right.
+  ;;  (SOLID's no-bowtie vertex order is p1=BL p2=BR p3=TL p4=TR.)  Used to render the
+  ;;  connection plates as SOLID thick plates (owner 14-Jul) instead of thin outlines.
+  (command "_.SOLID" bl br tl tr ""))
 
 (defun draw-stiff-top (xOuter yEdge w h dx)
   ;;  Triangular stiffener ABOVE the upper plate, outline only.
