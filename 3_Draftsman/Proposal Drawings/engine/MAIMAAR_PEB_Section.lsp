@@ -2828,15 +2828,52 @@
     (setq i (1+ i)))
   (princ))
 
+;;  draw-knee-hplate — the ROTATED (horizontal) column-rafter KNEE connection (owner 14-Jul, STRICT):
+;;  the moment joint LAID at the corner — a base plate welded to the RAFTER BOTTOM sitting on the
+;;  COLUMN TOP, bolted along a HORIZONTAL seam (this is the vertical splice detail rotated 90 deg).
+;;    xL..xR  = horizontal span of the plate (the column/rafter web depth in section) + 100 ext each end
+;;    ySeam   = the column-top / rafter-underside elevation (the bolt line)
+;;    plateT  = each plate's thickness (drawn above AND below the seam)
+;;    rcc = T  -> ROOF-ON-RCC: ONE base plate on the rafter bottom sitting on the RCC top, with anchor
+;;               bolts hooking DOWN into the concrete (no steel column-cap plate).
+;;    rcc = nil-> STEEL column: column-top plate BELOW the seam + rafter-bottom plate ABOVE it, bolted.
+(defun draw-knee-hplate (xL xR ySeam plateT nBolt rcc / boltR ext i bx x0 x1)
+  (setvar "CLAYER" "PLATES")
+  (setq boltR (* 18 *PEB-TEXT-SCALE*))
+  (setq ext 100.0)
+  (setq x0 (- xL ext) x1 (+ xR ext))
+  ;; rafter-bottom BASE plate (ABOVE the seam) — always present
+  (command "RECTANG" (list x0 ySeam) (list x1 (+ ySeam plateT)))
+  (if rcc
+    ;; RCC: anchor bolts hook down into the concrete (short stems + donut heads on the seam)
+    (progn
+      (setq i 1)
+      (while (<= i nBolt)
+        (setq bx (+ x0 (* (/ (float i) (1+ nBolt)) (- x1 x0))))
+        (command "DONUT" 0 (* boltR 2) (list bx ySeam) "")
+        (command "LINE" (list bx ySeam) (list bx (- ySeam (* plateT 4.0))) "")
+        (setq i (1+ i))))
+    ;; STEEL: column-top plate BELOW the seam + bolts along the seam
+    (progn
+      (command "RECTANG" (list x0 (- ySeam plateT)) (list x1 ySeam))
+      (setq i 1)
+      (while (<= i nBolt)
+        (setq bx (+ x0 (* (/ (float i) (1+ nBolt)) (- x1 x0))))
+        (command "DONUT" 0 (* boltR 2) (list bx ySeam) "")
+        (setq i (1+ i)))))
+  (princ))
+
 ;;  draw-arch-conn-plates — connection plates for the ARCHED types (owner 13-Jul): a plate pair at
 ;;  each column-arch SPRINGING, plus mid-arch SPLICE plate pairs every <=12 m along the arch (the arch
 ;;  is a continuous member spliced to <=12 m shipping pieces).  Splice Y follows the parabolic arch.
 (defun draw-arch-conn-plates (stype W H rise ep / innerH step x ay t2)
   (setq innerH 200.0)                                       ; arch web depth (matches the frame)
-  ;; SPRINGING plates at the column-arch junctions — SIZED to the arch web + 100 beyond flanges (owner 14-Jul).
-  (peb-conn-plate-depth 0.0 (- H innerH) H 45.0 2)
-  (peb-conn-plate-depth W   (- H innerH) H 45.0 2)
-  (if (= stype "AMS") (peb-conn-plate-depth (/ W 2.0) (- (+ H rise) innerH) (+ H rise) 45.0 2))  ; centre-peak col
+  ;; SPRINGING = column-arch junction: ROTATED HORIZONTAL base plate on the column top, welded under the
+  ;; arch springing (owner 14-Jul), spanning the column width (~400).
+  (draw-knee-hplate 0.0          400.0 (- H innerH) 45.0 3 nil)      ; left springing
+  (draw-knee-hplate (- W 400.0)  W     (- H innerH) 45.0 3 nil)      ; right springing
+  (if (= stype "AMS")
+    (draw-knee-hplate (- (/ W 2.0) 200.0) (+ (/ W 2.0) 200.0) (- (+ H rise) innerH) 45.0 3 nil))  ; centre-peak col
   ;; SPLICE plates every <=12 m along the arch (between the rafters), depth-aware on the arch web.
   (setq step (/ W (float (1+ (fix (/ W 12000.0))))))
   (setq x step)
@@ -3235,8 +3272,8 @@
   )
 )
 
-(defun draw-haunch-plates (cols H ht ep valleyStyle ridgeX /
-                                          boltR plateY upTopY upBotY loTopY loBotY
+(defun draw-haunch-plates (cols H ht ep valleyStyle ridgeX rcc /
+                                          boltR plateY seamY upTopY upBotY loTopY loBotY
                                           i nCols x ext stiffW stiffH outerX innerX
                                           vIntColW vHalfCol vPThk vPlateBot vPlateTop
                                           vBoltY1 vBoltY2 vBoltY3
@@ -3269,6 +3306,9 @@
   ;;   Upper plate (rafter):  H-ht-ep   to  H-ht
   ;;   Lower plate (column):  H-ht-2*ep to  H-ht-ep    <- interface = bolt line
   (setq plateY (- H ht (* 0.5 ep)))     ; bolt-line Y for stiffener-anchor reference
+  ;; Knee SEAM = rafter underside at the eave = column top.  Steel gables have the DEEP haunch at the
+  ;; eave (H-ht); ROOF-ON-RCC has a SHALLOW eave (de = max(200, ht*0.35)), so its underside is H-de.
+  (setq seamY (if rcc (- H (max 200.0 (* ht 0.35))) (- H ht)))
   (setq upTopY (- H ht))                ; upper plate top edge = rafter underside
   (setq upBotY (- (- H ht) ep))         ; upper plate bottom edge (= interface = bolt level)
   (setq loTopY upBotY)                  ; lower plate top edge   (= interface)
@@ -3283,15 +3323,14 @@
     (cond
       ;; --- LEFT END column: outer = (x-ext), inner = (x+ht+ext) ---
       ((= i 0)
-        ;; Depth-aware knee plate (owner 14-Jul): a VERTICAL connection plate SIZED to the
-        ;; rafter web at the knee (H-ht .. H) + 100 mm beyond the top AND bottom flanges,
-        ;; matching every other PEB frame.  Replaces the old thin horizontal plate stack.
-        (peb-conn-plate-depth x (- H ht) H 45.0 4)
+        ;; ROTATED knee (owner 14-Jul): HORIZONTAL base plate welded to the rafter bottom, sitting on
+        ;; the column top (seam at H-ht = rafter underside = column top), spanning the column depth (ht)
+        ;; inward.  rcc=T (Roof-on-RCC) draws ONE base plate on the concrete with anchor bolts.
+        (draw-knee-hplate x (+ x ht) seamY 45.0 4 rcc)
       )
-      ;; --- RIGHT END column: outer = (x+ext), inner = (x-ht-ext) ---
+      ;; --- RIGHT END column: horizontal base plate, column depth extends inward (-x) ---
       ((= i (1- nCols))
-        ;; Depth-aware knee plate (owner 14-Jul) — right end column, same rule as the left.
-        (peb-conn-plate-depth x (- H ht) H 45.0 4)
+        (draw-knee-hplate (- x ht) x seamY 45.0 4 rcc)
       )
       ;; --- INTERIOR column ----------------------------------------------
       ;; If this column lands AT the ridge (within 1 mm of ridgeX), SKIP
@@ -3340,9 +3379,9 @@
               (list (- x vHalfCol) (- vPlateBot 20.0))
               (list (+ x vHalfCol)    vPlateBot)))
           (T
-            ;; --- Non-valley interior column (MS) under a continuous rafter: depth-aware
-            ;;     vertical connection plate at the column, web (H-ht .. H) + 100 mm beyond. ---
-            (peb-conn-plate-depth x (- H ht) H 45.0 4))))
+            ;; --- Non-valley interior column under a continuous rafter: HORIZONTAL base plate at the
+            ;;     column top (owner 14-Jul), spanning the column depth centred on the column. ---
+            (draw-knee-hplate (- x (/ ht 2.0)) (+ x (/ ht 2.0)) seamY 45.0 4 rcc))))
     )
     (setq i (1+ i))
   )
@@ -6244,7 +6283,7 @@
         ;; Standard knee-haunch + valley-seam plates at gable boundaries.
         ;; (draw-haunch-plates' interior branch now draws TWO half-plates
         ;;  with a vertical seam at the column flange — matches picture 5.)
-        (draw-haunch-plates haunchCols H ht ep T nil)   ; T = MG valleys → 4-vertical-plate detail; ridgeX nil (MG ridges aren't in haunchCols)
+        (draw-haunch-plates haunchCols H ht ep T nil nil)   ; T = MG valleys → 4-vertical-plate detail; ridgeX nil; rcc nil (steel)
         ;; Ridge-apex plates are SKIPPED when a sub-span column lands at the
         ;; ridge (spanPerGab even).  In that case the ridge column carries
         ;; the connection at column-top and the rafter web stays continuous
@@ -6294,7 +6333,7 @@
         ;; Interior MS columns use the new draw-ms-interior-plates helper
         ;; below, which positions plates at the actual cigar-rafter underside
         ;; and sizes them to the per-column web (300-600 mm based on module).
-        (draw-haunch-plates (list 0.0 wid) H ht ep nil nil)
+        (draw-haunch-plates (list 0.0 wid) H ht ep nil nil nil)
         ;; Rafter web transition plates + 12 m mid-span splices.
         ;; CRITICAL: pass (0, wid) NOT cols — draw-rafter-stiffeners uses
         ;; cols[i] / cols[i+1] as the gable boundaries flanking ridges[i],
@@ -6346,9 +6385,15 @@
       (if (> (length cols) 2)
         (draw-base-plates-multi cols cb ep 400.0)     ; SSMS: base plate at every column
         (draw-base-plates       wid cb ep))           ; SSCS: two end columns
-      ;; (1) knee plates — sized to the FULL rafter depth at the column (topY-ht .. topY) + 100 beyond flanges
+      ;; (1) ROTATED knee base plate at each column top — HORIZONTAL, welded to rafter bottom, on the
+      ;;     column top (owner 14-Jul). Column top = rafter underside at the column = ss-topY(cx)-ht.
+      (setq ssFirst (car cols) ssLast (last cols))
       (foreach cx cols
-        (peb-conn-plate-depth cx (- (ss-topY cx H slopeRiseP wid) ht) (ss-topY cx H slopeRiseP wid) 45.0 3))
+        (setq ssSeam (- (ss-topY cx H slopeRiseP wid) ht))
+        (cond
+          ((equal cx ssFirst 1.0) (draw-knee-hplate cx (+ cx ht) ssSeam 45.0 3 nil))
+          ((equal cx ssLast  1.0) (draw-knee-hplate (- cx ht) cx ssSeam 45.0 3 nil))
+          (T                      (draw-knee-hplate (- cx (/ ht 2.0)) (+ cx (/ ht 2.0)) ssSeam 45.0 3 nil))))
       ;; (2) splice plates at the haunch ends — sized to the THIN rafter depth (topY-midD .. topY) + 100
       (setq ssNC (length cols) ssK 0)
       (while (< ssK ssNC)
@@ -6369,8 +6414,9 @@
       (setq ltMidD (max 300.0 (* ht 0.45)))
       (setq ltHL   (max 3000.0 (min 4000.0 (car (cigar-taper-lengths wid)))))
       (draw-base-plate-at 0.0 cb ep (* 25 *PEB-TEXT-SCALE*))
-      ;; Knee plate at the LEFT steel column (web H-ht .. H, +100 mm beyond both flanges)
-      (peb-conn-plate-depth (/ ht 2.0) (- H ht) H 45.0 4)
+      ;; ROTATED knee (owner 14-Jul): HORIZONTAL base plate on the LEFT steel column top, welded to the
+      ;; rafter bottom (seam at H-ht), spanning the column depth (ht) inward.
+      (draw-knee-hplate 0.0 ht (- H ht) 45.0 4 nil)
       ;; Rafter splice ~3-4 m from the low-eave column, on the thin underside
       (setq ltSx ltHL)
       (setq ltTopY (+ H (* slopeRise (/ ltSx wid))))
@@ -6394,7 +6440,9 @@
     (T
       (progn
         (draw-base-plates   wid cb ep)
-        (draw-haunch-plates cols H ht ep nil nil)        ; nil = CS/RC end columns only
+        ;; RC (Roof on RCC columns) = "Roofing System": ONE horizontal base plate on the rafter bottom
+        ;; sitting directly on the RCC column (rcc=T, anchor bolts).  CS = steel (two-plate knee).
+        (draw-haunch-plates cols H ht ep nil nil (= stype "RC"))
         (if (member stype '("CS" "RC"))
           (draw-rafter-stiffeners cols ridges H rise ht rd nil)))))
 
