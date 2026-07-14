@@ -6508,8 +6508,8 @@
           (txt "MC" (list (* wid 0.22) (+ H (* rise 0.62) 700.0)) 240 0 "FALL")
           (txt "MC" (list (* wid 0.78) (+ H (* rise 0.62) 700.0)) 240 0 "FALL")
           ;; TWO slope tags — left wing rises up-RIGHT to the peak (+1), right wing up-LEFT (-1)
-          (draw-slope-tag (* bfcx 0.5) (+ H (* rise 0.5) 235.0) slopeD  1)
-          (draw-slope-tag (* bfcx 1.5) (+ H (* rise 0.5) 235.0) slopeD -1)
+          (draw-slope-tag (* bfcx 0.5) (+ H (* rise 0.5) 235.0 (* 300 *PEB-TEXT-SCALE*)) slopeD  1)
+          (draw-slope-tag (* bfcx 1.5) (+ H (* rise 0.5) 235.0 (* 300 *PEB-TEXT-SCALE*)) slopeD -1)
           ;; Purlins on both wings follow the slopes + ROOFING SYSTEM callout
           (peb-deck-purlins 0.0 (+ H 200.0) bfcx (+ H rise 200.0))
           (peb-deck-purlins bfcx (+ H rise 200.0) wid (+ H 200.0))
@@ -6550,8 +6550,8 @@
           (txt "MC" (list (* wid 0.26) (+ H (* rise 0.55) 700.0)) 240 0 "FALL")
           (txt "MC" (list (* wid 0.74) (+ H (* rise 0.55) 700.0)) 240 0 "FALL")
           ;; TWO slope tags — left wing rises up-LEFT (upRight=-1), right wing up-RIGHT (upRight=+1)
-          (draw-slope-tag (* bfcx 0.5) (+ H (- rise (* rise 0.5)) 235.0) slopeD -1)
-          (draw-slope-tag (* bfcx 1.5) (+ H (- rise (* rise 0.5)) 235.0) slopeD  1)
+          (draw-slope-tag (* bfcx 0.5) (+ H (- rise (* rise 0.5)) 235.0 (* 300 *PEB-TEXT-SCALE*)) slopeD -1)
+          (draw-slope-tag (* bfcx 1.5) (+ H (- rise (* rise 0.5)) 235.0 (* 300 *PEB-TEXT-SCALE*)) slopeD  1)
           ;; Purlins on both wings + ROOF SHEETING callout (like Clear Span)
           (peb-deck-purlins 0.0 (+ H rise 200.0) bfcx (+ H 200.0))
           (peb-deck-purlins bfcx (+ H 200.0) wid (+ H rise 200.0))
@@ -6592,7 +6592,7 @@
                              "H" 220)
       ;; ONE slope tag on the single rafter — direction follows which side is LOW
       (setq ccTagX (* wid 0.45))
-      (draw-slope-tag ccTagX (+ ccEL (* ccS ccTagX) 235.0)
+      (draw-slope-tag ccTagX (+ ccEL (* ccS ccTagX) 235.0 (* 300 *PEB-TEXT-SCALE*))
                       slopeD (if ccLow 1 -1))
       ;; FALL callout at mid-deck
       (setvar "CLAYER" "TEXT")
