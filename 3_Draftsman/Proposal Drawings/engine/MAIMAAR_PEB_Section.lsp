@@ -6269,7 +6269,18 @@
   (cond
     ;; existing RCC building: no steel haunch/base plates (concrete frame) — owner 8-Jul
     ((peb-mz-rcc-sec-p data) nil)
-    ((= stype "PP") nil)   ; Petrol canopy — simple inset columns, no haunch/base-plate/stiffener detail
+    ((= stype "PP")
+      ;; Petrol Pump (cantilever) — owner 14-Jul: place the connection plates here too, UN-rotated
+      ;; (vertical), at the SIDE of each box column / backside of the roof-beam web.  Geometry mirrors
+      ;; draw-petrol-frame: columns inset at ovh & W-ovh, roof band (H-rt .. H), box width max(cb,300).
+      (progn
+        (setq ppOvhP (* wid 0.22) ppRtP (max (* ht 0.8) 250.0) ppCwP (max cb 300.0))
+        (setq ppC1 ppOvhP ppC2 (- wid ppOvhP))
+        (draw-base-plate-at (- ppC1 (/ ppCwP 2.0)) (+ ppC1 (/ ppCwP 2.0)) cb (* 25 *PEB-TEXT-SCALE*))
+        (draw-base-plate-at (- ppC2 (/ ppCwP 2.0)) (+ ppC2 (/ ppCwP 2.0)) cb (* 25 *PEB-TEXT-SCALE*))
+        ;; vertical connection plate on the INNER face of each box column, spanning the roof-beam depth
+        (peb-conn-plate-depth (+ ppC1 (/ ppCwP 2.0)) (- H ppRtP) H 45.0 3)
+        (peb-conn-plate-depth (- ppC2 (/ ppCwP 2.0)) (- H ppRtP) H 45.0 3)))
     ((= stype "MG")
       (progn
         ;; Base plates at every gable-boundary column (0, gW, 2gW, ..., W)
