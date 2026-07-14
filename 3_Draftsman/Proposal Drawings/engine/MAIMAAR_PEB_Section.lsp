@@ -1910,7 +1910,8 @@
                                  ridgeX midD kneeL ridgeL boltR
                                  i n x colWeb halfW colTopY
                                  upTopY upBotY loTopY loBotY
-                                 outerX innerX ext stiffH)
+                                 outerX innerX ext stiffH
+                                 yOut yIn mSlp bx f)
   ;;  Connection plates at the TOP of every MS interior column, where the
   ;;  rafter underside sits on the column flange.  Two horizontal plates
   ;;  (upper = rafter end-plate, lower = column end-plate), bolts at the
@@ -1941,31 +1942,28 @@
       (T
         (setq colWeb (ms-col-web-at cols i))
         (setq halfW  (/ colWeb 2.0))
-        ;; Cigar-aware rafter underside Y = column top elevation here.
-        (setq colTopY (cigar-rafter-underside-y
-                        x 0.0 W ridgeX H rise ht rd midD kneeL ridgeL))
-        (setq upTopY colTopY)                 ; upper plate top edge
-        (setq upBotY (- colTopY ep))          ; upper plate bottom = bolt line
-        (setq loTopY upBotY)                  ; lower plate top = bolt line
-        (setq loBotY (- upBotY ep))           ; lower plate bottom edge
         (setq outerX (- x halfW ext))         ; plate left  = col flange − ext
         (setq innerX (+ x halfW ext))         ; plate right = col flange + ext
-        ;; Upper (rafter) plate
-        (command "RECTANG" (list outerX upBotY) (list innerX upTopY))
-        ;; Lower (column) plate
-        (command "RECTANG" (list outerX loBotY) (list innerX loTopY))
-        ;; Six bolts at the interface, three each side of column centre
-        (command "DONUT" 0 (* boltR 2) (list (- x (* halfW 0.85)) upBotY) "")
-        (command "DONUT" 0 (* boltR 2) (list (- x (* halfW 0.50)) upBotY) "")
-        (command "DONUT" 0 (* boltR 2) (list (- x (* halfW 0.15)) upBotY) "")
-        (command "DONUT" 0 (* boltR 2) (list (+ x (* halfW 0.15)) upBotY) "")
-        (command "DONUT" 0 (* boltR 2) (list (+ x (* halfW 0.50)) upBotY) "")
-        (command "DONUT" 0 (* boltR 2) (list (+ x (* halfW 0.85)) upBotY) "")
-        ;; owner 14-Jul: the UPPER (rafter) plate REPLACES the rafter bottom flange at the connection — it
-        ;; carries NO stiffeners (red X = remove the two top stiffeners).  Keep the LOWER (column) plate
-        ;; stiffeners only.
-        (draw-stiff-bot (- x halfW) loBotY ext stiffH -1)
-        (draw-stiff-bot (+ x halfW) loBotY ext stiffH  1)))
+        ;; owner 14-Jul: BOTH plates follow the SLOPE of the rafter BOTTOM FLANGE (not horizontal).  Take
+        ;; the cigar-rafter underside at each plate END so the plate strip lies parallel to the flange.
+        (setq yOut (cigar-rafter-underside-y outerX 0.0 W ridgeX H rise ht rd midD kneeL ridgeL))
+        (setq yIn  (cigar-rafter-underside-y innerX 0.0 W ridgeX H rise ht rd midD kneeL ridgeL))
+        (setq mSlp (/ (- yIn yOut) (- innerX outerX)))   ; bottom-flange slope across the plate
+        ;; Upper (rafter) plate — sloped strip, top edge ON the bottom flange, thickness ep.  It REPLACES
+        ;; the rafter bottom flange at the connection, so it carries NO stiffeners.
+        (command "PLINE" (list outerX yOut) (list innerX yIn)
+                         (list innerX (- yIn ep)) (list outerX (- yOut ep)) "_C")
+        ;; Lower (column) plate — sloped strip just below, sharing the bolted interface.
+        (command "PLINE" (list outerX (- yOut ep)) (list innerX (- yIn ep))
+                         (list innerX (- yIn (* 2 ep))) (list outerX (- yOut (* 2 ep))) "_C")
+        ;; Six bolts along the SLOPED interface (three each side of the column centre).
+        (foreach f '(-0.85 -0.50 -0.15 0.15 0.50 0.85)
+          (setq bx (+ x (* halfW f)))
+          (command "DONUT" 0 (* boltR 2)
+                   (list bx (+ (- yOut ep) (* mSlp (- bx outerX)))) ""))
+        ;; Keep the LOWER (column) plate stiffeners only, at the sloped plate-bottom outer corners.
+        (draw-stiff-bot (- x halfW) (+ (- yOut (* 2 ep)) (* mSlp ext)) ext stiffH -1)
+        (draw-stiff-bot (+ x halfW) (- (- yIn (* 2 ep)) (* mSlp ext)) ext stiffH  1)))
     (setq i (1+ i)))
 )
 
