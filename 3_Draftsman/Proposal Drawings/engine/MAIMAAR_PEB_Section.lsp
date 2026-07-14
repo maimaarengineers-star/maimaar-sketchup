@@ -5623,6 +5623,7 @@
        (list "LIVE LOAD ON ROOF"      (tb-get "LL_ROOF")  "KN/SQ.M.")
        (list "LIVE LOAD ON FRAME"     (tb-get "LL_FRAME") "KN/SQ.M.")
        (list "WIND SPEED"             (tb-get "WIND")     "KPH")
+       (list "EXPOSURE CATEGORY"      (tb-get "EXPOSURE") "")
        (list "ADD'L. COLLATERAL LOAD" (tb-get "COLL")     "")
        (list "ROOF SNOW LOAD"         (tb-get "SNOW")     "KN/SQ.M.")
        (list "SEISMIC LOAD"           (tb-get "SEISMIC")  "")
@@ -6880,7 +6881,7 @@
       ;; Slope tag must ride JUST ABOVE the mono sheeting line and FOLLOW the slope (owner 14-Jul, STRICT).
       ;; Sheeting top = H + monoRise*(x/W) + purlinH(200) + cladThk(35) = +235; add a 180mm gap so the tag
       ;; sits clearly above the sheeting, parallel to it (draw-slope-tag's hypotenuse already = the slope).
-      (setq cyM (+ H (* monoRise (/ cxM wid)) 235.0 180.0))
+      (setq cyM (+ H (* monoRise (/ cxM wid)) 235.0 (* 300 *PEB-TEXT-SCALE*)))
       (draw-slope-tag cxM cyM slopeD 1))
     (T
   (foreach rx ridges
@@ -6917,10 +6918,10 @@
     (setq tagRun (* 900 *PEB-TEXT-SCALE*))
     (setq cxL (- midLX (/ tagRun 2.0)))
     (setq cyL (+ H (* rise (/ (- cxL leftCol)  halfL))
-                  235.0))                            ; slope tag hypotenuse ON the sheeting line (owner 14-Jul)
+                  235.0 (* 300 *PEB-TEXT-SCALE*)))   ; slope symbol 50mm ABOVE the sheeting line (owner 14-Jul)
     (setq cxR (+ midRX (/ tagRun 2.0)))
     (setq cyR (+ H (* rise (/ (- rightCol cxR) halfR))
-                  235.0))                            ; slope tag hypotenuse ON the sheeting line (owner 14-Jul)
+                  235.0 (* 300 *PEB-TEXT-SCALE*)))   ; slope symbol 50mm ABOVE the sheeting line (owner 14-Jul)
     (draw-slope-tag cxL cyL slopeD  1)
     (draw-slope-tag cxR cyR slopeD -1)
   )))                                 ; close foreach, T-clause, cond
@@ -7186,6 +7187,7 @@
       (cons "LL_ROOF"  (peb-tb-or (MSPL-Get-Str data "LIVEROOF")  "0.57"))
       (cons "LL_FRAME" (peb-tb-or (MSPL-Get-Str data "LIVEFRAME") "0.57"))
       (cons "WIND"     (if (= windspeed "") "AS PER CODE" (peb-num-only windspeed)))
+      (cons "EXPOSURE" (peb-tb-or (MSPL-Get-Str data "EXPOSURE") "B"))
       (cons "COLL"     (if (= collateral "") "0.0" (peb-num-only collateral)))
       (cons "SNOW"     (peb-tb-snow (MSPL-Get-Str data "SNOW")))
       (cons "SEISMIC"  (peb-tb-zone (MSPL-Get-Str data "SEISMIC")))
