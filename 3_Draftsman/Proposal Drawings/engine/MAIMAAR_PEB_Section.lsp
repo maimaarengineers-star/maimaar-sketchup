@@ -4188,7 +4188,9 @@
   ;; labWY must clear that band by at least one text height.  Using
   ;; H + 1800·TS ensures the wall text bottom stays well above the
   ;; gutter label across all reasonable scales.
-  (setq labWY (+ H (* 1450 *PEB-TEXT-SCALE*)))   ; raised ~300 (owner 14-Jul) so the WALL SHEETING label clears the EAVE GUTTER text
+  ;; owner 14-Jul: raise the WALL SHEETING M-Ladder well clear of the EAVE GUTTER text — the spec is now
+  ;; 3 lines (heading + "…(PPGL)" + "(S-Type)"), so the whole block must sit higher.
+  (setq labWY (+ H (* 2200 *PEB-TEXT-SCALE*)))
   ;; wWrapW: tighter cap so wall MTEXT doesn't sprawl past mid-rafter
   ;; into the PURLIN label area on narrow buildings.  Was halfL/2 minus
   ;; margin (still 3–4 m wide on a 15 m building); now halfL × 0.3
@@ -4321,6 +4323,14 @@
     (T
       ;; --- Single-line fallback ---
       (txt "ML" (list labWX labWY) 220 0 wallLbl)))
+  ;; owner 14-Jul: ADD a visible arrowhead at the WALL-SHEETING tip of the M-Ladder (the native MLEADER
+  ;; arrow is unreliable at this scale) — a small filled triangle pointing RIGHT at the sheeting line.
+  (setvar "CLAYER" "ARROWS")
+  (setvar "PLINEWID" 0.0)
+  (command "PLINE" (list (- labWX (* 240 *PEB-TEXT-SCALE*)) wTargetY)
+                   "W" (* 90 *PEB-TEXT-SCALE*) 0
+                   (list labWX wTargetY) "")
+  (setvar "PLINEWID" 0.0)
   ;; Group the hand-rolled drawing for click-once-select-all.
   (peb-group-entities (peb-collect-entities-since lastBefore) "PEBLBL")
   (setvar "PLINEWID" 0.0)
