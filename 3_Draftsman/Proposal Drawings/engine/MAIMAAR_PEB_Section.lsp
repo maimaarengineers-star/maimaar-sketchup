@@ -2837,30 +2837,29 @@
 ;;    rcc = T  -> ROOF-ON-RCC: ONE base plate on the rafter bottom sitting on the RCC top, with anchor
 ;;               bolts hooking DOWN into the concrete (no steel column-cap plate).
 ;;    rcc = nil-> STEEL column: column-top plate BELOW the seam + rafter-bottom plate ABOVE it, bolted.
-(defun draw-knee-hplate (xL xR ySeam plateT nBolt rcc / boltR ext i bx x0 x1)
+(defun draw-knee-hplate (xL xR ySeam plateT nBolt rcc / boltR ext i bx x0 x1 cx hs)
   (setvar "CLAYER" "PLATES")
-  (setq boltR (* 18 *PEB-TEXT-SCALE*))
   (setq ext 100.0)
   (setq x0 (- xL ext) x1 (+ xR ext))
-  ;; rafter-bottom BASE plate (ABOVE the seam) — always present
-  (command "RECTANG" (list x0 ySeam) (list x1 (+ ySeam plateT)))
   (if rcc
-    ;; RCC: anchor bolts hook down into the concrete (short stems + donut heads on the seam)
+    ;; RCC ("Roofing System"): ONE base plate welded to the rafter bottom, sitting on the RCC column
+    ;; top, with anchor bolts hooking DOWN into the concrete.
     (progn
+      (setq boltR (* 18 *PEB-TEXT-SCALE*))
+      (command "RECTANG" (list x0 ySeam) (list x1 (+ ySeam plateT)))
       (setq i 1)
       (while (<= i nBolt)
         (setq bx (+ x0 (* (/ (float i) (1+ nBolt)) (- x1 x0))))
         (command "DONUT" 0 (* boltR 2) (list bx ySeam) "")
         (command "LINE" (list bx ySeam) (list bx (- ySeam (* plateT 4.0))) "")
         (setq i (1+ i))))
-    ;; STEEL: column-top plate BELOW the seam + bolts along the seam
+    ;; STEEL: the STANDARD I-shape connection (owner 14-Jul: "the one I mentioned") ROTATED to the
+    ;; corner — upper (rafter-bottom) plate + lower (column-top) plate, bolts along the seam, AND
+    ;; stiffener triangles at BOTH ends.  peb-conn-plate-pair draws exactly this; topY = ySeam+plateT
+    ;; puts the two plates straddling the seam (upper ySeam..ySeam+plateT, lower ySeam-plateT..ySeam).
     (progn
-      (command "RECTANG" (list x0 (- ySeam plateT)) (list x1 ySeam))
-      (setq i 1)
-      (while (<= i nBolt)
-        (setq bx (+ x0 (* (/ (float i) (1+ nBolt)) (- x1 x0))))
-        (command "DONUT" 0 (* boltR 2) (list bx ySeam) "")
-        (setq i (1+ i)))))
+      (setq cx (/ (+ x0 x1) 2.0) hs (/ (- x1 x0) 2.0))
+      (peb-conn-plate-pair cx (+ ySeam plateT) hs plateT nBolt)))
   (princ))
 
 ;;  draw-arch-conn-plates — connection plates for the ARCHED types (owner 13-Jul): a plate pair at
