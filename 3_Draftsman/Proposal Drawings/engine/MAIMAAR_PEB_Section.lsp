@@ -2555,7 +2555,7 @@
     "C")
 )
 
-(defun draw-lt-frame (W H slopeRise ht cb / wallW)
+(defun draw-lt-frame (W H slopeRise ht cb / wallW midDlt)
   ;;  Lean-To frame: one PEB column at LEFT (low side),
   ;;  existing masonry/concrete wall at RIGHT (high side).
   ;;  Sloped rafter goes from low column up to the existing wall.
@@ -2568,15 +2568,19 @@
     (list (+ W wallW) (+ H slopeRise (* 500 *PEB-TEXT-SCALE*))))
   (command "HATCH" "AR-CONC" 25 0 "L" "")
 
-  ;; PEB frame: ONE column on LEFT + sloped rafter to wall
+  ;; PEB frame: ONE column on LEFT + sloped rafter to wall.
+  ;; RAFTER IS TAPERED (owner 13-Jul: all PEB rafters taper) -- DEEP at both ends (column knee + wall
+  ;; connection), THIN at mid-span.
   (setvar "CLAYER" "FRAME")
   (setvar "PLINEWID" 0.0)
+  (setq midDlt (max 300.0 (* ht 0.45)))
   (command "PLINE"
     (list 0.0      0.0)                         ; bottom-left outside
     (list 0.0      H)                           ; low eave outside
     (list W        (+ H slopeRise))             ; rafter ends at wall
-    (list (- W ht) (- (+ H slopeRise) ht))      ; rafter inside-bottom at wall
-    (list ht       (- H ht))                    ; left haunch corner
+    (list (- W ht) (- (+ H slopeRise) ht))      ; rafter inside-bottom at wall (deep ht)
+    (list (/ W 2.0) (- (+ H (/ slopeRise 2.0)) midDlt))  ; MID-SPAN underside (thin) -> taper
+    (list ht       (- H ht))                    ; left haunch corner (deep ht)
     (list cb       0.0)                         ; left column inside-base
     "C")
 )
