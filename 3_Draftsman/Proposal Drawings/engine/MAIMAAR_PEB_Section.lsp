@@ -3788,13 +3788,14 @@
   ;; Anchor labRY to the SAME Y as the wall sheeting labWY so both
   ;; sheeting MLEADERs sit on the same horizontal level (per user
   ;; spec).  Wall sheeting uses H + 1800·TS, so roof sheeting matches.
-  (setq labRY (+ H (* 2700 *PEB-TEXT-SCALE*)))
-  ;; Hand-rolled bar+drop+arrow leader, wrapped in a GROUP after.
-  ;; (MLEADER attempt was here but disabled — see peb-make-mleader
-  ;; comment for the reason.)
   (setq rDx (abs (- labRX (/ W 2.0))))
-  (setq rTargetY (- (+ H rise purlinH cladThk)
-                    (* rise (/ rDx (/ W 2.0)))))
+  ;; roof arrow tip on the sheeting at labRX -- MONO roof follows monoRise (so SS/LT point at the real
+  ;; single slope, not a gable height); gable follows the ridge line.
+  (setq rTargetY (if monoRise
+                   (+ H (* monoRise (/ labRX W)) purlinH cladThk)
+                   (- (+ H rise purlinH cladThk) (* rise (/ rDx (/ W 2.0))))))
+  ;; SHORT leader leg (owner 14-Jul): label sits ~900 above the roof arrow, not high above the ridge.
+  (setq labRY (+ rTargetY (* 900 *PEB-TEXT-SCALE*)))
   (setq lastBefore (entlast))
   (cond
     (rLine2
@@ -3917,7 +3918,7 @@
   ;; labWY must clear that band by at least one text height.  Using
   ;; H + 1800·TS ensures the wall text bottom stays well above the
   ;; gutter label across all reasonable scales.
-  (setq labWY (+ H (* 2700 *PEB-TEXT-SCALE*)))
+  (setq labWY (+ H (* 1150 *PEB-TEXT-SCALE*)))   ; SHORT leader leg (owner 14-Jul), still clears the eave gutter band
   ;; wWrapW: tighter cap so wall MTEXT doesn't sprawl past mid-rafter
   ;; into the PURLIN label area on narrow buildings.  Was halfL/2 minus
   ;; margin (still 3–4 m wide on a 15 m building); now halfL × 0.3
