@@ -274,20 +274,19 @@
 ;;  cladding and so bypass draw-cladding's built-in labels (currently the ARCHED types ACS/AMS).
 ;;  Same MLEADER format as the gable path: bold heading + (<=2-line) build-up spec, white text so it
 ;;  plots black.  Placed top-right (roof) and top-left (wall) with L-leaders, like the gable labels.
-(defun peb-arch-sheeting-labels (data W H rise / rspec wspec rc wc topY rx ry)
+(defun peb-arch-sheeting-labels (data W H rise / rspec wspec rc wc rx ry roofTopY)
   (setvar "CLAYER" "TEXT")
-  (setq topY  (+ H rise (* 2600 *PEB-TEXT-SCALE*)))
   (setq rspec (peb-split-2-lines (peb-panel-label data "ROOF")))
   (setq wspec (peb-split-2-lines (peb-panel-label data "WALL")))
   (setq rc (strcat "{\\C7;\\H0.42x;{\\fArial|b1;ROOF SHEETING:}\\P" rspec "}"))
   (setq wc (strcat "{\\C7;\\H0.42x;{\\fArial|b1;WALL SHEETING:}\\P" wspec "}"))
-  ;; ROOF: arrow on the roof arc at ~68% span, L-leg up to the label band (top-right)
-  (setq rx (* W 0.68) ry (+ H (* rise 0.82) 235.0))
+  ;; ROOF: arrow on the roof at ~68% span, SHORT leg up (owner 14-Jul)
+  (setq rx (* W 0.68) ry (+ H (* rise 0.82) 235.0) roofTopY (+ ry (* 900 *PEB-TEXT-SCALE*)))
   (vl-catch-all-apply 'peb-make-mleader
-    (list (list (list rx ry) (list rx topY) (list (+ rx 300.0) topY)) rc))
-  ;; WALL: arrow on the LEFT wall, L-leader up to the label band (top-left)
+    (list (list (list rx ry) (list rx roofTopY) (list (+ rx 300.0) roofTopY)) rc))
+  ;; WALL: arrow on the LEFT wall, SHORT horizontal L-leg out to the left (no long vertical)
   (vl-catch-all-apply 'peb-make-mleader
-    (list (list (list -235.0 (* H 0.55)) (list -1735.0 (* H 0.55)) (list -1735.0 topY)) wc)))
+    (list (list (list -235.0 (* H 0.6)) (list -1735.0 (* H 0.6))) wc)))
 
 ;;  peb-deck-purlins — short purlin ticks perpendicular to a canopy deck segment (x0,y0)->(x1,y1),
 ;;  ~1500 mm apart, on the PURLINS layer (owner 13-Jul: "show the purlin on top like Clear Span").
@@ -6168,6 +6167,12 @@
       (foreach cx cols
         (peb-conn-plate-pair cx (+ (- H ht) (* slopeRiseP (/ cx wid)))
                              (+ (/ cb 2.0) 100.0) ep 3)))
+    ((= stype "LT")
+      ;; LEAN-TO: ONE steel column on the LEFT (the right side is the existing wall, no steel column).
+      ;; Base plate + a connection plate at the LEFT column-rafter junction only (strict: every
+      ;; steel column-rafter joint gets a plate).
+      (draw-base-plate-at 0.0 cb ep (* 25 *PEB-TEXT-SCALE*))
+      (peb-conn-plate-pair (/ ht 2.0) (- H (* ht 0.4)) (+ (/ cb 2.0) 100.0) ep 3))
     (T
       (progn
         (draw-base-plates   wid cb ep)
@@ -6341,7 +6346,7 @@
       ;; Purlins along the wing + ROOF SHEETING callout (like Clear Span)
       (peb-deck-purlins 0.0 (+ ccEL 200.0) wid (+ ccER 200.0))
       (peb-canopy-roof-label data (* wid 0.60) (+ ccEL (* ccS (* wid 0.60)) 200.0)
-                             (+ (max ccEL ccER) (* 2600 *PEB-TEXT-SCALE*))))
+                             (+ ccEL (* ccS (* wid 0.60)) 200.0 (* 900 *PEB-TEXT-SCALE*))))
     ;; ── LT (Lean-To): one PEB column on left, masonry wall on right ──
     ;; LT has a sloped roof (single slope from low eave to wall top), so
     ;; it gets the full set of labels: COLUMN (left), GIRTS, DOWN PIPE
@@ -6457,7 +6462,7 @@
       (command "LINE" (list -270.0 (+ H 235.0)) (list (+ wid 270.0) (+ H 235.0)) "")
       ;; Purlins on the flat deck + ROOF SHEETING callout (like Clear Span)
       (peb-deck-purlins 0.0 (+ H 200.0) wid (+ H 200.0))
-      (peb-canopy-roof-label data (* wid 0.60) (+ H 200.0) (+ H (* 2600 *PEB-TEXT-SCALE*)))
+      (peb-canopy-roof-label data (* wid 0.60) (+ H 200.0) (+ H 200.0 (* 900 *PEB-TEXT-SCALE*)))
       ;; FASCIA — the deep signage band at the (left) roof edge
       (peb-label-with-leader "FASCIA"
                              (list -2400.0 (- H 250.0))
