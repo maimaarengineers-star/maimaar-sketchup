@@ -55,7 +55,7 @@
     ("CL"           1   "CENTER"     0.09)   ; section alias of COL-CENTER
     ("CROSS"        4   "DOT"        0.18)   ; cross-bracing — cyan DOTTED X (Zealcon Engineering)
     ("BOLTS"        7   "Continuous" 0.09)
-    ("PLATES"       7   "Continuous" 0.35)
+    ("PLATES"       1   "Continuous" 0.35)   ; connection plates RED (owner 14-Jul)
     ("FRAME"        1   "Continuous" 0.30)   ; section main-frame outline — RED, lighter weight (owner 7-Jul)
     ("FRAME-FILL"   8   "Continuous" 0.09)
     ("RIDGE"        5   "HIDDEN"     0.18)   ; reconciled (was 0.09 plan / 0.18 sec)

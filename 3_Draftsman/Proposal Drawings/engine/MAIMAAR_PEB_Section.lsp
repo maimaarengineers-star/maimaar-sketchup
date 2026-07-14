@@ -4406,6 +4406,33 @@
   (setvar "PLINEWID" 0.0)
 )
 
+;;  draw-purlins-mono — Z-purlins along a SINGLE mono slope (owner 14-Jul: SS/LT purlins must follow
+;;  the one-way rafter, not a gable/double-slope).  Rafter top runs (0,H) -> (W, H+monoRise); each
+;;  purlin is a Z perpendicular to that slope, top flange against the sheeting.
+(defun draw-purlins-mono (W H monoRise / depth wtop wbot lip lipDx lipDy slopeLen sa ca
+                          nP purlinSpacing uX uY vX vY d x y
+                          v1x v1y v2x v2y v3x v3y v4x v4y v5x v5y v6x v6y)
+  (setvar "CLAYER" "PURLINS")
+  (setq depth 200.0 wtop 60.0 wbot 60.0 lip 20.0 lipDx (* lip 0.5) lipDy (* lip 0.866))
+  (setq slopeLen (sqrt (+ (* W W) (* monoRise monoRise))))
+  (setq sa (/ monoRise slopeLen) ca (/ W slopeLen))
+  (setq uX ca uY sa vX (- 0 sa) vY ca)          ; along slope / perpendicular up
+  (setq nP (max 1 (fix (+ 0.5 (/ slopeLen 1500.0)))) purlinSpacing (/ slopeLen nP))
+  (setq d purlinSpacing)
+  (while (<= d (- slopeLen 1.0))
+    (setq x (* d ca) y (+ H (* d sa)))
+    (setq v6x (+ x (* (- lipDx wbot) uX) (* lipDy vX)) v6y (+ y (* (- lipDx wbot) uY) (* lipDy vY)))
+    (setq v5x (+ x (* (- 0 wbot) uX)) v5y (+ y (* (- 0 wbot) uY)))
+    (setq v4x x v4y y)
+    (setq v3x (+ x (* depth vX)) v3y (+ y (* depth vY)))
+    (setq v2x (+ x (* wtop uX) (* depth vX)) v2y (+ y (* wtop uY) (* depth vY)))
+    (setq v1x (+ x (* (- wtop lipDx) uX) (* (- depth lipDy) vX)) v1y (+ y (* (- wtop lipDx) uY) (* (- depth lipDy) vY)))
+    (command "PLINE" (list v6x v6y) "W" 1.5 1.5 (list v5x v5y) (list v4x v4y) (list v3x v3y) (list v2x v2y) (list v1x v1y) "")
+    (setvar "FILLETRAD" 4.0)
+    (command "FILLET" "P" (entlast))
+    (setq d (+ d purlinSpacing)))
+  (setvar "PLINEWID" 0.0))
+
 (defun draw-purlins (W H rise / depth wtop wbot lip lipDx lipDy
                      slopeLen sa ca d xL yL xR yR nP purlinSpacing
                      d_ridge_offset d_ridge_purlin
@@ -6294,8 +6321,8 @@
       (txt "MC" (list (* wid 0.26) (+ H (* rise 0.55) 700.0)) 240 0 "FALL")
       (txt "MC" (list (* wid 0.74) (+ H (* rise 0.55) 700.0)) 240 0 "FALL")
       ;; TWO slope tags — left wing rises up-LEFT (upRight=-1), right wing up-RIGHT (upRight=+1)
-      (draw-slope-tag (* bfcx 0.5) (+ H (- rise (* rise 0.5)) 235.0 (* 300 *PEB-TEXT-SCALE*)) slopeD -1)
-      (draw-slope-tag (* bfcx 1.5) (+ H (- rise (* rise 0.5)) 235.0 (* 300 *PEB-TEXT-SCALE*)) slopeD  1)
+      (draw-slope-tag (* bfcx 0.5) (+ H (- rise (* rise 0.5)) 235.0) slopeD -1)
+      (draw-slope-tag (* bfcx 1.5) (+ H (- rise (* rise 0.5)) 235.0) slopeD  1)
       ;; Purlins on both wings + ROOF SHEETING callout (like Clear Span)
       (peb-deck-purlins 0.0 (+ H rise 200.0) bfcx (+ H 200.0))
       (peb-deck-purlins bfcx (+ H 200.0) wid (+ H rise 200.0))
@@ -6336,7 +6363,7 @@
                              "H" 220)
       ;; ONE slope tag on the single rafter — direction follows which side is LOW
       (setq ccTagX (* wid 0.45))
-      (draw-slope-tag ccTagX (+ ccEL (* ccS ccTagX) 235.0 (* 300 *PEB-TEXT-SCALE*))
+      (draw-slope-tag ccTagX (+ ccEL (* ccS ccTagX) 235.0)
                       slopeD (if ccLow 1 -1))
       ;; FALL callout at mid-deck
       (setvar "CLAYER" "TEXT")
@@ -6502,7 +6529,7 @@
       (setq ssHR (+ H monoRise))
       (draw-brick-wall    wid brickH)
       (draw-cladding      data wid H rise brickH monoRise ssHR)   ; rightH = high eave
-      (draw-purlins       wid H rise)
+      (draw-purlins-mono  wid H monoRise)                        ; MONO purlins follow the one slope (not gable)
       (draw-girts         wid H brickH ssHR)                      ; right girts to the high eave
       (draw-downpipes     wid H brickH T)                         ; mono -> low-side downpipe only
       (draw-eave-features wid H T)                                ; mono -> low-side gutter only
@@ -6538,7 +6565,7 @@
       ;; roof has no ridge, so the old per-half pair (one up-right, one up-left) was wrong.
       (setq monoRise (/ wid slopeD))
       (setq cxM (* wid 0.40))
-      (setq cyM (+ H (* monoRise (/ cxM wid)) 235.0 (* 300 *PEB-TEXT-SCALE*)))
+      (setq cyM (+ H (* monoRise (/ cxM wid)) 235.0))   ; slope tag hypotenuse ON the mono sheeting line
       (draw-slope-tag cxM cyM slopeD 1))
     (T
   (foreach rx ridges
@@ -6575,12 +6602,10 @@
     (setq tagRun (* 900 *PEB-TEXT-SCALE*))
     (setq cxL (- midLX (/ tagRun 2.0)))
     (setq cyL (+ H (* rise (/ (- cxL leftCol)  halfL))
-                  235.0
-                  (* 300 *PEB-TEXT-SCALE*)))
+                  235.0))                            ; slope tag hypotenuse ON the sheeting line (owner 14-Jul)
     (setq cxR (+ midRX (/ tagRun 2.0)))
     (setq cyR (+ H (* rise (/ (- rightCol cxR) halfR))
-                  235.0
-                  (* 300 *PEB-TEXT-SCALE*)))
+                  235.0))                            ; slope tag hypotenuse ON the sheeting line (owner 14-Jul)
     (draw-slope-tag cxL cyL slopeD  1)
     (draw-slope-tag cxR cyR slopeD -1)
   )))                                 ; close foreach, T-clause, cond
