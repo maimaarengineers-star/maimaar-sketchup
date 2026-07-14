@@ -186,24 +186,19 @@
     (T "")))
 
 ;;  peb-profile-name — the sheeting PROFILE suffix shown after the outer skin, from
-;;  PN_<KEY>_OUTER_PROFILE (BS).  The default "Standard Profile" (trapezoidal) is the
-;;  house norm and adds no suffix; only a NON-standard profile is called out so the
-;;  label reads e.g. "0.50mm AZ 150 (PPGL), Lockseam".  Owner 13-Jul: buildings may use
-;;  S-Type or Lockseam (standing-seam) in place of Standard Profile.
+;;  PN_<KEY>_OUTER_PROFILE (BS).  Owner 14-Jul: ALWAYS show the profile (they run BOTH S-Type and
+;;  Seam-Lock, so the label must say which).  The house-standard trapezoidal profile IS the S-Type, so
+;;  Standard/Trapezoidal/blank map to ", S-Type"; the standing-seam maps to ", Seam-Lock".  Label reads
+;;  e.g. "0.50mm AZ 150 (PPGL), S-Type" or "..., Seam-Lock".
 (defun peb-profile-name (prof / p)
   (setq p (strcase (vl-string-trim " " (if prof prof ""))))
   (cond
-    ((= p "")                       "")
-    ((wcmatch p "*STANDARD*")       "")   ; trapezoidal house default -> unlabelled
-    ((wcmatch p "*TRAPEZ*")         "")
-    ((wcmatch p "*LOCK*SEAM*")      ", Lockseam")
-    ((wcmatch p "*LOCK-SEAM*")      ", Lockseam")
-    ((wcmatch p "*LOCKSEAM*")       ", Lockseam")
-    ((wcmatch p "*STANDING*SEAM*")  ", Standing Seam")
-    ((wcmatch p "*S-TYPE*")         ", S-Type")
-    ((wcmatch p "*S TYPE*")         ", S-Type")
-    ((wcmatch p "*STYPE*")          ", S-Type")
-    (T (strcat ", " (vl-string-trim " " prof))))) ; any other named profile carried verbatim
+    ((or (wcmatch p "*LOCK*SEAM*") (wcmatch p "*LOCKSEAM*")
+         (wcmatch p "*SEAM*LOCK*") (wcmatch p "*STANDING*SEAM*")) " (Seam-Lock)")
+    ((or (wcmatch p "*MICRO*") (wcmatch p "*M-RIB*") (= p "MR")) " (Micro-Ribbed)")
+    ((or (= p "") (wcmatch p "*STANDARD*") (wcmatch p "*TRAPEZ*")
+         (wcmatch p "*S-TYPE*") (wcmatch p "*S TYPE*") (wcmatch p "*STYPE*")) " (S-Type)")
+    (T (strcat " (" (vl-string-trim " " prof) ")")))) ; any other named profile carried verbatim, in parens
 
 ;;  peb-panel-label — compose the FULL sheeting sandwich for KEY = "ROOF"/"WALL".
 ;;  Owner 13-Jul spec, sourced from the BS:
@@ -214,7 +209,7 @@
 ;;  IMPORTANT: for a SINGLE-SKIN panel the insulation is read from the roof/wall
 ;;  ACCESSORIES (PN_<KEY>_INSUL_*), NOT the panel description; the PIR core is read
 ;;  from the panel only for a SANDWICH.  Density is always shown when present.
-(defun peb-panel-label (data key / typ outMat outFin outProf insThk insType insDens
+(defun peb-panel-label (data key / typ outMat outFin outProf innerProf insThk insType insDens
                                     pirThk pirDens pirType innerMat linerMat
                                     outer core inner coreU isSandwich isLiner finOut profOut lbl)
   (setq typ      (peb-alist-get data (strcat "PN_" key "_TYPE")))
@@ -225,6 +220,7 @@
   (setq pirDens  (peb-alist-get data (strcat "PN_" key "_PIR_DENS")))
   (setq pirType  (peb-alist-get data (strcat "PN_" key "_PIR_TYPE")))
   (setq innerMat (peb-alist-get data (strcat "PN_" key "_INNER_MAT")))
+  (setq innerProf (peb-alist-get data (strcat "PN_" key "_INNER_PROFILE")))
   (setq linerMat (peb-alist-get data "PN_LINER_OUTER_MAT"))
   ;; INSULATION from the ACCESSORIES (single-skin case), not the panel description.
   (setq insThk  (peb-panel-digits (peb-alist-get data (strcat "PN_" key "_INSUL_THK"))))
@@ -233,9 +229,9 @@
   (setq isSandwich (or (= (strcase typ) "SANDWICH PANEL") (= (strcase typ) "SANDWICH")))
   (setq finOut (peb-finish-code outMat outFin))
   (setq profOut (peb-profile-name outProf))
-  ;; --- OUTER skin (+ finish code, except on a sandwich where the code sits on the inner skin)
-  ;;     + non-standard profile suffix (S-Type / Lockseam / Standing Seam) ---
-  (setq outer (strcat (peb-panel-clean-mat outMat) (if isSandwich "" finOut) profOut))
+  ;; --- OUTER skin: material + finish code (PPGL) + profile (S-Type) in parens (owner 14-Jul: the outer
+  ;;     skin always shows its finish AND profile, e.g. "0.50mm AZ150 (PPGL) (S-Type)") ---
+  (setq outer (strcat (peb-panel-clean-mat outMat) finOut profOut))
   ;; --- CORE / INSULATION ---
   (cond
     ;; SANDWICH: core from the PANEL (PIR / EPS / named), with density
@@ -248,8 +244,9 @@
                       ((or (wcmatch coreU "*ROCK*") (wcmatch coreU "*MINERAL*")) "Rock Wool")
                       (T (vl-string-trim " " pirType)))
                 " Core"
+                ;; owner 14-Jul: kg/m3 IS the density — plain " NN kg/m3", no "Density" word / parens
                 (if (/= (peb-panel-digits pirDens) "")
-                  (strcat " (" (peb-panel-digits pirDens) "kg/m3 Density)") ""))))
+                  (strcat " " (peb-panel-digits pirDens) " kg/m3") ""))))
     ;; SINGLE SKIN + accessory insulation
     ((/= insThk "")
       (setq coreU (strcase (if insType insType "")))
@@ -266,9 +263,13 @@
   ;; --- INNER skin / LINER ---
   (setq isLiner nil)
   (cond
-    ;; sandwich: inner skin is integral (material + finish, no "Liner" tag)
+    ;; sandwich: inner skin = material + its PROFILE (owner 14-Jul: the liner is Micro-Ribbed / MR by
+    ;; default), e.g. "0.50mm AZ150 (Micro-Ribbed)".  Profile from PN_<key>_INNER_PROFILE; blank -> Micro-Ribbed.
     (isSandwich
-      (setq inner (strcat (peb-panel-clean-mat innerMat) (peb-finish-code innerMat outFin))))
+      (setq inner (strcat (peb-panel-clean-mat innerMat)
+                          (peb-profile-name
+                            (if (= (vl-string-trim " " (if innerProf innerProf "")) "")
+                              "Micro-Ribbed" innerProf)))))
     ;; single skin + an authored inner sheet => liner
     ((/= (vl-string-trim " " innerMat) "")
       (setq inner (strcat (peb-panel-clean-mat innerMat) finOut) isLiner T))
@@ -853,12 +854,13 @@
     (if existing
       (setq newData (subst (cons code arrHandle) existing newData))
       (setq newData (append newData (list (cons code arrHandle))))))
-  ;; Arrow size — try both 41 and 44.
+  ;; Arrow size — try both 41 and 44.  Owner 14-Jul: the 500 mm arrowheads on the COLUMN/GIRT/DOWN PIPE
+  ;; leaders read oversized; 250 mm gives a clean small arrow that points at the element.
   (foreach code '(41 44)
     (setq existing (assoc code newData))
     (if existing
-      (setq newData (subst (cons code 500.0) existing newData))
-      (setq newData (append newData (list (cons code 500.0))))))
+      (setq newData (subst (cons code 200.0) existing newData))
+      (setq newData (append newData (list (cons code 200.0))))))
   (entmod newData)
   (entupd stdEnt)
 )
@@ -940,6 +942,9 @@
   (vlax-safearray-fill pts flat)
   ;; AddMLeader: 2nd arg = SafeArray of vertex coords; 3rd arg = leader
   ;; index (0 = first leader cluster).
+  ;; owner 14-Jul: the new MLEADER inherits DIMASZ for its arrowhead — force a SMALL value here so the
+  ;; COLUMN/GIRT/DOWN PIPE arrows aren't oversized (dims set their own DIMASZ via peb-dim-set-vars).
+  (vl-catch-all-apply (function (lambda () (setvar "DIMASZ" 180.0))))
   (setq mleader (vla-AddMLeader mspace pts 0))
   (vla-put-TextString  mleader text)
   ;; Layer ARROWS so the leader line + arrow are guaranteed visible
@@ -956,13 +961,10 @@
     (function (lambda () (vla-put-Landing       mleader :vlax-false))))
   (vl-catch-all-apply
     (function (lambda () (vla-put-DoglegEnabled mleader :vlax-false))))
-  ;; Arrow size — sensible value (500 mm).  The actual visibility fix
-  ;; is at the MULTILEADER STYLE level (peb-setup-mleader-style sets
-  ;; the Standard style's arrow block to "Closed Filled" once per run),
-  ;; so any new MLEADER inherits a visible arrow regardless of what we
-  ;; set at the entity level.
+  ;; Arrow size — owner 14-Jul: 500 (× ScaleFactor ≈ 625 mm) read oversized on the COLUMN/GIRT/DOWN PIPE
+  ;; leaders; 150 gives a clean small arrowhead.  The "Closed Filled" block still comes from the style.
   (vl-catch-all-apply
-    (function (lambda () (vla-put-ArrowSize mleader 500.0))))
+    (function (lambda () (vla-put-ArrowSize mleader 150.0))))
   ;; Force text height = body text height (220 × scale).  Caller can
   ;; override later if it wants something bigger (e.g. heading).
   (vl-catch-all-apply
@@ -1482,6 +1484,9 @@
   (setq lastBefore (entlast))
   (setq oldLayer   (getvar "CLAYER"))
   (peb-dim-set-vars)
+  ;; owner 14-Jul: global *PEB-DIM-TXT* (mm) shrinks a tall override label (e.g. "3048\PBRICK MASONRY")
+  ;; to fit BETWEEN the arrows.  nil/unbound => normal DIMTXT.  (Shared arity — do NOT add a param.)
+  (if (and *PEB-DIM-TXT* (> *PEB-DIM-TXT* 0)) (peb-safe-setvar "DIMTXT" *PEB-DIM-TXT*))
   (setvar "CLAYER" "DIMENSIONS")
   (setq result
     (vl-catch-all-apply
@@ -2840,7 +2845,7 @@
 ;;  dirOut selects which END carries the stiffener triangles (owner 14-Jul, "Sample @ Haunch @ Eave —
 ;;  Stiffener on Outer Side"): -1 = OUTER is the LEFT end (x0), +1 = OUTER is the RIGHT end (x1),
 ;;  nil = both ends (interior column under a continuous rafter).
-(defun draw-knee-hplate (xL xR ySeam plateT nBolt rcc dirOut / boltR ext i bx x0 x1 topY loBot stW stH)
+(defun draw-knee-hplate (xL xR ySeam plateT nBolt rcc dirOut / boltR ext i bx x0 x1 topY loBot stW stH gH)
   (setvar "CLAYER" "PLATES")
   (setq ext 100.0)
   (setq x0 (- xL ext) x1 (+ xR ext))
@@ -2867,11 +2872,20 @@
         (setq bx (+ x0 (* (/ (float i) (1+ nBolt)) (- x1 x0))))
         (command "DONUT" 0 (* boltR 2) (list bx ySeam) "")
         (setq i (1+ i)))
-      ;; stiffener triangles on the OUTER end (both ends if dirOut is nil, i.e. an interior column)
-      (if (or (null dirOut) (< dirOut 0))       ; OUTER = left end (x0)
-        (progn (draw-stiff-top x0 topY stW stH -1) (draw-stiff-bot x0 loBot stW stH -1)))
-      (if (or (null dirOut) (> dirOut 0))       ; OUTER = right end (x1)
-        (progn (draw-stiff-top x1 topY stW stH 1) (draw-stiff-bot x1 loBot stW stH 1)))))
+      ;; stiffener triangles CONNECTED TO THE OUTER FLANGE (owner 14-Jul): vertical edge on the member's
+      ;; outer flange (xL = x0+ext / xR = x1-ext), pointing INWARD toward the web — not sticking into space.
+      (if (or (null dirOut) (< dirOut 0))       ; OUTER = left flange (x0+ext), point inward (+)
+        (progn (draw-stiff-top (+ x0 ext) topY stW stH 1) (draw-stiff-bot (+ x0 ext) loBot stW stH 1)))
+      (if (or (null dirOut) (> dirOut 0))       ; OUTER = right flange (x1-ext), point inward (-)
+        (progn (draw-stiff-top (- x1 ext) topY stW stH -1) (draw-stiff-bot (- x1 ext) loBot stW stH -1)))
+      ;; DIAGONAL GUSSET line (owner 14-Jul, "show one line for stiffener…both eave sides"): ONE line from
+      ;; the plate INNER end up to the OUTER flange, spanning the triangular knee region.  Eave knees only
+      ;; (dirOut non-nil); rise = member depth (plate span minus the 100 ext each end).
+      (setq gH (- (- x1 x0) (* 2.0 ext)))
+      (if (and dirOut (< dirOut 0))             ; left eave knee: inner=x1 -> outer flange (x0+ext)
+        (command "LINE" (list x1 topY) (list (+ x0 ext) (+ topY gH)) ""))
+      (if (and dirOut (> dirOut 0))             ; right eave knee: inner=x0 -> outer flange (x1-ext)
+        (command "LINE" (list x0 topY) (list (- x1 ext) (+ topY gH)) ""))))
   (princ))
 
 ;;  draw-cant-vplate — CANTILEVER connection = the SAME I-shape detail but UN-rotated (VERTICAL), on the
@@ -4174,7 +4188,7 @@
   ;; labWY must clear that band by at least one text height.  Using
   ;; H + 1800·TS ensures the wall text bottom stays well above the
   ;; gutter label across all reasonable scales.
-  (setq labWY (+ H (* 1150 *PEB-TEXT-SCALE*)))   ; SHORT leader leg (owner 14-Jul), still clears the eave gutter band
+  (setq labWY (+ H (* 1450 *PEB-TEXT-SCALE*)))   ; raised ~300 (owner 14-Jul) so the WALL SHEETING label clears the EAVE GUTTER text
   ;; wWrapW: tighter cap so wall MTEXT doesn't sprawl past mid-rafter
   ;; into the PURLIN label area on narrow buildings.  Was halfL/2 minus
   ;; margin (still 3–4 m wide on a 15 m building); now halfL × 0.3
@@ -5515,8 +5529,9 @@
   ;;  Arrow tip lands AT the target point, tapered tip.
   (setvar "CLAYER" "ARROWS")
   (setvar "PLINEWID" 0.0)
-  (setq arrowSize (* 250 *PEB-TEXT-SCALE*))
-  (setq aw (* 80 *PEB-TEXT-SCALE*))
+  ;; owner 14-Jul: smaller, cleaner leader arrowheads (COLUMN/GIRT/DOWN PIPE etc.) — was 250 x 80.
+  (setq arrowSize (* 160 *PEB-TEXT-SCALE*))
+  (setq aw (* 55 *PEB-TEXT-SCALE*))
   (cond
     ((= arrowDir "V")
       ;; First leg horizontal from text TO targetX at textY
@@ -7118,7 +7133,10 @@
   ;; sysvars get reset inside peb-dim-height-stretch.
   (if (and brickH (> brickH 0))
     (progn
+      ;; owner 14-Jul: force the text small so "3048 … BRICK MASONRY" fits WITHIN the two dim arrows
+      (setq *PEB-DIM-TXT* 250.0)
       (peb-dim-height-stretch wid dimX1 0.0 brickH "<>\\PBRICK MASONRY")
+      (setq *PEB-DIM-TXT* nil)
       (peb-recolor-last-dim 0)))                  ; ByBlock
   (peb-dim-height-stretch wid dimX2 0.0 (- H ht) "<>\\PCLEAR HEIGHT")
   (peb-recolor-last-dim 0)                        ; ByBlock
@@ -7155,9 +7173,10 @@
   ;; DIMTXT × DIMSCALE so dim texts always have a visible gap).
   (peb-dim-h-stretch -235.0 (+ wid 235.0)
                      (- 0.0
-                        (if (> (length cols) 2)
-                          (+ (* 1500 *PEB-DIM-SCALE*) (peb-dim-text-spacing "horizontal"))
-                          (* 1500 *PEB-DIM-SCALE*)))
+                        (+ (if (> (length cols) 2)
+                             (+ (* 1500 *PEB-DIM-SCALE*) (peb-dim-text-spacing "horizontal"))
+                             (* 1500 *PEB-DIM-SCALE*))
+                           (* 450 *PEB-DIM-SCALE*)))   ; owner 14-Jul: drop the O/O dim clear of the FFL line + FFL text
                      "<>\\P0/0 OF SHEETING LINE")
   (peb-recolor-last-dim 0)                    ; ByBlock for overall width dim
 

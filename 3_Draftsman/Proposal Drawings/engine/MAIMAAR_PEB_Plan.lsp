@@ -5408,6 +5408,9 @@
         (/ (* (abs (- y2 y1)) 0.82)
            (* (peb-longest-line-len override) 0.66
               (if *PEB-DIM-SCALE* *PEB-DIM-SCALE* 1.0)))))))
+  ;; owner 14-Jul: an explicit *PEB-DIM-TXT* (mm, global) OVERRIDES the autosize — used to force a tall
+  ;; two-line override (e.g. "3048\PBRICK MASONRY") small enough to sit between the arrows.
+  (if (and *PEB-DIM-TXT* (> *PEB-DIM-TXT* 0)) (peb-safe-setvar "DIMTXT" *PEB-DIM-TXT*))
   (setvar "CLAYER" "DIMENSIONS")
   (setq result
     (vl-catch-all-apply
