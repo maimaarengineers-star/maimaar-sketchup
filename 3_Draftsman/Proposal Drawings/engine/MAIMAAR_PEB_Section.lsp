@@ -185,6 +185,26 @@
     ((or (wcmatch m "*GI*") (wcmatch m "*GALVANI*")) (if painted " (PPGI)" " (GI)"))
     (T "")))
 
+;;  peb-profile-name — the sheeting PROFILE suffix shown after the outer skin, from
+;;  PN_<KEY>_OUTER_PROFILE (BS).  The default "Standard Profile" (trapezoidal) is the
+;;  house norm and adds no suffix; only a NON-standard profile is called out so the
+;;  label reads e.g. "0.50mm AZ 150 (PPGL), Lockseam".  Owner 13-Jul: buildings may use
+;;  S-Type or Lockseam (standing-seam) in place of Standard Profile.
+(defun peb-profile-name (prof / p)
+  (setq p (strcase (vl-string-trim " " (if prof prof ""))))
+  (cond
+    ((= p "")                       "")
+    ((wcmatch p "*STANDARD*")       "")   ; trapezoidal house default -> unlabelled
+    ((wcmatch p "*TRAPEZ*")         "")
+    ((wcmatch p "*LOCK*SEAM*")      ", Lockseam")
+    ((wcmatch p "*LOCK-SEAM*")      ", Lockseam")
+    ((wcmatch p "*LOCKSEAM*")       ", Lockseam")
+    ((wcmatch p "*STANDING*SEAM*")  ", Standing Seam")
+    ((wcmatch p "*S-TYPE*")         ", S-Type")
+    ((wcmatch p "*S TYPE*")         ", S-Type")
+    ((wcmatch p "*STYPE*")          ", S-Type")
+    (T (strcat ", " (vl-string-trim " " prof))))) ; any other named profile carried verbatim
+
 ;;  peb-panel-label — compose the FULL sheeting sandwich for KEY = "ROOF"/"WALL".
 ;;  Owner 13-Jul spec, sourced from the BS:
 ;;    single skin           : "0.50mm AZ 150 (PPGL)"
@@ -194,12 +214,13 @@
 ;;  IMPORTANT: for a SINGLE-SKIN panel the insulation is read from the roof/wall
 ;;  ACCESSORIES (PN_<KEY>_INSUL_*), NOT the panel description; the PIR core is read
 ;;  from the panel only for a SANDWICH.  Density is always shown when present.
-(defun peb-panel-label (data key / typ outMat outFin insThk insType insDens
+(defun peb-panel-label (data key / typ outMat outFin outProf insThk insType insDens
                                     pirThk pirDens pirType innerMat linerMat
-                                    outer core inner coreU isSandwich isLiner finOut lbl)
+                                    outer core inner coreU isSandwich isLiner finOut profOut lbl)
   (setq typ      (peb-alist-get data (strcat "PN_" key "_TYPE")))
   (setq outMat   (peb-alist-get data (strcat "PN_" key "_OUTER_MAT")))
   (setq outFin   (peb-alist-get data (strcat "PN_" key "_OUTER_FINISH")))
+  (setq outProf  (peb-alist-get data (strcat "PN_" key "_OUTER_PROFILE")))
   (setq pirThk   (peb-alist-get data (strcat "PN_" key "_PIR_THK")))
   (setq pirDens  (peb-alist-get data (strcat "PN_" key "_PIR_DENS")))
   (setq pirType  (peb-alist-get data (strcat "PN_" key "_PIR_TYPE")))
@@ -211,8 +232,10 @@
   (setq insDens (peb-panel-digits (peb-alist-get data (strcat "PN_" key "_INSUL_DENS"))))
   (setq isSandwich (or (= (strcase typ) "SANDWICH PANEL") (= (strcase typ) "SANDWICH")))
   (setq finOut (peb-finish-code outMat outFin))
-  ;; --- OUTER skin (+ finish code, except on a sandwich where the code sits on the inner skin) ---
-  (setq outer (strcat (peb-panel-clean-mat outMat) (if isSandwich "" finOut)))
+  (setq profOut (peb-profile-name outProf))
+  ;; --- OUTER skin (+ finish code, except on a sandwich where the code sits on the inner skin)
+  ;;     + non-standard profile suffix (S-Type / Lockseam / Standing Seam) ---
+  (setq outer (strcat (peb-panel-clean-mat outMat) (if isSandwich "" finOut) profOut))
   ;; --- CORE / INSULATION ---
   (cond
     ;; SANDWICH: core from the PANEL (PIR / EPS / named), with density
@@ -278,7 +301,7 @@
   (setvar "CLAYER" "TEXT")
   (setq rspec (peb-split-2-lines (peb-panel-label data "ROOF")))
   (setq wspec (peb-split-2-lines (peb-panel-label data "WALL")))
-  (setq rc (strcat "{\\C7;\\H0.42x;{\\fArial|b1;ROOF SHEETING:}\\P" rspec "}"))
+  (setq rc (strcat "{\\C7;\\H0.42x;{\\fArial|b1;ROOFING SYSTEM:}\\P" rspec "}"))
   (setq wc (strcat "{\\C7;\\H0.42x;{\\fArial|b1;WALL SHEETING:}\\P" wspec "}"))
   ;; ROOF: arrow on the roof at ~68% span, SHORT leg up (owner 14-Jul)
   (setq rx (* W 0.68) ry (+ H (* rise 0.82) 235.0) roofTopY (+ ry (* 900 *PEB-TEXT-SCALE*)))
@@ -303,11 +326,37 @@
                         (list (- px (* nx 45.0)) (- py (* ny 45.0))) "")
         (setq i (1+ i))))))
 
+;;  draw-purlins-arc — purlin symbol ticks that FOLLOW an arched roof (owner 14-Jul: ACS/AMS purlins must
+;;  follow the curve of the roofing system, like Clear Span shows them on the slope).  Fits a parabola
+;;  y=c0+c1x+c2x^2 through the 3 arch points (x1,y1) end, (x2,y2) peak, (x3,y3) end; ticks ~1500 mm along
+;;  the ARC, perpendicular to the local tangent, on the PURLINS layer.
+(defun draw-purlins-arc (x1 y1 x2 y2 x3 y3 / d12 d23 c0 c1 c2 step x y dyx ln ux uy nx ny prevx prevy acc dseg)
+  (setvar "CLAYER" "PURLINS")
+  (setq d12 (/ (- y1 y2) (- x1 x2))
+        d23 (/ (- y2 y3) (- x2 x3))
+        c2  (/ (- d12 d23) (- x1 x3))
+        c1  (- d12 (* c2 (+ x1 x2)))
+        c0  (- y1 (* c1 x1) (* c2 x1 x1)))
+  (setq step (/ (- x3 x1) 240.0) x x1 prevx x1 prevy y1 acc 0.0)
+  (while (<= x x3)
+    (setq y    (+ c0 (* c1 x) (* c2 x x)))
+    (setq dseg (sqrt (+ (* (- x prevx) (- x prevx)) (* (- y prevy) (- y prevy)))))
+    (setq acc  (+ acc dseg))
+    (if (>= acc 1500.0)
+      (progn
+        (setq acc 0.0
+              dyx (+ c1 (* 2.0 c2 x))                 ; dy/dx (local slope)
+              ln  (sqrt (+ 1.0 (* dyx dyx))) ux (/ 1.0 ln) uy (/ dyx ln) nx (- 0 uy) ny ux)
+        (command "LINE" (list (+ x (* nx 90.0)) (+ y (* ny 90.0)))
+                        (list (- x (* nx 45.0)) (- y (* ny 45.0))) "")))
+    (setq prevx x prevy y x (+ x step)))
+  (princ))
+
 ;;  peb-canopy-roof-label — one ROOF SHEETING callout for a canopy deck (no walls).
 (defun peb-canopy-roof-label (data ax ay topY / spec rc)
   (setvar "CLAYER" "TEXT")
   (setq spec (peb-split-2-lines (peb-panel-label data "ROOF")))
-  (setq rc (strcat "{\\C7;\\H0.42x;{\\fArial|b1;ROOF SHEETING:}\\P" spec "}"))
+  (setq rc (strcat "{\\C7;\\H0.42x;{\\fArial|b1;ROOFING SYSTEM:}\\P" spec "}"))
   (vl-catch-all-apply 'peb-make-mleader
     (list (list (list ax ay) (list ax topY) (list (+ ax 300.0) topY)) rc)))
 
@@ -2025,31 +2074,68 @@
   (command "C")
 )
 
-(defun build-ss-polygon (W H slopeRise ht cb / midD midY)
-  ;;  Single Slope (mono-slope) frame outline.
-  ;;  LOW column on left (eave at H), HIGH column on right (eave at H+slopeRise).
-  ;;  One continuous rafter sloping from low to high.
-  ;;  RAFTER IS TAPERED (owner 13-Jul: all PEB rafters taper) -- DEEP at both knees (ht),
-  ;;  THIN at mid-span (midD).  The mid-span underside point gives the cigar taper.
-  (setq midD (max 300.0 (* ht 0.45)))                 ; thin mid-span web depth
-  (setq midY (- (+ H (/ slopeRise 2.0)) midD))        ; underside at mid-span (thin)
-  (list
-    (list 0.0          0.0)                          ; 1 bottom-left outside
-    (list 0.0          H)                             ; 2 low eave outside (rafter top)
-    (list W            (+ H slopeRise))               ; 3 high eave outside (rafter top)
-    (list W            0.0)                           ; 4 bottom-right outside
-    (list (- W cb)     0.0)                           ; 5 right column inside-base
-    (list (- W ht)     (- (+ H slopeRise) ht))        ; 6 right haunch (high knee, deep ht)
-    (list (/ W 2.0)    midY)                          ; 7 MID-SPAN underside (thin) -> taper
-    (list ht           (- H ht))                      ; 8 left haunch (low knee, deep ht)
-    (list cb           0.0)                           ; 9 left column inside-base
-  )
-)
+;; ssTopY — rafter TOP Y at horizontal x on a mono slope.
+(defun ss-topY (x H slopeRise W) (+ H (* slopeRise (/ x W))))
 
-(defun draw-ss-frame (W H slopeRise ht cb / pts)
+;; ss-taper-params — SINGLE source of truth for the SS haunch/splice geometry (owner 14-Jul), so the
+;; polygon outline (draw-ss-frame) and the splice plates (plate branch) land on the SAME x.  Returns
+;; (list midD hLx): midD = thin web depth; hLx = HORIZONTAL taper run ≈ 3-4 m off each column, clamped
+;; so adjacent haunch tapers never cross.
+(defun ss-taper-params (cols W slopeRise ht / midD hL slLen hLx i gap minGap)
+  (setq midD  (max 300.0 (* ht 0.45)))
+  (setq hL    (max 3000.0 (min 4000.0 (car (cigar-taper-lengths W)))))   ; splice 3-4 m from column
+  (setq slLen (sqrt (+ (* W W) (* slopeRise slopeRise))))
+  (setq hLx   (* hL (/ W slLen)))                                        ; horizontal run of the taper
+  (setq minGap W i 1)
+  (while (< i (length cols))
+    (setq gap (- (nth i cols) (nth (1- i) cols)))
+    (if (< gap minGap) (setq minGap gap))
+    (setq i (1+ i)))
+  (setq hLx (min hLx (- (/ minGap 2.0) 200.0)))                          ; keep tapers apart
+  (if (< hLx 500.0) (setq hLx 500.0))
+  (list midD hLx))
+
+(defun build-ss-polygon (cols W H slopeRise ht cb hLx midD / n i xi under)
+  ;;  Single Slope (mono-slope) frame outline — HAUNCHED at EVERY column (owner 14-Jul, ref sample).
+  ;;  LOW column on left (eave at H), HIGH column on right (eave at H+slopeRise); one continuous slope.
+  ;;  Rafter is DEEP (ht) at every column knee and taper down to THIN (midD) over hLx (~3-4m), then runs
+  ;;  STRAIGHT at depth midD between haunch ends.  End knees keep an `ht` horizontal haunch; interior
+  ;;  columns are point-haunches at their station.  `cols` = column x-list (0..W); interior columns are
+  ;;  drawn separately by draw-ss-interior-cols and land on these knees.
+  (setq n (length cols))
+  ;; underside vertices LEFT->RIGHT: left knee (deep) -> left taper (thin) ...
+  (setq under (list
+    (list ht (- H ht))
+    (list (+ ht hLx) (- (ss-topY (+ ht hLx) H slopeRise W) midD))))
+  ;; ... interior columns: thin-before -> deep-knee -> thin-after ...
+  (setq i 1)
+  (while (< i (1- n))
+    (setq xi (nth i cols))
+    (setq under (append under (list
+      (list (- xi hLx) (- (ss-topY (- xi hLx) H slopeRise W) midD))
+      (list xi         (- (ss-topY xi H slopeRise W) ht))
+      (list (+ xi hLx) (- (ss-topY (+ xi hLx) H slopeRise W) midD)))))
+    (setq i (1+ i)))
+  ;; ... right taper (thin) -> right knee (deep).
+  (setq under (append under (list
+    (list (- (- W ht) hLx) (- (ss-topY (- (- W ht) hLx) H slopeRise W) midD))
+    (list (- W ht) (- (+ H slopeRise) ht)))))
+  ;; polygon walks the underside RIGHT->LEFT, so reverse the left->right list.
+  (setq under (reverse under))
+  (append
+    (list
+      (list 0.0      0.0)               ; bottom-left outside
+      (list 0.0      H)                 ; low eave top
+      (list W        (+ H slopeRise))   ; high eave top
+      (list W        0.0)               ; bottom-right outside
+      (list (- W cb) 0.0))              ; right column inside-base
+    under                              ; underside right->left (right knee ... left knee)
+    (list (list cb 0.0))))             ; left column inside-base
+
+(defun draw-ss-frame (cols W H slopeRise ht cb hLx midD / pts)
   (setvar "CLAYER" "FRAME")
   (setvar "PLINEWID" 0.0)
-  (setq pts (build-ss-polygon W H slopeRise ht cb))
+  (setq pts (build-ss-polygon cols W H slopeRise ht cb hLx midD))
   (command "PLINE")
   (foreach p pts (command p))
   (command "C")
@@ -2333,6 +2419,78 @@
     "C")
 )
 
+(defun draw-floor-buildup (x0 x1 yTop beamD joistD slabT / span y1 y2 p x
+                                   jTop jBot bTop bBot bf jx nJ jHalf step)
+  ;;  Reusable flat-roof / mezzanine intermediate-floor build-up (owner 14-Jul):
+  ;;  reinforced concrete SLAB on corrugated METAL DECK, carried on JOISTS (clip-angle onto the
+  ;;  MAIN BEAM), carried on the MAIN BEAM.  Section ACROSS the span.  NO purlins / roof sheeting.
+  ;;  yTop = finished top-of-slab level.  The SAME detail is reused for gable-roof mezzanine floors
+  ;;  and multi-storey flat-roof intermediate floors — do not special-case it here.
+  (setq span (- x1 x0))
+  (setq bf   25.0)                         ; drawn flange / plate thickness
+  ;; elevations, top -> down
+  (setq y1   (- yTop slabT))               ; slab underside = deck top
+  (setq y2   (- y1 75.0))                  ; deck flute bottom (75 mm deck)
+  (setq jTop y2)                           ; joist top flange
+  (setq jBot (- jTop joistD))              ; joist bottom flange
+  (setq bTop jBot)                         ; main-beam top flange
+  (setq bBot (- bTop beamD))               ; main-beam bottom flange
+  ;; ── Reinforced concrete slab (hatched band at the very top) ──
+  (setvar "CLAYER" "RCC-COLUMN")
+  (setvar "PLINEWID" 0.0)
+  (command "RECTANG" (list x0 y1) (list x1 yTop))
+  (command "HATCH" "AR-CONC" (* 18 *PEB-TEXT-SCALE*) 0 "L" "")
+  ;; ── Corrugated metal deck (trapezoidal zig-zag under the slab) ──
+  (setvar "CLAYER" "CLADDING")
+  (setq p 300.0 x x0)
+  (command "PLINE")
+  (while (< x x1)
+    (command (list x y1))
+    (command (list (min x1 (+ x 120.0)) y1))
+    (command (list (min x1 (+ x 150.0)) y2))
+    (command (list (min x1 (+ x 270.0)) y2))
+    (setq x (+ x p)))
+  (command (list x1 y1))
+  (command "")
+  ;; ── MAIN BEAM (I-section elevation spanning the full width) ──
+  (setvar "CLAYER" "FRAME")
+  (command "RECTANG" (list x0 (- bTop bf)) (list x1 bTop))      ; top flange
+  (command "RECTANG" (list x0 bBot) (list x1 (+ bBot bf)))      ; bottom flange
+  (command "LINE" (list x0 (- bTop bf)) (list x0 (+ bBot bf)) "")   ; left web edge
+  (command "LINE" (list x1 (- bTop bf)) (list x1 (+ bBot bf)) "")   ; right web edge
+  ;; ── JOISTS (I-section cuts) on the beam @ ~1500, clip-angle onto the beam top flange ──
+  (setq jHalf 90.0)
+  (setq nJ   (max 2 (fix (/ span 1500.0))))
+  (setq step (/ span (float nJ)))
+  (setq jx   (+ x0 step))
+  (while (< jx (- x1 1.0))
+    (command "LINE" (list (- jx jHalf) jTop) (list (+ jx jHalf) jTop) "")   ; joist top flange
+    (command "LINE" (list (- jx jHalf) jBot) (list (+ jx jHalf) jBot) "")   ; joist bottom flange
+    (command "LINE" (list jx jTop) (list jx jBot) "")                       ; joist web
+    ;; clip angle (small L) seating the joist on the beam top flange
+    (command "LINE" (list (+ jx jHalf) jBot) (list (+ jx jHalf 60.0) jBot) "")
+    (command "LINE" (list (+ jx jHalf 60.0) jBot) (list (+ jx jHalf 60.0) (+ jBot 130.0)) "")
+    (setq jx (+ jx step)))
+  ;; ── Labels ──
+  (setvar "CLAYER" "TEXT")
+  (peb-label-with-leader "R.C.C. SLAB"
+                         (list (+ x0 (* span 0.16)) (+ yTop 900.0))
+                         (list (+ x0 (* span 0.16)) (- yTop (/ slabT 2.0)))
+                         "V" 220)
+  (peb-label-with-leader "METAL DECK"
+                         (list (+ x0 (* span 0.40)) (+ yTop 900.0))
+                         (list (+ x0 (* span 0.40)) (- y1 37.0))
+                         "V" 220)
+  (peb-label-with-leader "STEEL JOIST"
+                         (list (+ x0 (* span 0.62)) (- bBot 900.0))
+                         (list (+ x0 (* span 0.62)) (* (+ jTop jBot) 0.5))
+                         "V" 220)
+  (peb-label-with-leader "MAIN BEAM"
+                         (list (+ x0 (* span 0.84)) (- bBot 900.0))
+                         (list (+ x0 (* span 0.84)) (* (+ bTop bBot) 0.5))
+                         "V" 220)
+  (princ))
+
 (defun draw-petrol-frame (W H ht cb / ovh cx1 cx2 rt colw)
   ;;  PETROL PUMP / CNG CANOPY (owner 9-Jul): a near-flat roof carried on 1-2 rows of columns with
   ;;  CANTILEVER overhangs on both sides — the roof slab spans the full width and projects beyond the
@@ -2512,11 +2670,12 @@
   (setq dp (max 350.0 (* (/ W 24000.0) 700.0)))   ; mast (deep) web depth
   (setq de (max 200.0 (* (/ W 24000.0) 400.0)))   ; tip (thin) web depth
 
-  ;; Center column (rectangular) — top at the mast underside (deep web)
+  ;; Center column (rectangular) — EXTENDED TILL THE TOP / valley (owner 14-Jul), the two wings connect
+  ;; to its SIDES at the mast underside (H-dp); the column continues up to the valley (H).
   (setvar "CLAYER" "FRAME")
   (command "RECTANG"
     (list (- cx halfCol) 0.0)
-    (list (+ cx halfCol) (- H dp)))
+    (list (+ cx halfCol) H))
 
   ;; Frame outline: butterfly (V top), underside tapers de (tip) -> dp (mast)
   (command "PLINE"
@@ -2651,16 +2810,34 @@
   (draw-stiff-bot xl loBot stW stH  1)
   (draw-stiff-bot xr loBot stW stH -1))
 
+;;  peb-conn-plate-depth — a connection / splice plate SIZED TO THE MEMBER DEPTH (owner 14-Jul): a
+;;  vertical bolted end-plate centred at cx spanning the rafter from its BOTTOM flange (yBot) to its
+;;  TOP flange (yTop), EXTENDED 100 mm BEYOND both flanges (so it is never "small / in the air").
+;;  plateT = plate half-thickness drawn each side of the seam; bolts run down the web line.
+(defun peb-conn-plate-depth (cx yBot yTop plateT nBolt / boltR ext pB pT i by)
+  (setvar "CLAYER" "PLATES")
+  (setq boltR (* 18 *PEB-TEXT-SCALE*))
+  (setq ext 100.0)                          ; 100 mm beyond top AND bottom flanges
+  (setq pB (- (min yBot yTop) ext) pT (+ (max yBot yTop) ext))
+  (command "RECTANG" (list (- cx plateT) pB) (list cx            pT))   ; plate left of seam
+  (command "RECTANG" (list cx            pB) (list (+ cx plateT) pT))   ; plate right of seam
+  (setq i 1)
+  (while (<= i nBolt)
+    (setq by (+ pB (* (/ (float i) (1+ nBolt)) (- pT pB))))
+    (command "DONUT" 0 (* boltR 2) (list cx by) "")
+    (setq i (1+ i)))
+  (princ))
+
 ;;  draw-arch-conn-plates — connection plates for the ARCHED types (owner 13-Jul): a plate pair at
 ;;  each column-arch SPRINGING, plus mid-arch SPLICE plate pairs every <=12 m along the arch (the arch
 ;;  is a continuous member spliced to <=12 m shipping pieces).  Splice Y follows the parabolic arch.
 (defun draw-arch-conn-plates (stype W H rise ep / innerH step x ay t2)
   (setq innerH 200.0)                                       ; arch web depth (matches the frame)
-  ;; SPRINGING plates at the column-arch junctions
-  (peb-conn-plate-pair 0.0 (- H innerH) 250.0 ep 2)
-  (peb-conn-plate-pair W   (- H innerH) 250.0 ep 2)
-  (if (= stype "AMS") (peb-conn-plate-pair (/ W 2.0) (- (+ H rise) innerH) 250.0 ep 2))  ; centre-peak col
-  ;; SPLICE plates every <=12 m along the arch
+  ;; SPRINGING plates at the column-arch junctions — SIZED to the arch web + 100 beyond flanges (owner 14-Jul).
+  (peb-conn-plate-depth 0.0 (- H innerH) H 45.0 2)
+  (peb-conn-plate-depth W   (- H innerH) H 45.0 2)
+  (if (= stype "AMS") (peb-conn-plate-depth (/ W 2.0) (- (+ H rise) innerH) (+ H rise) 45.0 2))  ; centre-peak col
+  ;; SPLICE plates every <=12 m along the arch (between the rafters), depth-aware on the arch web.
   (setq step (/ W (float (1+ (fix (/ W 12000.0))))))
   (setq x step)
   (while (< x (- W 1.0))
@@ -2668,7 +2845,7 @@
       (progn
         (setq t2 (/ (- x (/ W 2.0)) (/ W 2.0)))
         (setq ay (+ H (* rise (- 1.0 (* t2 t2)))))          ; parabolic arch outer Y at x
-        (peb-conn-plate-pair x (- ay innerH) 180.0 ep 2)))
+        (peb-conn-plate-depth x (- ay innerH) ay 40.0 2)))
     (setq x (+ x step))))
 
 (defun draw-base-plates-multi (cols cb ep intColW / boltR x i n thisW)
@@ -3106,38 +3283,15 @@
     (cond
       ;; --- LEFT END column: outer = (x-ext), inner = (x+ht+ext) ---
       ((= i 0)
-        (setq outerX (- x ext))
-        (setq innerX (+ x ht ext))
-        ;; Upper (rafter) plate
-        (command "RECTANG" (list outerX upBotY) (list innerX upTopY))
-        ;; Lower (column) plate
-        (command "RECTANG" (list outerX loBotY) (list innerX loTopY))
-        ;; Bolts at the interface
-        (command "DONUT" 0 (* boltR 2) (list (+ x (* ht 0.15)) upBotY) "")
-        (command "DONUT" 0 (* boltR 2) (list (+ x (* ht 0.40)) upBotY) "")
-        (command "DONUT" 0 (* boltR 2) (list (+ x (* ht 0.65)) upBotY) "")
-        (command "DONUT" 0 (* boltR 2) (list (+ x (* ht 0.90)) upBotY) "")
-        ;; OUTER end stiffeners: vertical at column flange (x), hypotenuse OUT to outerX
-        (draw-stiff-top x        upTopY ext stiffH -1)
-        (draw-stiff-bot x        loBotY ext stiffH -1)
-        ;; INNER end stiffener: vertical at rafter end plate (x+ht), hypotenuse IN to innerX
-        (draw-stiff-bot (+ x ht) loBotY ext stiffH  1)
+        ;; Depth-aware knee plate (owner 14-Jul): a VERTICAL connection plate SIZED to the
+        ;; rafter web at the knee (H-ht .. H) + 100 mm beyond the top AND bottom flanges,
+        ;; matching every other PEB frame.  Replaces the old thin horizontal plate stack.
+        (peb-conn-plate-depth x (- H ht) H 45.0 4)
       )
       ;; --- RIGHT END column: outer = (x+ext), inner = (x-ht-ext) ---
       ((= i (1- nCols))
-        (setq outerX (+ x ext))
-        (setq innerX (- x ht ext))
-        (command "RECTANG" (list innerX upBotY) (list outerX upTopY))
-        (command "RECTANG" (list innerX loBotY) (list outerX loTopY))
-        (command "DONUT" 0 (* boltR 2) (list (- x (* ht 0.15)) upBotY) "")
-        (command "DONUT" 0 (* boltR 2) (list (- x (* ht 0.40)) upBotY) "")
-        (command "DONUT" 0 (* boltR 2) (list (- x (* ht 0.65)) upBotY) "")
-        (command "DONUT" 0 (* boltR 2) (list (- x (* ht 0.90)) upBotY) "")
-        ;; OUTER end stiffeners: vertical at column flange (x), hypotenuse OUT to outerX
-        (draw-stiff-top x        upTopY ext stiffH  1)
-        (draw-stiff-bot x        loBotY ext stiffH  1)
-        ;; INNER end stiffener: vertical at rafter end plate (x-ht), hypotenuse IN to innerX
-        (draw-stiff-bot (- x ht) loBotY ext stiffH -1)
+        ;; Depth-aware knee plate (owner 14-Jul) — right end column, same rule as the left.
+        (peb-conn-plate-depth x (- H ht) H 45.0 4)
       )
       ;; --- INTERIOR column ----------------------------------------------
       ;; If this column lands AT the ridge (within 1 mm of ridgeX), SKIP
@@ -3186,22 +3340,9 @@
               (list (- x vHalfCol) (- vPlateBot 20.0))
               (list (+ x vHalfCol)    vPlateBot)))
           (T
-            ;; --- Non-valley interior column (MS): single horizontal plate
-            ;;     stack centered on the column, similar to end-column style ---
-            (setq outerX (- x ht ext))
-            (setq innerX (+ x ht ext))
-            (command "RECTANG" (list outerX upBotY) (list innerX upTopY))
-            (command "RECTANG" (list outerX loBotY) (list innerX loTopY))
-            (command "DONUT" 0 (* boltR 2) (list (- x (* ht 0.85)) upBotY) "")
-            (command "DONUT" 0 (* boltR 2) (list (- x (* ht 0.50)) upBotY) "")
-            (command "DONUT" 0 (* boltR 2) (list (- x (* ht 0.15)) upBotY) "")
-            (command "DONUT" 0 (* boltR 2) (list (+ x (* ht 0.15)) upBotY) "")
-            (command "DONUT" 0 (* boltR 2) (list (+ x (* ht 0.50)) upBotY) "")
-            (command "DONUT" 0 (* boltR 2) (list (+ x (* ht 0.85)) upBotY) "")
-            (draw-stiff-top (- x ht) upTopY ext stiffH -1)
-            (draw-stiff-bot (- x ht) loBotY ext stiffH -1)
-            (draw-stiff-top (+ x ht) upTopY ext stiffH  1)
-            (draw-stiff-bot (+ x ht) loBotY ext stiffH  1))))
+            ;; --- Non-valley interior column (MS) under a continuous rafter: depth-aware
+            ;;     vertical connection plate at the column, web (H-ht .. H) + 100 mm beyond. ---
+            (peb-conn-plate-depth x (- H ht) H 45.0 4))))
     )
     (setq i (1+ i))
   )
@@ -6028,7 +6169,8 @@
       (draw-rcc-building-frame cols wid H cb))
     ((= stype "SS")
       (setq slopeRise (/ wid slopeD))
-      (draw-ss-frame wid H slopeRise ht cb)
+      (setq ssTP (ss-taper-params cols wid slopeRise ht))                 ; (midD hLx) — shared w/ plates
+      (draw-ss-frame cols wid H slopeRise ht cb (cadr ssTP) (car ssTP))
       ;; SSMS: draw the interior columns (clear-span SSCS has none — cols = (0 W))
       (if (> (length cols) 2) (draw-ss-interior-cols cols wid H slopeRise ht)))
     ((= stype "RC")
@@ -6174,36 +6316,80 @@
     ((member stype '("BF" "CC"))
       ;; Canopies (owner 13-Jul): NO plates at the free wing tips.  Base plate at the mast/support
       ;; column base + the STANDARD 2-plate rafter-column connection at the mast/support column TOP.
+      ;; Owner 14-Jul: canopy connection plates come on the SIDE(S) of the column (where the wing rafter
+      ;; attaches), depth-aware (web + 100 beyond flanges) — not a small plate floating at the top centre.
       (if (= stype "CC")
         (progn
           (setq eLp (if (= (strcase (peb-tb-or (MSPL-Get-Str data "CC_LOW_AT_COLUMN") "")) "YES")
                         H (+ H (/ wid slopeD))))
           (setq dsP (max 450.0 (* (/ wid 12000.0) 1100.0)))
           (draw-base-plate-at 0.0 ht ep (* 25 *PEB-TEXT-SCALE*))   ; base matches the straight column width (ht)
-          (peb-conn-plate-pair (/ ht 2.0) (- eLp dsP) (+ (/ ht 2.0) 100.0) ep 3))
+          (peb-conn-plate-depth ht (- eLp dsP) eLp 45.0 3))         ; plate on the WING side of the column
         (progn
           (setq dpP (max 350.0 (* (/ wid 24000.0) 700.0)))
-          (setq mastTopY (if (= (strcase (peb-tb-or (MSPL-Get-Str data "CC_FALCON_PEAK") "")) "YES")
-                             (+ H rise (- 0 dpP)) (- H dpP)))
+          (setq bfHalf 200.0)                                       ; centre column half-width (intColW 400)
+          (setq bfPk  (= (strcase (peb-tb-or (MSPL-Get-Str data "CC_FALCON_PEAK") "")) "YES"))
+          (setq bfBotY (if bfPk (- (+ H rise) dpP) (- H dpP))
+                bfTopY (if bfPk (+ H rise) H))
           (draw-base-plate-at (- (/ wid 2.0) 200.0) (+ (/ wid 2.0) 200.0) ep (* 25 *PEB-TEXT-SCALE*))
-          (peb-conn-plate-pair (/ wid 2.0) mastTopY 300.0 ep 3))))   ; mast half 200 + 100mm each side
+          ;; connection plate on BOTH SIDES of the centre column — one per wing (owner 14-Jul).
+          (peb-conn-plate-depth (- (/ wid 2.0) bfHalf) bfBotY bfTopY 45.0 3)
+          (peb-conn-plate-depth (+ (/ wid 2.0) bfHalf) bfBotY bfTopY 45.0 3))))
     ((= stype "SS")
-      ;; SINGLE SLOPE: a connection plate at EACH column-rafter JUNCTION, placed at the height where
-      ;; that column meets the sloped rafter underside -- (H-ht) rises by slopeRise*(x/W) along the mono
-      ;; rafter.  (draw-haunch-plates would put them all at the low H-ht, leaving them floating in air.)
+      ;; SINGLE SLOPE: (1) a KNEE connection plate at EACH column-rafter junction (on the deep underside
+      ;; topY-ht), and (2) a RAFTER SPLICE plate ~3-4 m from EVERY column at the haunch end (deep->thin
+      ;; transition, on the thin underside topY-midD) -- owner 14-Jul: the moment/web-depth changes
+      ;; sharply there.  Uses ss-taper-params so the splice X = the polygon taper end exactly.
       (setq slopeRiseP (/ wid slopeD))
+      (setq ssTPp (ss-taper-params cols wid slopeRiseP ht) midDp (car ssTPp) hLxp (cadr ssTPp))
       (if (> (length cols) 2)
         (draw-base-plates-multi cols cb ep 400.0)     ; SSMS: base plate at every column
         (draw-base-plates       wid cb ep))           ; SSCS: two end columns
+      ;; (1) knee plates — sized to the FULL rafter depth at the column (topY-ht .. topY) + 100 beyond flanges
       (foreach cx cols
-        (peb-conn-plate-pair cx (+ (- H ht) (* slopeRiseP (/ cx wid)))
-                             (+ (/ cb 2.0) 100.0) ep 3)))
+        (peb-conn-plate-depth cx (- (ss-topY cx H slopeRiseP wid) ht) (ss-topY cx H slopeRiseP wid) 45.0 3))
+      ;; (2) splice plates at the haunch ends — sized to the THIN rafter depth (topY-midD .. topY) + 100
+      (setq ssNC (length cols) ssK 0)
+      (while (< ssK ssNC)
+        (setq ssCx (nth ssK cols))
+        (cond
+          ((= ssK 0)          (setq ssSplXs (list (+ ht hLxp))))
+          ((= ssK (1- ssNC))  (setq ssSplXs (list (- (- wid ht) hLxp))))
+          (T                  (setq ssSplXs (list (- ssCx hLxp) (+ ssCx hLxp)))))
+        (foreach ssSx ssSplXs
+          (peb-conn-plate-depth ssSx (- (ss-topY ssSx H slopeRiseP wid) midDp) (ss-topY ssSx H slopeRiseP wid) 40.0 2))
+        (setq ssK (1+ ssK))))
     ((= stype "LT")
-      ;; LEAN-TO: ONE steel column on the LEFT (the right side is the existing wall, no steel column).
-      ;; Base plate + a connection plate at the LEFT column-rafter junction only (strict: every
-      ;; steel column-rafter joint gets a plate).
+      ;; LEAN-TO: ONE steel column on the LEFT; the RIGHT end BEARS on the existing RCC/masonry wall.
+      ;; (owner 14-Jul) Depth-aware knee plate at the steel column, a 3-4 m rafter splice from the
+      ;; LOW-EAVE side (sharp web-depth change per the bending-moment diagram), and a bearing/end
+      ;; plate with CHEMICAL ANCHOR BOLTS where the steel rafter lands on the existing wall.
+      (setq slopeRise (/ wid slopeD))
+      (setq ltMidD (max 300.0 (* ht 0.45)))
+      (setq ltHL   (max 3000.0 (min 4000.0 (car (cigar-taper-lengths wid)))))
       (draw-base-plate-at 0.0 cb ep (* 25 *PEB-TEXT-SCALE*))
-      (peb-conn-plate-pair (/ ht 2.0) (- H (* ht 0.4)) (+ (/ cb 2.0) 100.0) ep 3))
+      ;; Knee plate at the LEFT steel column (web H-ht .. H, +100 mm beyond both flanges)
+      (peb-conn-plate-depth (/ ht 2.0) (- H ht) H 45.0 4)
+      ;; Rafter splice ~3-4 m from the low-eave column, on the thin underside
+      (setq ltSx ltHL)
+      (setq ltTopY (+ H (* slopeRise (/ ltSx wid))))
+      (peb-conn-plate-depth ltSx (- ltTopY ltMidD) ltTopY 40.0 2)
+      ;; Bearing / end plate at the existing wall (right) + CHEMICAL ANCHOR BOLTS into the masonry
+      (setvar "CLAYER" "PLATES")
+      (setq ltWtop (+ H slopeRise))
+      (setq ltWbot (- (+ H slopeRise) ht))
+      (command "RECTANG" (list (- wid 45.0) (- ltWbot 100.0)) (list wid (+ ltWtop 100.0)))
+      (setq ltI 1)
+      (while (<= ltI 3)
+        (setq ltBy (+ (- ltWbot 100.0) (* (/ (float ltI) 4.0) (- (+ ltWtop 100.0) (- ltWbot 100.0)))))
+        (command "LINE" (list wid ltBy) (list (+ wid 170.0) ltBy) "")
+        (command "DONUT" 0 (* 30 *PEB-TEXT-SCALE*) (list (+ wid 150.0) ltBy) "")
+        (setq ltI (1+ ltI)))
+      (setvar "CLAYER" "TEXT")
+      (peb-label-with-leader "CHEMICAL ANCHOR BOLTS"
+                             (list (+ wid 2700.0) (+ ltWbot (* ht 0.35)))
+                             (list (+ wid 160.0)  (+ ltWbot (* ht 0.35)))
+                             "H" 220))
     (T
       (progn
         (draw-base-plates   wid cb ep)
@@ -6287,47 +6473,89 @@
                                    (- H ht 700.0))
                              "H"
                              220)
-      ;; ── Butterfly finishing: deck on both wings + central VALLEY GUTTER + DOWN SPOUT + FALL + 2 tags ──
-      ;; Reference (Nestle Butterfly Canopy): wings drain INWARD to a centre valley gutter & downspout.
-      (setq bfcx (/ wid 2.0))
-      (setq bfm  (/ rise bfcx))                   ; wing rise per run (high at eaves, low at valley)
-      (setvar "CLAYER" "CLADDING")
-      ;; LEFT wing deck (2 lines): high eave (x=-270, overhang) down to the valley (bfcx)
-      (command "LINE" (list -270.0 (+ H rise 200.0 (* bfm 270.0))) (list bfcx (+ H 200.0)) "")
-      (command "LINE" (list -270.0 (+ H rise 235.0 (* bfm 270.0))) (list bfcx (+ H 235.0)) "")
-      ;; RIGHT wing deck (2 lines): valley up to the high eave (x=wid+270, overhang)
-      (command "LINE" (list bfcx (+ H 200.0)) (list (+ wid 270.0) (+ H rise 200.0 (* bfm 270.0))) "")
-      (command "LINE" (list bfcx (+ H 235.0)) (list (+ wid 270.0) (+ H rise 235.0 (* bfm 270.0))) "")
-      ;; Tip fascia at both high eaves (short vertical bands)
-      (command "LINE" (list -270.0 (+ H rise 235.0 (* bfm 270.0))) (list -270.0 (- (+ H rise 200.0 (* bfm 270.0)) 500.0)) "")
-      (command "LINE" (list (+ wid 270.0) (+ H rise 235.0 (* bfm 270.0))) (list (+ wid 270.0) (- (+ H rise 200.0 (* bfm 270.0)) 500.0)) "")
-      ;; Central VALLEY GUTTER trough (drains to centre)
-      (setvar "CLAYER" "GUTTER")
-      (setvar "PLINEWID" 0.0)
-      (command "PLINE"
-        (list (- bfcx 320.0) (+ H 250.0))
-        (list (- bfcx 150.0) (+ H  60.0))
-        (list (+ bfcx 150.0) (+ H  60.0))
-        (list (+ bfcx 320.0) (+ H 250.0))
-        "")
-      (setvar "CLAYER" "TEXT")
-      (txt "MC" (list bfcx (+ H rise (* 900 *PEB-TEXT-SCALE*))) 200 0 "VALLEY GUTTER")
-      ;; DOWN SPOUT through the central mast
-      (peb-label-with-leader "DOWN SPOUT"
-                             (list (+ bfcx 2300.0) (* H 0.45))
-                             (list (+ bfcx 220.0)  (* H 0.45))
-                             "H" 220)
-      ;; FALL callouts on each wing (drain toward centre)
-      (txt "MC" (list (* wid 0.26) (+ H (* rise 0.55) 700.0)) 240 0 "FALL")
-      (txt "MC" (list (* wid 0.74) (+ H (* rise 0.55) 700.0)) 240 0 "FALL")
-      ;; TWO slope tags — left wing rises up-LEFT (upRight=-1), right wing up-RIGHT (upRight=+1)
-      (draw-slope-tag (* bfcx 0.5) (+ H (- rise (* rise 0.5)) 235.0) slopeD -1)
-      (draw-slope-tag (* bfcx 1.5) (+ H (- rise (* rise 0.5)) 235.0) slopeD  1)
-      ;; Purlins on both wings + ROOF SHEETING callout (like Clear Span)
-      (peb-deck-purlins 0.0 (+ H rise 200.0) bfcx (+ H 200.0))
-      (peb-deck-purlins bfcx (+ H 200.0) wid (+ H rise 200.0))
-      (peb-canopy-roof-label data (* wid 0.72) (+ H (* rise 0.44) 200.0)
-                             (+ H rise (* 2600 *PEB-TEXT-SCALE*))))
+      (if (= (strcase (peb-tb-or (MSPL-Get-Str data "CC_FALCON_PEAK") "")) "YES")
+        ;; ── FALCON finishing (owner 14-Jul): centre PEAK, wings slope DOWN-OUTWARD to the free
+        ;;    tips.  NO valley gutter (Falcon drains at the TIPS, not the centre); FALL points
+        ;;    OUTWARD; purlins + sheeting follow the wing slopes; no brick masonry (open canopy). ──
+        (progn
+          (setq bfcx (/ wid 2.0))
+          (setq bfm  (/ rise bfcx))                 ; wing rise per run (high at peak, low at tips)
+          (setvar "CLAYER" "CLADDING")
+          ;; LEFT wing deck (2 lines): centre PEAK (bfcx) down-out to the LEFT tip overhang (x=-270)
+          (command "LINE" (list bfcx (+ H rise 200.0)) (list -270.0 (- (+ H 200.0) (* bfm 270.0))) "")
+          (command "LINE" (list bfcx (+ H rise 235.0)) (list -270.0 (- (+ H 235.0) (* bfm 270.0))) "")
+          ;; RIGHT wing deck (2 lines): centre PEAK down-out to the RIGHT tip overhang (x=wid+270)
+          (command "LINE" (list bfcx (+ H rise 200.0)) (list (+ wid 270.0) (- (+ H 200.0) (* bfm 270.0))) "")
+          (command "LINE" (list bfcx (+ H rise 235.0)) (list (+ wid 270.0) (- (+ H 235.0) (* bfm 270.0))) "")
+          ;; EAVE GUTTER at BOTH low free tips (Falcon drains at the tips)
+          (setvar "CLAYER" "GUTTER")
+          (setvar "PLINEWID" 0.0)
+          (command "PLINE"
+            (list -420.0 (- (+ H 250.0) (* bfm 270.0)))
+            (list -270.0 (- (+ H  60.0) (* bfm 270.0)))
+            (list -120.0 (- (+ H 250.0) (* bfm 270.0)))
+            "")
+          (command "PLINE"
+            (list (+ wid 120.0) (- (+ H 250.0) (* bfm 270.0)))
+            (list (+ wid 270.0) (- (+ H  60.0) (* bfm 270.0)))
+            (list (+ wid 420.0) (- (+ H 250.0) (* bfm 270.0)))
+            "")
+          (setvar "CLAYER" "TEXT")
+          (txt "MC" (list -270.0 (- (+ H 900.0) (* bfm 270.0))) 200 0 "EAVE GUTTER")
+          (txt "MC" (list (+ wid 270.0) (- (+ H 900.0) (* bfm 270.0))) 200 0 "EAVE GUTTER")
+          ;; FALL callouts on each wing (drain OUTWARD toward the tips)
+          (txt "MC" (list (* wid 0.22) (+ H (* rise 0.62) 700.0)) 240 0 "FALL")
+          (txt "MC" (list (* wid 0.78) (+ H (* rise 0.62) 700.0)) 240 0 "FALL")
+          ;; TWO slope tags — left wing rises up-RIGHT to the peak (+1), right wing up-LEFT (-1)
+          (draw-slope-tag (* bfcx 0.5) (+ H (* rise 0.5) 235.0) slopeD  1)
+          (draw-slope-tag (* bfcx 1.5) (+ H (* rise 0.5) 235.0) slopeD -1)
+          ;; Purlins on both wings follow the slopes + ROOFING SYSTEM callout
+          (peb-deck-purlins 0.0 (+ H 200.0) bfcx (+ H rise 200.0))
+          (peb-deck-purlins bfcx (+ H rise 200.0) wid (+ H 200.0))
+          (peb-canopy-roof-label data (* wid 0.72) (+ H (* rise 0.56) 200.0)
+                                 (+ H rise (* 2600 *PEB-TEXT-SCALE*))))
+        ;; ── BUTTERFLY finishing: deck on both wings + central VALLEY GUTTER + DOWN SPOUT + FALL ──
+        ;; Reference (Nestle Butterfly Canopy): wings drain INWARD to a centre valley gutter & downspout.
+        (progn
+          (setq bfcx (/ wid 2.0))
+          (setq bfm  (/ rise bfcx))                   ; wing rise per run (high at eaves, low at valley)
+          (setvar "CLAYER" "CLADDING")
+          ;; LEFT wing deck (2 lines): high eave (x=-270, overhang) down to the valley (bfcx)
+          (command "LINE" (list -270.0 (+ H rise 200.0 (* bfm 270.0))) (list bfcx (+ H 200.0)) "")
+          (command "LINE" (list -270.0 (+ H rise 235.0 (* bfm 270.0))) (list bfcx (+ H 235.0)) "")
+          ;; RIGHT wing deck (2 lines): valley up to the high eave (x=wid+270, overhang)
+          (command "LINE" (list bfcx (+ H 200.0)) (list (+ wid 270.0) (+ H rise 200.0 (* bfm 270.0))) "")
+          (command "LINE" (list bfcx (+ H 235.0)) (list (+ wid 270.0) (+ H rise 235.0 (* bfm 270.0))) "")
+          ;; Tip fascia at both high eaves (short vertical bands)
+          (command "LINE" (list -270.0 (+ H rise 235.0 (* bfm 270.0))) (list -270.0 (- (+ H rise 200.0 (* bfm 270.0)) 500.0)) "")
+          (command "LINE" (list (+ wid 270.0) (+ H rise 235.0 (* bfm 270.0))) (list (+ wid 270.0) (- (+ H rise 200.0 (* bfm 270.0)) 500.0)) "")
+          ;; Central VALLEY GUTTER trough (drains to centre)
+          (setvar "CLAYER" "GUTTER")
+          (setvar "PLINEWID" 0.0)
+          (command "PLINE"
+            (list (- bfcx 320.0) (+ H 250.0))
+            (list (- bfcx 150.0) (+ H  60.0))
+            (list (+ bfcx 150.0) (+ H  60.0))
+            (list (+ bfcx 320.0) (+ H 250.0))
+            "")
+          (setvar "CLAYER" "TEXT")
+          (txt "MC" (list bfcx (+ H rise (* 900 *PEB-TEXT-SCALE*))) 200 0 "VALLEY GUTTER")
+          ;; DOWN SPOUT through the central mast
+          (peb-label-with-leader "DOWN SPOUT"
+                                 (list (+ bfcx 2300.0) (* H 0.45))
+                                 (list (+ bfcx 220.0)  (* H 0.45))
+                                 "H" 220)
+          ;; FALL callouts on each wing (drain toward centre)
+          (txt "MC" (list (* wid 0.26) (+ H (* rise 0.55) 700.0)) 240 0 "FALL")
+          (txt "MC" (list (* wid 0.74) (+ H (* rise 0.55) 700.0)) 240 0 "FALL")
+          ;; TWO slope tags — left wing rises up-LEFT (upRight=-1), right wing up-RIGHT (upRight=+1)
+          (draw-slope-tag (* bfcx 0.5) (+ H (- rise (* rise 0.5)) 235.0) slopeD -1)
+          (draw-slope-tag (* bfcx 1.5) (+ H (- rise (* rise 0.5)) 235.0) slopeD  1)
+          ;; Purlins on both wings + ROOF SHEETING callout (like Clear Span)
+          (peb-deck-purlins 0.0 (+ H rise 200.0) bfcx (+ H 200.0))
+          (peb-deck-purlins bfcx (+ H 200.0) wid (+ H rise 200.0))
+          (peb-canopy-roof-label data (* wid 0.72) (+ H (* rise 0.44) 200.0)
+                                 (+ H rise (* 2600 *PEB-TEXT-SCALE*))))))
     ;; ── CC (Cantilever Canopy): one back column, open front ──
     ;; Add COLUMN label pointing at the back (left) column inner flange.
     ((= stype "CC")
@@ -6427,6 +6655,24 @@
           (command "LINE" (list -235.0 (- brickH 50.0)) (list -235.0 H) "")
           (command "LINE" (list -200.0 H)               (list -235.0 H) "")
           (command "LINE" (list -200.0 (- brickH 50.0)) (list -235.0 (- brickH 50.0)) "")))
+      ;; Eave gutter + DOWN PIPE at the LOW (left) eave — LT drains down-slope to the low side (owner 14-Jul).
+      (setvar "CLAYER" "GUTTER")
+      (setvar "PLINEWID" 0.0)
+      (setq ltGy (+ H 200.0 (- 0 (* 270.0 (/ monoRise wid)))))
+      (command "PLINE"
+        (list -450.0 (+ ltGy 40.0))
+        (list -450.0 (- ltGy 150.0))
+        (list -180.0 (- ltGy 150.0))
+        (list -180.0 ltGy)
+        "")
+      (setvar "CLAYER" "CLADDING")
+      (command "LINE" (list -390.0 (- ltGy 150.0)) (list -390.0 300.0) "")
+      (command "LINE" (list -320.0 (- ltGy 150.0)) (list -320.0 300.0) "")
+      (setvar "CLAYER" "TEXT")
+      (peb-label-with-leader "EAVE GUTTER + DOWN PIPE"
+                             (list -3100.0 (+ ltGy 500.0))
+                             (list -450.0  (- ltGy 60.0))
+                             "H" 220)
       ;; Purlins along the slope + ROOF/WALL SHEETING callouts (full build-up + PPGL).
       ;; monoRise passed as the "rise" arg places the labels at the LT roof band.
       (peb-deck-purlins 0.0 (+ H 200.0) wid (+ H monoRise 200.0))
@@ -6447,13 +6693,18 @@
       (if (= stype "ACS")
         (progn
           (command "ARC" (list 0.0 (+ H 200.0)) (list (/ wid 2.0) (+ H rise 200.0)) (list wid (+ H 200.0)))
-          (command "ARC" (list 0.0 (+ H 235.0)) (list (/ wid 2.0) (+ H rise 235.0)) (list wid (+ H 235.0))))
+          (command "ARC" (list 0.0 (+ H 235.0)) (list (/ wid 2.0) (+ H rise 235.0)) (list wid (+ H 235.0)))
+          ;; purlin symbols FOLLOWING the arch (owner 14-Jul)
+          (draw-purlins-arc 0.0 (+ H 200.0) (/ wid 2.0) (+ H rise 200.0) wid (+ H 200.0)))
         (progn                                   ; AMS: two arches meeting at the centre peak
           (setq amHalf (/ wid 2.0) amQ1 (/ wid 4.0) amQ3 (* wid 0.75) amPk (+ H (* rise 0.85)))
           (command "ARC" (list 0.0 (+ H 200.0)) (list amQ1 (+ amPk 200.0)) (list amHalf (+ H rise 200.0)))
           (command "ARC" (list 0.0 (+ H 235.0)) (list amQ1 (+ amPk 235.0)) (list amHalf (+ H rise 235.0)))
           (command "ARC" (list amHalf (+ H rise 200.0)) (list amQ3 (+ amPk 200.0)) (list wid (+ H 200.0)))
-          (command "ARC" (list amHalf (+ H rise 235.0)) (list amQ3 (+ amPk 235.0)) (list wid (+ H 235.0)))))
+          (command "ARC" (list amHalf (+ H rise 235.0)) (list amQ3 (+ amPk 235.0)) (list wid (+ H 235.0)))
+          ;; purlin symbols FOLLOWING both arch spans (owner 14-Jul)
+          (draw-purlins-arc 0.0 (+ H 200.0) amQ1 (+ amPk 200.0) amHalf (+ H rise 200.0))
+          (draw-purlins-arc amHalf (+ H rise 200.0) amQ3 (+ amPk 200.0) wid (+ H 200.0))))
       ;; ROOF + WALL SHEETING callouts (arches bypass draw-cladding, so add them here)
       (peb-arch-sheeting-labels data wid H rise)
       ;; "CURVED ROOF RAFTER" label — single MLEADER pointing at the
@@ -6481,45 +6732,106 @@
       (draw-eave-features wid H nil)
       (draw-rafter-label  (/ wid numGab) H rise ht))
     ((= stype "PP")
-      ;; Petrol Pump / CNG canopy — an OPEN, near-flat canopy: NO brick wall, girts, downpipes,
-      ;; eave struts, or gable cladding/purlins.  The flat roof band + inset columns
-      ;; (draw-petrol-frame) already document it.  Just the eave gutters/trims at the roof edges.
+      ;; Petrol Pump / CNG canopy (owner 14-Jul): an OPEN, near-flat canopy on TWO inset BOX columns.
+      ;; The roof falls SLIGHTLY to a VALLEY GUTTER over EACH box column; each valley has a DOWN PIPE
+      ;; running down INSIDE the box column.  Centre + both outer edges are the high points (a shallow
+      ;; W).  Tube purlins carry the sheeting; a ceiling/soffit lines the underside.  No brick wall.
       (draw-eave-features wid H nil)
-      ;; ── Petrol-canopy finishing: roof deck + fascia + soffit + downspout (island on inset cols) ──
-      (setq ppOvh (* wid 0.22))                       ; matches draw-petrol-frame overhang
+      (setq ppOvh (* wid 0.22))                       ; matches draw-petrol-frame overhang -> valley X
+      (setq ppCx1 ppOvh)                              ; left column / valley line
+      (setq ppCx2 (- wid ppOvh))                      ; right column / valley line
+      (setq ppMid (/ wid 2.0))                        ; centre high point
+      (setq ppS   180.0)                              ; SLIGHT fall rise at the high points
+      (setq ppRt  (max (* ht 0.8) 250.0))             ; roof band depth (matches draw-petrol-frame)
+      (setq ppCw  (max cb 300.0))                     ; box-column width (matches frame)
+      ;; ── Box-column inner outline (hollow tube shown in section, 45 mm wall) ──
+      (setvar "CLAYER" "FRAME")
+      (setvar "PLINEWID" 0.0)
+      (foreach ppx (list ppCx1 ppCx2)
+        (command "RECTANG"
+          (list (- ppx (- (/ ppCw 2.0) 45.0)) 0.0)
+          (list (+ ppx (- (/ ppCw 2.0) 45.0)) (- H ppRt))))
+      ;; ── Roof sheeting deck (2 lines) — shallow W: high at both edges + centre, low at the valleys ──
       (setvar "CLAYER" "CLADDING")
-      ;; roof deck: 2 flat lines just above the slab, overhang both sides
-      (command "LINE" (list -270.0 (+ H 200.0)) (list (+ wid 270.0) (+ H 200.0)) "")
-      (command "LINE" (list -270.0 (+ H 235.0)) (list (+ wid 270.0) (+ H 235.0)) "")
-      ;; Purlins on the flat deck + ROOF SHEETING callout (like Clear Span)
-      (peb-deck-purlins 0.0 (+ H 200.0) wid (+ H 200.0))
-      (peb-canopy-roof-label data (* wid 0.60) (+ H 200.0) (+ H 200.0 (* 900 *PEB-TEXT-SCALE*)))
-      ;; FASCIA — the deep signage band at the (left) roof edge
-      (peb-label-with-leader "FASCIA"
-                             (list -2400.0 (- H 250.0))
-                             (list -20.0   (- H 250.0))
+      (command "PLINE"
+        (list -270.0        (+ H 200.0 ppS)) (list ppCx1 (+ H 200.0))
+        (list ppMid         (+ H 200.0 ppS)) (list ppCx2 (+ H 200.0))
+        (list (+ wid 270.0) (+ H 200.0 ppS)) "")
+      (command "PLINE"
+        (list -270.0        (+ H 235.0 ppS)) (list ppCx1 (+ H 235.0))
+        (list ppMid         (+ H 235.0 ppS)) (list ppCx2 (+ H 235.0))
+        (list (+ wid 270.0) (+ H 235.0 ppS)) "")
+      ;; ── Tube purlins following each of the four sloped deck segments ──
+      (peb-deck-purlins 0.0   (+ H 200.0 ppS) ppCx1 (+ H 200.0))
+      (peb-deck-purlins ppCx1 (+ H 200.0)     ppMid (+ H 200.0 ppS))
+      (peb-deck-purlins ppMid (+ H 200.0 ppS) ppCx2 (+ H 200.0))
+      (peb-deck-purlins ppCx2 (+ H 200.0)     wid   (+ H 200.0 ppS))
+      (peb-canopy-roof-label data (* wid 0.60) (+ H 200.0 ppS) (+ H 200.0 ppS (* 900 *PEB-TEXT-SCALE*)))
+      ;; ── VALLEY GUTTER trough + DOWN PIPE (inside the box column) at EACH column ──
+      (foreach ppx (list ppCx1 ppCx2)
+        (setvar "CLAYER" "GUTTER")
+        (setvar "PLINEWID" 0.0)
+        (command "PLINE"
+          (list (- ppx 320.0) (+ H 250.0))
+          (list (- ppx 150.0) (+ H  60.0))
+          (list (+ ppx 150.0) (+ H  60.0))
+          (list (+ ppx 320.0) (+ H 250.0))
+          "")
+        ;; down pipe through the box column (2 vertical lines, valley trough down to the floor)
+        (setvar "CLAYER" "CLADDING")
+        (command "LINE" (list (- ppx 70.0) (+ H 60.0)) (list (- ppx 70.0) 300.0) "")
+        (command "LINE" (list (+ ppx 70.0) (+ H 60.0)) (list (+ ppx 70.0) 300.0) ""))
+      (setvar "CLAYER" "TEXT")
+      (txt "MC" (list ppCx1 (+ H 200.0 ppS (* 900 *PEB-TEXT-SCALE*))) 200 0 "VALLEY GUTTER")
+      (txt "MC" (list ppCx2 (+ H 200.0 ppS (* 900 *PEB-TEXT-SCALE*))) 200 0 "VALLEY GUTTER")
+      ;; FALL callouts — roof falls toward the two valley gutters
+      (txt "MC" (list (* (+ 0.0   ppCx1) 0.5) (+ H ppS 520.0)) 200 0 "FALL")
+      (txt "MC" (list (* (+ ppCx1 ppMid) 0.5) (+ H ppS 520.0)) 200 0 "FALL")
+      (txt "MC" (list (* (+ ppMid ppCx2) 0.5) (+ H ppS 520.0)) 200 0 "FALL")
+      (txt "MC" (list (* (+ ppCx2 wid)   0.5) (+ H ppS 520.0)) 200 0 "FALL")
+      ;; DOWN PIPE + BOX COLUMN + FASCIA + CEILING/SOFFIT callouts
+      (peb-label-with-leader "DOWN PIPE (IN BOX COLUMN)"
+                             (list (- ppCx1 2900.0) (* H 0.55))
+                             (list (- ppCx1 90.0)   (* H 0.55))
                              "H" 220)
-      ;; SOFFIT under the roof slab (centre)
-      (peb-label-with-leader "SOFFIT"
-                             (list (/ wid 2.0) (- (- H (max (* ht 0.8) 250.0)) 900.0))
-                             (list (/ wid 2.0) (- H (max (* ht 0.8) 250.0)))
-                             "V" 220)
-      ;; DOWN SPOUT through the (inset) column line
-      (peb-label-with-leader "DOWN SPOUT"
-                             (list (- ppOvh 2400.0) (* H 0.5))
-                             (list (- ppOvh 160.0)  (* H 0.5))
-                             "H" 220))
+      (peb-label-with-leader "BOX COLUMN"
+                             (list (- ppCx1 2900.0) (* H 0.30))
+                             (list (- ppCx1 (/ ppCw 2.0)) (* H 0.30))
+                             "H" 220)
+      (peb-label-with-leader "FASCIA"
+                             (list -2400.0 (- (+ H ppS) 250.0))
+                             (list -20.0   (- (+ H ppS) 250.0))
+                             "H" 220)
+      (peb-label-with-leader "CEILING / SOFFIT"
+                             (list ppMid (- (- H ppRt) 900.0))
+                             (list ppMid (- H ppRt))
+                             "V" 220))
     ((= stype "FR")
-      ;; FLAT ROOF: draw-fr-frame draws a HORIZONTAL rafter, so the roof sheeting is FLAT too
-      ;; (monoRise 0 -> a level line at H, not a gable peak).  Both eaves at H; nominal drainage
-      ;; slope only.  Excluded from the ridge-pair slope-tag loop below.
+      ;; FLAT ROOF (owner 14-Jul): NO purlins / roof sheeting.  Instead a floor BUILD-UP —
+      ;; R.C.C. slab on corrugated METAL DECK, on steel JOISTS (clip-angle), on the MAIN BEAM.
+      ;; The SAME detail is reused for gable-roof mezzanine intermediate floors & multi-storey
+      ;; flat-roof floors.  Walls / girts / downpipes / eave features stay as normal.
       (draw-brick-wall    wid brickH)
-      (draw-cladding      data wid H rise brickH 0.0 nil)   ; monoRise 0 = flat roof line
-      (draw-purlins       wid H 0.0)                        ; flat purlins
       (draw-girts         wid H brickH nil)
       (draw-downpipes     wid H brickH nil)
       (draw-eave-features wid H nil)
-      (draw-rafter-label  wid H 0.0 ht))
+      (setq frAvail (max 400.0 (- ht 225.0)))     ; ht less slab(150)+deck(75)
+      (draw-floor-buildup 0.0 wid H (* frAvail 0.6) (* frAvail 0.35) 150.0)
+      ;; Wall sheeting above the brick + WALL SHEETING (M-Ladder) callout on the left wall.
+      ;; (Only the ROOF loses sheeting on a flat roof; the walls keep it.)
+      (if (and brickH (< brickH H))
+        (progn
+          (setvar "CLAYER" "CLADDING")
+          (command "LINE" (list -200.0 brickH) (list -200.0 H) "")
+          (command "LINE" (list -235.0 brickH) (list -235.0 H) "")
+          (command "LINE" (list (+ wid 200.0) brickH) (list (+ wid 200.0) H) "")
+          (command "LINE" (list (+ wid 235.0) brickH) (list (+ wid 235.0) H) "")))
+      (setvar "CLAYER" "TEXT")
+      (setq frWc (strcat "{\\C7;\\H0.42x;{\\fArial|b1;WALL SHEETING:}\\P"
+                         (peb-split-2-lines (peb-panel-label data "WALL")) "}"))
+      (vl-catch-all-apply 'peb-make-mleader
+        (list (list (list -217.0  (* (+ (if brickH brickH 0.0) H) 0.5))
+                    (list -1600.0 (* (+ (if brickH brickH 0.0) H) 0.5))) frWc)))
     ((= stype "SS")
       ;; SINGLE SLOPE: low (left) eave = H, HIGH (right) eave = H + monoRise.  The RIGHT wall
       ;; sheeting + girts must climb to the HIGH eave (not the low H, which left the tall wall
@@ -6565,7 +6877,10 @@
       ;; roof has no ridge, so the old per-half pair (one up-right, one up-left) was wrong.
       (setq monoRise (/ wid slopeD))
       (setq cxM (* wid 0.40))
-      (setq cyM (+ H (* monoRise (/ cxM wid)) 235.0))   ; slope tag hypotenuse ON the mono sheeting line
+      ;; Slope tag must ride JUST ABOVE the mono sheeting line and FOLLOW the slope (owner 14-Jul, STRICT).
+      ;; Sheeting top = H + monoRise*(x/W) + purlinH(200) + cladThk(35) = +235; add a 180mm gap so the tag
+      ;; sits clearly above the sheeting, parallel to it (draw-slope-tag's hypotenuse already = the slope).
+      (setq cyM (+ H (* monoRise (/ cxM wid)) 235.0 180.0))
       (draw-slope-tag cxM cyM slopeD 1))
     (T
   (foreach rx ridges
