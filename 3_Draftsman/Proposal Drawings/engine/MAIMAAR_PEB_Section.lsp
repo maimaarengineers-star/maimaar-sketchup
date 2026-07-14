@@ -1958,9 +1958,10 @@
                         (list outerX yOut) (list innerX yIn))                       ; rafter plate (SOLID)
         (peb-solid-quad (list outerX (- yOut (+ ep g ep))) (list innerX (- yIn (+ ep g ep)))
                         (list outerX (- yOut (+ ep g)))    (list innerX (- yIn (+ ep g))))   ; column plate (SOLID)
-        ;; LOWER (column) plate stiffeners only, at the sloped plate-bottom outer corners.
-        (draw-stiff-bot (- x halfW) (+ (- yOut (+ ep g ep)) (* mSlp ext)) ext stiffH -1)
-        (draw-stiff-bot (+ x halfW) (- (- yIn (+ ep g ep)) (* mSlp ext)) ext stiffH  1)))
+        ;; LOWER (column) plate stiffeners only, at the sloped plate-bottom outer corners — the stiffeners
+        ;; EXCEED the plate ends (owner 14-Jul): width 190 > the 100mm plate extension.
+        (draw-stiff-bot (- x halfW) (+ (- yOut (+ ep g ep)) (* mSlp ext)) 190.0 stiffH -1)
+        (draw-stiff-bot (+ x halfW) (- (- yIn (+ ep g ep)) (* mSlp ext)) 190.0 stiffH  1)))
     (setq i (1+ i)))
 )
 
@@ -2808,20 +2809,13 @@
 (defun peb-conn-plate-pair (cx topY halfSpan ep nBolt / boltR i bx loBot stH stW xl xr)
   (setvar "CLAYER" "PLATES")
   (setq boltR (* 25 *PEB-TEXT-SCALE*))
-  (setq loBot (- topY ep ep) stH 110.0 stW 110.0)
+  ;; owner 14-Jul STRICT: TWO SOLID 20mm plates with a 2mm gap, NO bolts (same as the gable knee).
+  (setq ep 20.0 stH 110.0 stW 110.0)
+  (setq loBot (- topY ep 2.0 ep))
   (setq xl (- cx halfSpan) xr (+ cx halfSpan))
-  ;; upper (rafter) + lower (column) end plates
-  (command "RECTANG" (list xl (- topY ep))    (list xr topY))
-  (command "RECTANG" (list xl loBot)          (list xr (- topY ep)))
-  ;; bolts through the interface
-  (setq i 1)
-  (while (<= i nBolt)
-    (setq bx (+ xl (* (/ (float i) (1+ nBolt)) (* 2.0 halfSpan))))
-    (command "DONUT" 0 (* boltR 2) (list bx (- topY ep)) "")
-    (setq i (1+ i)))
-  ;; stiffener triangles at BOTH ends (above upper plate + below lower plate) — matches the gable knee
-  (draw-stiff-top xl topY  stW stH  1)
-  (draw-stiff-top xr topY  stW stH -1)
+  (peb-solid-quad (list xl (- topY ep)) (list xr (- topY ep)) (list xl topY) (list xr topY))          ; rafter plate (SOLID)
+  (peb-solid-quad (list xl loBot) (list xr loBot) (list xl (- topY ep 2.0)) (list xr (- topY ep 2.0))) ; column plate (SOLID)
+  ;; keep the LOWER (column) plate stiffeners only
   (draw-stiff-bot xl loBot stW stH  1)
   (draw-stiff-bot xr loBot stW stH -1))
 
@@ -2834,13 +2828,11 @@
   (setq boltR (* 18 *PEB-TEXT-SCALE*))
   (setq ext 100.0)                          ; 100 mm beyond top AND bottom flanges
   (setq pB (- (min yBot yTop) ext) pT (+ (max yBot yTop) ext))
-  (command "RECTANG" (list (- cx plateT) pB) (list cx            pT))   ; plate left of seam
-  (command "RECTANG" (list cx            pB) (list (+ cx plateT) pT))   ; plate right of seam
-  (setq i 1)
-  (while (<= i nBolt)
-    (setq by (+ pB (* (/ (float i) (1+ nBolt)) (- pT pB))))
-    (command "DONUT" 0 (* boltR 2) (list cx by) "")
-    (setq i (1+ i)))
+  ;; owner 14-Jul STRICT: TWO SOLID plates with a 2mm gap at the seam, NO bolts.
+  (peb-solid-quad (list (- cx plateT) pB) (list (- cx 1.0) pB)
+                  (list (- cx plateT) pT) (list (- cx 1.0) pT))   ; plate left of seam (SOLID)
+  (peb-solid-quad (list (+ cx 1.0) pB) (list (+ cx plateT) pB)
+                  (list (+ cx 1.0) pT) (list (+ cx plateT) pT))   ; plate right of seam (SOLID)
   (princ))
 
 ;;  draw-knee-hplate — the ROTATED (horizontal) column-rafter KNEE connection (owner 14-Jul, STRICT):
@@ -2881,7 +2873,7 @@
       (setq plateT 20.0 gap 2.0
             topY  (+ ySeam (/ gap 2.0) plateT)         ; upper (rafter) plate TOP edge
             loBot (- ySeam (/ gap 2.0) plateT)         ; lower (column) plate BOTTOM edge
-            stW 110.0 stH 110.0)
+            stW 190.0 stH 110.0)                       ; owner 14-Jul: stiffeners EXCEED the plate ends (ext=100)
       (peb-solid-quad (list x0 (+ ySeam (/ gap 2.0))) (list x1 (+ ySeam (/ gap 2.0)))
                       (list x0 topY) (list x1 topY))                            ; rafter-bottom plate (SOLID)
       (peb-solid-quad (list x0 loBot) (list x1 loBot)
@@ -2916,7 +2908,7 @@
 (defun draw-cant-vplate (cx yBot yTop plateT nBolt / lo hi stW stH)
   (peb-conn-plate-depth cx yBot yTop plateT nBolt)
   (setq lo (- (min yBot yTop) 100.0) hi (+ (max yBot yTop) 100.0))   ; = peb-conn-plate-depth's 100 ext edges
-  (setq stW 110.0 stH 110.0)
+  (setq stW 190.0 stH 110.0)   ; owner 14-Jul: stiffeners EXCEED the plate ends
   (draw-stiff-top (- cx plateT) hi stW stH -1)
   (draw-stiff-top (+ cx plateT) hi stW stH  1)
   (draw-stiff-bot (- cx plateT) lo stW stH -1)
@@ -3524,38 +3516,28 @@
   ;;  The vertical apex plates (RIDGE APEX in draw-rafter-stiffeners) are
   ;;  suppressed for this case so the rafter web runs continuous over the peak.
   (setvar "CLAYER" "PLATES")
-  (setq boltR   (* 25 *PEB-TEXT-SCALE*))
+  ;; owner 14-Jul STRICT: TWO SOLID 20mm plates, 2mm gap, NO bolts; stiffeners EXCEED the plate ends.
+  (setq ep      20.0)
   (setq upTopY  (- (+ H rise) rd))           ; rafter underside at ridge / column top
-  (setq upBotY  (- upTopY ep))               ; upper plate bottom edge
-  (setq loTopY  upBotY)                      ; lower plate top  edge (= bolt interface)
-  (setq loBotY  (- upBotY ep))               ; lower plate bottom edge
+  (setq upBotY  (- upTopY ep))               ; upper (rafter) plate bottom edge
+  (setq loTopY  (- upBotY 2.0))              ; lower (column) plate top edge (2mm gap)
+  (setq loBotY  (- loTopY ep))               ; lower plate bottom edge
   (setq intColW 400.0)                       ; matches draw-mg-multi-frame
   (setq halfCol (/ intColW 2.0))             ; = 200
   (setq ext     100.0)                       ; 100 mm extension each end
   (setq stiffH  100.0)
   (setq outerX  (- x halfCol ext))           ; = x - 300
   (setq innerX  (+ x halfCol ext))           ; = x + 300
-  ;; LEFT half plates (welded to left-rafter end)
-  (command "RECTANG" (list outerX upBotY) (list x upTopY))
-  (command "RECTANG" (list outerX loBotY) (list x loTopY))
-  ;; RIGHT half plates (welded to right-rafter end)
-  (command "RECTANG" (list x upBotY) (list innerX upTopY))
-  (command "RECTANG" (list x loBotY) (list innerX loTopY))
-  ;; Bolt rows at column-rafter interface — 2 per side, centered between
-  ;; column flange (x ± halfCol) and outer plate end (x ± halfCol+ext).
-  (command "DONUT" 0 (* boltR 2) (list (- x halfCol (* ext 0.5)) upBotY) "")
-  (command "DONUT" 0 (* boltR 2) (list (- x (* halfCol 0.5))     upBotY) "")
-  (command "DONUT" 0 (* boltR 2) (list (+ x (* halfCol 0.5))     upBotY) "")
-  (command "DONUT" 0 (* boltR 2) (list (+ x halfCol (* ext 0.5)) upBotY) "")
-  ;; Vertical seam highlight at column centerline
-  (command "LINE"
-    (list x (- loBotY (* 0.5 ep)))
-    (list x (+ upTopY (* 0.5 ep))) "")
-  ;; Outer-end stiffeners (top + bottom) at column flange line
-  (draw-stiff-top (- x halfCol) upTopY ext stiffH -1)
-  (draw-stiff-bot (- x halfCol) loBotY ext stiffH -1)
-  (draw-stiff-top (+ x halfCol) upTopY ext stiffH  1)
-  (draw-stiff-bot (+ x halfCol) loBotY ext stiffH  1)
+  ;; LEFT + RIGHT half plates (SOLID), rafter plate on top, column plate below the gap.
+  (peb-solid-quad (list outerX upBotY) (list x upBotY) (list outerX upTopY) (list x upTopY))   ; L rafter
+  (peb-solid-quad (list outerX loBotY) (list x loBotY) (list outerX loTopY) (list x loTopY))   ; L column
+  (peb-solid-quad (list x upBotY) (list innerX upBotY) (list x upTopY) (list innerX upTopY))   ; R rafter
+  (peb-solid-quad (list x loBotY) (list innerX loBotY) (list x loTopY) (list innerX loTopY))   ; R column
+  ;; Outer-end stiffeners (top + bottom) that EXCEED the plate ends (190 > ext 100).
+  (draw-stiff-top (- x halfCol) upTopY 190.0 stiffH -1)
+  (draw-stiff-bot (- x halfCol) loBotY 190.0 stiffH -1)
+  (draw-stiff-top (+ x halfCol) upTopY 190.0 stiffH  1)
+  (draw-stiff-bot (+ x halfCol) loBotY 190.0 stiffH  1)
 )
 
 (defun draw-z-purlin-flat (xWeb yBase dir /
