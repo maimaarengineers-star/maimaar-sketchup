@@ -2746,34 +2746,41 @@
     "C")
 )
 
-(defun draw-lt-frame (W H slopeRise ht cb / wallW midDlt)
+(defun draw-lt-frame (W H slopeRise ht cb / wallW midDlt wallTopY beamBotY hLx ltTP)
   ;;  Lean-To frame: one PEB column at LEFT (low side),
   ;;  existing masonry/concrete wall at RIGHT (high side).
   ;;  Sloped rafter goes from low column up to the existing wall.
   (setq wallW 230.0)       ; existing wall thickness (mm)
 
-  ;; Existing wall on RIGHT (drawn as hatched concrete/masonry block)
-  ;; owner 15-Jul: coarsen AR-CONC to 60 (was 25) — the thin 230mm wall packs too many stipple lines at
-  ;; 25 and reads as a solid black block; 60 opens the pattern so it reads clearly as concrete.
+  ;; Existing wall on RIGHT: owner 15-Jul — BRICK MASONRY body + an RCC BEAM (bond beam) at the TOP where
+  ;; the steel rafter bears and the CHEMICAL ANCHORS land (you anchor into the RCC beam, not the brick).
+  (setq wallTopY (+ H slopeRise (* 500 *PEB-TEXT-SCALE*)))
+  (setq beamBotY (- (- (+ H slopeRise) ht) 200.0))        ; RCC beam bottom = just below the rafter bearing
+  ;; brick masonry body (FFL -> beam underside)
+  (setvar "CLAYER" "BRICK-WALL")
+  (command "RECTANG" (list W 0.0) (list (+ W wallW) beamBotY))
+  (command "HATCH" "BRICK" 150 0 "L" "")
+  ;; RCC bond beam at the top (concrete)
   (setvar "CLAYER" "RCC-COLUMN")
-  (command "RECTANG"
-    (list W 0.0)
-    (list (+ W wallW) (+ H slopeRise (* 500 *PEB-TEXT-SCALE*))))
+  (command "RECTANG" (list W beamBotY) (list (+ W wallW) wallTopY))
   (command "HATCH" "AR-CONC" 60 0 "L" "")
 
-  ;; PEB frame: ONE column on LEFT + sloped rafter to wall.
-  ;; RAFTER IS TAPERED (owner 13-Jul: all PEB rafters taper) -- DEEP at both ends (column knee + wall
-  ;; connection), THIN at mid-span.
+  ;; PEB frame — owner 15-Jul: a SINGLE-SLOPE frame (same rafter as stype SS) with the LEFT steel column
+  ;; and the RIGHT end BEARING on the existing RCC wall (no right steel column).  Rafter is HAUNCHED
+  ;; (deep = ht) at the left knee AND the wall bearing, taper down to THIN (midD) over hLx, then runs
+  ;; STRAIGHT at depth midD across the middle -- identical to Single Slope.
   (setvar "CLAYER" "FRAME")
   (setvar "PLINEWID" 0.0)
-  (setq midDlt (max 300.0 (* ht 0.45)))
+  (setq ltTP (ss-taper-params (list 0.0 W) W slopeRise ht))
+  (setq midDlt (car ltTP) hLx (cadr ltTP))
   (command "PLINE"
-    (list 0.0      0.0)                         ; bottom-left outside
-    (list 0.0      H)                           ; low eave outside
-    (list W        (+ H slopeRise))             ; rafter TOP ends at the wall
-    (list (- W 45.0) (- (+ H slopeRise) ht))    ; owner 14-Jul: WEB/bottom flange EXTENDS to the steel plate (W-45)
-    (list (/ W 2.0) (- (+ H (/ slopeRise 2.0)) midDlt))  ; MID-SPAN underside (thin) -> taper
-    (list ht       (- H ht))                    ; left haunch corner (deep ht)
+    (list 0.0      0.0)                         ; bottom-left outside (left steel column base)
+    (list 0.0      H)                           ; low eave top (left)
+    (list W        (+ H slopeRise))             ; high eave top — rafter top ends at the wall
+    (list (- W 45.0) (- (+ H slopeRise) ht))    ; RIGHT knee/bearing bottom (DEEP ht) at the wall face
+    (list (- (- W 45.0) hLx) (- (ss-topY (- (- W 45.0) hLx) H slopeRise W) midDlt))  ; right haunch end (THIN)
+    (list (+ ht hLx)         (- (ss-topY (+ ht hLx) H slopeRise W) midDlt))          ; left haunch end (THIN) — straight thin between
+    (list ht       (- H ht))                    ; left knee (DEEP ht)
     (list cb       0.0)                         ; left column inside-base
     "C")
 )
@@ -6590,18 +6597,14 @@
       ;; ROTATED knee (owner 14-Jul): HORIZONTAL base plate on the LEFT steel column top, welded to the
       ;; rafter bottom (seam at H-ht), spanning the column depth (ht) inward.
       (draw-knee-hplate 0.0 ht (- H ht) 45.0 4 nil -1)   ; LT left steel column — outer = left
-      ;; Connection/splice plates at the rafter WEB-CHANGE points (owner 15-Jul, SAME rule as Single Slope):
-      ;; one on the low-eave taper + one on the wall-side taper, each spanning the FULL local web depth
-      ;; (rafter underside -> top) where the two rafter web depths meet.
-      (setq ltMidX  (/ wid 2.0))
-      (setq ltMidY  (- (+ H (* slopeRise 0.5)) ltMidD))         ; mid-span thin underside
-      (setq ltDeepWY (- (+ H slopeRise) ht))                    ; deep underside at the wall
-      (foreach ltSx (list ltHL (- wid ltHL))
-        (setq ltTopY (+ H (* slopeRise (/ ltSx wid))))          ; rafter top flange at x
-        (setq ltUndY (if (<= ltSx ltMidX)
-                       (+ (- H ht) (* (/ (- ltMidY (- H ht)) (- ltMidX ht)) (- ltSx ht)))
-                       (+ ltMidY (* (/ (- ltDeepWY ltMidY) (- (- wid 45.0) ltMidX)) (- ltSx ltMidX)))))
-        (peb-conn-plate-depth ltSx ltUndY ltTopY 40.0 2))
+      ;; ONE connection/splice plate at the MID-SPAN rafter KINK (owner 15-Jul): the underside vertex where
+      ;; the two web tapers meet — both webs change (deepen) away from it toward the knee and the wall.
+      ;; STIFFENED depth-plate (draw-cant-vplate = 2 solid plates + 4 stiffener triangles), spanning the
+      ;; thin mid-span web.
+      (setq ltMidX (/ wid 2.0))
+      (setq ltTopY (+ H (* slopeRise 0.5)))                    ; rafter top flange at mid-span
+      (setq ltUndY (- ltTopY ltMidD))                          ; thin underside at the mid-span kink
+      (draw-cant-vplate ltMidX ltUndY ltTopY 40.0 2)
       ;; Bearing / end plate at the existing wall (right) + CHEMICAL ANCHOR BOLTS into the masonry
       (setvar "CLAYER" "PLATES")
       (setq ltWtop (+ H slopeRise))
