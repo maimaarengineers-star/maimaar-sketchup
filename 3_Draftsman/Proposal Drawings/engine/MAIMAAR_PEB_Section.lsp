@@ -1930,7 +1930,7 @@
   (setq kneeL  (car  (cigar-taper-lengths W)))
   (setq ridgeL (cadr (cigar-taper-lengths W)))
   (setq boltR  (* 25 *PEB-TEXT-SCALE*))
-  (setq ep     20.0)   ; owner 14-Jul: real 20mm plates, matches the knee detail
+  (setq ep     30.0)   ; owner 14-Jul: 30mm plates (more depth), matches the knee detail
   (setq ext    100.0)              ; plate extension beyond column flange
   (setq stiffH 100.0)
   (setq n (length cols))
@@ -1958,10 +1958,10 @@
                         (list outerX yOut) (list innerX yIn))                       ; rafter plate (SOLID)
         (peb-solid-quad (list outerX (- yOut (+ ep g ep))) (list innerX (- yIn (+ ep g ep)))
                         (list outerX (- yOut (+ ep g)))    (list innerX (- yIn (+ ep g))))   ; column plate (SOLID)
-        ;; LOWER (column) plate stiffeners only, at the sloped plate-bottom outer corners — the stiffeners
-        ;; EXCEED the plate ends (owner 14-Jul): width 190 > the 100mm plate extension.
-        (draw-stiff-bot (- x halfW) (+ (- yOut (+ ep g ep)) (* mSlp ext)) 190.0 stiffH -1)
-        (draw-stiff-bot (+ x halfW) (- (- yIn (+ ep g ep)) (* mSlp ext)) 190.0 stiffH  1)))
+        ;; LOWER (column) plate stiffeners only, at the sloped plate-bottom outer corners — stiffener JUST
+        ;; till the plate extension (owner 14-Jul): width 100 = the plate extension, no beyond.
+        (draw-stiff-bot (- x halfW) (+ (- yOut (+ ep g ep)) (* mSlp ext)) ext stiffH -1)
+        (draw-stiff-bot (+ x halfW) (- (- yIn (+ ep g ep)) (* mSlp ext)) ext stiffH  1)))
     (setq i (1+ i)))
 )
 
@@ -2306,11 +2306,15 @@
           (list (/ (+ vXL vXR) 2.0) (- H 250))       ; bottom of V (centre)
           (list vXR H)                               ; top-right
           "")
-        ;; "VALLEY GUTTER" leader label
+        ;; "VALLEY GUTTER" label + M-Ladder DOWN-ARROW (owner 14-Jul): explicit shaft + SOLID arrowhead.
         (setvar "CLAYER" "TEXT")
-        (txt "MC"
-          (list (/ (+ vXL vXR) 2.0) (+ H (* 1500 *PEB-TEXT-SCALE*)))
-          200 0 "VALLEY GUTTER")))
+        (txt "MC" (list (/ (+ vXL vXR) 2.0) (+ H (* 1500 *PEB-TEXT-SCALE*))) 200 0 "VALLEY GUTTER")
+        (setvar "CLAYER" "ARROWS")
+        (command "LINE" (list (/ (+ vXL vXR) 2.0) (+ H (* 1150 *PEB-TEXT-SCALE*)))
+                        (list (/ (+ vXL vXR) 2.0) (- H 100.0)) "")
+        (peb-solid-quad (list (- (/ (+ vXL vXR) 2.0) (* 130 *PEB-TEXT-SCALE*)) (- H 100.0))
+                        (list (+ (/ (+ vXL vXR) 2.0) (* 130 *PEB-TEXT-SCALE*)) (- H 100.0))
+                        (list (/ (+ vXL vXR) 2.0) (- H 250.0)) (list (/ (+ vXL vXR) 2.0) (- H 250.0)))))
 
     (setq i (1+ i)))
 )
@@ -2809,8 +2813,8 @@
 (defun peb-conn-plate-pair (cx topY halfSpan ep nBolt / boltR i bx loBot stH stW xl xr)
   (setvar "CLAYER" "PLATES")
   (setq boltR (* 25 *PEB-TEXT-SCALE*))
-  ;; owner 14-Jul STRICT: TWO SOLID 20mm plates with a 2mm gap, NO bolts (same as the gable knee).
-  (setq ep 20.0 stH 110.0 stW 110.0)
+  ;; owner 14-Jul STRICT: TWO SOLID 30mm plates with a 2mm gap, NO bolts (same as the gable knee).
+  (setq ep 30.0 stH 110.0 stW 100.0)
   (setq loBot (- topY ep 2.0 ep))
   (setq xl (- cx halfSpan) xr (+ cx halfSpan))
   (peb-solid-quad (list xl (- topY ep)) (list xr (- topY ep)) (list xl topY) (list xr topY))          ; rafter plate (SOLID)
@@ -2855,7 +2859,7 @@
     ;; RCC ("Roofing System"): ONE base plate welded to the rafter bottom, sitting on the RCC column
     ;; top, with anchor bolts hooking DOWN into the concrete.
     (progn
-      (setq boltR (* 18 *PEB-TEXT-SCALE*) plateT 20.0)   ; real 20mm base plate
+      (setq boltR (* 18 *PEB-TEXT-SCALE*) plateT 30.0)   ; 30mm base plate
       (peb-solid-quad (list x0 ySeam) (list x1 ySeam)
                       (list x0 (+ ySeam plateT)) (list x1 (+ ySeam plateT)))   ; SOLID base plate
       (setq i 1)
@@ -2870,10 +2874,10 @@
       ;; owner 14-Jul (item 7): REAL 20mm plates, 2mm gap between them, NO bolts shown.  Two SOLID plates
       ;; straddling the seam — upper welded to the rafter bottom (sits AT the column-rafter junction),
       ;; lower on the column top.
-      (setq plateT 20.0 gap 2.0
+      (setq plateT 30.0 gap 2.0                        ; owner 14-Jul: 30mm plates (more depth)
             topY  (+ ySeam (/ gap 2.0) plateT)         ; upper (rafter) plate TOP edge
             loBot (- ySeam (/ gap 2.0) plateT)         ; lower (column) plate BOTTOM edge
-            stW 190.0 stH 110.0)                       ; owner 14-Jul: stiffeners EXCEED the plate ends (ext=100)
+            stW 100.0 stH 110.0)                       ; owner 14-Jul: stiffener JUST till the plate extension (100mm), no beyond
       (peb-solid-quad (list x0 (+ ySeam (/ gap 2.0))) (list x1 (+ ySeam (/ gap 2.0)))
                       (list x0 topY) (list x1 topY))                            ; rafter-bottom plate (SOLID)
       (peb-solid-quad (list x0 loBot) (list x1 loBot)
@@ -2908,7 +2912,7 @@
 (defun draw-cant-vplate (cx yBot yTop plateT nBolt / lo hi stW stH)
   (peb-conn-plate-depth cx yBot yTop plateT nBolt)
   (setq lo (- (min yBot yTop) 100.0) hi (+ (max yBot yTop) 100.0))   ; = peb-conn-plate-depth's 100 ext edges
-  (setq stW 190.0 stH 110.0)   ; owner 14-Jul: stiffeners EXCEED the plate ends
+  (setq stW 100.0 stH 110.0)   ; owner 14-Jul: stiffener JUST till the plate extension (100mm)
   (draw-stiff-top (- cx plateT) hi stW stH -1)
   (draw-stiff-top (+ cx plateT) hi stW stH  1)
   (draw-stiff-bot (- cx plateT) lo stW stH -1)
@@ -3516,8 +3520,8 @@
   ;;  The vertical apex plates (RIDGE APEX in draw-rafter-stiffeners) are
   ;;  suppressed for this case so the rafter web runs continuous over the peak.
   (setvar "CLAYER" "PLATES")
-  ;; owner 14-Jul STRICT: TWO SOLID 20mm plates, 2mm gap, NO bolts; stiffeners EXCEED the plate ends.
-  (setq ep      20.0)
+  ;; owner 14-Jul STRICT: TWO SOLID 30mm plates, 2mm gap, NO bolts; stiffener JUST till the plate extension.
+  (setq ep      30.0)
   (setq upTopY  (- (+ H rise) rd))           ; rafter underside at ridge / column top
   (setq upBotY  (- upTopY ep))               ; upper (rafter) plate bottom edge
   (setq loTopY  (- upBotY 2.0))              ; lower (column) plate top edge (2mm gap)
@@ -3533,11 +3537,11 @@
   (peb-solid-quad (list outerX loBotY) (list x loBotY) (list outerX loTopY) (list x loTopY))   ; L column
   (peb-solid-quad (list x upBotY) (list innerX upBotY) (list x upTopY) (list innerX upTopY))   ; R rafter
   (peb-solid-quad (list x loBotY) (list innerX loBotY) (list x loTopY) (list innerX loTopY))   ; R column
-  ;; Outer-end stiffeners (top + bottom) that EXCEED the plate ends (190 > ext 100).
-  (draw-stiff-top (- x halfCol) upTopY 190.0 stiffH -1)
-  (draw-stiff-bot (- x halfCol) loBotY 190.0 stiffH -1)
-  (draw-stiff-top (+ x halfCol) upTopY 190.0 stiffH  1)
-  (draw-stiff-bot (+ x halfCol) loBotY 190.0 stiffH  1)
+  ;; Outer-end stiffeners (top + bottom) JUST till the plate extension (100mm), no beyond (owner 14-Jul).
+  (draw-stiff-top (- x halfCol) upTopY ext stiffH -1)
+  (draw-stiff-bot (- x halfCol) loBotY ext stiffH -1)
+  (draw-stiff-top (+ x halfCol) upTopY ext stiffH  1)
+  (draw-stiff-bot (+ x halfCol) loBotY ext stiffH  1)
 )
 
 (defun draw-z-purlin-flat (xWeb yBase dir /
@@ -4348,6 +4352,14 @@
           (vl-catch-all-apply
             (function (lambda ()
               (vla-put-TextRightAttachmentType mlResult 5))))    ; BottomOfTopLine
+          ;; owner 14-Jul: "wire the arrow in BOTH wall & roof M-Ladders" — the native MLEADER renders no
+          ;; visible tip, so overlay the SAME explicit ► arrow as the fallback onto the wall sheeting line.
+          (setvar "CLAYER" "ARROWS")
+          (setvar "PLINEWID" 0.0)
+          (command "PLINE" (list (- labWX (* 1200 *PEB-TEXT-SCALE*)) wTargetY)
+                           "W" (* 320 *PEB-TEXT-SCALE*) 0
+                           (list labWX wTargetY) "")
+          (setvar "PLINEWID" 0.0)
         )
       )
     )
@@ -6634,11 +6646,16 @@
           (list (+ cx 514.0) (+ vY0 200.0))   ; right flange OUTER end
           "")
         (setvar "PLINEWID" 0.0)
-        ;; Label — placed above the gutter top flanges
+        ;; Label + M-Ladder DOWN-ARROW to the valley trough (owner 14-Jul).  Explicit shaft + SOLID
+        ;; arrowhead so the arrow always renders (the native MLEADER tip does not plot).
         (setvar "CLAYER" "TEXT")
-        (txt "MC"
-          (list cx (+ vY0 200.0 (* 1500 *PEB-TEXT-SCALE*)))
-          200 0 "VALLEY GUTTER")
+        (txt "MC" (list cx (+ vY0 200.0 (* 1500 *PEB-TEXT-SCALE*))) 200 0 "VALLEY GUTTER")
+        (setvar "CLAYER" "ARROWS")
+        (command "LINE" (list cx (+ vY0 200.0 (* 1150 *PEB-TEXT-SCALE*)))
+                        (list cx (+ vY0 200.0 (* 400  *PEB-TEXT-SCALE*))) "")
+        (peb-solid-quad (list (- cx (* 130 *PEB-TEXT-SCALE*)) (+ vY0 200.0 (* 400 *PEB-TEXT-SCALE*)))
+                        (list (+ cx (* 130 *PEB-TEXT-SCALE*)) (+ vY0 200.0 (* 400 *PEB-TEXT-SCALE*)))
+                        (list cx (+ vY0 200.0)) (list cx (+ vY0 200.0)))   ; down-arrow head (SOLID)
         (setq i (1+ i))))
   )
   ;; Haunch plates only meaningful for gable-type and SS/LT frames.
