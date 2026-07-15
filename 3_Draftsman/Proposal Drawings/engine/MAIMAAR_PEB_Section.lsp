@@ -2450,7 +2450,7 @@
   (command "RECTANG" (list (- W ht) 0.0)   (list W  colTop))        ; RIGHT straight column
 )
 
-(defun draw-floor-buildup (x0 x1 yTop beamD joistD slabT / span deckCrest bTop bBot bf jw jBotF jx nJ step jLabX)
+(defun draw-floor-buildup (x0 x1 yTop beamD joistD slabT / span deckCrest bTop bBot bf jw jBotF jx nJ step jLabX drop ov cx0 cx1)
   ;;  FLAT-ROOF RCC-on-steel build-up (owner 15-Jul spec):
   ;;    125mm CONCRETE  on  0.70mm PROFILED DECKING PANEL  on  STEEL JOISTS @ 1.5m,
   ;;    the joists sitting WITHIN the MAIN BEAM web with their TOPS FLUSH with the main-beam top flange.
@@ -2461,18 +2461,22 @@
   (setq deckCrest (- yTop slabT))          ; concrete-above-crest bottom (slabT = 125mm over the crest)
   (setq bTop (- deckCrest 45.0))           ; corrugation TROUGH = beam/joist top flange (flush); 45mm deep
   (setq bBot (- bTop beamD))               ; MAIN BEAM bottom flange
-  ;; ── 125mm concrete — FILLS the decking flutes: hatch the whole zone from the flush top up to the slab top ──
+  ;; ── 125mm concrete — FILLS the decking flutes + a SLIGHT drainage fall (screed) draining to the LOW
+  ;; (left/gutter) side.  Flat bottom on the steel; top slopes from yTop (right, HIGH) to yTop-drop (left,
+  ;; LOW).  Coarse AR-CONC (55) so the thin band reads as concrete stipple, not a solid black bar.
+  (setq drop 100.0)                        ; slight screed fall to the drain (left) side
+  (setq ov 235.0 cx0 (- x0 ov) cx1 (+ x1 ov))   ; concrete/decking extend to the wall edge (past the columns)
   (setvar "CLAYER" "RCC-COLUMN")
   (setvar "PLINEWID" 0.0)
-  (command "RECTANG" (list x0 bTop) (list x1 yTop))
-  (command "HATCH" "AR-CONC" (* 18 *PEB-TEXT-SCALE*) 0 "L" "")
+  (command "PLINE" (list cx0 bTop) (list cx1 bTop) (list cx1 yTop) (list cx0 (- yTop drop)) "C")
+  (command "HATCH" "AR-CONC" (* 55.0 *PEB-TEXT-SCALE*) 0 "L" "")
   ;; ── 0.70mm PROFILED DECKING sheet — this section looks ALONG the corrugation, so it reads as TWO
   ;;    horizontal lines 45mm apart: BOTTOM solid (decking sheeting line on the flush beam/joist top) +
   ;;    TOP dashed (corrugation crest, hidden).  The concrete (hatched above) shows from the bottom line up.
   (setvar "CLAYER" "CLADDING")
-  (command "LINE" (list x0 bTop) (list x1 bTop) "")            ; decking bottom line (solid, on the beam top)
+  (command "LINE" (list cx0 bTop) (list cx1 bTop) "")            ; decking bottom line (solid, on the beam top)
   (setvar "CELTYPE" "DASHED")
-  (command "LINE" (list x0 deckCrest) (list x1 deckCrest) "")  ; corrugation crest 45mm up (dashed/hidden)
+  (command "LINE" (list cx0 deckCrest) (list cx1 deckCrest) "")  ; corrugation crest 45mm up (dashed/hidden)
   (setvar "CELTYPE" "BYLAYER")
   ;; ── MAIN BEAM — full-width I-section in elevation (top flange, bottom flange, end web edges) ──
   (setvar "CLAYER" "FRAME")
@@ -2524,16 +2528,17 @@
   (setvar "CLAYER" "RCC-COLUMN") (setvar "PLINEWID" 0.0)
   (command "RECTANG" (fr-dp ox oy sc -520 0) (fr-dp ox oy sc 130 170))
   (command "HATCH" "AR-CONC" (* 14.0 sc) 0 "L" "")
-  ;; ---- 0.70mm profiled decking (trapezoidal, 45mm) over the beam+joist top ----
+  ;; ---- 0.70mm profiled decking (trapezoidal, 45mm) over the beam+joist top — DOUBLE LINE (sheet faces) ----
   (setvar "CLAYER" "CLADDING")
-  (setq x -520) (command "PLINE")
-  (while (< x 130)
-    (command (fr-dp ox oy sc x 45))
-    (command (fr-dp ox oy sc (min 130 (+ x 40)) 45))
-    (command (fr-dp ox oy sc (min 130 (+ x 55)) 0))
-    (command (fr-dp ox oy sc (min 130 (+ x 95)) 0))
-    (setq x (+ x 100)))
-  (command (fr-dp ox oy sc 130 45)) (command "")
+  (foreach dk (list 0.0 13.0)           ; two parallel profiles = the 0.70mm folded sheet thickness
+    (setq x -520) (command "PLINE")
+    (while (< x 130)
+      (command (fr-dp ox oy sc x (+ 45 dk)))
+      (command (fr-dp ox oy sc (min 130 (+ x 40)) (+ 45 dk)))
+      (command (fr-dp ox oy sc (min 130 (+ x 55)) dk))
+      (command (fr-dp ox oy sc (min 130 (+ x 95)) dk))
+      (setq x (+ x 100)))
+    (command (fr-dp ox oy sc 130 (+ 45 dk))) (command ""))
   ;; ---- MAIN BEAM I-cut (centre), 550 deep ----
   (setvar "CLAYER" "FRAME")
   (command "RECTANG" (fr-dp ox oy sc -100 -25)  (fr-dp ox oy sc 100 0))     ; top flange
@@ -6388,6 +6393,13 @@
       (make-text-style "PEB-TITLE" "romand.shx")
       (make-text-style "PEB-BODY"  "romans.shx")
       (make-text-style "PEB-DIM"   "romans.shx")))
+  ;; owner 15-Jul: some title-block MTEXT falls back to the default "Standard" style (txt.shx) — repoint
+  ;; the EXISTING Standard style at Arial too so the load table / project fields match the rest.
+  (vl-catch-all-apply
+    (function (lambda (/ so sd)
+      (setq so (tblobjname "STYLE" "Standard"))
+      (if so (progn (setq sd (entget so))
+                    (if (assoc 3 sd) (entmod (subst (cons 3 "arial.ttf") (assoc 3 sd) sd))))))))
 
   ;; ── Linetypes ────────────────────────────────────────────────
   (safe-load-ltype "CENTER")
@@ -6680,11 +6692,14 @@
       (draw-base-plate-at 0.0 ht ep (* 25 *PEB-TEXT-SCALE*))
       (draw-base-plate-at (- wid ht) wid ep (* 25 *PEB-TEXT-SCALE*))
       (setvar "CLAYER" "PLATES")
-      (foreach fcx (list 0.0 (- wid ht))
-        (peb-solid-quad (list fcx (- frCT 30.0)) (list (+ fcx ht) (- frCT 30.0))
-                        (list fcx frCT) (list (+ fcx ht) frCT))     ; horizontal cap plate (30mm)
-        (draw-stiff-bot fcx           (- frCT 30.0) 100.0 130.0  1) ; inner stiffener gusset
-        (draw-stiff-bot (+ fcx ht)    (- frCT 30.0) 100.0 130.0 -1))) ; outer stiffener gusset
+      ;; LEFT column: cap plate + stiffener on the INNER face (x = ht) only.
+      (peb-solid-quad (list 0.0 (- frCT 30.0)) (list ht (- frCT 30.0))
+                      (list 0.0 frCT) (list ht frCT))
+      (draw-stiff-bot ht (- frCT 30.0) 100.0 130.0 -1)          ; inner gusset (into the column)
+      ;; RIGHT column: cap plate + stiffener on the INNER face (x = wid-ht) only.
+      (peb-solid-quad (list (- wid ht) (- frCT 30.0)) (list wid (- frCT 30.0))
+                      (list (- wid ht) frCT) (list wid frCT))
+      (draw-stiff-bot (- wid ht) (- frCT 30.0) 100.0 130.0 1))  ; inner gusset (into the column)
     (T
       (progn
         (draw-base-plates   wid cb ep)
@@ -7076,8 +7091,8 @@
       ;; flush in the 550mm main beam).
       (draw-brick-wall    wid brickH)                        ; brick to 3.048m (dwarf wall)
       (draw-girts         wid H brickH nil nil)              ; girts on the sheeted portion
-      (draw-downpipes     wid H brickH nil)
-      (draw-eave-features wid H nil)
+      (draw-downpipes     wid H brickH T)                    ; slight fall -> drain + downpipe on the LOW (left) side only
+      (draw-eave-features wid H T)                           ; gutter on the LOW (left) side only (no right gutter)
       (draw-floor-buildup 0.0 wid H 550.0 550.0 125.0)       ; 550 main beam, 300 joists flush, 45 decking, 125 concrete
       ;; wall sheeting (2 lines each side) from the brick top up to the eave
       (if (and brickH (< brickH H))
