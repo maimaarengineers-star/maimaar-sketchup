@@ -7318,16 +7318,30 @@
       (command "PLINE" (list (- -235.0 (* 160 *PEB-TEXT-SCALE*)) frWtY)
                        "W" (* 55 *PEB-TEXT-SCALE*) 0 (list -235.0 frWtY) "")
       (setvar "PLINEWID" 0.0)
-      ;; ── Callout "A" (roof joist connection) + DETAIL-A, above the taller frame ──
+      ;; ── DETERMINISTIC detail placement (owner 15-Jul): both details PARKED left (B) / right (A), their
+      ;;    BOTTOM exactly 5 rows ABOVE the WALL SHEETING label, their TOP 10 rows BELOW the frame heading.
+      ;;    The heading is then lifted to sit 10 rows above the taller detail (via *PEB-F2-HEAD-SUB*, read by
+      ;;    the header block).  A "row" = one label line (420·TS).  This makes the top matter grow with the
+      ;;    details (the "bigger sheet") instead of cramming them against the roof. ──
+      (setq f2Row  (* 420.0 *PEB-TEXT-SCALE*)
+            f2ScA  5.0                                   ; DETAIL-A (joist connection) scale
+            f2ScB  3.8                                   ; DETAIL-B (roof drainage) scale
+            f2BandB (+ frWlY (* 5.0 f2Row))              ; details BOTTOM = 5 rows above the wall-sheeting label
+            f2OyA  (+ f2BandB (* 730.0 f2ScA))           ; A origin so its subtitle (ly -730) lands on f2BandB
+            f2OyB  (+ f2BandB (* 785.0 f2ScB))           ; B origin so its subtitle (ly -785) lands on f2BandB
+            f2TopY (max (+ f2OyA (* 260.0 f2ScA))        ; higher of the two detail TOP labels
+                        (+ f2OyB (* 300.0 f2ScB)))
+            *PEB-F2-HEAD-SUB* (+ f2TopY (* 10.0 f2Row))) ; frame heading = 10 rows above the details
+      ;; Callout "A" (roof joist connection) + DETAIL-A parked on the RIGHT
       (setvar "CLAYER" "TEXT")
       (command "CIRCLE" (list (* wid 0.5) (- H 350.0)) 650.0)
       (txt "MC" (list (* wid 0.5) (- H 1550.0)) 320 0 "A")
-      (draw-fr-detail 28200.0 (+ H 7200.0) 5.0)
-      ;; ── Callout "B" (roof drainage outlet) + DETAIL-B ──
+      (draw-fr-detail 28200.0 f2OyA f2ScA)
+      ;; Callout "B" (roof drainage outlet) + DETAIL-B parked on the LEFT
       (setvar "CLAYER" "TEXT")
       (command "CIRCLE" (list (+ ht 550.0) (- H 250.0)) 620.0)
       (txt "MC" (list (+ ht 2400.0) (- H 2050.0)) 320 0 "B")
-      (draw-fr-detb 600.0 (+ H 8000.0) 3.8))
+      (draw-fr-detb 1000.0 f2OyB f2ScB))
     ((= stype "SS")
       ;; SINGLE SLOPE: low (left) eave = H, HIGH (right) eave = H + monoRise.  The RIGHT wall
       ;; sheeting + girts must climb to the HIGH eave (not the low H, which left the tall wall
@@ -7556,27 +7570,32 @@
   (setvar "CLAYER" "TEXT")
   ;; owner 14-Jul: lift the whole TITLE BLOCK 3 rows (+700·TS) so the frame sits LOWER relative to the top
   ;; matter — this keeps the raised sheeting M-Ladders + a long sandwich spec clear of the title.
+  ;; Heading base Y: F2 (G+1) LIFTS the whole heading so it sits 10 rows above the two details
+  ;; (*PEB-F2-HEAD-SUB*, computed in the F2 branch); all other frames keep H+rise+5100·TS.
+  (setq hdBase (if (and (= stype "F2") *PEB-F2-HEAD-SUB*)
+                 *PEB-F2-HEAD-SUB*
+                 (+ H rise (* 5100 *PEB-TEXT-SCALE*))))
   ;; Top line: frame type (e.g. CLEAR SPAN GABLE / MULTI-GABLE / SINGLE SLOPE)
   (txt-bold "MC"
-            (list (/ wid 2.0) (+ H rise (* 7000 *PEB-TEXT-SCALE*)))
+            (list (/ wid 2.0) (+ hdBase (* 1900 *PEB-TEXT-SCALE*)))
             500 0
             (peb-structure-label stype))
   ;; Second line: generic "BUILDING CROSS-SECTION"
   (txt-bold "MC"
-            (list (/ wid 2.0) (+ H rise (* 6200 *PEB-TEXT-SCALE*)))
+            (list (/ wid 2.0) (+ hdBase (* 1100 *PEB-TEXT-SCALE*)))
             350 0
             "BUILDING CROSS-SECTION")
   ;; Underline beneath title
   (setvar "CLAYER" "TEXT")
   (command "LINE"
     (list (- (/ wid 2.0) (* 6000 *PEB-TEXT-SCALE*))
-          (+ H rise (* 5800 *PEB-TEXT-SCALE*)))
+          (+ hdBase (* 700 *PEB-TEXT-SCALE*)))
     (list (+ (/ wid 2.0) (* 6000 *PEB-TEXT-SCALE*))
-          (+ H rise (* 5800 *PEB-TEXT-SCALE*))) "")
+          (+ hdBase (* 700 *PEB-TEXT-SCALE*))) "")
   ;; Subtitle: short summary line - use widInput (out-to-out of sheeting,
   ;; matches the dimension shown at the bottom of the section).
   (txt-bold "MC"
-       (list (/ wid 2.0) (+ H rise (* 5100 *PEB-TEXT-SCALE*)))
+       (list (/ wid 2.0) hdBase)
        260 0
      (if (= stype "F2")
        ;; G+1: two equal storeys, per-storey clear height = (H-1440)/2 (H = roof concrete top).
@@ -7741,7 +7760,7 @@
       (cons "IDENTICAL" (peb-tb-or (MSPL-Get-Str data "IDENTICAL") "1"))
       (cons "DRGTITLE"  "CROSS SECTION")
       (cons "SCALE"     "N.T.S.")
-      (cons "SHEETSIZE" "A1")
+      (cons "SHEETSIZE" (if (= stype "F2") "A0" "A1"))   ; G+1 is taller → larger sheet
       (cons "SHEETNO"   (strcat "PRO-" tbBno))))
   (peb-titleblock-mammut tbStripX tbFrmB tbStripW tbStripH tbData)
   ;; Drawing border wraps the section + the title strip.
