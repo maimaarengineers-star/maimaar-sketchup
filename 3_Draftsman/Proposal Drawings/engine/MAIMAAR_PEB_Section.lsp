@@ -2209,19 +2209,21 @@
       (command "LINE" (list bx 90.0) (list bx (- H 90.0)) ""))
     (setvar "CELTYPE" "BYLAYER") (setvar "CELTSCALE" 1.0)))
 
-(defun build-rc-rafter-polygon (W H rise de dp)
+(defun build-rc-rafter-polygon (W H rise de dp inset)
   ;;  Roof System on RCC columns: the steel rafter is PINNED on the concrete
   ;;  columns at both eaves (no moment haunch), so its web is CONTINUOUSLY
   ;;  TAPERED -- SHALLOW at the eaves (min moment at the pinned ends) and
   ;;  DEEPEST at the peak (max moment at mid-span / ridge).  Owner 13-Jul,
   ;;  matching the design-manual shape.  de = eave depth, dp = peak depth.
+  ;;  `inset` pulls the eaves IN (fascia case) so the roof sits BEHIND the
+  ;;  parapets, draining to the valley gutters; 0 for the plain arrangement.
   (list
-    (list 0.0       H)                       ; left eave TOP (bears on column)
-    (list (/ W 2.0) (+ H rise))              ; ridge TOP
-    (list W         H)                       ; right eave TOP (bears on column)
-    (list W         (- H de))                ; right eave UNDERSIDE (shallow)
-    (list (/ W 2.0) (+ H rise (- 0 dp)))     ; ridge UNDERSIDE (deep)
-    (list 0.0       (- H de))                ; left eave UNDERSIDE (shallow)
+    (list inset       H)                     ; left eave TOP (bears on column)
+    (list (/ W 2.0)   (+ H rise))            ; ridge TOP
+    (list (- W inset) H)                     ; right eave TOP (bears on column)
+    (list (- W inset) (- H de))              ; right eave UNDERSIDE (shallow)
+    (list (/ W 2.0)   (+ H rise (- 0 dp)))   ; ridge UNDERSIDE (deep)
+    (list inset       (- H de))              ; left eave UNDERSIDE (shallow)
   )
 )
 
@@ -2234,28 +2236,37 @@
   (setq de (max 200.0 (* ht 0.35)))       ; shallow eave rafter depth
   (setq dp (max 600.0 (* ht 1.10)))       ; deep peak rafter depth
   (setq colTop (- H de))                  ; RCC column bears the rafter at the eave underside
+  ;; fascia → only the OUTER PORTION of the column (owner 16-Jul) rises past the roof; the rafter tucks BEHIND
+  ;; it (inset by that outer-portion width) and drains to a valley gutter.  plain → eaves flush at 0/W.
+  (setq *PEB-RC-PARAW* (* rccW 0.45))     ; outer portion of the column that extends up as the fascia
+  (setq *PEB-RC-INSET* (if fascia *PEB-RC-PARAW* 0.0))
   (draw-rcc-columns (list 0.0 W) colTop rccW)
   (setvar "CLAYER" "FRAME")
   (setvar "PLINEWID" 0.0)
-  (setq pts (build-rc-rafter-polygon W H rise de dp))
+  (setq pts (build-rc-rafter-polygon W H rise de dp *PEB-RC-INSET*))
   (command "PLINE")
   (foreach p pts (command p))
   (command "C")
-  ;; fascia: a BLOCK WALL parapet rises from the OUTER face of the column up to the PEAK LINE (owner 16-Jul).
-  (if fascia (draw-rc-fascia W H rise rccW colTop))
+  ;; fascia: the OUTER portion of each RCC column extends up (concrete) to HIDE the peak line (owner 16-Jul).
+  (if fascia (draw-rc-fascia W H rise *PEB-RC-PARAW* colTop))
 )
 
-(defun draw-rc-fascia (W H rise rccW baseY / pTop ivL ivR g gx gd)
-  ;;  BLOCK WALL PARAPET / FASCIA (owner markups 4/9 + 16-Jul): the fascia rises from the OUTER face of the
-  ;;  RCC column (its top = baseY) up to the PEAK LINE of the roof (pTop = H+rise), drawn as block masonry.
-  ;;  The roof drains into a VALLEY GUTTER against each parapet inner face at the eave.  ivL/ivR = inner faces.
-  (setq pTop (+ H rise) ivL rccW ivR (- W rccW))
-  ;; BLOCK WALL parapets (block/brick masonry), continuing the outer column line up to the peak line.
-  (setvar "CLAYER" "BRICK-WALL")
-  (command "RECTANG" (list 0.0 baseY) (list rccW pTop))
-  (command "HATCH" "BRICK" 150 0 "L" "")
-  (command "RECTANG" (list (- W rccW) baseY) (list W pTop))
-  (command "HATCH" "BRICK" 150 0 "L" "")
+(defun draw-rc-fascia (W H rise paraW baseY / pTop ivL ivR g gx gd)
+  ;;  RCC FASCIA (owner 16-Jul clarification): the SECTION is cut through the RCC column, so the fascia is the
+  ;;  OUTER PORTION of the column (width paraW) CONTINUING UPWARD as concrete — from the column top (baseY) past
+  ;;  the roof up to just ABOVE the peak line (pTop) so it HIDES the roof peak behind it.  Drawn as the same
+  ;;  concrete section as the column (AR-CONC hatch + reinforcement bar), NOT block masonry.  The steel rafter
+  ;;  is inset behind the parapet and drains into a VALLEY GUTTER at each parapet inner face.
+  (setq pTop (+ H rise 650.0)              ; rise well ABOVE the roof sheeting peak so the parapet HIDES the peak
+        ivL paraW ivR (- W paraW))         ; inner faces of the L / R parapet extensions (= rafter eaves)
+  ;; CONCRETE parapet extensions — the outer slice of each column carried up.
+  (setvar "CLAYER" "RCC-COLUMN")
+  (foreach g (list (list 0.0 paraW) (list (- W paraW) W))
+    (command "RECTANG" (list (car g) baseY) (list (cadr g) pTop))
+    (command "HATCH" "AR-CONC" 60 0 "L" "")
+    (setvar "CELTYPE" "HIDDEN") (setvar "CELTSCALE" 300.0)
+    (command "LINE" (list (+ (car g) 90.0) baseY) (list (+ (car g) 90.0) (- pTop 90.0)) "")   ; outer-face bar
+    (setvar "CELTYPE" "BYLAYER") (setvar "CELTSCALE" 1.0))
   ;; VALLEY GUTTER at each parapet inner base — a trapezoidal channel at the roof (eave) level, ~500×190.
   (setvar "CLAYER" "GUTTER") (setvar "PLINEWID" 0.0)
   (foreach g (list (list ivL 1.0) (list ivR -1.0))
@@ -2265,8 +2276,8 @@
       (list (+ gx (* gd 140.0)) (- H 190.0)) (list (+ gx (* gd 500.0)) (+ H 60.0)) ""))
   ;; labels
   (setvar "CLAYER" "TEXT")
-  (peb-label-with-leader "BLOCK WALL PARAPET (FASCIA)"
-                         (list (- 0.0 3000.0) (- pTop 500.0)) (list (/ rccW 2.0) (- pTop 400.0)) "H" 220)
+  (peb-label-with-leader "RCC PARAPET / FASCIA (HIDES ROOF PEAK)"
+                         (list (- 0.0 3200.0) (- pTop 500.0)) (list (/ paraW 2.0) (- pTop 500.0)) "H" 220)
   (peb-label-with-leader "VALLEY GUTTER"
                          (list (+ ivL 2800.0) (+ H 1400.0)) (list (+ ivL 250.0) (- H 100.0)) "H" 220)
   (peb-label-with-leader "CLOSURE TRIM + FLOWABLE MASTIC"
@@ -2305,11 +2316,13 @@
         x0   (/ W 2.0)
         yTop (+ H rise)                    ; top flange at the ridge
         yBot (- (+ H rise) dp)             ; bottom flange (underside) at the ridge
-        pt   110.0 gp 6.0 ext 100.0        ; plate width / HALF the 1mm-only gap (drawn as OUTLINES so both plates read)
+        pt   110.0 gp 6.0 ext 100.0        ; plate width / HALF the 1mm-only gap (SOLID thick plates — owner markup 13)
         lxo  (- x0 gp) rxo (+ x0 gp))      ; inner faces of the LEFT / RIGHT plate — only ~1mm gap (owner markup 10)
   (setvar "CLAYER" "PLATES")
-  (command "RECTANG" (list (- lxo pt) (- yBot ext)) (list lxo (+ yTop ext)))    ; LEFT plate (outline)
-  (command "RECTANG" (list rxo (- yBot ext)) (list (+ rxo pt) (+ yTop ext)))    ; RIGHT plate (outline)
+  (peb-solid-quad (list (- lxo pt) (- yBot ext)) (list lxo (- yBot ext))        ; LEFT plate (SOLID thick)
+                  (list (- lxo pt) (+ yTop ext)) (list lxo (+ yTop ext)))
+  (peb-solid-quad (list rxo (- yBot ext)) (list (+ rxo pt) (- yBot ext))        ; RIGHT plate (SOLID thick)
+                  (list rxo (+ yTop ext)) (list (+ rxo pt) (+ yTop ext)))
   ;; stiffeners 100mm to the TOP and BOTTOM flanges on the OUTER edge of each plate
   (draw-stiff-top (- lxo pt) yTop ext 110.0 -1)
   (draw-stiff-bot (- lxo pt) yBot ext 110.0 -1)
@@ -2317,33 +2330,38 @@
   (draw-stiff-bot (+ rxo pt) yBot ext 110.0  1)
   (princ))
 
-;; RC rafter top-flange / underside Y at any x (mirrors build-rc-rafter-polygon).
-(defun rc-rafter-yt (W H rise x)
-  (if (<= x (/ W 2.0)) (+ H (* rise (/ (* 2.0 x) W)))
-                       (+ H (* rise (/ (* 2.0 (- W x)) W)))))
-(defun rc-rafter-yb (W H rise ht x / de dp hw)
-  (setq de (max 200.0 (* ht 0.35)) dp (max 600.0 (* ht 1.10)) hw (/ W 2.0))
-  (if (<= x hw) (+ (- H de) (* (/ x hw)       (- (- (+ H rise) dp) (- H de))))
-                (+ (- H de) (* (/ (- W x) hw) (- (- (+ H rise) dp) (- H de))))))
+;; RC rafter top-flange / underside Y at any x (mirrors build-rc-rafter-polygon; `inset` pulls the eaves in).
+(defun rc-rafter-yt (W H rise inset x / hl)
+  (setq hl (- (/ W 2.0) inset))
+  (if (<= x (/ W 2.0)) (+ H (* rise (/ (- x inset)       hl)))
+                       (+ H (* rise (/ (- (- W inset) x)  hl)))))
+(defun rc-rafter-yb (W H rise ht inset x / de dp hl)
+  (setq de (max 200.0 (* ht 0.35)) dp (max 600.0 (* ht 1.10)) hl (- (/ W 2.0) inset))
+  (if (<= x (/ W 2.0)) (+ (- H de) (* (/ (- x inset)      hl) (- (- (+ H rise) dp) (- H de))))
+                       (+ (- H de) (* (/ (- (- W inset) x) hl) (- (- (+ H rise) dp) (- H de))))))
 (defun draw-rc-splice (x yTop yBot / pt gp ext lxo rxo)
   ;;  One rafter SPLICE connection at x: two OUTLINE plates (~1mm gap) EXTENDING 100mm beyond both flanges +
   ;;  stiffeners to both flanges.
   (setq pt 100.0 gp 6.0 ext 100.0 lxo (- x gp) rxo (+ x gp))
   (setvar "CLAYER" "PLATES")
-  (command "RECTANG" (list (- lxo pt) (- yBot ext)) (list lxo (+ yTop ext)))
-  (command "RECTANG" (list rxo (- yBot ext)) (list (+ rxo pt) (+ yTop ext)))
+  (peb-solid-quad (list (- lxo pt) (- yBot ext)) (list lxo (- yBot ext))
+                  (list (- lxo pt) (+ yTop ext)) (list lxo (+ yTop ext)))
+  (peb-solid-quad (list rxo (- yBot ext)) (list (+ rxo pt) (- yBot ext))
+                  (list rxo (+ yTop ext)) (list (+ rxo pt) (+ yTop ext)))
   (draw-stiff-top (- lxo pt) yTop ext 110.0 -1)
   (draw-stiff-bot (- lxo pt) yBot ext 110.0 -1)
   (draw-stiff-top (+ rxo pt) yTop ext 110.0  1)
   (draw-stiff-bot (+ rxo pt) yBot ext 110.0  1))
-(defun draw-rc-splices (W H rise ht / hw nP i sx)
+(defun draw-rc-splices (W H rise ht / inset hw nP i sx)
   ;;  Transport limit (owner 15-Jul): a rafter piece can't exceed 12m, so split EACH half (eave→peak) into
-  ;;  equal pieces ≤12m and put a splice connection plate at every interior break.
-  (setq hw (/ W 2.0) nP (max 1 (fix (+ 0.999 (/ hw 12000.0)))) i 1)
+  ;;  equal pieces ≤12m and put a splice connection plate at every interior break.  `inset` = the fascia eave
+  ;;  inset so splices stay on the actual (behind-parapet) rafter.
+  (setq inset (if (and *PEB-RC-INSET* (> *PEB-RC-INSET* 0.0)) *PEB-RC-INSET* 0.0)
+        hw (- (/ W 2.0) inset) nP (max 1 (fix (+ 0.999 (/ hw 12000.0)))) i 1)
   (while (< i nP)
-    (setq sx (* i (/ hw (float nP))))
-    (draw-rc-splice sx        (rc-rafter-yt W H rise sx)        (rc-rafter-yb W H rise ht sx))
-    (draw-rc-splice (- W sx)  (rc-rafter-yt W H rise (- W sx))  (rc-rafter-yb W H rise ht (- W sx)))
+    (setq sx (+ inset (* i (/ hw (float nP)))))
+    (draw-rc-splice sx        (rc-rafter-yt W H rise inset sx)        (rc-rafter-yb W H rise ht inset sx))
+    (draw-rc-splice (- W sx)  (rc-rafter-yt W H rise inset (- W sx))  (rc-rafter-yb W H rise ht inset (- W sx)))
     (setq i (1+ i))))
 
 (defun draw-mg-frame (W H rise ht rd cb numGab spanPerGab /
@@ -4526,6 +4544,8 @@
   ;;   |   ← vertical line dropping from APEX EXTENSION end
   ;;   |
   ;;   ────────► (arrow) at wall sheet
+  ;; owner 15-Jul: ROOFING SYSTEM (RC) has full-height masonry walls — NO wall sheeting + NO wall M-Ladder.
+  (if (not *PEB-NO-WALL-SHEET*) (progn
   (setq wParts (split-at-first-digit wallLbl))
   (setq wLine1 (strcat (car wParts) ":"))
   (setq wLine2 (cadr wParts))
@@ -4686,6 +4706,7 @@
   ;; Group the hand-rolled drawing for click-once-select-all.
   (peb-group-entities (peb-collect-entities-since lastBefore) "PEBLBL")
   (setvar "PLINEWID" 0.0)
+  ))  ; end (if (not *PEB-NO-WALL-SHEET*) ...)
 )
 
 (defun draw-cladding-mg (data W H rise brickH numGab /
@@ -6387,6 +6408,7 @@
     nCols bubX
     loadValW rowY lineH rowGap nL pjValX pjValW rowPad rTops yy
     oldEnts shiftAmt
+    rcDe rcIn
     vY0
     tblTotalH tblHeaderH tblBodyH tblBodyRowH tblColWs tblHeaders tblBodies tblMerges tblObj
     tblScaleX
@@ -6960,9 +6982,11 @@
       ;; ROOF ON RCC COLUMNS (owner 15-Jul): NO steel base plates at the FFL (the columns ARE concrete).
       ;; Support = a thick base plate ON each column top (column width only) with anchor bolts — PINNED on the
       ;; LEFT, ROLLER (slotted) on the RIGHT so the roof can expand.  Rafter web splice/ridge plates as usual.
-      (setq rcDe (max 200.0 (* ht 0.35)))
-      (draw-rc-support 0.0 500.0 (- H rcDe) nil)                ; LEFT column → PINNED
-      (draw-rc-support (- wid 500.0) wid (- H rcDe) T)          ; RIGHT column → ROLLER
+      (setq rcDe (max 200.0 (* ht 0.35))
+            rcIn (if (and *PEB-RC-INSET* (> *PEB-RC-INSET* 0.0)) *PEB-RC-INSET* 0.0))
+      ;; base plate sits under the rafter EAVE (inset behind the fascia parapet), not under the parapet slice.
+      (draw-rc-support rcIn 500.0 (- H rcDe) nil)               ; LEFT column → PINNED
+      (draw-rc-support (- wid 500.0) (- wid rcIn) (- H rcDe) T) ; RIGHT column → ROLLER
       (draw-rc-ridge wid H rise ht)                            ; ridge plate (extends beyond both flanges)
       (draw-rc-splices wid H rise ht))                         ; rafter splice plates every <=12m (transport limit)
     (T
@@ -7492,6 +7516,21 @@
       (draw-downpipes     wid H brickH T)                         ; mono -> low-side downpipe only
       (draw-eave-features wid H T)                                ; mono -> low-side gutter only
       (draw-rafter-label  wid H rise ht))
+    ((= stype "RC")
+      ;; ROOFING SYSTEM on RCC columns (owner 16-Jul): the SECTION is cut THROUGH the RCC column, so the wall
+      ;; at the cut IS the concrete column (drawn by draw-rcc-columns) — NO separate brick hatch, NO wall
+      ;; sheeting, NO girts.  Only the metal ROOF sheeting sits on the steel rafters.
+      (setq monoRise nil)
+      (setq *PEB-NO-WALL-SHEET* T)                 ; suppress wall-sheeting geometry + WALL SHEETING M-Ladder
+      (draw-cladding      data wid H rise H monoRise nil nil)   ; brickH=H -> roof sheeting only, no wall sheet
+      (draw-purlins       wid H rise)
+      (draw-eave-strut    wid H rise)
+      ;; NO draw-brick-wall (concrete column IS the wall) and NO draw-girts (no sheeted wall)
+      (if (not *PEB-RC-FASCIA*)                    ; fascia option replaces the eave gutter with a valley gutter
+        (progn (draw-downpipes wid H H nil)        ; downpipe only in the plain (gutter) arrangement
+               (draw-eave-features wid H nil)))
+      (draw-rafter-label  wid H rise ht)
+      (setq *PEB-NO-WALL-SHEET* nil))
     (T
       ;; Gable frames (CS / MS): symmetric eaves at H, gable roof cladding (monoRise nil).
       (setq monoRise nil)
@@ -7645,7 +7684,7 @@
           dimX1 (max (+ wid 1500.0) (+ wid (* 1600 *PEB-DIM-SCALE*)))
           dimX2 (+ dimX1 (peb-dim-text-spacing "vertical"))))
   ;; Drawn dims, then overridden to colour 0 (ByBlock).  UNIFORM dim text (320).
-  (if (and brickH (> brickH 0))
+  (if (and brickH (> brickH 0) (/= stype "RC"))   ; RC = concrete column wall, no brick-masonry dim
     (progn
       (setq *PEB-DIM-TXT* 320.0)
       (peb-dim-height-stretch hObjX dimX1 0.0 brickH "<>\\PBRICK MASONRY")
