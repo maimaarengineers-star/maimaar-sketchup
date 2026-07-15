@@ -7852,19 +7852,57 @@
 
 ;; ── SEPARATE "FLAT ROOF DETAILS" sheet (owner 16-Jul): DETAIL-A (joist connection) + DETAIL-B (roof
 ;; drainage) enlarged on their own sheet, referenced by the A/B callouts on the section. ──
-(defun peb-fr-details-from-file (path / data)
+(defun peb-fr-details-from-file (path / data tbFrmB tbFrmT tbStripH tbStripW tbStripX tbData)
   (setq data (if (> (strlen path) 0) (MSPL-Read-Data path) nil))
   (vl-catch-all-apply (function (lambda () (peb-std-setup))))
-  (setq *PEB-TEXT-SCALE* 1.0)
+  (setq *PEB-TEXT-SCALE* 1.0 *PEB-DIM-SCALE* 1.0)
   (setvar "CLAYER" "TEXT")
-  ;; heading
-  (txt-bold "MC" (list 15000.0 21600.0) 700 0 "FLAT ROOF - CONSTRUCTION DETAILS")
-  (command "LINE" (list 8000.0 20900.0) (list 22000.0 20900.0) "")
-  ;; DETAIL-A (joist connection) left, DETAIL-B (roof drainage) right — enlarged
-  (draw-fr-detail  8500.0 11000.0 11.0)
-  (draw-fr-detb   22000.0 12500.0  9.0)
-  ;; border wrapping the sheet
-  (draw-border -1000.0 2500.0 31000.0 23500.0)
+  ;; heading, centred over the details area (left of the title block)
+  (txt-bold "MC" (list 9000.0 22300.0) 650 0 "FLAT ROOF - CONSTRUCTION DETAILS")
+  (command "LINE" (list 3000.0 21650.0) (list 15000.0 21650.0) "")
+  ;; DETAIL-A (joist connection) on TOP, DETAIL-B (roof drainage) BELOW — stacked so both keep the full left
+  ;; width for their labels while the title block occupies the right.
+  (draw-fr-detail  9000.0 16400.0 8.0)
+  (draw-fr-detb    9000.0  8000.0 6.0)
+  ;; ── flush title block on the RIGHT (owner 16-Jul) ──
+  (setq tbFrmB 2500.0 tbFrmT 23500.0 tbStripH (- tbFrmT tbFrmB)
+        tbStripW 11000.0 tbStripX 21500.0)
+  (setq tbData
+    (list
+      (cons "REV" "00")
+      (cons "DATE" (peb-tb-or (MSPL-Get-Str data "TBDATE") "07-MAY-2026"))
+      (cons "DRN" "M.H") (cons "CHK" "YEA")
+      (cons "LL_ROOF"  (peb-tb-or (MSPL-Get-Str data "LIVEROOF")  "0.57"))
+      (cons "LL_FRAME" (peb-tb-or (MSPL-Get-Str data "LIVEFRAME") "0.57"))
+      (cons "WIND"     (peb-tb-or (peb-num-only (MSPL-Get-Str data "WINDSPEED")) "135"))
+      (cons "EXPOSURE" (peb-tb-or (MSPL-Get-Str data "EXPOSURE") "B"))
+      (cons "COLL"     "0")
+      (cons "SNOW"     (peb-tb-snow (MSPL-Get-Str data "SNOW")))
+      (cons "SEISMIC"  (peb-tb-zone (MSPL-Get-Str data "SEISMIC")))
+      (cons "TEMP"     "-")
+      (cons "RAIN"     (peb-tb-or (MSPL-Get-Str data "RAIN") "120"))
+      (cons "CODE"     (peb-tb-or (MSPL-Get-Str data "DESIGNCODE") "MBMA 2006"))
+      (cons "PROJECT"  (peb-tb-or (MSPL-Get-Str data "PROJECT") "STRUCTURE TYPE REFERENCE SET"))
+      (cons "CUSTOMER" (peb-tb-or (MSPL-Get-Str data "CLIENT") "MAIMAAR - INTERNAL"))
+      (cons "ADDR"
+        (strcat "Lahore Office\\P238, First Floor, Lalazar Commercial Area,\\P"
+                "Raiwind Road, Lahore, Pakistan\\PWeb: www.maimaargroup.com\\PCell : +(92-300) 807 4007"))
+      (cons "QUOTE"    (peb-tb-or (MSPL-Get-Str data "PROPOSAL_FULL") "MSPL-26-000"))
+      (cons "BLDGNO"   "01")
+      (cons "BLDGNAME" "")
+      (cons "IDENTICAL" "1")
+      (cons "DRGTITLE" "CONSTRUCTION DETAILS")
+      (cons "SCALE"    "N.T.S.")
+      (cons "SHEETSIZE" "A1")
+      (cons "SHEETNO"  "PRO-01-D")))
+  (setq *PEB-TB-SIZEH* (min tbStripH (* tbStripW 1.6)))   ; keep content readable, flush strip, gap in middle
+  (peb-titleblock-mammut tbStripX tbFrmB tbStripW tbStripH tbData)
+  (setq *PEB-TB-SIZEH* nil)
+  ;; border flush with the title block on top/bottom/right (strict rule)
+  (draw-border -2500.0
+               (+ tbFrmB (* 480.0 *PEB-TEXT-SCALE*))
+               (- (+ tbStripX tbStripW) (* 480.0 *PEB-TEXT-SCALE*))
+               (- tbFrmT (* 480.0 *PEB-TEXT-SCALE*)))
   (princ))
 
 (defun peb-section-from-file (path / prev-last prev-max-x e new-set offset)
