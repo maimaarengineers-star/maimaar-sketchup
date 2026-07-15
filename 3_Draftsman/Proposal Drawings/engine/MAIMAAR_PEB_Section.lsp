@@ -2202,7 +2202,7 @@
       ((equal x (last cols) 0.001) (setq x0 (- x rccW)        x1 x))                   ; RIGHT end (flush at W)
       (T                           (setq x0 (- x (/ rccW 2.0)) x1 (+ x (/ rccW 2.0)))))  ; interior (centred)
     (command "RECTANG" (list x0 0.0) (list x1 H))
-    (command "HATCH" "AR-CONC" 60 0 "L" "")
+    (command "HATCH" "AR-CONC" 100 0 "L" "")   ; sparser aggregate — cleaner concrete look (owner markup 17)
     ;; two vertical reinforcement bars, dashed, inset 90mm from each face
     (setvar "CELTYPE" "HIDDEN") (setvar "CELTSCALE" 300.0)
     (foreach bx (list (+ x0 90.0) (- x1 90.0))
@@ -2238,8 +2238,10 @@
   (setq colTop (- H de))                  ; RCC column bears the rafter at the eave underside
   ;; fascia → only the OUTER PORTION of the column (owner 16-Jul) rises past the roof; the rafter tucks BEHIND
   ;; it (inset by that outer-portion width) and drains to a valley gutter.  plain → eaves flush at 0/W.
-  (setq *PEB-RC-PARAW* (* rccW 0.45))     ; outer portion of the column that extends up as the fascia
-  (setq *PEB-RC-INSET* (if fascia *PEB-RC-PARAW* 0.0))
+  (setq *PEB-RC-PARAW* (* rccW 0.45))     ; outer portion of the column that extends up as the fascia parapet
+  ;; rafter eave sits at the INNER column face (leaving the parapet slice + a valley gutter between it and the
+  ;; parapet); the roof sheeting is trimmed to this line and drains into the gutter (owner markup 16).
+  (setq *PEB-RC-INSET* (if fascia (- rccW 40.0) 0.0))
   (draw-rcc-columns (list 0.0 W) colTop rccW)
   (setvar "CLAYER" "FRAME")
   (setvar "PLINEWID" 0.0)
@@ -2251,7 +2253,7 @@
   (if fascia (draw-rc-fascia W H rise *PEB-RC-PARAW* colTop))
 )
 
-(defun draw-rc-fascia (W H rise paraW baseY / pTop ivL ivR g gx gd)
+(defun draw-rc-fascia (W H rise paraW baseY / pTop ivL ivR g gxOut gxIn gIn)
   ;;  RCC FASCIA (owner 16-Jul clarification): the SECTION is cut through the RCC column, so the fascia is the
   ;;  OUTER PORTION of the column (width paraW) CONTINUING UPWARD as concrete — from the column top (baseY) past
   ;;  the roof up to just ABOVE the peak line (pTop) so it HIDES the roof peak behind it.  Drawn as the same
@@ -2263,17 +2265,22 @@
   (setvar "CLAYER" "RCC-COLUMN")
   (foreach g (list (list 0.0 paraW) (list (- W paraW) W))
     (command "RECTANG" (list (car g) baseY) (list (cadr g) pTop))
-    (command "HATCH" "AR-CONC" 60 0 "L" "")
+    (command "HATCH" "AR-CONC" 100 0 "L" "")   ; sparser aggregate — cleaner concrete look (owner markup 17)
     (setvar "CELTYPE" "HIDDEN") (setvar "CELTSCALE" 300.0)
     (command "LINE" (list (+ (car g) 90.0) baseY) (list (+ (car g) 90.0) (- pTop 90.0)) "")   ; outer-face bar
     (setvar "CELTYPE" "BYLAYER") (setvar "CELTSCALE" 1.0))
-  ;; VALLEY GUTTER at each parapet inner base — a trapezoidal channel at the roof (eave) level, ~500×190.
+  ;; VALLEY GUTTER (owner markup 16): a U-channel BETWEEN the parapet and the roof — its OUTER wall runs up the
+  ;; parapet inner face (ivL/ivR), its INNER upstand sits at the rafter-eave/sheeting line (*PEB-RC-INSET*) where
+  ;; the trimmed roof sheeting laps in.
+  (setq gIn (if (and *PEB-RC-INSET* (> *PEB-RC-INSET* 0.0)) *PEB-RC-INSET* (+ paraW 250.0)))
   (setvar "CLAYER" "GUTTER") (setvar "PLINEWID" 0.0)
-  (foreach g (list (list ivL 1.0) (list ivR -1.0))
-    (setq gx (car g) gd (cadr g))
+  (foreach g (list (list ivL gIn) (list ivR (- W gIn)))
+    (setq gxOut (car g) gxIn (cadr g))
     (command "PLINE"
-      (list gx (+ H 60.0)) (list gx (- H 190.0))
-      (list (+ gx (* gd 140.0)) (- H 190.0)) (list (+ gx (* gd 500.0)) (+ H 60.0)) ""))
+      (list gxOut (+ H 60.0))       ; top of the OUTER wall, against the parapet
+      (list gxOut (- H 190.0))      ; outer bottom
+      (list gxIn  (- H 190.0))      ; inner bottom
+      (list gxIn  (+ H 20.0)) ""))  ; INNER upstand — the roof sheeting laps over this into the channel
   ;; labels
   (setvar "CLAYER" "TEXT")
   (peb-label-with-leader "RCC PARAPET / FASCIA (HIDES ROOF PEAK)"
@@ -2308,26 +2315,22 @@
   (princ))
 
 (defun draw-rc-ridge (W H rise ht / dp x0 yTop yBot pt gp ext lxo rxo)
-  ;;  RC ridge/peak connection (owner 15-Jul markups 6/7 + "show two plates"): TWO SEPARATE vertical plates
-  ;;  straddling the ridge seam with a visible GAP, EACH extending 100mm BEYOND BOTH flanges (above the top
-  ;;  flange AND below the bottom flange).  STIFFENERS extend 100mm to the TOP and BOTTOM flanges on the outer
-  ;;  edge of each plate.  Peak rafter depth dp matches build-rc-rafter-polygon (deepest at the peak).
+  ;;  RC ridge/peak connection: ONE SOLID plate (owner markup 15 — NO gap between the two halves; the bolted
+  ;;  end-plates read as a single thick plate) spanning the web + 100mm BEYOND BOTH flanges, with FULL-WEB
+  ;;  stiffener gussets on each side.  Peak rafter depth dp matches build-rc-rafter-polygon.
   (setq dp   (max 600.0 (* ht 1.10))
         x0   (/ W 2.0)
         yTop (+ H rise)                    ; top flange at the ridge
         yBot (- (+ H rise) dp)             ; bottom flange (underside) at the ridge
-        pt   110.0 gp 6.0 ext 100.0        ; plate width / HALF the 1mm-only gap (SOLID thick plates — owner markup 13)
-        lxo  (- x0 gp) rxo (+ x0 gp))      ; inner faces of the LEFT / RIGHT plate — only ~1mm gap (owner markup 10)
+        pt   110.0 gp 3.0 ext 100.0        ; plate width / HALF-gap: small seam but VISIBLE as TWO plates (owner 16-Jul)
+        lxo  (- x0 gp) rxo (+ x0 gp))      ; inner faces of the LEFT / RIGHT bolted end-plate
   (setvar "CLAYER" "PLATES")
   (peb-solid-quad (list (- lxo pt) (- yBot ext)) (list lxo (- yBot ext))        ; LEFT plate (SOLID thick)
                   (list (- lxo pt) (+ yTop ext)) (list lxo (+ yTop ext)))
   (peb-solid-quad (list rxo (- yBot ext)) (list (+ rxo pt) (- yBot ext))        ; RIGHT plate (SOLID thick)
                   (list rxo (+ yTop ext)) (list (+ rxo pt) (+ yTop ext)))
-  ;; stiffeners 100mm to the TOP and BOTTOM flanges on the OUTER edge of each plate
-  (draw-stiff-top (- lxo pt) yTop ext 110.0 -1)
-  (draw-stiff-bot (- lxo pt) yBot ext 110.0 -1)
-  (draw-stiff-top (+ rxo pt) yTop ext 110.0  1)
-  (draw-stiff-bot (+ rxo pt) yBot ext 110.0  1)
+  (draw-stiff-fullweb (- lxo pt) yBot yTop 130.0 -1)                            ; full-web gusset (left, outer edge)
+  (draw-stiff-fullweb (+ rxo pt) yBot yTop 130.0  1)                            ; full-web gusset (right, outer edge)
   (princ))
 
 ;; RC rafter top-flange / underside Y at any x (mirrors build-rc-rafter-polygon; `inset` pulls the eaves in).
@@ -2340,18 +2343,16 @@
   (if (<= x (/ W 2.0)) (+ (- H de) (* (/ (- x inset)      hl) (- (- (+ H rise) dp) (- H de))))
                        (+ (- H de) (* (/ (- (- W inset) x) hl) (- (- (+ H rise) dp) (- H de))))))
 (defun draw-rc-splice (x yTop yBot / pt gp ext lxo rxo)
-  ;;  One rafter SPLICE connection at x: two OUTLINE plates (~1mm gap) EXTENDING 100mm beyond both flanges +
-  ;;  stiffeners to both flanges.
-  (setq pt 100.0 gp 6.0 ext 100.0 lxo (- x gp) rxo (+ x gp))
+  ;;  One rafter SPLICE connection at x: TWO bolted end-plates with a HAIRLINE 0.25-0.5mm gap (owner 16-Jul),
+  ;;  each spanning the web + 100mm beyond both flanges, with FULL-WEB stiffener gussets on the outer edges.
+  (setq pt 90.0 gp 3.0 ext 100.0 lxo (- x gp) rxo (+ x gp))
   (setvar "CLAYER" "PLATES")
   (peb-solid-quad (list (- lxo pt) (- yBot ext)) (list lxo (- yBot ext))
                   (list (- lxo pt) (+ yTop ext)) (list lxo (+ yTop ext)))
   (peb-solid-quad (list rxo (- yBot ext)) (list (+ rxo pt) (- yBot ext))
                   (list rxo (+ yTop ext)) (list (+ rxo pt) (+ yTop ext)))
-  (draw-stiff-top (- lxo pt) yTop ext 110.0 -1)
-  (draw-stiff-bot (- lxo pt) yBot ext 110.0 -1)
-  (draw-stiff-top (+ rxo pt) yTop ext 110.0  1)
-  (draw-stiff-bot (+ rxo pt) yBot ext 110.0  1))
+  (draw-stiff-fullweb (- lxo pt) yBot yTop 130.0 -1)
+  (draw-stiff-fullweb (+ rxo pt) yBot yTop 130.0  1))
 (defun draw-rc-splices (W H rise ht / inset hw nP i sx)
   ;;  Transport limit (owner 15-Jul): a rafter piece can't exceed 12m, so split EACH half (eave→peak) into
   ;;  equal pieces ≤12m and put a splice connection plate at every interior break.  `inset` = the fascia eave
@@ -3377,6 +3378,16 @@
     (list (+ xOuter (* dx w)) yEdge)
     "C"))
 
+(defun draw-stiff-fullweb (xEdge yBot yTop w dir)
+  ;;  FULL-WEB stiffener gusset (owner 16-Jul markup 15): the stiffener spans the WHOLE web (yBot flange -> yTop
+  ;;  flange) against the connection plate edge, tapering to a point `w` outward at mid-web — NOT just a small
+  ;;  triangle at the outer flange lines.  dir = +1 (right of plate) / -1 (left).
+  (command "PLINE"
+    (list xEdge yBot)
+    (list (+ xEdge (* dir w)) (/ (+ yBot yTop) 2.0))
+    (list xEdge yTop)
+    "C"))
+
 ;; ── Plate-pair de-duplication tracker ─────────────────────────────────
 ;;  draw-rafter-stiffeners pushes (kxL kyBot) onto *PEB-DRAWN-PLATES* every
 ;;  time it draws a transition site (plate pair + bolts + 4 stiffener
@@ -4298,7 +4309,7 @@
   )
 )
 
-(defun draw-cladding (data W H rise brickH monoRise rightH rccRight / rHt rEndX rDrop
+(defun draw-cladding (data W H rise brickH monoRise rightH rccRight / rHt rEndX rDrop reEL reEY
                        cladThk purlinH girtDepth slopeLen sa ca y d xT yT slpDrop ribStep roofLbl wallLbl
                        labRX labRY labWX labWY leadX leadYStart leadYEnd
                        rParts rLine1 rLine2 rBarY rBarLen rTargetY rDx rTextW rWrapW
@@ -4381,12 +4392,17 @@
                       (list rEndX (+ H monoRise purlinH cladThk rDrop)) ""))
     (progn
       (setq slpDrop (* 270.0 (/ sa ca)))
-      (command "LINE" (list -270.0 (+ H purlinH (- 0 slpDrop))) (list (/ W 2.0) (+ H rise purlinH)) "")
-      (command "LINE" (list -270.0 (+ H purlinH cladThk (- 0 slpDrop))) (list (/ W 2.0) (+ H rise purlinH cladThk)) "")
-      (command "LINE" (list (/ W 2.0) (+ H rise purlinH)) (list (+ W 270.0) (+ H purlinH (- 0 slpDrop))) "")
-      (command "LINE" (list (/ W 2.0) (+ H rise purlinH cladThk)) (list (+ W 270.0) (+ H purlinH cladThk (- 0 slpDrop))) "")
-      (command "LINE" (list -270.0 (+ H purlinH (- 0 slpDrop))) (list -270.0 (+ H purlinH cladThk (- 0 slpDrop))) "")
-      (command "LINE" (list (+ W 270.0) (+ H purlinH (- 0 slpDrop))) (list (+ W 270.0) (+ H purlinH cladThk (- 0 slpDrop))) "")))
+      ;; owner 16-Jul markup 16: for the RC FASCIA the roof is TRIMMED at the valley gutter (eave at the rafter
+      ;; top, x=inset, NO 270mm overhang past the parapet); otherwise the standard 270mm eave overhang.
+      (if (and *PEB-RC-INSET* (> *PEB-RC-INSET* 0.0))
+        (setq reEL *PEB-RC-INSET* rEndX (- W *PEB-RC-INSET*) reEY (+ H purlinH))
+        (setq reEL -270.0 rEndX (+ W 270.0) reEY (+ H purlinH (- 0 slpDrop))))
+      (command "LINE" (list reEL reEY) (list (/ W 2.0) (+ H rise purlinH)) "")
+      (command "LINE" (list reEL (+ reEY cladThk)) (list (/ W 2.0) (+ H rise purlinH cladThk)) "")
+      (command "LINE" (list (/ W 2.0) (+ H rise purlinH)) (list rEndX reEY) "")
+      (command "LINE" (list (/ W 2.0) (+ H rise purlinH cladThk)) (list rEndX (+ reEY cladThk)) "")
+      (command "LINE" (list reEL reEY) (list reEL (+ reEY cladThk)) "")
+      (command "LINE" (list rEndX reEY) (list rEndX (+ reEY cladThk)) "")))
 
   ;; --- Labels with L-shaped (90-deg) leader arrows ----
   (setvar "CLAYER" "TEXT")
@@ -6983,8 +6999,9 @@
       ;; Support = a thick base plate ON each column top (column width only) with anchor bolts — PINNED on the
       ;; LEFT, ROLLER (slotted) on the RIGHT so the roof can expand.  Rafter web splice/ridge plates as usual.
       (setq rcDe (max 200.0 (* ht 0.35))
-            rcIn (if (and *PEB-RC-INSET* (> *PEB-RC-INSET* 0.0)) *PEB-RC-INSET* 0.0))
-      ;; base plate sits under the rafter EAVE (inset behind the fascia parapet), not under the parapet slice.
+            rcIn (if (and *PEB-RC-INSET* (> *PEB-RC-INSET* 0.0)) *PEB-RC-PARAW* 0.0))
+      ;; base plate caps the column top INBOARD of the parapet slice (parapet face -> inner column face), so it
+      ;; carries the rafter eave + valley gutter without clashing with the concrete parapet extension.
       (draw-rc-support rcIn 500.0 (- H rcDe) nil)               ; LEFT column → PINNED
       (draw-rc-support (- wid 500.0) (- wid rcIn) (- H rcDe) T) ; RIGHT column → ROLLER
       (draw-rc-ridge wid H rise ht)                            ; ridge plate (extends beyond both flanges)
