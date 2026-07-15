@@ -2512,6 +2512,57 @@
                          "V" 220)
   (princ))
 
+(defun fr-dp (ox oy sc lx ly) (list (+ ox (* lx sc)) (+ oy (* ly sc))))  ; detail local->world
+
+(defun draw-fr-detail (ox oy sc / x rbx tScale)
+  ;;  Zoomed JOIST-CONNECTION detail (owner 15-Jul) for the flat roof, drawn at `sc`x scale at (ox,oy)
+  ;;  [oy = the flush beam-top level, ly=0].  This is the section PERPENDICULAR to the main frame, so the
+  ;;  MAIN BEAM shows as an I-CUT (550 deep) and the STEEL JOIST (300 deep) frames into the beam WEB with
+  ;;  its top FLUSH, seated by a CLIP ANGLE + bolts.  Above: 0.70mm PROFILED DECKING (45mm corrugation,
+  ;;  visible here) + 125mm CONCRETE filling the flutes, with rebar.
+  ;; ---- 125mm concrete slab (fills flutes) ----
+  (setvar "CLAYER" "RCC-COLUMN") (setvar "PLINEWID" 0.0)
+  (command "RECTANG" (fr-dp ox oy sc -520 0) (fr-dp ox oy sc 130 170))
+  (command "HATCH" "AR-CONC" (* 14.0 sc) 0 "L" "")
+  ;; ---- 0.70mm profiled decking (trapezoidal, 45mm) over the beam+joist top ----
+  (setvar "CLAYER" "CLADDING")
+  (setq x -520) (command "PLINE")
+  (while (< x 130)
+    (command (fr-dp ox oy sc x 45))
+    (command (fr-dp ox oy sc (min 130 (+ x 40)) 45))
+    (command (fr-dp ox oy sc (min 130 (+ x 55)) 0))
+    (command (fr-dp ox oy sc (min 130 (+ x 95)) 0))
+    (setq x (+ x 100)))
+  (command (fr-dp ox oy sc 130 45)) (command "")
+  ;; ---- MAIN BEAM I-cut (centre), 550 deep ----
+  (setvar "CLAYER" "FRAME")
+  (command "RECTANG" (fr-dp ox oy sc -100 -25)  (fr-dp ox oy sc 100 0))     ; top flange
+  (command "RECTANG" (fr-dp ox oy sc -100 -550) (fr-dp ox oy sc 100 -525))  ; bottom flange
+  (command "RECTANG" (fr-dp ox oy sc -13 -525)  (fr-dp ox oy sc 13 -25))    ; web
+  ;; ---- STEEL JOIST (frames into the web from the left, flush top), 300 deep ----
+  (command "RECTANG" (fr-dp ox oy sc -450 -300) (fr-dp ox oy sc -13 0))     ; joist web face
+  (command "LINE" (fr-dp ox oy sc -450 -18)  (fr-dp ox oy sc -13 -18) "")   ; top-flange line
+  (command "LINE" (fr-dp ox oy sc -450 -282) (fr-dp ox oy sc -13 -282) "")  ; bottom-flange line
+  ;; ---- clip angle (L) on the beam web + 2 bolts ----
+  (setvar "CLAYER" "PLATES")
+  (command "PLINE" (fr-dp ox oy sc 13 -40) (fr-dp ox oy sc 13 -260)
+                   (fr-dp ox oy sc 45 -260) "")                             ; vertical leg on web + seat
+  (command "DONUT" 0 (* 14 sc) (fr-dp ox oy sc -40 -90)  "")                ; bolt
+  (command "DONUT" 0 (* 14 sc) (fr-dp ox oy sc -40 -210) "")                ; bolt
+  ;; ---- rebar dots in the concrete ----
+  (setq rbx -470)
+  (while (< rbx 90) (command "DONUT" 0 (* 9 sc) (fr-dp ox oy sc rbx 120) "") (setq rbx (+ rbx 90)))
+  ;; ---- labels + detail title ----
+  (setvar "CLAYER" "TEXT")
+  (peb-label-with-leader "125mm R.C.C. SLAB"  (fr-dp ox oy sc 620 260) (fr-dp ox oy sc 60 120)  "H" 260)
+  (peb-label-with-leader "0.70mm PROFILED DECKING PANEL" (fr-dp ox oy sc 620 60) (fr-dp ox oy sc 90 22) "H" 260)
+  (peb-label-with-leader "STEEL JOIST @ 1.5m C/C" (fr-dp ox oy sc -880 -120) (fr-dp ox oy sc -300 -150) "H" 260)
+  (peb-label-with-leader "CLIP ANGLE + BOLTS" (fr-dp ox oy sc -880 -320) (fr-dp ox oy sc -40 -150) "H" 260)
+  (peb-label-with-leader "MAIN BEAM (550 DEEP)" (fr-dp ox oy sc 620 -430) (fr-dp ox oy sc 0 -400) "H" 260)
+  (txt-bold "MC" (fr-dp ox oy sc -180 -740) 320 0 "DETAIL - A")
+  (txt "MC" (fr-dp ox oy sc -180 -830) 240 0 "JOIST CONNECTION  (N.T.S.)")
+  (princ))
+
 (defun draw-petrol-frame (W H ht cb / ovh cx1 cx2 rt colw)
   ;;  PETROL PUMP / CNG CANOPY (owner 9-Jul): a near-flat roof carried on 1-2 rows of columns with
   ;;  CANTILEVER overhangs on both sides — the roof slab spans the full width and projects beyond the
@@ -7050,7 +7101,12 @@
       (setvar "CLAYER" "ARROWS") (setvar "PLINEWID" 0.0)
       (command "PLINE" (list (- -235.0 (* 160 *PEB-TEXT-SCALE*)) frWtY)
                        "W" (* 55 *PEB-TEXT-SCALE*) 0 (list -235.0 frWtY) "")
-      (setvar "PLINEWID" 0.0))
+      (setvar "PLINEWID" 0.0)
+      ;; ── Callout "A" around a joist-beam connection + the ZOOMED DETAIL below the frame ──
+      (setvar "CLAYER" "TEXT")
+      (command "CIRCLE" (list (* wid 0.5) (- H 350.0)) 650.0)
+      (txt "MC" (list (* wid 0.5) (- H 1550.0)) 320 0 "A")
+      (draw-fr-detail 13000.0 -11000.0 13.0))
     ((= stype "SS")
       ;; SINGLE SLOPE: low (left) eave = H, HIGH (right) eave = H + monoRise.  The RIGHT wall
       ;; sheeting + girts must climb to the HIGH eave (not the low H, which left the tall wall
