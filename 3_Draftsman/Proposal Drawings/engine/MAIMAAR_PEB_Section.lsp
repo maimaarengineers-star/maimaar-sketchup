@@ -422,6 +422,10 @@
   (setq out (cons (cons "STYPE" stype) out))
   (setq heightVal (peb-alist-get v3 "BP_EAVE_HEIGHT"))
   (setq out (cons (cons "CLEARHEIGHT" heightVal) out))
+  ;; G+1 (F2) double-storey: SEPARATE ground- & first-floor clear heights (owner 15-Jul).  Optional; when
+  ;; absent the F2 branch falls back to an equal split of the eave height.
+  (setq out (cons (cons "GROUNDCH" (peb-alist-get v3 "BP_GROUND_CH")) out))
+  (setq out (cons (cons "FIRSTCH"  (peb-alist-get v3 "BP_FIRST_CH")) out))
   (setq brick (peb-alist-get v3 "BP_BRICK_HT"))
   (if (= brick "") (setq brick "0"))
   (setq out (cons (cons "BRICKHEIGHT" brick) out))
@@ -2451,18 +2455,49 @@
   (command "RECTANG" (list (- W ht) 0.0)   (list W  colTop))        ; RIGHT straight column
 )
 
-(defun draw-f2-frame (W H ht cb / colTop xc)
-  ;;  DOUBLE-STOREY (G+1) FLAT ROOF (owner 15-Jul): 4 FULL-HEIGHT straight steel columns — 2 EDGE + 2
-  ;;  INTERMEDIATE (mezzanine columns at W/3 & 2W/3 → three ~10m bays for a 30m span, spacing < 10m) — that
-  ;;  carry BOTH the intermediate floor AND the top flat roof.  Column top = roof main-beam bottom (H-720),
-  ;;  H = roof concrete-slab top.  The intermediate-floor main beam frames INTO these same columns lower down.
+(defun draw-f2-frame (W H ht cb intXs / colTop xc)
+  ;;  MULTI-STOREY FLAT ROOF (owner 15-Jul): FULL-HEIGHT straight steel columns — 2 EDGE + the INTERMEDIATE
+  ;;  (mezzanine) columns at `intXs` (from MZ_COL_SPACING) — that carry BOTH the intermediate floor(s) AND
+  ;;  the top flat roof.  Column top = roof main-beam bottom (H-720).  The mezzanine main beam frames INTO
+  ;;  these same columns lower down.
   (setq colTop (- H 720.0))
   (setvar "CLAYER" "FRAME") (setvar "PLINEWID" 0.0)
   (command "RECTANG" (list 0.0 0.0)      (list ht colTop))            ; LEFT edge column
   (command "RECTANG" (list (- W ht) 0.0) (list W  colTop))            ; RIGHT edge column
-  (foreach xc (list (/ W 3.0) (* 2.0 (/ W 3.0)))                      ; 2 INTERMEDIATE columns
-    (command "RECTANG" (list (- xc (/ ht 2.0)) 0.0) (list (+ xc (/ ht 2.0)) colTop)))
+  (foreach xc intXs                                                   ; INTERMEDIATE (mezzanine) columns
+    (if (and (> xc (* ht 1.5)) (< xc (- W (* ht 1.5))))
+      (command "RECTANG" (list (- xc (/ ht 2.0)) 0.0) (list (+ xc (/ ht 2.0)) colTop))))
 )
+
+;; G+1 / multi-storey flat roof takes its INTERMEDIATE FLOORS from the MEZZANINE sub-section (owner 15-Jul:
+;; "write the building with more height, give the intermediate floors via the no. of Mezzanine").
+;; Level of each floor = MZ1_CH_FFL_BEAM (clear height FFL → under the MAIN BEAM), stacked by MZ_FLOOR_HT.
+(defun f2-mezz-levels (data / hb n fh out i)
+  (setq hb (MSPL-Get-Num data "MZ1_CH_FFL_BEAM"))
+  (if (or (null hb) (<= hb 0.0)) (setq hb 6000.0))
+  (setq n  (MSPL-Get-Num data "MZ_NUM_FLOORS"))
+  (setq n  (if (and n (>= n 1)) (fix n) 1))
+  (setq fh (MSPL-Get-Num data "MZ_FLOOR_HT"))
+  (if (or (null fh) (<= fh 0.0)) (setq fh 4000.0))
+  (setq out '() i 0)
+  (while (< i n) (setq out (append out (list (+ hb (* i fh))))) (setq i (1+ i)))
+  out)
+;; Intermediate (mezzanine) column X positions from MZ_COL_SPACING "N@S" (owner choice) = N bays of S.
+;; Fallback: fewest columns so every bay is < 10 m.
+(defun f2-int-col-xs (data wid / spec atp n s xs i)
+  (setq spec (peb-tb-or (MSPL-Get-Str data "MZ_COL_SPACING") ""))
+  (setq atp (vl-string-search "@" spec))
+  (setq xs '())
+  (if atp
+    (progn (setq n (atoi (substr spec 1 atp)) s (atof (substr spec (+ atp 2))) i 1)
+           (while (and (< i n) (< (* i s) (- wid 1.0)))
+             (setq xs (append xs (list (* i s)))) (setq i (1+ i))))
+    (progn (setq n (max 1 (fix (+ 0.999 (/ wid 10000.0)))) i 1)
+           (while (< i n) (setq xs (append xs (list (* (/ wid (float n)) i)))) (setq i (1+ i)))))
+  xs)
+;; F2 (multi-storey flat roof) is engaged when a FLAT ROOF also has the mezzanine sub-section switched on.
+(defun f2-active-p (data)
+  (= (strcase (peb-tb-or (MSPL-Get-Str data "MZ_TOGGLE") "")) "YES"))
 
 (defun draw-floor-buildup (x0 x1 yTop beamD joistD slabT lbls / span deckCrest bTop bBot bf jw jBotF jx nJ step jLabX drop ov cx0 cx1)
   ;;  `lbls` = T draws the 4 detailed labels (CONCRETE/DECKING/JOIST/BEAM); nil = geometry only (used by the
@@ -6343,6 +6378,9 @@
   (setq stype (strcase (MSPL-Get-Str data "STYPE")))
   (if (not (member stype '("CS" "SS" "MS" "LT" "MG" "FR" "F2" "RC" "CC" "BF" "ACS" "AMS" "PP")))
     (setq stype "CS"))
+  ;; A FLAT ROOF with the MEZZANINE sub-section switched on becomes a MULTI-STOREY flat roof (F2): the
+  ;; intermediate floor(s) + full-height columns are drawn by the F2 branches (owner 15-Jul workflow).
+  (if (and (member stype '("FR" "F2")) (f2-active-p data)) (setq stype "F2"))
   ;; proper canopy name for this sheet; nil for non-canopy stypes (reset every sheet, never stale).
   (setq *PEB-CANOPY-NAME* (peb-canopy-name stype data))
 
@@ -6398,7 +6436,7 @@
   ;; Eave height = top of rafter at the haunch.
   ;; Rafter UNDERSIDE at the haunch sits exactly at clearHt (user input).
   ;; Purlins and sheeting sit ABOVE H (H + purlinD, H + purlinD + cladThk).
-  (setq H (+ clearHt ht))
+  (setq H (+ clearHt ht))   ; roof concrete-slab top (F2/G+1 too: roof comes from the tall eave height)
 
   ;; ── Other info for title block ───────────────────────────────
   (setq windspeed  (MSPL-Get-Str data "WINDSPEED"))
@@ -6546,7 +6584,7 @@
     ((= stype "FR")
       (draw-fr-frame wid H ht cb))
     ((= stype "F2")
-      (draw-f2-frame wid H ht cb))
+      (draw-f2-frame wid H ht cb (f2-int-col-xs data wid)))
     ((= stype "PP")
       ;; Petrol Pump / CNG canopy — near-flat roof on inset columns, cantilever both sides.
       (draw-petrol-frame wid H ht cb))
@@ -6582,7 +6620,10 @@
       (draw-frame-outline cols ridges H rise ht rd cb)))
 
   ;; ── Mezzanine floor in section (deck + beam + support columns) ──
-  (vl-catch-all-apply (function (lambda () (peb-draw-mezz-section data wid cols))))
+  ;; Skip for F2: the multi-storey FLAT ROOF branch already draws its intermediate floor(s) + full-height
+  ;; columns with the flat-roof build-up coding (700 beam), so the generic mezzanine drawer would double it.
+  (if (/= stype "F2")
+    (vl-catch-all-apply (function (lambda () (peb-draw-mezz-section data wid cols)))))
 
   ;; ── Catwalk (owner 14-Jul): OUTER LINES only, installed at the columns INSIDE or OUTSIDE ──
   (vl-catch-all-apply (function (lambda () (peb-draw-catwalk data wid cols H ht))))
@@ -6807,19 +6848,21 @@
       (setq frCT (- H 720.0))
       (draw-base-plate-at 0.0 ht ep (* 25 *PEB-TEXT-SCALE*))
       (draw-base-plate-at (- wid ht) wid ep (* 25 *PEB-TEXT-SCALE*))
-      (foreach xc (list (/ wid 3.0) (* 2.0 (/ wid 3.0)))
-        (draw-base-plate-at (- xc (/ ht 2.0)) (+ xc (/ ht 2.0)) ep (* 25 *PEB-TEXT-SCALE*)))
       (setvar "CLAYER" "PLATES")
       (peb-solid-quad (list 0.0 (- frCT 30.0)) (list ht (- frCT 30.0)) (list 0.0 frCT) (list ht frCT))
       (draw-stiff-bot ht (- frCT 30.0) 100.0 130.0 -1)
       (peb-solid-quad (list (- wid ht) (- frCT 30.0)) (list wid (- frCT 30.0))
                       (list (- wid ht) frCT) (list wid frCT))
       (draw-stiff-bot (- wid ht) (- frCT 30.0) 100.0 130.0 1)
-      (foreach xc (list (/ wid 3.0) (* 2.0 (/ wid 3.0)))
-        (peb-solid-quad (list (- xc (/ ht 2.0)) (- frCT 30.0)) (list (+ xc (/ ht 2.0)) (- frCT 30.0))
-                        (list (- xc (/ ht 2.0)) frCT) (list (+ xc (/ ht 2.0)) frCT))
-        (draw-stiff-bot (- xc (/ ht 2.0)) (- frCT 30.0) 100.0 130.0 -1)
-        (draw-stiff-bot (+ xc (/ ht 2.0)) (- frCT 30.0) 100.0 130.0 1)))
+      (foreach xc (f2-int-col-xs data wid)
+        (if (and (> xc (* ht 1.5)) (< xc (- wid (* ht 1.5))))
+          (progn
+            (draw-base-plate-at (- xc (/ ht 2.0)) (+ xc (/ ht 2.0)) ep (* 25 *PEB-TEXT-SCALE*))
+            (setvar "CLAYER" "PLATES")
+            (peb-solid-quad (list (- xc (/ ht 2.0)) (- frCT 30.0)) (list (+ xc (/ ht 2.0)) (- frCT 30.0))
+                            (list (- xc (/ ht 2.0)) frCT) (list (+ xc (/ ht 2.0)) frCT))
+            (draw-stiff-bot (- xc (/ ht 2.0)) (- frCT 30.0) 100.0 130.0 -1)
+            (draw-stiff-bot (+ xc (/ ht 2.0)) (- frCT 30.0) 100.0 130.0 1)))))
     (T
       (progn
         (draw-base-plates   wid cb ep)
@@ -7266,23 +7309,29 @@
       ;; DOUBLE-STOREY (G+1) FLAT ROOF (owner 15-Jul): TOP floor = the SAME flat roof (build-up + internal
       ;; drainage + DETAIL-A/B); an INTERMEDIATE floor (same RCC-on-steel build-up, NO drainage) is added at
       ;; mid-height, carried on 4 FULL-HEIGHT columns (2 edge + 2 intermediate @ <10m).  H = roof slab TOP.
-      (setq f2gch (/ (- H 1440.0) 2.0)           ; ground-storey clear height (two equal storeys)
-            f2itop (+ f2gch 720.0)                ; intermediate floor slab (concrete) TOP
-            f2rbot (- H 720.0))                   ; roof main-beam bottom = column top
-      (draw-brick-wall    wid brickH)                            ; brick to 3.048m (dwarf wall, both storeys)
+      ;; INTERMEDIATE FLOORS come from the MEZZANINE sub-section (owner 15-Jul): level = MZ1_CH_FFL_BEAM
+      ;; (FFL → under main beam), concrete thickness = MZ1_FLOOR_THK, stacked by MZ_FLOOR_HT.  Each floor uses
+      ;; the SAME build-up coding as the flat roof but with a DEEPER 700mm main beam.  Roof stays 550/125.
+      (setq f2Thk  (MSPL-Get-Num data "MZ1_FLOOR_THK")
+            f2Thk  (if (and f2Thk (> f2Thk 0.0)) f2Thk 125.0)
+            f2Lvls (f2-mezz-levels data)               ; list of intermediate MAIN-BEAM-BOTTOM levels
+            f2rbot (- H 720.0))                        ; roof main-beam bottom = column top
+      (draw-brick-wall    wid brickH)                            ; brick to 3.048m (dwarf wall, full height)
       (draw-girts         wid f2rbot brickH nil nil)             ; girts up the full-height sheeted wall
-      (draw-floor-buildup 0.0 wid f2itop 550.0 550.0 125.0 nil)  ; INTERMEDIATE floor (geometry only)
-      (draw-floor-buildup 0.0 wid H     550.0 550.0 125.0 nil)   ; ROOF (geometry only; build-up broken out in DETAIL-A)
-      (draw-fr-drainage   wid H ht)                              ; internal ROOF drainage only (none at mid floor)
-      ;; Each floor gets ONE callout on the main section (the 125/decking/joist/beam breakdown lives in DETAIL-A,
-      ;; so it is NOT repeated twice on the taller G+1 frame).
+      (foreach lvl f2Lvls                                        ; each mezzanine/intermediate floor: 700 beam, thk concrete
+        (draw-floor-buildup 0.0 wid (+ lvl 745.0 f2Thk) 700.0 700.0 f2Thk nil))
+      (draw-floor-buildup 0.0 wid H     550.0 550.0 125.0 nil)   ; ROOF (550 beam / 125 concrete; broken out in DETAIL-A)
+      (draw-fr-drainage   wid H ht)                              ; internal ROOF drainage only (none at mid floors)
+      ;; ONE callout per floor.
       (setvar "CLAYER" "TEXT")
       (peb-label-with-leader "TOP FLAT ROOF\\P(RCC ON STEEL DECK) - SEE DETAIL-A"
                              (list (* wid 0.62) (+ H 950.0))
                              (list (* wid 0.62) (- H 60.0)) "V" 220)
-      (peb-label-with-leader "INTERMEDIATE FLOOR\\P(RCC ON STEEL DECK) - NO DRAINAGE"
-                             (list (* wid 0.34) (+ f2itop 950.0))
-                             (list (* wid 0.34) (+ f2itop 40.0)) "V" 220)
+      (foreach lvl f2Lvls
+        (peb-label-with-leader (strcat "INTERMEDIATE FLOOR (MEZZANINE)\\P"
+                                       (rtos f2Thk 2 0) "mm R.C. SLAB - NO DRAINAGE")
+                               (list (* wid 0.34) (+ lvl 745.0 f2Thk 950.0))
+                               (list (* wid 0.34) (+ lvl 745.0 f2Thk 40.0)) "V" 220))
       ;; wall sheeting (2 lines each side) from the brick top up to the roof eave
       (if (and brickH (< brickH f2rbot))
         (progn
@@ -7565,6 +7614,7 @@
   ;; ── Title (frame type prominently displayed for review) ─────
   ;; Re-assert stype from the data (defensive: a dim/label helper can clobber the dynamic binding).
   (setq stype (strcase (MSPL-Get-Str data "STYPE")))
+  (if (and (member stype '("FR" "F2")) (f2-active-p data)) (setq stype "F2"))
   (if (not (member stype '("CS" "SS" "MS" "LT" "MG" "FR" "F2" "RC" "CC" "BF" "ACS" "AMS" "PP"))) (setq stype "CS"))
   (setq *PEB-CANOPY-NAME* (peb-canopy-name stype data))   ; re-assert alongside stype (same defensive reason)
   (setvar "CLAYER" "TEXT")
@@ -7598,9 +7648,10 @@
        (list (/ wid 2.0) hdBase)
        260 0
      (if (= stype "F2")
-       ;; G+1: two equal storeys, per-storey clear height = (H-1440)/2 (H = roof concrete top).
-       (strcat (rtos (/ widInput 1000.0) 2 1) "m SPAN  |  STOREY C.H "
-               (rtos (/ (/ (- H 1440.0) 2.0) 1000.0) 2 1) "m  |  G+1 FLAT ROOF")
+       ;; Multi-storey flat roof: roof clear height + count of mezzanine (intermediate) floors.
+       (strcat (rtos (/ widInput 1000.0) 2 1) "m SPAN  |  ROOF C.H "
+               (rtos (/ (- H ht) 1000.0) 2 1) "m  |  + "
+               (itoa (length (f2-mezz-levels data))) " MEZZANINE FLOOR(S)")
        (strcat (rtos (/ widInput 1000.0) 2 1) "m SPAN  |  "
                "C.H " (rtos (/ (- H ht) 1000.0) 2 1) "m  |  "
                (cond
