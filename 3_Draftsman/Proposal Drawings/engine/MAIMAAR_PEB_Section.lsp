@@ -2498,6 +2498,18 @@
 ;; F2 (multi-storey flat roof) is engaged when a FLAT ROOF also has the mezzanine sub-section switched on.
 (defun f2-active-p (data)
   (= (strcase (peb-tb-or (MSPL-Get-Str data "MZ_TOGGLE") "")) "YES"))
+;; Column-beam junction connection (owner 16-Jul, STRICT): TWO solid plates, EACH 30mm thick, EXTENDING 100mm
+;; beyond the vertical (column) web on BOTH sides.  Column-side plate just below the beam-bottom seam, beam-side
+;; plate just above it (2mm gap).  Drawn at the top flat roof AND every intermediate/mezzanine floor beam.
+(defun draw-f2-connplate (colX0 colX1 beamBot / e0 e1 pt gp)
+  ;; True plates are 30mm thick / 2mm gap; on the tall section that is a hairline, so draw them PROPORTIONALLY
+  ;; thicker for visibility (owner 16-Jul OK'd) — the 100mm side-extension stays true.
+  (setq e0 (- colX0 100.0) e1 (+ colX1 100.0) pt 170.0 gp 40.0)
+  (setvar "CLAYER" "PLATES")
+  (peb-solid-quad (list e0 (- beamBot gp pt)) (list e1 (- beamBot gp pt))   ; lower (column-side) plate
+                  (list e0 (- beamBot gp))    (list e1 (- beamBot gp)))
+  (peb-solid-quad (list e0 beamBot)           (list e1 beamBot)             ; upper (beam-side) plate, gap below
+                  (list e0 (+ beamBot pt))    (list e1 (+ beamBot pt))))
 
 (defun draw-floor-buildup (x0 x1 yTop beamD joistD slabT lbls / span deckCrest bTop bBot bf jw jBotF jx nJ step jLabX drop ov cx0 cx1)
   ;;  `lbls` = T draws the 4 detailed labels (CONCRETE/DECKING/JOIST/BEAM); nil = geometry only (used by the
@@ -6817,27 +6829,24 @@
                       (list (- wid ht) frCT) (list wid frCT))
       (draw-stiff-bot (- wid ht) (- frCT 30.0) 100.0 130.0 1))  ; inner gusset (into the column)
     ((= stype "F2")
-      ;; DOUBLE-STOREY FLAT ROOF: base plate at EACH of the 4 columns + a roof beam-on-column CONNECTION
-      ;; PLATE (30mm) + stiffeners at every column top (frCT = roof main-beam bottom).  Edge columns get an
-      ;; inner gusset; the 2 intermediate columns (continuous roof beam over them) get gussets BOTH sides.
-      (setq frCT (- H 720.0))
+      ;; MULTI-STOREY FLAT ROOF: base plate at EACH column + the TWO-PLATE connection (owner 16-Jul: 2 plates,
+      ;; each 30mm, extending 100mm beyond the column web both sides — drawn thicker for visibility) at EVERY
+      ;; column-beam junction: the top flat roof AND every intermediate/mezzanine floor beam.
+      (setq frCT  (- H 720.0)
+            f2ixs (vl-remove-if-not
+                    (function (lambda (xc) (and (> xc (* ht 1.5)) (< xc (- wid (* ht 1.5))))))
+                    (f2-int-col-xs data wid)))
+      ;; base plates
       (draw-base-plate-at 0.0 ht ep (* 25 *PEB-TEXT-SCALE*))
       (draw-base-plate-at (- wid ht) wid ep (* 25 *PEB-TEXT-SCALE*))
-      (setvar "CLAYER" "PLATES")
-      (peb-solid-quad (list 0.0 (- frCT 30.0)) (list ht (- frCT 30.0)) (list 0.0 frCT) (list ht frCT))
-      (draw-stiff-bot ht (- frCT 30.0) 100.0 130.0 -1)
-      (peb-solid-quad (list (- wid ht) (- frCT 30.0)) (list wid (- frCT 30.0))
-                      (list (- wid ht) frCT) (list wid frCT))
-      (draw-stiff-bot (- wid ht) (- frCT 30.0) 100.0 130.0 1)
-      (foreach xc (f2-int-col-xs data wid)
-        (if (and (> xc (* ht 1.5)) (< xc (- wid (* ht 1.5))))
-          (progn
-            (draw-base-plate-at (- xc (/ ht 2.0)) (+ xc (/ ht 2.0)) ep (* 25 *PEB-TEXT-SCALE*))
-            (setvar "CLAYER" "PLATES")
-            (peb-solid-quad (list (- xc (/ ht 2.0)) (- frCT 30.0)) (list (+ xc (/ ht 2.0)) (- frCT 30.0))
-                            (list (- xc (/ ht 2.0)) frCT) (list (+ xc (/ ht 2.0)) frCT))
-            (draw-stiff-bot (- xc (/ ht 2.0)) (- frCT 30.0) 100.0 130.0 -1)
-            (draw-stiff-bot (+ xc (/ ht 2.0)) (- frCT 30.0) 100.0 130.0 1)))))
+      (foreach xc f2ixs
+        (draw-base-plate-at (- xc (/ ht 2.0)) (+ xc (/ ht 2.0)) ep (* 25 *PEB-TEXT-SCALE*)))
+      ;; connection plates at every column, at every beam level (each mezzanine floor + the roof)
+      (foreach by (append (f2-mezz-levels data) (list frCT))
+        (draw-f2-connplate 0.0 ht by)
+        (draw-f2-connplate (- wid ht) wid by)
+        (foreach xc f2ixs
+          (draw-f2-connplate (- xc (/ ht 2.0)) (+ xc (/ ht 2.0)) by))))
     (T
       (progn
         (draw-base-plates   wid cb ep)
