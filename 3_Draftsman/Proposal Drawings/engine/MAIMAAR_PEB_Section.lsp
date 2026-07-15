@@ -2501,15 +2501,17 @@
 ;; Column-beam junction connection (owner 16-Jul, STRICT): TWO solid plates, EACH 30mm thick, EXTENDING 100mm
 ;; beyond the vertical (column) web on BOTH sides.  Column-side plate just below the beam-bottom seam, beam-side
 ;; plate just above it (2mm gap).  Drawn at the top flat roof AND every intermediate/mezzanine floor beam.
-(defun draw-f2-connplate (colX0 colX1 beamBot / e0 e1 pt gp)
-  ;; True plates are 30mm thick / 2mm gap; on the tall section that is a hairline, so draw them PROPORTIONALLY
-  ;; thicker for visibility (owner 16-Jul OK'd) — the 100mm side-extension stays true.
-  (setq e0 (- colX0 100.0) e1 (+ colX1 100.0) pt 170.0 gp 40.0)
+(defun draw-f2-connplate (colX0 colX1 beamBot beamD isL isR / y0 y1 pt)
+  ;;  VERTICAL connection plate(s) at a beam-to-column junction (owner 16-Jul: "vertical connection plates —
+  ;;  each beam connected column-to-column").  A plate on the column FACE where a beam frames in, running the
+  ;;  full beam depth + 100mm beyond BOTH flanges.  True plate 30mm (drawn thicker for visibility on the tall
+  ;;  section).  isL/isR = T when there is NO beam on that side (edge column) → skip that plate.
+  (setq y0 (- beamBot 100.0) y1 (+ (+ beamBot beamD) 100.0) pt 180.0)
   (setvar "CLAYER" "PLATES")
-  (peb-solid-quad (list e0 (- beamBot gp pt)) (list e1 (- beamBot gp pt))   ; lower (column-side) plate
-                  (list e0 (- beamBot gp))    (list e1 (- beamBot gp)))
-  (peb-solid-quad (list e0 beamBot)           (list e1 beamBot)             ; upper (beam-side) plate, gap below
-                  (list e0 (+ beamBot pt))    (list e1 (+ beamBot pt))))
+  (if (not isL)                                                              ; beam frames in from the LEFT
+    (peb-solid-quad (list (- colX0 pt) y0) (list colX0 y0) (list (- colX0 pt) y1) (list colX0 y1)))
+  (if (not isR)                                                              ; beam frames in from the RIGHT
+    (peb-solid-quad (list colX1 y0) (list (+ colX1 pt) y0) (list colX1 y1) (list (+ colX1 pt) y1))))
 
 (defun draw-floor-buildup (x0 x1 yTop beamD joistD slabT lbls / span deckCrest bTop bBot bf jw jBotF jx nJ step jLabX drop ov cx0 cx1)
   ;;  `lbls` = T draws the 4 detailed labels (CONCRETE/DECKING/JOIST/BEAM); nil = geometry only (used by the
@@ -6841,12 +6843,15 @@
       (draw-base-plate-at (- wid ht) wid ep (* 25 *PEB-TEXT-SCALE*))
       (foreach xc f2ixs
         (draw-base-plate-at (- xc (/ ht 2.0)) (+ xc (/ ht 2.0)) ep (* 25 *PEB-TEXT-SCALE*)))
-      ;; connection plates at every column, at every beam level (each mezzanine floor + the roof)
+      ;; VERTICAL connection plates at every column, at every beam level (each mezzanine floor + the roof).
+      ;; Beam depth = 700 at the mezzanine floors, 550 at the roof.  Edge columns get a plate on the INNER
+      ;; face only (beam on one side); interior columns get a plate on BOTH faces.
       (foreach by (append (f2-mezz-levels data) (list frCT))
-        (draw-f2-connplate 0.0 ht by)
-        (draw-f2-connplate (- wid ht) wid by)
+        (setq bd (if (equal by frCT 1.0) 550.0 700.0))
+        (draw-f2-connplate 0.0 ht by bd T nil)                 ; left edge  → beam on the RIGHT only
+        (draw-f2-connplate (- wid ht) wid by bd nil T)         ; right edge → beam on the LEFT only
         (foreach xc f2ixs
-          (draw-f2-connplate (- xc (/ ht 2.0)) (+ xc (/ ht 2.0)) by))))
+          (draw-f2-connplate (- xc (/ ht 2.0)) (+ xc (/ ht 2.0)) by bd nil nil))))
     (T
       (progn
         (draw-base-plates   wid cb ep)
@@ -7351,32 +7356,16 @@
       (command "PLINE" (list (- -235.0 (* 160 *PEB-TEXT-SCALE*)) frWtY)
                        "W" (* 55 *PEB-TEXT-SCALE*) 0 (list -235.0 frWtY) "")
       (setvar "PLINEWID" 0.0)
-      ;; ── DETERMINISTIC detail placement (owner 15-Jul): both details PARKED left (B) / right (A), their
-      ;;    BOTTOM exactly 5 rows ABOVE the WALL SHEETING label, their TOP 10 rows BELOW the frame heading.
-      ;;    The heading is then lifted to sit 10 rows above the taller detail (via *PEB-F2-HEAD-SUB*, read by
-      ;;    the header block).  A "row" = one label line (420·TS).  This makes the top matter grow with the
-      ;;    details (the "bigger sheet") instead of cramming them against the roof. ──
-      (setq f2Row  (* 420.0 *PEB-TEXT-SCALE*)
-            f2ScA  5.0                                   ; DETAIL-A (joist connection) scale
-            f2ScB  3.8                                   ; DETAIL-B (roof drainage) scale
-            f2BandB (+ frWlY (* 5.0 f2Row))              ; details BOTTOM = 5 rows above the wall-sheeting label
-            f2OyA  (+ f2BandB (* 730.0 f2ScA))           ; A origin so its subtitle (ly -730) lands on f2BandB
-            f2OyB  (+ f2BandB (* 785.0 f2ScB))           ; B origin so its subtitle (ly -785) lands on f2BandB
-            f2TopY (max (+ f2OyA (* 260.0 f2ScA))        ; higher of the two detail TOP labels
-                        (+ f2OyB (* 300.0 f2ScB)))
-            *PEB-F2-HEAD-SUB* (+ f2TopY (* 10.0 f2Row))) ; frame heading = 10 rows above the details
-      ;; Callout "A" (roof joist connection) + DETAIL-A parked on the RIGHT
+      ;; ── DETAILS MOVED TO A SEPARATE SHEET (owner 16-Jul): DETAIL-A (joist connection) + DETAIL-B (roof
+      ;;    drainage) are NO LONGER on the section — only the A/B CALLOUT circles stay, referencing the
+      ;;    separate "FLAT ROOF DETAILS" sheet.  The frame heading sits 5 rows below the top border (the
+      ;;    header + border read *PEB-F2-HEAD-SUB*, now at the normal above-frame position). ──
+      (setq *PEB-F2-HEAD-SUB* (+ H rise (* 5100.0 *PEB-TEXT-SCALE*)))
       (setvar "CLAYER" "TEXT")
-      (command "CIRCLE" (list (* wid 0.5) (- H 350.0)) 650.0)
+      (command "CIRCLE" (list (* wid 0.5) (- H 350.0)) 650.0)          ; callout A (roof joist connection)
       (txt "MC" (list (* wid 0.5) (- H 1550.0)) 320 0 "A")
-      (draw-fr-detail 29600.0 f2OyA f2ScA)
-      ;; Callout "B" (roof drainage outlet) + DETAIL-B parked on the far LEFT.  (Drainage detail is a
-      ;; FLAT-ROOF-ONLY item — owner 16-Jul STRICT — it lives only in the FR/F2 branches, never on a mezz
-      ;; under a gable/other roof.)
-      (setvar "CLAYER" "TEXT")
-      (command "CIRCLE" (list (+ ht 550.0) (- H 250.0)) 620.0)
-      (txt "MC" (list (+ ht 2400.0) (- H 2050.0)) 320 0 "B")
-      (draw-fr-detb 600.0 f2OyB f2ScB))
+      (command "CIRCLE" (list (+ ht 550.0) (- H 250.0)) 620.0)         ; callout B (roof drainage)
+      (txt "MC" (list (+ ht 2400.0) (- H 2050.0)) 320 0 "B"))
     ((= stype "SS")
       ;; SINGLE SLOPE: low (left) eave = H, HIGH (right) eave = H + monoRise.  The RIGHT wall
       ;; sheeting + girts must climb to the HIGH eave (not the low H, which left the tall wall
