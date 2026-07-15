@@ -2435,91 +2435,80 @@
     (setq i (1+ i)))
 )
 
-(defun draw-fr-frame (W H ht cb / pts)
-  ;;  Flat Roof: horizontal rafter at eave height, two side columns.
+(defun fr-col-top (H ht)
+  ;;  Flat-roof STEEL column top = the MAIN-BEAM bottom (the beam bears on the column).
+  ;;  = H - 125(concrete over crest) - 45(decking) - 550(main-beam depth) = H - 720.
+  (- H 720.0))
+
+(defun draw-fr-frame (W H ht cb / colTop)
+  ;;  Flat Roof (owner 15-Jul): STRAIGHT steel columns (constant width = ht, NO haunch) up to the
+  ;;  main-beam bearing; the RCC-on-steel roof (draw-floor-buildup) spans between them on top.
+  (setq colTop (fr-col-top H ht))
   (setvar "CLAYER" "FRAME")
   (setvar "PLINEWID" 0.0)
-  (command "PLINE"
-    (list 0.0       0.0)                   ; bottom-left outside
-    (list 0.0       H)                      ; eave-left outside (rafter top left)
-    (list W         H)                      ; eave-right outside (rafter top right)
-    (list W         0.0)                    ; bottom-right outside
-    (list (- W cb)  0.0)                    ; right column inside-base
-    (list (- W ht)  (- H ht))               ; right haunch corner
-    (list ht        (- H ht))               ; left haunch corner
-    (list cb        0.0)                    ; left column inside-base
-    "C")
+  (command "RECTANG" (list 0.0 0.0)        (list ht colTop))        ; LEFT straight column
+  (command "RECTANG" (list (- W ht) 0.0)   (list W  colTop))        ; RIGHT straight column
 )
 
-(defun draw-floor-buildup (x0 x1 yTop beamD joistD slabT / span y1 y2 p x
-                                   jTop jBot bTop bBot bf jx nJ jHalf step)
-  ;;  Reusable flat-roof / mezzanine intermediate-floor build-up (owner 14-Jul):
-  ;;  reinforced concrete SLAB on corrugated METAL DECK, carried on JOISTS (clip-angle onto the
-  ;;  MAIN BEAM), carried on the MAIN BEAM.  Section ACROSS the span.  NO purlins / roof sheeting.
-  ;;  yTop = finished top-of-slab level.  The SAME detail is reused for gable-roof mezzanine floors
-  ;;  and multi-storey flat-roof intermediate floors — do not special-case it here.
+(defun draw-floor-buildup (x0 x1 yTop beamD joistD slabT / span deckCrest bTop bBot bf jw jBotF jx nJ step jLabX)
+  ;;  FLAT-ROOF RCC-on-steel build-up (owner 15-Jul spec):
+  ;;    125mm CONCRETE  on  0.70mm PROFILED DECKING PANEL  on  STEEL JOISTS @ 1.5m,
+  ;;    the joists sitting WITHIN the MAIN BEAM web with their TOPS FLUSH with the main-beam top flange.
+  ;;  The MAIN BEAM spans the full width column-to-column, so in this cross-section we see its WEB +
+  ;;  TOP/BOTTOM FLANGES in elevation; the JOISTS run into the page so we see their I-section cut @ 1.5m.
   (setq span (- x1 x0))
-  (setq bf   25.0)                         ; drawn flange / plate thickness
-  ;; elevations, top -> down
-  (setq y1   (- yTop slabT))               ; slab underside = deck top
-  (setq y2   (- y1 75.0))                  ; deck flute bottom (75 mm deck)
-  (setq jTop y2)                           ; joist top flange
-  (setq jBot (- jTop joistD))              ; joist bottom flange
-  (setq bTop jBot)                         ; main-beam top flange
-  (setq bBot (- bTop beamD))               ; main-beam bottom flange
-  ;; ── Reinforced concrete slab (hatched band at the very top) ──
+  (setq bf   25.0)                         ; drawn flange thickness
+  (setq deckCrest (- yTop slabT))          ; concrete-above-crest bottom (slabT = 125mm over the crest)
+  (setq bTop (- deckCrest 45.0))           ; corrugation TROUGH = beam/joist top flange (flush); 45mm deep
+  (setq bBot (- bTop beamD))               ; MAIN BEAM bottom flange
+  ;; ── 125mm concrete — FILLS the decking flutes: hatch the whole zone from the flush top up to the slab top ──
   (setvar "CLAYER" "RCC-COLUMN")
   (setvar "PLINEWID" 0.0)
-  (command "RECTANG" (list x0 y1) (list x1 yTop))
+  (command "RECTANG" (list x0 bTop) (list x1 yTop))
   (command "HATCH" "AR-CONC" (* 18 *PEB-TEXT-SCALE*) 0 "L" "")
-  ;; ── Corrugated metal deck (trapezoidal zig-zag under the slab) ──
+  ;; ── 0.70mm PROFILED DECKING sheet — this section looks ALONG the corrugation, so it reads as TWO
+  ;;    horizontal lines 45mm apart: BOTTOM solid (decking sheeting line on the flush beam/joist top) +
+  ;;    TOP dashed (corrugation crest, hidden).  The concrete (hatched above) shows from the bottom line up.
   (setvar "CLAYER" "CLADDING")
-  (setq p 300.0 x x0)
-  (command "PLINE")
-  (while (< x x1)
-    (command (list x y1))
-    (command (list (min x1 (+ x 120.0)) y1))
-    (command (list (min x1 (+ x 150.0)) y2))
-    (command (list (min x1 (+ x 270.0)) y2))
-    (setq x (+ x p)))
-  (command (list x1 y1))
-  (command "")
-  ;; ── MAIN BEAM (I-section elevation spanning the full width) ──
+  (command "LINE" (list x0 bTop) (list x1 bTop) "")            ; decking bottom line (solid, on the beam top)
+  (setvar "CELTYPE" "DASHED")
+  (command "LINE" (list x0 deckCrest) (list x1 deckCrest) "")  ; corrugation crest 45mm up (dashed/hidden)
+  (setvar "CELTYPE" "BYLAYER")
+  ;; ── MAIN BEAM — full-width I-section in elevation (top flange, bottom flange, end web edges) ──
   (setvar "CLAYER" "FRAME")
-  (command "RECTANG" (list x0 (- bTop bf)) (list x1 bTop))      ; top flange
-  (command "RECTANG" (list x0 bBot) (list x1 (+ bBot bf)))      ; bottom flange
+  (command "RECTANG" (list x0 (- bTop bf)) (list x1 bTop))      ; top flange (full width)
+  (command "RECTANG" (list x0 bBot) (list x1 (+ bBot bf)))      ; bottom flange (full width)
   (command "LINE" (list x0 (- bTop bf)) (list x0 (+ bBot bf)) "")   ; left web edge
   (command "LINE" (list x1 (- bTop bf)) (list x1 (+ bBot bf)) "")   ; right web edge
-  ;; ── JOISTS (I-section cuts) on the beam @ ~1500, clip-angle onto the beam top flange ──
-  (setq jHalf 90.0)
+  ;; ── JOIST I-sections @ 1.5 m, ~300mm deep, nested WITHIN the beam web, tops FLUSH under the beam top flange ──
+  (setq jw 75.0)                           ; joist flange half-width
+  (setq jBotF (- (- bTop bf) 300.0))       ; joist bottom flange = 300mm below the beam top flange (inside the web)
   (setq nJ   (max 2 (fix (/ span 1500.0))))
   (setq step (/ span (float nJ)))
   (setq jx   (+ x0 step))
   (while (< jx (- x1 1.0))
-    (command "LINE" (list (- jx jHalf) jTop) (list (+ jx jHalf) jTop) "")   ; joist top flange
-    (command "LINE" (list (- jx jHalf) jBot) (list (+ jx jHalf) jBot) "")   ; joist bottom flange
-    (command "LINE" (list jx jTop) (list jx jBot) "")                       ; joist web
-    ;; clip angle (small L) seating the joist on the beam top flange
-    (command "LINE" (list (+ jx jHalf) jBot) (list (+ jx jHalf 60.0) jBot) "")
-    (command "LINE" (list (+ jx jHalf 60.0) jBot) (list (+ jx jHalf 60.0) (+ jBot 130.0)) "")
+    (command "LINE" (list (- jx jw) (- bTop bf)) (list (+ jx jw) (- bTop bf)) "")   ; joist top flange (flush)
+    (command "LINE" (list (- jx jw) jBotF)       (list (+ jx jw) jBotF) "")         ; joist bottom flange (300 deep)
+    (command "LINE" (list jx (- bTop bf))        (list jx jBotF) "")                ; joist web
     (setq jx (+ jx step)))
   ;; ── Labels ──
   (setvar "CLAYER" "TEXT")
-  (peb-label-with-leader "R.C.C. SLAB"
-                         (list (+ x0 (* span 0.16)) (+ yTop 900.0))
-                         (list (+ x0 (* span 0.16)) (- yTop (/ slabT 2.0)))
+  (setq jLabX (+ x0 (* step 2.0)))         ; a real joist station for the joist leader
+  (peb-label-with-leader "125mm THICK CONCRETE"
+                         (list (+ x0 (* span 0.13)) (+ yTop 1050.0))
+                         (list (+ x0 (* span 0.13)) (- yTop (/ slabT 2.0)))
                          "V" 220)
-  (peb-label-with-leader "METAL DECK"
-                         (list (+ x0 (* span 0.40)) (+ yTop 900.0))
-                         (list (+ x0 (* span 0.40)) (- y1 37.0))
+  (peb-label-with-leader "0.70mm PROFILED DECKING PANEL"
+                         (list (+ x0 (* span 0.40)) (+ yTop 1050.0))
+                         (list (+ x0 (* span 0.40)) (* (+ bTop deckCrest) 0.5))
                          "V" 220)
-  (peb-label-with-leader "STEEL JOIST"
-                         (list (+ x0 (* span 0.62)) (- bBot 900.0))
-                         (list (+ x0 (* span 0.62)) (* (+ jTop jBot) 0.5))
+  (peb-label-with-leader "STEEL JOIST @ 1.5m C/C"
+                         (list (+ x0 (* span 0.60)) (- bBot 1050.0))
+                         (list jLabX (* (+ (- bTop bf) jBotF) 0.5))
                          "V" 220)
   (peb-label-with-leader "MAIN BEAM"
-                         (list (+ x0 (* span 0.84)) (- bBot 900.0))
-                         (list (+ x0 (* span 0.84)) (* (+ bTop bBot) 0.5))
+                         (list (+ x0 (* span 0.85)) (- bBot 1050.0))
+                         (list (+ x0 (* span 0.85)) (+ bBot (/ bf 2.0)))
                          "V" 220)
   (princ))
 
@@ -6633,6 +6622,18 @@
                              (list (+ wid 2700.0) (+ ltWbot (* ht 0.35)))
                              (list (+ wid 160.0)  (+ ltWbot (* ht 0.35)))
                              "H" 220))
+    ((= stype "FR")
+      ;; FLAT ROOF: base plate at each STRAIGHT column + a beam-on-column CONNECTION PLATE (30mm) with
+      ;; STIFFENERS at the column top (frCT = column top = main-beam bottom bearing).
+      (setq frCT (fr-col-top H ht))
+      (draw-base-plate-at 0.0 ht ep (* 25 *PEB-TEXT-SCALE*))
+      (draw-base-plate-at (- wid ht) wid ep (* 25 *PEB-TEXT-SCALE*))
+      (setvar "CLAYER" "PLATES")
+      (foreach fcx (list 0.0 (- wid ht))
+        (peb-solid-quad (list fcx (- frCT 30.0)) (list (+ fcx ht) (- frCT 30.0))
+                        (list fcx frCT) (list (+ fcx ht) frCT))     ; horizontal cap plate (30mm)
+        (draw-stiff-bot fcx           (- frCT 30.0) 100.0 130.0  1) ; inner stiffener gusset
+        (draw-stiff-bot (+ fcx ht)    (- frCT 30.0) 100.0 130.0 -1))) ; outer stiffener gusset
     (T
       (progn
         (draw-base-plates   wid cb ep)
@@ -7019,14 +7020,15 @@
       ;; R.C.C. slab on corrugated METAL DECK, on steel JOISTS (clip-angle), on the MAIN BEAM.
       ;; The SAME detail is reused for gable-roof mezzanine intermediate floors & multi-storey
       ;; flat-roof floors.  Walls / girts / downpipes / eave features stay as normal.
-      (draw-brick-wall    wid brickH)
-      (draw-girts         wid H brickH nil nil)
+      ;; owner 15-Jul: FLAT ROOF = brick masonry to 3.048m + metal SHEETING above; STRAIGHT steel columns;
+      ;; RCC-on-steel roof build-up (125 concrete on 0.70 profiled decking on 300mm joists @1.5m nested
+      ;; flush in the 550mm main beam).
+      (draw-brick-wall    wid brickH)                        ; brick to 3.048m (dwarf wall)
+      (draw-girts         wid H brickH nil nil)              ; girts on the sheeted portion
       (draw-downpipes     wid H brickH nil)
       (draw-eave-features wid H nil)
-      (setq frAvail (max 400.0 (- ht 225.0)))     ; ht less slab(150)+deck(75)
-      (draw-floor-buildup 0.0 wid H (* frAvail 0.6) (* frAvail 0.35) 150.0)
-      ;; Wall sheeting above the brick + WALL SHEETING (M-Ladder) callout on the left wall.
-      ;; (Only the ROOF loses sheeting on a flat roof; the walls keep it.)
+      (draw-floor-buildup 0.0 wid H 550.0 550.0 125.0)       ; 550 main beam, 300 joists flush, 45 decking, 125 concrete
+      ;; wall sheeting (2 lines each side) from the brick top up to the eave
       (if (and brickH (< brickH H))
         (progn
           (setvar "CLAYER" "CLADDING")
@@ -7034,12 +7036,21 @@
           (command "LINE" (list -235.0 brickH) (list -235.0 H) "")
           (command "LINE" (list (+ wid 200.0) brickH) (list (+ wid 200.0) H) "")
           (command "LINE" (list (+ wid 235.0) brickH) (list (+ wid 235.0) H) "")))
+      ;; WALL SHEETING callout — 4-leg raised M-Ladder, SAME as the other sections.
       (setvar "CLAYER" "TEXT")
       (setq frWc (strcat "{\\C7;\\H0.42x;{\\fArial|b1;WALL SHEETING:}\\P"
                          (peb-split-2-lines (peb-panel-label data "WALL")) "}"))
+      (setq frWtY (- H 300.0)
+            frWeX -1735.0
+            frWlY (+ H (* 3800 *PEB-TEXT-SCALE*))
+            frWbY (+ (+ H (* 3800 *PEB-TEXT-SCALE*)) (* 175 *PEB-TEXT-SCALE*)))
       (vl-catch-all-apply 'peb-make-mleader
-        (list (list (list -217.0  (* (+ (if brickH brickH 0.0) H) 0.5))
-                    (list -1600.0 (* (+ (if brickH brickH 0.0) H) 0.5))) frWc)))
+        (list (list (list -235.0 frWtY) (list frWeX frWtY)
+                    (list frWeX frWbY) (list (+ frWeX 300.0) frWbY)) frWc))
+      (setvar "CLAYER" "ARROWS") (setvar "PLINEWID" 0.0)
+      (command "PLINE" (list (- -235.0 (* 160 *PEB-TEXT-SCALE*)) frWtY)
+                       "W" (* 55 *PEB-TEXT-SCALE*) 0 (list -235.0 frWtY) "")
+      (setvar "PLINEWID" 0.0))
     ((= stype "SS")
       ;; SINGLE SLOPE: low (left) eave = H, HIGH (right) eave = H + monoRise.  The RIGHT wall
       ;; sheeting + girts must climb to the HIGH eave (not the low H, which left the tall wall
