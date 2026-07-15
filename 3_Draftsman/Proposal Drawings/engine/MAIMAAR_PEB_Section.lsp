@@ -7850,6 +7850,23 @@
 ;; place each drawing side-by-side instead of on top of each other.
 (defun peb-tile-gap () 5000.0)   ;; 5 m gap between tiled drawings
 
+;; ── SEPARATE "FLAT ROOF DETAILS" sheet (owner 16-Jul): DETAIL-A (joist connection) + DETAIL-B (roof
+;; drainage) enlarged on their own sheet, referenced by the A/B callouts on the section. ──
+(defun peb-fr-details-from-file (path / data)
+  (setq data (if (> (strlen path) 0) (MSPL-Read-Data path) nil))
+  (vl-catch-all-apply (function (lambda () (peb-std-setup))))
+  (setq *PEB-TEXT-SCALE* 1.0)
+  (setvar "CLAYER" "TEXT")
+  ;; heading
+  (txt-bold "MC" (list 15000.0 21600.0) 700 0 "FLAT ROOF - CONSTRUCTION DETAILS")
+  (command "LINE" (list 8000.0 20900.0) (list 22000.0 20900.0) "")
+  ;; DETAIL-A (joist connection) left, DETAIL-B (roof drainage) right — enlarged
+  (draw-fr-detail  8500.0 11000.0 11.0)
+  (draw-fr-detb   22000.0 12500.0  9.0)
+  ;; border wrapping the sheet
+  (draw-border -1000.0 2500.0 31000.0 23500.0)
+  (princ))
+
 (defun peb-section-from-file (path / prev-last prev-max-x e new-set offset)
   ;; ── Pre-draw: capture state of the drawing before our entities ──
   (setq prev-last (entlast))           ;; nil if drawing is empty
