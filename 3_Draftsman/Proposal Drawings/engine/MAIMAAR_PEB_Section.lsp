@@ -2191,33 +2191,23 @@
     (setq i (1+ i)))
   (princ))
 
-(defun draw-rcc-columns (cols H rccW)
-  ;;  RCC (Reinforced Concrete) columns drawn as filled rectangles
-  ;;  with concrete hatch pattern (AR-CONC).
-  ;;  Used for stype = RC.
+(defun draw-rcc-columns (cols H rccW / x x0 x1 bx)
+  ;;  RCC (Reinforced Concrete) columns — presentable concrete section (owner 16-Jul "very presentable"):
+  ;;  a clean rectangle outline + AR-CONC concrete hatch + 2 vertical REINFORCEMENT bars (hidden/dashed) inset
+  ;;  from the faces.  Used for stype = RC.
   (setvar "CLAYER" "RCC-COLUMN")
   (foreach x cols
     (cond
-      ;; LEFT end column: outside flush at x=0
-      ((equal x (car cols) 0.001)
-        (command "RECTANG" (list x 0.0) (list (+ x rccW) H))
-        (command "HATCH" "AR-CONC" 90 0 "L" "")
-      )
-      ;; RIGHT end column: outside flush at x=W
-      ((equal x (last cols) 0.001)
-        (command "RECTANG" (list (- x rccW) 0.0) (list x H))
-        (command "HATCH" "AR-CONC" 90 0 "L" "")
-      )
-      ;; Interior column (centred)
-      (T
-        (command "RECTANG"
-          (list (- x (/ rccW 2.0)) 0.0)
-          (list (+ x (/ rccW 2.0)) H))
-        (command "HATCH" "AR-CONC" 90 0 "L" "")
-      )
-    )
-  )
-)
+      ((equal x (car cols)  0.001) (setq x0 x                 x1 (+ x rccW)))          ; LEFT end (flush at 0)
+      ((equal x (last cols) 0.001) (setq x0 (- x rccW)        x1 x))                   ; RIGHT end (flush at W)
+      (T                           (setq x0 (- x (/ rccW 2.0)) x1 (+ x (/ rccW 2.0)))))  ; interior (centred)
+    (command "RECTANG" (list x0 0.0) (list x1 H))
+    (command "HATCH" "AR-CONC" 60 0 "L" "")
+    ;; two vertical reinforcement bars, dashed, inset 90mm from each face
+    (setvar "CELTYPE" "HIDDEN") (setvar "CELTSCALE" 300.0)
+    (foreach bx (list (+ x0 90.0) (- x1 90.0))
+      (command "LINE" (list bx 90.0) (list bx (- H 90.0)) ""))
+    (setvar "CELTYPE" "BYLAYER") (setvar "CELTSCALE" 1.0)))
 
 (defun build-rc-rafter-polygon (W H rise de dp)
   ;;  Roof System on RCC columns: the steel rafter is PINNED on the concrete
@@ -2243,7 +2233,7 @@
   (setq rccW 500.0)                       ; typical RCC column width (mm)
   (setq de (max 200.0 (* ht 0.35)))       ; shallow eave rafter depth
   (setq dp (max 600.0 (* ht 1.10)))       ; deep peak rafter depth
-  (setq colTop (if fascia (+ H parapetH) (- H de)))   ; parapet extends above the roof; else to the eave underside
+  (setq colTop (- H de))                  ; RCC column bears the rafter at the eave underside
   (draw-rcc-columns (list 0.0 W) colTop rccW)
   (setvar "CLAYER" "FRAME")
   (setvar "PLINEWID" 0.0)
@@ -2251,35 +2241,36 @@
   (command "PLINE")
   (foreach p pts (command p))
   (command "C")
-  (if fascia (draw-rc-fascia W H rccW parapetH))
+  ;; fascia: a BLOCK WALL parapet rises from the OUTER face of the column up to the PEAK LINE (owner 16-Jul).
+  (if fascia (draw-rc-fascia W H rise rccW colTop))
 )
 
-(defun draw-rc-fascia (W H rccW parapetH / pTop ivL ivR g gx gd)
-  ;;  RCC PARAPET/FASCIA arrangement (owner markups 4/9): the RCC columns are already drawn up to H+parapetH.
-  ;;  Add a coping cap on each parapet, a VALLEY GUTTER at each parapet base (the roof drains into it), a
-  ;;  closure-trim mark, and labels.  ivL/ivR = parapet INNER faces (where the roof meets the parapet).
-  (setq pTop (+ H parapetH) ivL rccW ivR (- W rccW))
-  (setvar "CLAYER" "FRAME") (setvar "PLINEWID" 0.0)
-  (command "LINE" (list 0.0 pTop) (list rccW pTop) "")               ; left parapet coping
-  (command "LINE" (list (- W rccW) pTop) (list W pTop) "")           ; right parapet coping
-  ;; VALLEY GUTTER at each parapet base — a trapezoidal channel sitting against the parapet inner face at the
-  ;; roof (eave) level, ~500 wide × 190 deep.
-  (setvar "CLAYER" "GUTTER")
+(defun draw-rc-fascia (W H rise rccW baseY / pTop ivL ivR g gx gd)
+  ;;  BLOCK WALL PARAPET / FASCIA (owner markups 4/9 + 16-Jul): the fascia rises from the OUTER face of the
+  ;;  RCC column (its top = baseY) up to the PEAK LINE of the roof (pTop = H+rise), drawn as block masonry.
+  ;;  The roof drains into a VALLEY GUTTER against each parapet inner face at the eave.  ivL/ivR = inner faces.
+  (setq pTop (+ H rise) ivL rccW ivR (- W rccW))
+  ;; BLOCK WALL parapets (block/brick masonry), continuing the outer column line up to the peak line.
+  (setvar "CLAYER" "BRICK-WALL")
+  (command "RECTANG" (list 0.0 baseY) (list rccW pTop))
+  (command "HATCH" "BRICK" 150 0 "L" "")
+  (command "RECTANG" (list (- W rccW) baseY) (list W pTop))
+  (command "HATCH" "BRICK" 150 0 "L" "")
+  ;; VALLEY GUTTER at each parapet inner base — a trapezoidal channel at the roof (eave) level, ~500×190.
+  (setvar "CLAYER" "GUTTER") (setvar "PLINEWID" 0.0)
   (foreach g (list (list ivL 1.0) (list ivR -1.0))
     (setq gx (car g) gd (cadr g))
     (command "PLINE"
-      (list gx (+ H 60.0))
-      (list gx (- H 190.0))
-      (list (+ gx (* gd 140.0)) (- H 190.0))
-      (list (+ gx (* gd 500.0)) (+ H 60.0)) ""))
+      (list gx (+ H 60.0)) (list gx (- H 190.0))
+      (list (+ gx (* gd 140.0)) (- H 190.0)) (list (+ gx (* gd 500.0)) (+ H 60.0)) ""))
   ;; labels
   (setvar "CLAYER" "TEXT")
-  (peb-label-with-leader "RCC PARAPET (FASCIA)"
-                         (list (- 0.0 2400.0) (- pTop 400.0)) (list (/ rccW 2.0) (- pTop 300.0)) "H" 220)
+  (peb-label-with-leader "BLOCK WALL PARAPET (FASCIA)"
+                         (list (- 0.0 3000.0) (- pTop 500.0)) (list (/ rccW 2.0) (- pTop 400.0)) "H" 220)
   (peb-label-with-leader "VALLEY GUTTER"
-                         (list (+ ivL 2600.0) (+ H 1400.0)) (list (+ ivL 250.0) (- H 100.0)) "H" 220)
+                         (list (+ ivL 2800.0) (+ H 1400.0)) (list (+ ivL 250.0) (- H 100.0)) "H" 220)
   (peb-label-with-leader "CLOSURE TRIM + FLOWABLE MASTIC"
-                         (list (- ivL 2600.0) (+ H 1900.0)) (list ivL (+ H 250.0)) "H" 200)
+                         (list (- ivL 3000.0) (+ H 2100.0)) (list ivL (+ H 250.0)) "H" 200)
   (princ))
 
 (defun draw-rc-support (x0 x1 topY roller / w bx bx1 bx2 pt slot lbl lx)
@@ -2314,13 +2305,11 @@
         x0   (/ W 2.0)
         yTop (+ H rise)                    ; top flange at the ridge
         yBot (- (+ H rise) dp)             ; bottom flange (underside) at the ridge
-        pt   120.0 gp 80.0 ext 100.0       ; plate width / gap between the two plates / flange extension (drawn thick for visibility)
-        lxo  (- x0 gp) rxo (+ x0 gp))      ; inner faces of the LEFT / RIGHT plate (gap = 2*gp around the seam)
+        pt   110.0 gp 6.0 ext 100.0        ; plate width / HALF the 1mm-only gap (drawn as OUTLINES so both plates read)
+        lxo  (- x0 gp) rxo (+ x0 gp))      ; inner faces of the LEFT / RIGHT plate — only ~1mm gap (owner markup 10)
   (setvar "CLAYER" "PLATES")
-  (peb-solid-quad (list (- lxo pt) (- yBot ext)) (list lxo (- yBot ext))
-                  (list (- lxo pt) (+ yTop ext)) (list lxo (+ yTop ext)))       ; LEFT plate
-  (peb-solid-quad (list rxo (- yBot ext)) (list (+ rxo pt) (- yBot ext))
-                  (list rxo (+ yTop ext)) (list (+ rxo pt) (+ yTop ext)))       ; RIGHT plate
+  (command "RECTANG" (list (- lxo pt) (- yBot ext)) (list lxo (+ yTop ext)))    ; LEFT plate (outline)
+  (command "RECTANG" (list rxo (- yBot ext)) (list (+ rxo pt) (+ yTop ext)))    ; RIGHT plate (outline)
   ;; stiffeners 100mm to the TOP and BOTTOM flanges on the OUTER edge of each plate
   (draw-stiff-top (- lxo pt) yTop ext 110.0 -1)
   (draw-stiff-bot (- lxo pt) yBot ext 110.0 -1)
@@ -2337,13 +2326,12 @@
   (if (<= x hw) (+ (- H de) (* (/ x hw)       (- (- (+ H rise) dp) (- H de))))
                 (+ (- H de) (* (/ (- W x) hw) (- (- (+ H rise) dp) (- H de))))))
 (defun draw-rc-splice (x yTop yBot / pt gp ext lxo rxo)
-  ;;  One rafter SPLICE connection at x: two plates (gap) EXTENDING 100mm beyond both flanges + stiffeners.
-  (setq pt 100.0 gp 70.0 ext 100.0 lxo (- x gp) rxo (+ x gp))
+  ;;  One rafter SPLICE connection at x: two OUTLINE plates (~1mm gap) EXTENDING 100mm beyond both flanges +
+  ;;  stiffeners to both flanges.
+  (setq pt 100.0 gp 6.0 ext 100.0 lxo (- x gp) rxo (+ x gp))
   (setvar "CLAYER" "PLATES")
-  (peb-solid-quad (list (- lxo pt) (- yBot ext)) (list lxo (- yBot ext))
-                  (list (- lxo pt) (+ yTop ext)) (list lxo (+ yTop ext)))
-  (peb-solid-quad (list rxo (- yBot ext)) (list (+ rxo pt) (- yBot ext))
-                  (list rxo (+ yTop ext)) (list (+ rxo pt) (+ yTop ext)))
+  (command "RECTANG" (list (- lxo pt) (- yBot ext)) (list lxo (+ yTop ext)))
+  (command "RECTANG" (list rxo (- yBot ext)) (list (+ rxo pt) (+ yTop ext)))
   (draw-stiff-top (- lxo pt) yTop ext 110.0 -1)
   (draw-stiff-bot (- lxo pt) yBot ext 110.0 -1)
   (draw-stiff-top (+ rxo pt) yTop ext 110.0  1)
