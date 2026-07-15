@@ -7356,12 +7356,14 @@
       (setvar "CLAYER" "TEXT")
       (command "CIRCLE" (list (* wid 0.5) (- H 350.0)) 650.0)
       (txt "MC" (list (* wid 0.5) (- H 1550.0)) 320 0 "A")
-      (draw-fr-detail 28200.0 f2OyA f2ScA)
-      ;; Callout "B" (roof drainage outlet) + DETAIL-B parked on the LEFT
+      (draw-fr-detail 29600.0 f2OyA f2ScA)
+      ;; Callout "B" (roof drainage outlet) + DETAIL-B parked on the far LEFT.  (Drainage detail is a
+      ;; FLAT-ROOF-ONLY item — owner 16-Jul STRICT — it lives only in the FR/F2 branches, never on a mezz
+      ;; under a gable/other roof.)
       (setvar "CLAYER" "TEXT")
       (command "CIRCLE" (list (+ ht 550.0) (- H 250.0)) 620.0)
       (txt "MC" (list (+ ht 2400.0) (- H 2050.0)) 320 0 "B")
-      (draw-fr-detb 1000.0 f2OyB f2ScB))
+      (draw-fr-detb 600.0 f2OyB f2ScB))
     ((= stype "SS")
       ;; SINGLE SLOPE: low (left) eave = H, HIGH (right) eave = H + monoRise.  The RIGHT wall
       ;; sheeting + girts must climb to the HIGH eave (not the low H, which left the tall wall
@@ -7730,7 +7732,7 @@
   ;; 7000*PEB-TEXT-SCALE (its top edge ~7250*TS); raise the border top to 8000*PEB-TEXT-SCALE so a visible
   ;; GAP shows between the double-line top border and "CLEAR SPAN GABLE".  MUST use *PEB-TEXT-SCALE* (the
   ;; SAME scale the title uses) — tbScale differs from it and left the title touching the border.
-  (setq tbFrmT (+ H rise (* 8000.0 *PEB-TEXT-SCALE*)))  ; clear ABOVE the section heading
+  (setq tbFrmT (+ H rise (* 8000.0 *PEB-TEXT-SCALE*)))  ; clear ABOVE the section heading (title-block strip height)
   (setq tbBldgR (+ wid (* 6000.0 *PEB-DIM-SCALE*)))     ; right of the frame + dims
   (setq tbStripH (- tbFrmT tbFrmB))
   (setq tbStripW (max 10000.0                           ; absolute floor: notes text must not wrap/overlap on narrow frames (LT/canopy)
@@ -7795,6 +7797,11 @@
         borderB (+ tbFrmB (* 480.0 *PEB-TEXT-SCALE*))
         borderR (- (+ tbStripX tbStripW) (* 480.0 *PEB-TEXT-SCALE*))
         borderT (- tbFrmT (* 480.0 *PEB-TEXT-SCALE*)))
+  ;; F2 (multi-storey flat roof): the heading is LIFTED, so raise ONLY the top border to sit exactly 5 rows
+  ;; above the heading TOP line (owner 16-Jul).  Title-block strip keeps its natural height (tbFrmT), so it
+  ;; is NOT stretched — the border just encloses a taller sheet above it.
+  (if (and (= stype "F2") *PEB-F2-HEAD-SUB*)
+    (setq borderT (+ *PEB-F2-HEAD-SUB* (* 1900 *PEB-TEXT-SCALE*) (* 5.0 (* 420.0 *PEB-TEXT-SCALE*)))))
 
   ;; Restore drawing scales (title block done)
   (setq *PEB-TEXT-SCALE* *PEB-OLD-TEXT-SCALE*)
