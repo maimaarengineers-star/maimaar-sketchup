@@ -2753,13 +2753,13 @@
   (setq wallW 230.0)       ; existing wall thickness (mm)
 
   ;; Existing wall on RIGHT (drawn as hatched concrete/masonry block)
-  ;; owner 15-Jul: scale-aware AR-CONC (same 25 baseline as draw-rcc-columns, but * *PEB-TEXT-SCALE*
-  ;; so the concrete stipple density matches across every frame size like the previously-built RCC).
+  ;; owner 15-Jul: coarsen AR-CONC to 60 (was 25) — the thin 230mm wall packs too many stipple lines at
+  ;; 25 and reads as a solid black block; 60 opens the pattern so it reads clearly as concrete.
   (setvar "CLAYER" "RCC-COLUMN")
   (command "RECTANG"
     (list W 0.0)
     (list (+ W wallW) (+ H slopeRise (* 500 *PEB-TEXT-SCALE*))))
-  (command "HATCH" "AR-CONC" (* 25 *PEB-TEXT-SCALE*) 0 "L" "")
+  (command "HATCH" "AR-CONC" 60 0 "L" "")
 
   ;; PEB frame: ONE column on LEFT + sloped rafter to wall.
   ;; RAFTER IS TAPERED (owner 13-Jul: all PEB rafters taper) -- DEEP at both ends (column knee + wall
@@ -5603,8 +5603,9 @@
   (setq aw (* 55 *PEB-TEXT-SCALE*))
   (cond
     ((= arrowDir "V")
-      ;; First leg horizontal from text TO targetX at textY
-      (command "LINE" (list textX textY) (list targetX textY) "")
+      ;; First leg horizontal from text TO targetX at textY (skip if zero-length -> no stray tail dot)
+      (if (> (abs (- targetX textX)) 1.0)
+        (command "LINE" (list textX textY) (list targetX textY) ""))
       ;; Second leg vertical TO target with arrow tip at target
       (if (< targetY textY)
         ;; Target below
@@ -5624,8 +5625,9 @@
             "W" aw 0
             (list targetX targetY) ""))))
     (T   ; "H" or default
-      ;; First leg vertical from text TO targetY at textX
-      (command "LINE" (list textX textY) (list textX targetY) "")
+      ;; First leg vertical from text TO targetY at textX (skip if zero-length -> no stray tail dot)
+      (if (> (abs (- targetY textY)) 1.0)
+        (command "LINE" (list textX textY) (list textX targetY) ""))
       ;; Second leg horizontal TO target with arrow tip at target
       (if (< targetX textX)
         ;; Target left
@@ -6588,10 +6590,18 @@
       ;; ROTATED knee (owner 14-Jul): HORIZONTAL base plate on the LEFT steel column top, welded to the
       ;; rafter bottom (seam at H-ht), spanning the column depth (ht) inward.
       (draw-knee-hplate 0.0 ht (- H ht) 45.0 4 nil -1)   ; LT left steel column — outer = left
-      ;; Rafter splice ~3-4 m from the low-eave column, on the thin underside
-      (setq ltSx ltHL)
-      (setq ltTopY (+ H (* slopeRise (/ ltSx wid))))
-      (peb-conn-plate-depth ltSx (- ltTopY ltMidD) ltTopY 40.0 2)
+      ;; Connection/splice plates at the rafter WEB-CHANGE points (owner 15-Jul, SAME rule as Single Slope):
+      ;; one on the low-eave taper + one on the wall-side taper, each spanning the FULL local web depth
+      ;; (rafter underside -> top) where the two rafter web depths meet.
+      (setq ltMidX  (/ wid 2.0))
+      (setq ltMidY  (- (+ H (* slopeRise 0.5)) ltMidD))         ; mid-span thin underside
+      (setq ltDeepWY (- (+ H slopeRise) ht))                    ; deep underside at the wall
+      (foreach ltSx (list ltHL (- wid ltHL))
+        (setq ltTopY (+ H (* slopeRise (/ ltSx wid))))          ; rafter top flange at x
+        (setq ltUndY (if (<= ltSx ltMidX)
+                       (+ (- H ht) (* (/ (- ltMidY (- H ht)) (- ltMidX ht)) (- ltSx ht)))
+                       (+ ltMidY (* (/ (- ltDeepWY ltMidY) (- (- wid 45.0) ltMidX)) (- ltSx ltMidX)))))
+        (peb-conn-plate-depth ltSx ltUndY ltTopY 40.0 2))
       ;; Bearing / end plate at the existing wall (right) + CHEMICAL ANCHOR BOLTS into the masonry
       (setvar "CLAYER" "PLATES")
       (setq ltWtop (+ H slopeRise))
@@ -6854,11 +6864,12 @@
       (draw-downpipes     wid H brickH T)                         ; LOW-side downpipe + DOWN PIPE + COLUMN M-Ladders
       (draw-eave-features wid H T)                                ; LOW-side eave gutter + EAVE GUTTER M-Ladder
       (draw-rafter-label  wid H monoRise ht)
-      ;; EXISTING WALL callout (right) — clean horizontal pline arrowhead (NOT the MLEADER stray down-arrow).
-      (peb-label-pline-leader "EXISTING WALL"
-                             (list (- wid (max 1800.0 (+ ht 800.0))) (- H ht 700.0))
-                             (list (- wid 230.0) (- H ht 700.0))
-                             "H" 220))
+      ;; EXISTING WALL callout (right) — text RIGHT-justified so it sits to the LEFT of its own rightward
+      ;; leader (no text/leader overlap); clean horizontal arrowhead at the wall face, no tail dot.
+      (setq ltEwY (- H ht 700.0))
+      (peb-label-no-leader "EXISTING WALL" (list (- wid 2500.0) ltEwY) 220 0 "MR")
+      (setvar "CLAYER" "ARROWS")
+      (draw-l-leader (- wid 2500.0) ltEwY wid ltEwY "H"))
     ((member stype '("ACS" "AMS"))
       ;; Arched frames — brick walls + girts + downpipes + eave features
       ;; apply normally (they're at column locations).  Cladding/purlins
