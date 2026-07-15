@@ -2235,19 +2235,52 @@
   )
 )
 
-(defun draw-rc-frame (W H rise ht rd / pts rccW de dp)
-  ;;  Draw RCC columns + a continuously-tapered steel rafter (separate entities).
+(defun draw-rc-frame (W H rise ht rd fascia parapetH / pts rccW de dp colTop)
+  ;;  Draw RCC columns + a continuously-tapered steel rafter (separate entities).  Two arrangements (owner
+  ;;  15-Jul markups 4/9): `fascia`=nil → plain roof-on-RCC with eave gutters (columns bear the rafter at the
+  ;;  eave underside); `fascia`=T → the RCC columns extend ABOVE the roof as a PARAPET/FASCIA (height parapetH
+  ;;  above the eave) and the roof drains into a VALLEY GUTTER at each parapet base (drawn by draw-rc-fascia).
   (setq rccW 500.0)                       ; typical RCC column width (mm)
   (setq de (max 200.0 (* ht 0.35)))       ; shallow eave rafter depth
   (setq dp (max 600.0 (* ht 1.10)))       ; deep peak rafter depth
-  (draw-rcc-columns (list 0.0 W) (- H de) rccW)   ; columns bear the rafter at the eave underside
+  (setq colTop (if fascia (+ H parapetH) (- H de)))   ; parapet extends above the roof; else to the eave underside
+  (draw-rcc-columns (list 0.0 W) colTop rccW)
   (setvar "CLAYER" "FRAME")
   (setvar "PLINEWID" 0.0)
   (setq pts (build-rc-rafter-polygon W H rise de dp))
   (command "PLINE")
   (foreach p pts (command p))
   (command "C")
+  (if fascia (draw-rc-fascia W H rccW parapetH))
 )
+
+(defun draw-rc-fascia (W H rccW parapetH / pTop ivL ivR g gx gd)
+  ;;  RCC PARAPET/FASCIA arrangement (owner markups 4/9): the RCC columns are already drawn up to H+parapetH.
+  ;;  Add a coping cap on each parapet, a VALLEY GUTTER at each parapet base (the roof drains into it), a
+  ;;  closure-trim mark, and labels.  ivL/ivR = parapet INNER faces (where the roof meets the parapet).
+  (setq pTop (+ H parapetH) ivL rccW ivR (- W rccW))
+  (setvar "CLAYER" "FRAME") (setvar "PLINEWID" 0.0)
+  (command "LINE" (list 0.0 pTop) (list rccW pTop) "")               ; left parapet coping
+  (command "LINE" (list (- W rccW) pTop) (list W pTop) "")           ; right parapet coping
+  ;; VALLEY GUTTER at each parapet base — a trapezoidal channel sitting against the parapet inner face at the
+  ;; roof (eave) level, ~500 wide × 190 deep.
+  (setvar "CLAYER" "GUTTER")
+  (foreach g (list (list ivL 1.0) (list ivR -1.0))
+    (setq gx (car g) gd (cadr g))
+    (command "PLINE"
+      (list gx (+ H 60.0))
+      (list gx (- H 190.0))
+      (list (+ gx (* gd 140.0)) (- H 190.0))
+      (list (+ gx (* gd 500.0)) (+ H 60.0)) ""))
+  ;; labels
+  (setvar "CLAYER" "TEXT")
+  (peb-label-with-leader "RCC PARAPET (FASCIA)"
+                         (list (- 0.0 2400.0) (- pTop 400.0)) (list (/ rccW 2.0) (- pTop 300.0)) "H" 220)
+  (peb-label-with-leader "VALLEY GUTTER"
+                         (list (+ ivL 2600.0) (+ H 1400.0)) (list (+ ivL 250.0) (- H 100.0)) "H" 220)
+  (peb-label-with-leader "CLOSURE TRIM + FLOWABLE MASTIC"
+                         (list (- ivL 2600.0) (+ H 1900.0)) (list ivL (+ H 250.0)) "H" 200)
+  (princ))
 
 (defun draw-rc-support (x0 x1 topY roller / w bx bx1 bx2 pt slot lbl lx)
   ;;  Roof-on-RCC support (owner 15-Jul markups 1/2/3/5): a THICK base plate sitting ON the RCC column top —
@@ -2272,25 +2305,58 @@
                          (list (/ (+ x0 x1) 2.0) (+ topY (/ pt 2.0))) "H" 220)
   (princ))
 
-(defun draw-rc-ridge (W H rise ht / dp x0 yTop yBot pt ext)
-  ;;  RC ridge/peak connection (owner 15-Jul markups 6/7): TWO vertical plates straddling the ridge seam,
-  ;;  extending 100mm BEYOND BOTH flanges (above the top flange AND below the bottom flange).  Peak rafter
-  ;;  depth dp matches build-rc-rafter-polygon (deepest at the peak).
+(defun draw-rc-ridge (W H rise ht / dp x0 yTop yBot pt gp ext lxo rxo)
+  ;;  RC ridge/peak connection (owner 15-Jul markups 6/7 + "show two plates"): TWO SEPARATE vertical plates
+  ;;  straddling the ridge seam with a visible GAP, EACH extending 100mm BEYOND BOTH flanges (above the top
+  ;;  flange AND below the bottom flange).  STIFFENERS extend 100mm to the TOP and BOTTOM flanges on the outer
+  ;;  edge of each plate.  Peak rafter depth dp matches build-rc-rafter-polygon (deepest at the peak).
   (setq dp   (max 600.0 (* ht 1.10))
         x0   (/ W 2.0)
         yTop (+ H rise)                    ; top flange at the ridge
         yBot (- (+ H rise) dp)             ; bottom flange (underside) at the ridge
-        pt   150.0 ext 100.0)              ; true plate 30mm; drawn thicker for visibility on the section
+        pt   120.0 gp 80.0 ext 100.0       ; plate width / gap between the two plates / flange extension (drawn thick for visibility)
+        lxo  (- x0 gp) rxo (+ x0 gp))      ; inner faces of the LEFT / RIGHT plate (gap = 2*gp around the seam)
   (setvar "CLAYER" "PLATES")
-  (peb-solid-quad (list (- x0 pt) (- yBot ext)) (list x0 (- yBot ext))
-                  (list (- x0 pt) (+ yTop ext)) (list x0 (+ yTop ext)))        ; left plate
-  (peb-solid-quad (list x0 (- yBot ext)) (list (+ x0 pt) (- yBot ext))
-                  (list x0 (+ yTop ext)) (list (+ x0 pt) (+ yTop ext)))        ; right plate (2mm gap nominal)
-  (draw-stiff-top (- x0 pt) (+ yTop ext) 100.0 110.0 -1)
-  (draw-stiff-top (+ x0 pt) (+ yTop ext) 100.0 110.0  1)
-  (draw-stiff-bot (- x0 pt) (- yBot ext) 100.0 110.0 -1)
-  (draw-stiff-bot (+ x0 pt) (- yBot ext) 100.0 110.0  1)
+  (peb-solid-quad (list (- lxo pt) (- yBot ext)) (list lxo (- yBot ext))
+                  (list (- lxo pt) (+ yTop ext)) (list lxo (+ yTop ext)))       ; LEFT plate
+  (peb-solid-quad (list rxo (- yBot ext)) (list (+ rxo pt) (- yBot ext))
+                  (list rxo (+ yTop ext)) (list (+ rxo pt) (+ yTop ext)))       ; RIGHT plate
+  ;; stiffeners 100mm to the TOP and BOTTOM flanges on the OUTER edge of each plate
+  (draw-stiff-top (- lxo pt) yTop ext 110.0 -1)
+  (draw-stiff-bot (- lxo pt) yBot ext 110.0 -1)
+  (draw-stiff-top (+ rxo pt) yTop ext 110.0  1)
+  (draw-stiff-bot (+ rxo pt) yBot ext 110.0  1)
   (princ))
+
+;; RC rafter top-flange / underside Y at any x (mirrors build-rc-rafter-polygon).
+(defun rc-rafter-yt (W H rise x)
+  (if (<= x (/ W 2.0)) (+ H (* rise (/ (* 2.0 x) W)))
+                       (+ H (* rise (/ (* 2.0 (- W x)) W)))))
+(defun rc-rafter-yb (W H rise ht x / de dp hw)
+  (setq de (max 200.0 (* ht 0.35)) dp (max 600.0 (* ht 1.10)) hw (/ W 2.0))
+  (if (<= x hw) (+ (- H de) (* (/ x hw)       (- (- (+ H rise) dp) (- H de))))
+                (+ (- H de) (* (/ (- W x) hw) (- (- (+ H rise) dp) (- H de))))))
+(defun draw-rc-splice (x yTop yBot / pt gp ext lxo rxo)
+  ;;  One rafter SPLICE connection at x: two plates (gap) EXTENDING 100mm beyond both flanges + stiffeners.
+  (setq pt 100.0 gp 70.0 ext 100.0 lxo (- x gp) rxo (+ x gp))
+  (setvar "CLAYER" "PLATES")
+  (peb-solid-quad (list (- lxo pt) (- yBot ext)) (list lxo (- yBot ext))
+                  (list (- lxo pt) (+ yTop ext)) (list lxo (+ yTop ext)))
+  (peb-solid-quad (list rxo (- yBot ext)) (list (+ rxo pt) (- yBot ext))
+                  (list rxo (+ yTop ext)) (list (+ rxo pt) (+ yTop ext)))
+  (draw-stiff-top (- lxo pt) yTop ext 110.0 -1)
+  (draw-stiff-bot (- lxo pt) yBot ext 110.0 -1)
+  (draw-stiff-top (+ rxo pt) yTop ext 110.0  1)
+  (draw-stiff-bot (+ rxo pt) yBot ext 110.0  1))
+(defun draw-rc-splices (W H rise ht / hw nP i sx)
+  ;;  Transport limit (owner 15-Jul): a rafter piece can't exceed 12m, so split EACH half (eave→peak) into
+  ;;  equal pieces ≤12m and put a splice connection plate at every interior break.
+  (setq hw (/ W 2.0) nP (max 1 (fix (+ 0.999 (/ hw 12000.0)))) i 1)
+  (while (< i nP)
+    (setq sx (* i (/ hw (float nP))))
+    (draw-rc-splice sx        (rc-rafter-yt W H rise sx)        (rc-rafter-yb W H rise ht sx))
+    (draw-rc-splice (- W sx)  (rc-rafter-yt W H rise (- W sx))  (rc-rafter-yb W H rise ht (- W sx)))
+    (setq i (1+ i))))
 
 (defun draw-mg-frame (W H rise ht rd cb numGab spanPerGab /
                        gW gap i j gxL gxR midX rxC subSpanW intColW
@@ -6611,7 +6677,12 @@
       ;; SSMS: draw the interior columns (clear-span SSCS has none — cols = (0 W))
       (if (> (length cols) 2) (draw-ss-interior-cols cols wid H slopeRise ht)))
     ((= stype "RC")
-      (draw-rc-frame wid H rise ht rd))
+      ;; Two arrangements (owner markups 4/9): FA_TOGGLE=Yes → RCC PARAPET/FASCIA (columns above roof + valley
+      ;; gutter); else plain roof-on-RCC with eave gutters.  Parapet height above eave = FA_NSW_HT (def 1200).
+      (setq *PEB-RC-FASCIA* (= (strcase (peb-tb-or (MSPL-Get-Str data "FA_TOGGLE") "")) "YES"))
+      (setq rcParaH (MSPL-Get-Num data "FA_NSW_HT"))
+      (if (or (null rcParaH) (<= rcParaH 0.0)) (setq rcParaH 1200.0))
+      (draw-rc-frame wid H rise ht rd *PEB-RC-FASCIA* rcParaH))
     ((= stype "LT")
       (setq slopeRise (/ wid slopeD))
       (draw-lt-frame wid H slopeRise ht cb))
@@ -6904,7 +6975,8 @@
       (setq rcDe (max 200.0 (* ht 0.35)))
       (draw-rc-support 0.0 500.0 (- H rcDe) nil)                ; LEFT column → PINNED
       (draw-rc-support (- wid 500.0) wid (- H rcDe) T)          ; RIGHT column → ROLLER
-      (draw-rc-ridge wid H rise ht))                           ; ridge plate (extends beyond both flanges)
+      (draw-rc-ridge wid H rise ht)                            ; ridge plate (extends beyond both flanges)
+      (draw-rc-splices wid H rise ht))                         ; rafter splice plates every <=12m (transport limit)
     (T
       (progn
         (draw-base-plates   wid cb ep)
@@ -7441,7 +7513,9 @@
       (draw-eave-strut    wid H rise)
       (draw-girts         wid H brickH nil nil)
       (draw-downpipes     wid H brickH nil)
-      (draw-eave-features wid H nil)
+      ;; RCC-parapet/fascia replaces the eave gutter with a valley gutter (drawn by draw-rc-fascia).
+      (if (not (and (= stype "RC") *PEB-RC-FASCIA*))
+        (draw-eave-features wid H nil))
       (draw-rafter-label  wid H rise ht)))
 
   ;; ── Slope tags placed 25% in from the RIDGE on each rafter half ──
