@@ -2496,13 +2496,14 @@
   ;; ── Labels ──
   (setvar "CLAYER" "TEXT")
   (setq jLabX (+ x0 (* step 2.0)))         ; a real joist station for the joist leader
+  ;; roof-top labels STAGGERED to three distinct levels so the leaders/text never overlap
   (peb-label-with-leader "125mm THICK CONCRETE"
-                         (list (+ x0 (* span 0.13)) (+ yTop 1050.0))
-                         (list (+ x0 (* span 0.13)) (- yTop (/ slabT 2.0)))
+                         (list (+ x0 (* span 0.20)) (+ yTop 1200.0))       ; LEVEL 1 (lowest)
+                         (list (+ x0 (* span 0.20)) (- yTop (/ slabT 2.0)))
                          "V" 220)
   (peb-label-with-leader "0.70mm PROFILED DECKING PANEL"
-                         (list (+ x0 (* span 0.40)) (+ yTop 1050.0))
-                         (list (+ x0 (* span 0.40)) (* (+ bTop deckCrest) 0.5))
+                         (list (+ x0 (* span 0.45)) (+ yTop 3600.0))       ; LEVEL 3 (highest)
+                         (list (+ x0 (* span 0.45)) (* (+ bTop deckCrest) 0.5))
                          "V" 220)
   (peb-label-with-leader "STEEL JOIST @ 1.5m C/C"
                          (list (+ x0 (* span 0.60)) (- bBot 1050.0))
@@ -2586,7 +2587,7 @@
   ;; labels
   (setvar "CLAYER" "TEXT")
   (peb-label-with-leader "DRAINAGE OUTLET (BY OTHERS)"
-                         (list (+ drnX 3800.0) (+ topY 1500.0)) (list drnX (+ topY 130.0)) "H" 240)
+                         (list drnX (+ H 2400.0)) (list drnX (+ topY 130.0)) "V" 240)   ; LEVEL 2 (middle)
   (peb-label-with-leader "DOWNSPOUT (BY OTHERS)"
                          (list (+ drnX 3800.0) (+ botY 900.0)) (list (+ drnX 55.0) (+ botY 900.0)) "H" 240)
   (princ))
