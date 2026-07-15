@@ -2874,14 +2874,22 @@
       ;; owner 14-Jul (item 7): REAL 20mm plates, 2mm gap between them, NO bolts shown.  Two SOLID plates
       ;; straddling the seam — upper welded to the rafter bottom (sits AT the column-rafter junction),
       ;; lower on the column top.
-      (setq plateT 30.0 gap 2.0                        ; owner 14-Jul: 30mm plates (more depth)
-            topY  (+ ySeam (/ gap 2.0) plateT)         ; upper (rafter) plate TOP edge
-            loBot (- ySeam (/ gap 2.0) plateT)         ; lower (column) plate BOTTOM edge
-            stW 100.0 stH 110.0)                       ; owner 14-Jul: stiffener JUST till the plate extension (100mm), no beyond
-      (peb-solid-quad (list x0 (+ ySeam (/ gap 2.0))) (list x1 (+ ySeam (/ gap 2.0)))
-                      (list x0 topY) (list x1 topY))                            ; rafter-bottom plate (SOLID)
+      (setq plateT 30.0 gap 2.0 stW 100.0 stH 110.0)   ; 30mm plates, 2mm gap, stiffener till the 100 ext
+      ;; EAVE knee (dirOut ±1): the 2 plates STRADDLE the seam (rafter underside = column top).
+      ;; INTERIOR column (dirOut nil): the RAFTER (upper) plate top is FLUSH with the rafter bottom flange
+      ;; (= ySeam) and the COLUMN (lower) plate sits below the gap (owner 14-Jul).
+      (if dirOut
+        (setq topY (+ ySeam (/ gap 2.0) plateT) loBot (- ySeam (/ gap 2.0) plateT))
+        (setq topY ySeam                        loBot (- ySeam plateT gap plateT)))
+      (peb-solid-quad (list x0 (- topY plateT)) (list x1 (- topY plateT))
+                      (list x0 topY) (list x1 topY))                            ; rafter plate (SOLID)
       (peb-solid-quad (list x0 loBot) (list x1 loBot)
-                      (list x0 (- ySeam (/ gap 2.0))) (list x1 (- ySeam (/ gap 2.0))))  ; column-top plate (SOLID)
+                      (list x0 (+ loBot plateT)) (list x1 (+ loBot plateT)))    ; column plate (SOLID)
+      ;; INTERIOR column: stiffeners on the LOWER (column) plate only, at both flange ends (owner 14-Jul).
+      (if (null dirOut)
+        (progn
+          (draw-stiff-bot (+ x0 ext) loBot stW stH -1)
+          (draw-stiff-bot (- x1 ext) loBot stW stH  1)))
       ;; STIFFENER = a LINE extending FROM THE RAFTER OUTER (TOP) FLANGE down to the connection plate (owner
       ;; 14-Jul, "stiffeners will line extend from rafter outer flange — do as marked").  A VERTICAL
       ;; stiffener sits on the OUTER flange (x0+ext / x1-ext) rising all the way to the rafter OUTER flange,
@@ -4522,7 +4530,7 @@
   (setq labRX  (- W (/ (/ gW 2.0) 3.0)))            ; W - (gW/2)/3 = W - gW/6
   ;; Anchor labRY to the SAME Y as the wall sheeting label so both
   ;; sheeting MLEADERs sit on the same horizontal level (same rule as CS).
-  (setq labRY  (+ H (* 2700 *PEB-TEXT-SCALE*)))
+  (setq labRY  (+ H (* 3800 *PEB-TEXT-SCALE*)))   ; owner 14-Jul: 3 rows up (match CS) for long sandwich specs
   ;; Y at labRX on last gable (sheeting surface) — used as arrow tip
   (setq rDx (abs (- labRX ridgeX_last)))
   (setq rTargetY
@@ -4607,7 +4615,7 @@
   (setq wLine1 (strcat (car wParts) ":"))
   (setq wLine2 (cadr wParts))
   (setq labWX  (- 0.0 girtDepth cladThk))      ; -235 : outer face of wall sheet
-  (setq labWY  (+ H (* 2700 *PEB-TEXT-SCALE*)))
+  (setq labWY  (+ H (* 3800 *PEB-TEXT-SCALE*)))   ; owner 14-Jul: 3 rows up (match CS) for long sandwich specs
   ;; Arrow tip Y: 300 mm BELOW the clear-height line (same rule as CS).
   (setq wTargetY (- H 300.0))
   (cond
@@ -7144,7 +7152,10 @@
   ;; Bubble centre = -3300·TS gives ~740·TS clearance below ft text +
   ;; ~380 bubble radius — fits cleanly without floating.
   (setq bubR (* 380 *PEB-TEXT-SCALE*))
-  (setq bubY (- 0.0 (* 3300 *PEB-TEXT-SCALE*)))
+  ;; owner 14-Jul: with interior columns the overall O/O dim sits deeper (module dims + spacing), so it
+  ;; landed ON the bubbles.  Drop the bubbles BELOW it for multi-column frames so the bubble line + vertical
+  ;; ticks do not overlap the overall-width dimension.
+  (setq bubY (- 0.0 (if (> (length cols) 2) (* 4600 *PEB-TEXT-SCALE*) (* 3300 *PEB-TEXT-SCALE*))))
   (setq i 0)
   (setq nCols (length cols))
   (foreach cx cols
@@ -7181,22 +7192,24 @@
   ;; other regardless of drawing scale.
   ;; owner 14-Jul: push the height dims further OUT so the rotated BRICK-MASONRY text clears the eave
   ;; DOWN PIPE (was wid+800 / wid+1000·scale — the 2-line text reached back over the pipe).
-  (setq dimX1 (max (+ wid 1500.0)  (+ wid (* 1600 *PEB-DIM-SCALE*))))
-  (setq dimX2 (+ dimX1 (peb-dim-text-spacing "vertical")))
-  ;; Drawn dims, then overridden to colour 0 (ByBlock = displays as
-  ;; white in modelspace) via direct entity property since DIMCLR*
-  ;; sysvars get reset inside peb-dim-height-stretch.
+  ;; owner 14-Jul: for a SINGLE-SLOPE (mono) roof the CLEAR HEIGHT is taken on the LOW eave side — put the
+  ;; height dims on the LEFT (objX = -235, dimX negative).  Gable/arched keep them on the RIGHT.
+  (if monoRise
+    (setq hObjX -235.0
+          dimX1 (min (- 1500.0) (- (* 1600 *PEB-DIM-SCALE*)))
+          dimX2 (- dimX1 (peb-dim-text-spacing "vertical")))
+    (setq hObjX wid
+          dimX1 (max (+ wid 1500.0) (+ wid (* 1600 *PEB-DIM-SCALE*)))
+          dimX2 (+ dimX1 (peb-dim-text-spacing "vertical"))))
+  ;; Drawn dims, then overridden to colour 0 (ByBlock).  UNIFORM dim text (320).
   (if (and brickH (> brickH 0))
     (progn
-      ;; owner 14-Jul: UNIFORM dim text — brick / clear-height / overall-width all share ONE size (320) so
-      ;; every dimension reads the same ("both dims same size").  Brick still fits its 3048 span + clears
-      ;; the down pipe now that dimX1 is pushed out.
       (setq *PEB-DIM-TXT* 320.0)
-      (peb-dim-height-stretch wid dimX1 0.0 brickH "<>\\PBRICK MASONRY")
+      (peb-dim-height-stretch hObjX dimX1 0.0 brickH "<>\\PBRICK MASONRY")
       (setq *PEB-DIM-TXT* nil)
       (peb-recolor-last-dim 0)))                  ; ByBlock
   (setq *PEB-DIM-TXT* 320.0)
-  (peb-dim-height-stretch wid dimX2 0.0 (- H ht) "<>\\PCLEAR HEIGHT")
+  (peb-dim-height-stretch hObjX dimX2 0.0 (- H ht) "<>\\PCLEAR HEIGHT")
   (setq *PEB-DIM-TXT* nil)
   (peb-recolor-last-dim 0)                        ; ByBlock
 
