@@ -303,19 +303,31 @@
 ;;  cladding and so bypass draw-cladding's built-in labels (currently the ARCHED types ACS/AMS).
 ;;  Same MLEADER format as the gable path: bold heading + (<=2-line) build-up spec, white text so it
 ;;  plots black.  Placed top-right (roof) and top-left (wall) with L-leaders, like the gable labels.
-(defun peb-arch-sheeting-labels (data W H rise / rspec wspec rc wc rx ry roofTopY)
+(defun peb-arch-sheeting-labels (data W H rise / rspec wspec rc wc rx ry topY wTgtY wExtX)
+  ;; owner 14-Jul: LT/arch sheeting labels must READ THE SAME AS CLEAR SPAN — both ROOF & WALL labels on a
+  ;; common TOP band, each on a CS-style M-Ladder (4-leg: arrow → leg → bar → text) with a SMALL arrowhead.
   (setvar "CLAYER" "TEXT")
   (setq rspec (peb-split-2-lines (peb-panel-label data "ROOF")))
   (setq wspec (peb-split-2-lines (peb-panel-label data "WALL")))
   (setq rc (strcat "{\\C7;\\H0.42x;{\\fArial|b1;ROOFING SYSTEM:}\\P" rspec "}"))
   (setq wc (strcat "{\\C7;\\H0.42x;{\\fArial|b1;WALL SHEETING:}\\P" wspec "}"))
-  ;; ROOF: arrow on the roof at ~68% span, SHORT leg up (owner 14-Jul)
-  (setq rx (* W 0.68) ry (+ H (* rise 0.82) 235.0) roofTopY (+ ry (* 900 *PEB-TEXT-SCALE*)))
+  (setq topY (+ H rise (* 3800 *PEB-TEXT-SCALE*)))      ; common top band (same level for both), like CS
+  ;; ROOF: arrow tip on the roof at ~68% span, leg up to the top band, then a 300 bar to the text.
+  (setq rx (* W 0.68) ry (+ H (* rise 0.82) 235.0))
   (vl-catch-all-apply 'peb-make-mleader
-    (list (list (list rx ry) (list rx roofTopY) (list (+ rx 300.0) roofTopY)) rc))
-  ;; WALL: arrow on the LEFT wall, SHORT horizontal L-leg out to the left (no long vertical)
+    (list (list (list rx ry) (list rx topY) (list (+ rx 300.0) topY)) rc))
+  (setvar "CLAYER" "ARROWS") (setvar "PLINEWID" 0.0)
+  (command "LINE" (list rx topY) (list rx (+ ry (* 160 *PEB-TEXT-SCALE*))) "")
+  (command "PLINE" (list rx (+ ry (* 160 *PEB-TEXT-SCALE*))) "W" (* 55 *PEB-TEXT-SCALE*) 0 (list rx ry) "")
+  (setvar "PLINEWID" 0.0)
+  ;; WALL: arrow tip on the LEFT wall, 4-leg L-leader out & up to the SAME top band (identical to CS).
+  (setq wTgtY (- H 300.0) wExtX -1735.0)
+  (setvar "CLAYER" "TEXT")
   (vl-catch-all-apply 'peb-make-mleader
-    (list (list (list -235.0 (* H 0.6)) (list -1735.0 (* H 0.6))) wc)))
+    (list (list (list -235.0 wTgtY) (list wExtX wTgtY) (list wExtX topY) (list (+ wExtX 300.0) topY)) wc))
+  (setvar "CLAYER" "ARROWS") (setvar "PLINEWID" 0.0)
+  (command "PLINE" (list (- -235.0 (* 160 *PEB-TEXT-SCALE*)) wTgtY) "W" (* 55 *PEB-TEXT-SCALE*) 0 (list -235.0 wTgtY) "")
+  (setvar "PLINEWID" 0.0))
 
 ;;  peb-deck-purlins — short purlin ticks perpendicular to a canopy deck segment (x0,y0)->(x1,y1),
 ;;  ~1500 mm apart, on the PURLINS layer (owner 13-Jul: "show the purlin on top like Clear Span").
@@ -2756,8 +2768,8 @@
   (command "PLINE"
     (list 0.0      0.0)                         ; bottom-left outside
     (list 0.0      H)                           ; low eave outside
-    (list W        (+ H slopeRise))             ; rafter ends at wall
-    (list (- W ht) (- (+ H slopeRise) ht))      ; rafter inside-bottom at wall (deep ht)
+    (list W        (+ H slopeRise))             ; rafter TOP ends at the wall
+    (list (- W 45.0) (- (+ H slopeRise) ht))    ; owner 14-Jul: WEB/bottom flange EXTENDS to the steel plate (W-45)
     (list (/ W 2.0) (- (+ H (/ slopeRise 2.0)) midDlt))  ; MID-SPAN underside (thin) -> taper
     (list ht       (- H ht))                    ; left haunch corner (deep ht)
     (list cb       0.0)                         ; left column inside-base
@@ -6874,10 +6886,14 @@
       (command "LINE" (list -390.0 (- ltGy 150.0)) (list -390.0 300.0) "")
       (command "LINE" (list -320.0 (- ltGy 150.0)) (list -320.0 300.0) "")
       (setvar "CLAYER" "TEXT")
+      ;; owner 15-Jul: match the standard EAVE GUTTER M-Ladder — short vertical
+      ;; arrow-riser (1200·TS, so the arrowhead renders) + short landing bar,
+      ;; NO long extending horizontal line.  Label lands to the LEFT (low-eave
+      ;; open side of the lean-to) so it clears the column/wall.
       (peb-label-with-leader "EAVE GUTTER + DOWN PIPE"
-                             (list -3100.0 (+ ltGy 500.0))
-                             (list -450.0  (- ltGy 60.0))
-                             "H" 220)
+                             (list -1000.0 (+ ltGy (* 1200.0 *PEB-TEXT-SCALE*)))
+                             (list -450.0  ltGy)
+                             "V" 220)
       ;; Purlins along the slope + ROOF/WALL SHEETING callouts (full build-up + PPGL).
       ;; monoRise passed as the "rise" arg places the labels at the LT roof band.
       (peb-deck-purlins 0.0 (+ H 200.0) wid (+ H monoRise 200.0))
@@ -7397,7 +7413,8 @@
   (setq tbFrmT (+ H rise (* 8000.0 *PEB-TEXT-SCALE*)))  ; clear ABOVE the section heading
   (setq tbBldgR (+ wid (* 6000.0 *PEB-DIM-SCALE*)))     ; right of the frame + dims
   (setq tbStripH (- tbFrmT tbFrmB))
-  (setq tbStripW (max (* wid 0.26)                      ; not too thin
+  (setq tbStripW (max 10000.0                           ; absolute floor: notes text must not wrap/overlap on narrow frames (LT/canopy)
+                      (* wid 0.26)                      ; not too thin
                       (min (* tbStripH 0.46)            ; Mammut-ish aspect
                            (* wid 0.55))))              ; not too dominant
   (setq tbStripX (+ tbBldgR (* 1800.0 *PEB-DIM-SCALE*)))
