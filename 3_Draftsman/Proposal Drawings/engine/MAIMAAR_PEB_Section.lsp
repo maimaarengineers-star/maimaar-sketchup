@@ -2467,7 +2467,7 @@
   (setvar "CLAYER" "RCC-COLUMN")
   (setvar "PLINEWID" 0.0)
   (command "RECTANG" (list cx0 bTop) (list cx1 yTop))
-  (command "HATCH" "AR-CONC" (* 25.0 *PEB-TEXT-SCALE*) 0 "L" "")
+  (command "HATCH" "AR-CONC" (* 14.0 *PEB-TEXT-SCALE*) 0 "L" "")   ; owner: reduce the hatch scale -> finer concrete texture
   ;; ── 0.70mm PROFILED DECKING sheet — this section looks ALONG the corrugation, so it reads as TWO
   ;;    horizontal lines 45mm apart: BOTTOM solid (decking sheeting line on the flush beam/joist top) +
   ;;    TOP dashed (corrugation crest, hidden).  The concrete (hatched above) shows from the bottom line up.
@@ -2496,22 +2496,22 @@
   ;; ── Labels ──
   (setvar "CLAYER" "TEXT")
   (setq jLabX (+ x0 (* step 2.0)))         ; a real joist station for the joist leader
-  ;; roof-top labels STAGGERED to three distinct levels so the leaders/text never overlap
+  ;; roof labels — SHORT legs (800), spread HORIZONTALLY so nothing overlaps (owner: no long M-Ladder legs)
   (peb-label-with-leader "125mm THICK CONCRETE"
-                         (list (+ x0 (* span 0.20)) (+ yTop 1200.0))       ; LEVEL 1 (lowest)
-                         (list (+ x0 (* span 0.20)) (- yTop (/ slabT 2.0)))
+                         (list (+ x0 (* span 0.28)) (+ yTop 800.0))
+                         (list (+ x0 (* span 0.28)) (- yTop (/ slabT 2.0)))
                          "V" 220)
   (peb-label-with-leader "0.70mm PROFILED DECKING PANEL"
-                         (list (+ x0 (* span 0.45)) (+ yTop 3600.0))       ; LEVEL 3 (highest)
+                         (list (+ x0 (* span 0.45)) (+ yTop 800.0))
                          (list (+ x0 (* span 0.45)) (* (+ bTop deckCrest) 0.5))
                          "V" 220)
   (peb-label-with-leader "STEEL JOIST @ 1.5m C/C"
-                         (list (+ x0 (* span 0.60)) (- bBot 1050.0))
-                         (list jLabX (* (+ (- bTop bf) jBotF) 0.5))
+                         (list (+ x0 (* span 0.42)) (- bBot 800.0))
+                         (list (+ x0 (* span 0.42)) (* (+ (- bTop bf) jBotF) 0.5))
                          "V" 220)
   (peb-label-with-leader "MAIN BEAM"
-                         (list (+ x0 (* span 0.85)) (- bBot 1050.0))
-                         (list (+ x0 (* span 0.85)) (+ bBot (/ bf 2.0)))
+                         (list (+ x0 (* span 0.80)) (- bBot 800.0))
+                         (list (+ x0 (* span 0.80)) (+ bBot (/ bf 2.0)))
                          "V" 220)
   (princ))
 
@@ -2587,9 +2587,9 @@
   ;; labels
   (setvar "CLAYER" "TEXT")
   (peb-label-with-leader "DRAINAGE OUTLET (BY OTHERS)"
-                         (list drnX (+ H 2400.0)) (list drnX (+ topY 130.0)) "V" 240)   ; LEVEL 2 (middle)
+                         (list drnX (+ H 800.0)) (list drnX (+ topY 130.0)) "V" 220)   ; short leg, same 220 text
   (peb-label-with-leader "DOWNSPOUT (BY OTHERS)"
-                         (list (+ drnX 3800.0) (+ botY 900.0)) (list (+ drnX 55.0) (+ botY 900.0)) "H" 240)
+                         (list (+ drnX 2600.0) (+ botY 700.0)) (list (+ drnX 55.0) (+ botY 700.0)) "H" 220)
   (princ))
 
 (defun draw-petrol-frame (W H ht cb / ovh cx1 cx2 rt colw)
@@ -7145,11 +7145,11 @@
       (command "PLINE" (list (- -235.0 (* 160 *PEB-TEXT-SCALE*)) frWtY)
                        "W" (* 55 *PEB-TEXT-SCALE*) 0 (list -235.0 frWtY) "")
       (setvar "PLINEWID" 0.0)
-      ;; ── Callout "A" around a joist-beam connection + the ZOOMED DETAIL below the frame ──
+      ;; ── Callout "A" around a joist-beam connection + the ZOOMED DETAIL (reduced, moved ABOVE the frame) ──
       (setvar "CLAYER" "TEXT")
       (command "CIRCLE" (list (* wid 0.5) (- H 350.0)) 650.0)
       (txt "MC" (list (* wid 0.5) (- H 1550.0)) 320 0 "A")
-      (draw-fr-detail 13000.0 -11000.0 13.0))
+      (draw-fr-detail 26000.0 13500.0 6.5))
     ((= stype "SS")
       ;; SINGLE SLOPE: low (left) eave = H, HIGH (right) eave = H + monoRise.  The RIGHT wall
       ;; sheeting + girts must climb to the HIGH eave (not the low H, which left the tall wall
