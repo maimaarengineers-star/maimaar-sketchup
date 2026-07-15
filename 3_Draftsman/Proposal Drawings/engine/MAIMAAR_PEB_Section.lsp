@@ -2461,26 +2461,13 @@
   (setq deckCrest (- yTop slabT))          ; concrete-above-crest bottom (slabT = 125mm over the crest)
   (setq bTop (- deckCrest 45.0))           ; corrugation TROUGH = beam/joist top flange (flush); 45mm deep
   (setq bBot (- bTop beamD))               ; MAIN BEAM bottom flange
-  ;; ── 125mm concrete — FILLS the decking flutes + a SLIGHT drainage fall (screed) draining to the LOW
-  ;; (left/gutter) side.  Flat bottom on the steel; top slopes from yTop (right, HIGH) to yTop-drop (left,
-  ;; LOW).  Coarse AR-CONC (55) so the thin band reads as concrete stipple, not a solid black bar.
-  (setq drop 380.0)                        ; drainage fall — shown slightly exaggerated so it reads at 30m scale
+  ;; ── 125mm RCC concrete slab (fills the decking flutes) — FLAT top (no slope).  AR-CONC at the SAME
+  ;; scale as the Roof-System RCC columns (draw-rcc-columns) so it reads as a proper concrete section. ──
   (setq ov 235.0 cx0 (- x0 ov) cx1 (+ x1 ov))   ; concrete/decking extend to the wall edge (past the columns)
   (setvar "CLAYER" "RCC-COLUMN")
   (setvar "PLINEWID" 0.0)
-  ;; flat bottom on the steel; top slopes UP from the LOW/drain side (left = yTop) to the HIGH side (right = yTop+drop)
-  (command "PLINE" (list cx0 bTop) (list cx1 bTop) (list cx1 (+ yTop drop)) (list cx0 yTop) "C")
-  (command "HATCH" "AR-CONC" (* 55.0 *PEB-TEXT-SCALE*) 0 "L" "")
-  ;; FALL arrow along the sloped top, pointing to the LOW/drain (left) side
-  (setvar "CLAYER" "TEXT")
-  (command "LINE" (list (+ x0 (* span 0.58)) (+ yTop (* drop 0.60)))
-                  (list (+ x0 (* span 0.40)) (+ yTop (* drop 0.42))) "")
-  (setvar "CLAYER" "ARROWS") (setvar "PLINEWID" 0.0)
-  (command "PLINE" (list (+ x0 (* span 0.435)) (+ yTop (* drop 0.455)))
-                   "W" (* 90 *PEB-TEXT-SCALE*) 0 (list (+ x0 (* span 0.40)) (+ yTop (* drop 0.42))) "")
-  (setvar "PLINEWID" 0.0)
-  (setvar "CLAYER" "TEXT")
-  (txt "MC" (list (+ x0 (* span 0.52)) (+ yTop drop 500.0)) 260 0 "SLOPE FOR DRAINAGE")
+  (command "RECTANG" (list cx0 bTop) (list cx1 yTop))
+  (command "HATCH" "AR-CONC" (* 25.0 *PEB-TEXT-SCALE*) 0 "L" "")
   ;; ── 0.70mm PROFILED DECKING sheet — this section looks ALONG the corrugation, so it reads as TWO
   ;;    horizontal lines 45mm apart: BOTTOM solid (decking sheeting line on the flush beam/joist top) +
   ;;    TOP dashed (corrugation crest, hidden).  The concrete (hatched above) shows from the bottom line up.
@@ -2584,8 +2571,8 @@
   ;;  drainage outlet (domed grate) cut through the slab + decking, then a downspout down inside the
   ;;  building — NOT the normal PEB eave gutter.  Placed near the LOW (left) side that the fall drains to.
   (setq frCT (fr-col-top H ht))            ; deck / beam-bottom level
-  (setq drnX (* wid 0.15))                 ; drain near the low side
-  (setq topY (+ H 40.0))                   ; slab top at the drain (low end ~ H)
+  (setq drnX (+ ht 550.0))                 ; drain just INSIDE the left column (drains near the columns)
+  (setq topY (+ H 40.0))                   ; slab top at the drain
   (setq botY 1500.0)                       ; downspout runs down to ~1.5 m AFL
   (setvar "CLAYER" "GUTTER") (setvar "PLINEWID" 0.0)
   ;; outlet body cut through the slab + decking
