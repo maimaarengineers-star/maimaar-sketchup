@@ -2563,8 +2563,8 @@
   (peb-label-with-leader "STEEL JOIST @ 1.5m C/C" (fr-dp ox oy sc -880 -120) (fr-dp ox oy sc -300 -150) "H" 260)
   (peb-label-with-leader "CLIP ANGLE + BOLTS" (fr-dp ox oy sc -880 -320) (fr-dp ox oy sc -40 -150) "H" 260)
   (peb-label-with-leader "MAIN BEAM (550 DEEP)" (fr-dp ox oy sc 620 -430) (fr-dp ox oy sc 0 -400) "H" 260)
-  (txt-bold "MC" (fr-dp ox oy sc -180 -740) 320 0 "DETAIL - A")
-  (txt "MC" (fr-dp ox oy sc -180 -830) 240 0 "JOIST CONNECTION  (N.T.S.)")
+  (txt-bold "MC" (fr-dp ox oy sc -180 -645) 320 0 "DETAIL - A")
+  (txt "MC" (fr-dp ox oy sc -180 -730) 240 0 "JOIST CONNECTION  (N.T.S.)")
   (princ))
 
 (defun draw-fr-drainage (wid H ht / drnX topY frCT botY)
@@ -2590,6 +2590,61 @@
                          (list drnX (+ H 800.0)) (list drnX (+ topY 130.0)) "V" 220)   ; short leg, same 220 text
   (peb-label-with-leader "DOWNSPOUT (BY OTHERS)"
                          (list (+ drnX 2600.0) (+ botY 700.0)) (list (+ drnX 55.0) (+ botY 700.0)) "H" 220)
+  (princ))
+
+(defun draw-fr-detb (ox oy sc / x seg dk rbx)
+  ;;  Zoomed ROOF-DRAINAGE detail (owner 15-Jul, ref screenshot 12) for the flat roof, drawn at `sc`x at
+  ;;  (ox,oy) [oy = slab-BOTTOM / deck-top level, ly=0].  A drainage OUTLET (domed strainer + sump) is set
+  ;;  into the 125mm slab, the 0.70mm profiled decking is FIELD-CUT to suit, and a DOWNSPOUT drops below —
+  ;;  all "by others".  Same drawing language as DETAIL-A so the two details read as a set.
+  ;; ---- 125mm concrete slab, cut either side of the outlet ----
+  (setvar "CLAYER" "RCC-COLUMN") (setvar "PLINEWID" 0.0)
+  (command "RECTANG" (fr-dp ox oy sc -640 0) (fr-dp ox oy sc -90 170))
+  (command "HATCH" "AR-CONC" (* 14.0 sc) 0 "L" "")
+  (command "RECTANG" (fr-dp ox oy sc 90 0) (fr-dp ox oy sc 640 170))
+  (command "HATCH" "AR-CONC" (* 14.0 sc) 0 "L" "")
+  ;; ---- 0.70mm profiled decking under the slab, FIELD-CUT at the outlet (gap -90..90) ----
+  (setvar "CLAYER" "CLADDING")
+  (foreach seg (list (list -640.0 -90.0) (list 90.0 640.0))
+    (foreach dk (list 0.0 13.0)          ; two parallel profiles = the 0.70mm folded sheet thickness
+      (setq x (car seg)) (command "PLINE")
+      (while (< x (cadr seg))
+        (command (fr-dp ox oy sc x (+ 45 dk)))
+        (command (fr-dp ox oy sc (min (cadr seg) (+ x 40)) (+ 45 dk)))
+        (command (fr-dp ox oy sc (min (cadr seg) (+ x 55)) dk))
+        (command (fr-dp ox oy sc (min (cadr seg) (+ x 95)) dk))
+        (setq x (+ x 100)))
+      (command (fr-dp ox oy sc (cadr seg) (+ 45 dk))) (command "")))
+  ;; ---- drainage OUTLET set BELOW the concrete level (owner 15-Jul #14): recessed sump + strainer,
+  ;;      NOT protruding above the slab; strainer dome top sits at/just under the concrete surface ----
+  (setvar "CLAYER" "GUTTER")
+  (command "RECTANG" (fr-dp ox oy sc -78 -70) (fr-dp ox oy sc 78 95))                     ; sump body (in slab)
+  (command "ARC" (fr-dp ox oy sc -72 95) (fr-dp ox oy sc 0 158) (fr-dp ox oy sc 72 95))   ; strainer dome (recessed)
+  (command "LINE" (fr-dp ox oy sc -38 110) (fr-dp ox oy sc -38 150) "")                   ; grate bars
+  (command "LINE" (fr-dp ox oy sc 0 100)   (fr-dp ox oy sc 0 158) "")
+  (command "LINE" (fr-dp ox oy sc 38 110)  (fr-dp ox oy sc 38 150) "")
+  ;; ---- DOWNSPOUT below the sump (clamp band + pipe) ----
+  (command "RECTANG" (fr-dp ox oy sc -64 -128) (fr-dp ox oy sc 64 -70))                   ; clamp band
+  (command "LINE" (fr-dp ox oy sc -46 -128) (fr-dp ox oy sc -46 -520) "")                 ; pipe walls
+  (command "LINE" (fr-dp ox oy sc 46 -128)  (fr-dp ox oy sc 46 -520) "")
+  (command "LINE" (fr-dp ox oy sc -46 -520) (fr-dp ox oy sc 46 -520) "")
+  ;; ---- rebar dots in the slab (skip the outlet zone) ----
+  (setvar "CLAYER" "RCC-COLUMN")
+  (setq rbx -590)
+  (while (< rbx 620)
+    (if (or (< rbx -120) (> rbx 120))
+      (command "DONUT" 0 (* 9 sc) (fr-dp ox oy sc rbx 120) ""))
+    (setq rbx (+ rbx 90)))
+  ;; ---- labels + detail title ----
+  (setvar "CLAYER" "TEXT")
+  (peb-label-with-leader "DRAINAGE OUTLET (BY OTHERS)"
+                         (fr-dp ox oy sc 820 300) (fr-dp ox oy sc 20 150) "H" 260)
+  (peb-label-with-leader "FIELD CUT PANEL HOLES\\PTO SUIT DRAINAGE OUTLET"
+                         (fr-dp ox oy sc 820 40) (fr-dp ox oy sc 95 25) "H" 260)
+  (peb-label-with-leader "DOWNSPOUT (BY OTHERS)"
+                         (fr-dp ox oy sc 820 -360) (fr-dp ox oy sc 46 -360) "H" 260)
+  (txt-bold "MC" (fr-dp ox oy sc 0 -700) 320 0 "DETAIL - B")
+  (txt "MC" (fr-dp ox oy sc 0 -785) 240 0 "ROOF DRAINAGE  (N.T.S.)")
   (princ))
 
 (defun draw-petrol-frame (W H ht cb / ovh cx1 cx2 rt colw)
@@ -7134,13 +7189,24 @@
       (setvar "CLAYER" "TEXT")
       (setq frWc (strcat "{\\C7;\\H0.42x;{\\fArial|b1;WALL SHEETING:}\\P"
                          (peb-split-2-lines (peb-panel-label data "WALL")) "}"))
+      ;; Raise is MODEST here (H+1500·TS, not Clear Span's H+3800·TS): the flat roof has NO eave gutter and
+      ;; only a 1-line wall spec below the label, so it sits just above the eave and leaves the upper-left
+      ;; clear for DETAIL-B.  Graphic (4-leg ladder, bold heading above bar / spec below) is identical.
       (setq frWtY (- H 300.0)
             frWeX -1735.0
-            frWlY (+ H (* 3800 *PEB-TEXT-SCALE*))
-            frWbY (+ (+ H (* 3800 *PEB-TEXT-SCALE*)) (* 175 *PEB-TEXT-SCALE*)))
-      (vl-catch-all-apply 'peb-make-mleader
-        (list (list (list -235.0 frWtY) (list frWeX frWtY)
-                    (list frWeX frWbY) (list (+ frWeX 300.0) frWbY)) frWc))
+            frWlY (+ H (* 1500 *PEB-TEXT-SCALE*))
+            frWbY (+ (+ H (* 1500 *PEB-TEXT-SCALE*)) (* 175 *PEB-TEXT-SCALE*)))
+      (setq frMl
+        (vl-catch-all-apply 'peb-make-mleader
+          (list (list (list -235.0 frWtY) (list frWeX frWtY)
+                      (list frWeX frWbY) (list (+ frWeX 300.0) frWbY)) frWc)))
+      ;; Match Clear Span's draw-cladding: anchor the text at the BOTTOM-OF-TOP-LINE so the bold heading
+      ;; floats ABOVE the bar and the spec drops BELOW it (owner: "use same M-Ladder as Clear Span").
+      (if (not (vl-catch-all-error-p frMl))
+        (progn
+          (vl-catch-all-apply (function (lambda () (vla-put-TextAttachmentDirection frMl 0))))
+          (vl-catch-all-apply (function (lambda () (vla-put-TextLeftAttachmentType  frMl 5))))
+          (vl-catch-all-apply (function (lambda () (vla-put-TextRightAttachmentType frMl 5))))))
       (setvar "CLAYER" "ARROWS") (setvar "PLINEWID" 0.0)
       (command "PLINE" (list (- -235.0 (* 160 *PEB-TEXT-SCALE*)) frWtY)
                        "W" (* 55 *PEB-TEXT-SCALE*) 0 (list -235.0 frWtY) "")
@@ -7149,7 +7215,12 @@
       (setvar "CLAYER" "TEXT")
       (command "CIRCLE" (list (* wid 0.5) (- H 350.0)) 650.0)
       (txt "MC" (list (* wid 0.5) (- H 1550.0)) 320 0 "A")
-      (draw-fr-detail 26000.0 13500.0 6.5))
+      (draw-fr-detail 27000.0 14600.0 6.5)
+      ;; ── Callout "B" around the drainage outlet + the ZOOMED DRAINAGE DETAIL (top-LEFT corner) ──
+      (setvar "CLAYER" "TEXT")
+      (command "CIRCLE" (list (+ ht 550.0) (- H 250.0)) 620.0)
+      (txt "MC" (list (+ ht 2400.0) (- H 2050.0)) 320 0 "B")
+      (draw-fr-detb 1400.0 14900.0 4.3))
     ((= stype "SS")
       ;; SINGLE SLOPE: low (left) eave = H, HIGH (right) eave = H + monoRise.  The RIGHT wall
       ;; sheeting + girts must climb to the HIGH eave (not the low H, which left the tall wall
