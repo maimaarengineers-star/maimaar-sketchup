@@ -2201,19 +2201,19 @@
       ;; LEFT end column: outside flush at x=0
       ((equal x (car cols) 0.001)
         (command "RECTANG" (list x 0.0) (list (+ x rccW) H))
-        (command "HATCH" "AR-CONC" 25 0 "L" "")
+        (command "HATCH" "AR-CONC" 90 0 "L" "")
       )
       ;; RIGHT end column: outside flush at x=W
       ((equal x (last cols) 0.001)
         (command "RECTANG" (list (- x rccW) 0.0) (list x H))
-        (command "HATCH" "AR-CONC" 25 0 "L" "")
+        (command "HATCH" "AR-CONC" 90 0 "L" "")
       )
       ;; Interior column (centred)
       (T
         (command "RECTANG"
           (list (- x (/ rccW 2.0)) 0.0)
           (list (+ x (/ rccW 2.0)) H))
-        (command "HATCH" "AR-CONC" 25 0 "L" "")
+        (command "HATCH" "AR-CONC" 90 0 "L" "")
       )
     )
   )
