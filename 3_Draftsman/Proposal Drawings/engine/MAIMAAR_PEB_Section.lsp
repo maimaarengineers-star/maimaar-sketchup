@@ -2753,11 +2753,13 @@
   (setq wallW 230.0)       ; existing wall thickness (mm)
 
   ;; Existing wall on RIGHT (drawn as hatched concrete/masonry block)
+  ;; owner 15-Jul: scale-aware AR-CONC (same 25 baseline as draw-rcc-columns, but * *PEB-TEXT-SCALE*
+  ;; so the concrete stipple density matches across every frame size like the previously-built RCC).
   (setvar "CLAYER" "RCC-COLUMN")
   (command "RECTANG"
     (list W 0.0)
     (list (+ W wallW) (+ H slopeRise (* 500 *PEB-TEXT-SCALE*))))
-  (command "HATCH" "AR-CONC" 25 0 "L" "")
+  (command "HATCH" "AR-CONC" (* 25 *PEB-TEXT-SCALE*) 0 "L" "")
 
   ;; PEB frame: ONE column on LEFT + sloped rafter to wall.
   ;; RAFTER IS TAPERED (owner 13-Jul: all PEB rafters taper) -- DEEP at both ends (column knee + wall
@@ -3981,7 +3983,7 @@
   )
 )
 
-(defun draw-cladding (data W H rise brickH monoRise rightH / rHt
+(defun draw-cladding (data W H rise brickH monoRise rightH rccRight / rHt rEndX rDrop
                        cladThk purlinH girtDepth slopeLen sa ca y d xT yT slpDrop ribStep roofLbl wallLbl
                        labRX labRY labWX labWY leadX leadYStart leadYEnd
                        rParts rLine1 rLine2 rBarY rBarLen rTargetY rDx rTextW rWrapW
@@ -4028,7 +4030,7 @@
   ;; rightH (optional) lets a SINGLE-SLOPE building carry the sheeting up to its HIGH eave
   ;; (H + monoRise) instead of the low H, so the tall wall isn't left bare.
   (setq rHt (if rightH rightH H))
-  (if (< brickH rHt)
+  (if (and (< brickH rHt) (not rccRight))          ; rccRight (LEAN-TO): right side is the existing masonry wall -> no PEB wall sheeting
     (progn
       (command "LINE"
         (list (+ W girtDepth) (- brickH 50.0))
@@ -4051,14 +4053,17 @@
   (if monoRise
     (progn
       (setq slpDrop (* 270.0 (/ monoRise W)))    ; overhang drop at the low end
+      ;; rccRight (LEAN-TO): the high end TUCKS to the existing wall face (x=W) with NO 270mm overhang.
+      (setq rEndX (if rccRight W (+ W 270.0)))
+      (setq rDrop (if rccRight 0.0 slpDrop))
       (command "LINE" (list -270.0 (+ H purlinH (- 0 slpDrop)))
-                      (list (+ W 270.0) (+ H monoRise purlinH slpDrop)) "")
+                      (list rEndX (+ H monoRise purlinH rDrop)) "")
       (command "LINE" (list -270.0 (+ H purlinH cladThk (- 0 slpDrop)))
-                      (list (+ W 270.0) (+ H monoRise purlinH cladThk slpDrop)) "")
+                      (list rEndX (+ H monoRise purlinH cladThk rDrop)) "")
       (command "LINE" (list -270.0 (+ H purlinH (- 0 slpDrop)))
                       (list -270.0 (+ H purlinH cladThk (- 0 slpDrop))) "")
-      (command "LINE" (list (+ W 270.0) (+ H monoRise purlinH slpDrop))
-                      (list (+ W 270.0) (+ H monoRise purlinH cladThk slpDrop)) ""))
+      (command "LINE" (list rEndX (+ H monoRise purlinH rDrop))
+                      (list rEndX (+ H monoRise purlinH cladThk rDrop)) ""))
     (progn
       (setq slpDrop (* 270.0 (/ sa ca)))
       (command "LINE" (list -270.0 (+ H purlinH (- 0 slpDrop))) (list (/ W 2.0) (+ H rise purlinH)) "")
@@ -5026,7 +5031,7 @@
   (setvar "PLINEWID" 0.0)
 )
 
-(defun draw-girts (W H brickH rightH / depth wtop wbot lip lipDx lipDy
+(defun draw-girts (W H brickH rightH leftOnly / depth wtop wbot lip lipDx lipDy
                    girtSpacing nG y topY botY desSpacing labGX labGY
                    topYr nGr girtSpacingR
                    v1x v1y v2x v2y v3x v3y v4x v4y v5x v5y v6x v6y)
@@ -5086,6 +5091,9 @@
 
   ;; RIGHT wall girts: from botY to topYr.  rightH (optional, = high eave of a single slope)
   ;; makes the right girts climb to the HIGH eave; otherwise topYr = topY (symmetric gable).
+  ;; leftOnly (LEAN-TO): the right side is the existing masonry wall -> NO PEB girts there.
+  (if (not leftOnly)
+    (progn
   (setq topYr (if rightH (- rightH 160.0) topY))
   (setq nGr   (max 1 (fix (+ 0.5 (/ (- topYr botY) desSpacing)))))
   (setq girtSpacingR (/ (- topYr botY) nGr))
@@ -5111,7 +5119,7 @@
       (list v3x v3y) (list v2x v2y) (list v1x v1y) "")
     (setvar "FILLETRAD" 4.0)   ; smaller radius to keep lip visible
     (command "FILLET" "P" (entlast))
-    (setq y (+ y girtSpacingR)))
+    (setq y (+ y girtSpacingR)))))
 
   ;; "GIRT" leader label — native MLEADER with grouped fallback.
   ;; Arrow tip snapped to an actual girt position (2nd girt from bottom).
@@ -6596,7 +6604,7 @@
         (command "DONUT" 0 (* 30 *PEB-TEXT-SCALE*) (list (+ wid 150.0) ltBy) "")
         (setq ltI (1+ ltI)))
       (setvar "CLAYER" "TEXT")
-      (peb-label-with-leader "CHEMICAL ANCHOR BOLTS"
+      (peb-label-pline-leader "CHEMICAL ANCHOR BOLTS"
                              (list (+ wid 2700.0) (+ ltWbot (* ht 0.35)))
                              (list (+ wid 160.0)  (+ ltWbot (* ht 0.35)))
                              "H" 220))
@@ -6828,76 +6836,29 @@
     ;; it gets the full set of labels: COLUMN (left), GIRTS, DOWN PIPE
     ;; on the wall side, ROOF SHEETING along the slope, and slope tag.
     ((= stype "LT")
-      (peb-label-pline-leader "COLUMN"
-                             (list (max 1800.0 (+ ht 800.0))
-                                   (- H ht 700.0))
-                             (list 250.0 (- H ht 700.0))
-                             "H"
-                             220)
-      ;; Existing wall label on the right (RCC/MASONRY)
-      (peb-label-with-leader "EXISTING WALL"
-                             (list (- wid (max 1800.0 (+ ht 800.0)))
-                                   (- H ht 700.0))
-                             (list (- wid 230.0)              ; arrow on wall inner face
-                                   (- H ht 700.0))
-                             "H"
-                             220)
-      ;; Brick wall + girts only on the LEFT (PEB column) side; the
-      ;; right side has the existing masonry wall already.
+      ;; LEAN-TO: PEB column + sloped roof on the LEFT (low eave), bearing on the
+      ;; existing RCC/masonry wall on the RIGHT (high eave).  Route through the SAME
+      ;; standard routines as the gable/single-slope frames so the sheeting, purlins,
+      ;; roof/wall/girt/downpipe/column M-Ladders READ IDENTICALLY — with the right
+      ;; (existing-wall) side suppressed (no PEB wall sheeting / girts / gutter).
+      (setq monoRise (/ wid slopeD))               ; = draw-lt-frame's slopeRise
+      ;; Brick wall on the LEFT (PEB column) side only; right side is the existing wall.
       (if (and brickH (> brickH 0))
         (progn
           (setvar "CLAYER" "BRICK-WALL")
-          (command "RECTANG"
-            (list (- 0.0 200.0) 0.0)
-            (list 0.0 brickH))
+          (command "RECTANG" (list (- 0.0 200.0) 0.0) (list 0.0 brickH))
           (command "HATCH" "BRICK" 150 0 "L" "")))
-      ;; ── Roof sheeting (SINGLE slope, low LEFT eave -> existing wall RIGHT) ──
-      ;; The right side tucks against the existing masonry wall, so there is NO
-      ;; right wall sheeting and NO gutter overhang on the right (unlike a gable).
-      (setq monoRise (/ wid slopeD))               ; = draw-lt-frame's slopeRise
-      (setvar "CLAYER" "CLADDING")
-      ;; two parallel sloped lines (35mm sheet thk): left overhang -270, right tucks to wall face (wid)
-      (command "LINE" (list -270.0 (+ H 200.0 (- 0 (* 270.0 (/ monoRise wid)))))
-                      (list wid    (+ H monoRise 200.0)) "")
-      (command "LINE" (list -270.0 (+ H 235.0 (- 0 (* 270.0 (/ monoRise wid)))))
-                      (list wid    (+ H monoRise 235.0)) "")
-      (command "LINE" (list -270.0 (+ H 200.0 (- 0 (* 270.0 (/ monoRise wid)))))     ; left eave cap
-                      (list -270.0 (+ H 235.0 (- 0 (* 270.0 (/ monoRise wid))))) "")
-      (command "LINE" (list wid (+ H monoRise 200.0))                                ; right cap at wall
-                      (list wid (+ H monoRise 235.0)) "")
-      ;; LEFT wall sheeting (2 vertical lines outside the girts, 50mm brick overlap)
-      (if (and brickH (< brickH H))
-        (progn
-          (command "LINE" (list -200.0 (- brickH 50.0)) (list -200.0 H) "")
-          (command "LINE" (list -235.0 (- brickH 50.0)) (list -235.0 H) "")
-          (command "LINE" (list -200.0 H)               (list -235.0 H) "")
-          (command "LINE" (list -200.0 (- brickH 50.0)) (list -235.0 (- brickH 50.0)) "")))
-      ;; Eave gutter + DOWN PIPE at the LOW (left) eave — LT drains down-slope to the low side (owner 14-Jul).
-      (setvar "CLAYER" "GUTTER")
-      (setvar "PLINEWID" 0.0)
-      (setq ltGy (+ H 200.0 (- 0 (* 270.0 (/ monoRise wid)))))
-      (command "PLINE"
-        (list -450.0 (+ ltGy 40.0))
-        (list -450.0 (- ltGy 150.0))
-        (list -180.0 (- ltGy 150.0))
-        (list -180.0 ltGy)
-        "")
-      (setvar "CLAYER" "CLADDING")
-      (command "LINE" (list -390.0 (- ltGy 150.0)) (list -390.0 300.0) "")
-      (command "LINE" (list -320.0 (- ltGy 150.0)) (list -320.0 300.0) "")
-      (setvar "CLAYER" "TEXT")
-      ;; owner 15-Jul: match the standard EAVE GUTTER M-Ladder — short vertical
-      ;; arrow-riser (1200·TS, so the arrowhead renders) + short landing bar,
-      ;; NO long extending horizontal line.  Label lands to the LEFT (low-eave
-      ;; open side of the lean-to) so it clears the column/wall.
-      (peb-label-with-leader "EAVE GUTTER + DOWN PIPE"
-                             (list -1000.0 (+ ltGy (* 1200.0 *PEB-TEXT-SCALE*)))
-                             (list -450.0  ltGy)
-                             "V" 220)
-      ;; Purlins along the slope + ROOF/WALL SHEETING callouts (full build-up + PPGL).
-      ;; monoRise passed as the "rise" arg places the labels at the LT roof band.
-      (peb-deck-purlins 0.0 (+ H 200.0) wid (+ H monoRise 200.0))
-      (peb-arch-sheeting-labels data wid H monoRise))
+      (draw-cladding      data wid H rise brickH monoRise nil T)  ; mono roof (tucks to wall) + LEFT wall sheeting + roof/wall M-Ladders; skip right wall
+      (draw-purlins-mono  wid H monoRise)                         ; standard mono purlins (match CS/SS)
+      (draw-girts         wid H brickH nil T)                     ; LEFT girts only + GIRT M-Ladder
+      (draw-downpipes     wid H brickH T)                         ; LOW-side downpipe + DOWN PIPE + COLUMN M-Ladders
+      (draw-eave-features wid H T)                                ; LOW-side eave gutter + EAVE GUTTER M-Ladder
+      (draw-rafter-label  wid H monoRise ht)
+      ;; EXISTING WALL callout (right) — clean horizontal pline arrowhead (NOT the MLEADER stray down-arrow).
+      (peb-label-pline-leader "EXISTING WALL"
+                             (list (- wid (max 1800.0 (+ ht 800.0))) (- H ht 700.0))
+                             (list (- wid 230.0) (- H ht 700.0))
+                             "H" 220))
     ((member stype '("ACS" "AMS"))
       ;; Arched frames — brick walls + girts + downpipes + eave features
       ;; apply normally (they're at column locations).  Cladding/purlins
@@ -6905,7 +6866,7 @@
       ;; routine; for now skip those, which is acceptable at proposal stage
       ;; (the curved rafter outline already shows the roof geometry).
       (draw-brick-wall    wid brickH)
-      (draw-girts         wid H brickH nil)
+      (draw-girts         wid H brickH nil nil)
       (draw-downpipes     wid H brickH nil)
       (draw-eave-features wid H nil)
       ;; ── Curved roof cladding: arcs offset above the rafter (2 lines = sheet thickness) ──
@@ -6948,7 +6909,7 @@
       (draw-cladding-mg   data wid H rise brickH numGab)
       (draw-purlins-mg    wid H rise numGab (/ wid numGab))
       (draw-eave-strut-mg wid (/ wid numGab) H rise)
-      (draw-girts         wid H brickH nil)
+      (draw-girts         wid H brickH nil nil)
       (draw-downpipes     wid H brickH nil)
       (draw-eave-features wid H nil)
       (draw-rafter-label  (/ wid numGab) H rise ht))
@@ -7033,7 +6994,7 @@
       ;; The SAME detail is reused for gable-roof mezzanine intermediate floors & multi-storey
       ;; flat-roof floors.  Walls / girts / downpipes / eave features stay as normal.
       (draw-brick-wall    wid brickH)
-      (draw-girts         wid H brickH nil)
+      (draw-girts         wid H brickH nil nil)
       (draw-downpipes     wid H brickH nil)
       (draw-eave-features wid H nil)
       (setq frAvail (max 400.0 (- ht 225.0)))     ; ht less slab(150)+deck(75)
@@ -7061,9 +7022,9 @@
       (setq monoRise (/ wid slopeD))
       (setq ssHR (+ H monoRise))
       (draw-brick-wall    wid brickH)
-      (draw-cladding      data wid H rise brickH monoRise ssHR)   ; rightH = high eave
+      (draw-cladding      data wid H rise brickH monoRise ssHR nil)   ; rightH = high eave
       (draw-purlins-mono  wid H monoRise)                        ; MONO purlins follow the one slope (not gable)
-      (draw-girts         wid H brickH ssHR)                      ; right girts to the high eave
+      (draw-girts         wid H brickH ssHR nil)                  ; right girts to the high eave
       (draw-downpipes     wid H brickH T)                         ; mono -> low-side downpipe only
       (draw-eave-features wid H T)                                ; mono -> low-side gutter only
       (draw-rafter-label  wid H rise ht))
@@ -7071,10 +7032,10 @@
       ;; Gable frames (CS / MS): symmetric eaves at H, gable roof cladding (monoRise nil).
       (setq monoRise nil)
       (draw-brick-wall    wid brickH)
-      (draw-cladding      data wid H rise brickH monoRise nil)
+      (draw-cladding      data wid H rise brickH monoRise nil nil)
       (draw-purlins       wid H rise)
       (draw-eave-strut    wid H rise)
-      (draw-girts         wid H brickH nil)
+      (draw-girts         wid H brickH nil nil)
       (draw-downpipes     wid H brickH nil)
       (draw-eave-features wid H nil)
       (draw-rafter-label  wid H rise ht)))
