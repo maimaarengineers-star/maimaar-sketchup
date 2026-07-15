@@ -2464,12 +2464,23 @@
   ;; ── 125mm concrete — FILLS the decking flutes + a SLIGHT drainage fall (screed) draining to the LOW
   ;; (left/gutter) side.  Flat bottom on the steel; top slopes from yTop (right, HIGH) to yTop-drop (left,
   ;; LOW).  Coarse AR-CONC (55) so the thin band reads as concrete stipple, not a solid black bar.
-  (setq drop 100.0)                        ; slight screed fall to the drain (left) side
+  (setq drop 380.0)                        ; drainage fall — shown slightly exaggerated so it reads at 30m scale
   (setq ov 235.0 cx0 (- x0 ov) cx1 (+ x1 ov))   ; concrete/decking extend to the wall edge (past the columns)
   (setvar "CLAYER" "RCC-COLUMN")
   (setvar "PLINEWID" 0.0)
-  (command "PLINE" (list cx0 bTop) (list cx1 bTop) (list cx1 yTop) (list cx0 (- yTop drop)) "C")
+  ;; flat bottom on the steel; top slopes UP from the LOW/drain side (left = yTop) to the HIGH side (right = yTop+drop)
+  (command "PLINE" (list cx0 bTop) (list cx1 bTop) (list cx1 (+ yTop drop)) (list cx0 yTop) "C")
   (command "HATCH" "AR-CONC" (* 55.0 *PEB-TEXT-SCALE*) 0 "L" "")
+  ;; FALL arrow along the sloped top, pointing to the LOW/drain (left) side
+  (setvar "CLAYER" "TEXT")
+  (command "LINE" (list (+ x0 (* span 0.58)) (+ yTop (* drop 0.60)))
+                  (list (+ x0 (* span 0.40)) (+ yTop (* drop 0.42))) "")
+  (setvar "CLAYER" "ARROWS") (setvar "PLINEWID" 0.0)
+  (command "PLINE" (list (+ x0 (* span 0.435)) (+ yTop (* drop 0.455)))
+                   "W" (* 90 *PEB-TEXT-SCALE*) 0 (list (+ x0 (* span 0.40)) (+ yTop (* drop 0.42))) "")
+  (setvar "PLINEWID" 0.0)
+  (setvar "CLAYER" "TEXT")
+  (txt "MC" (list (+ x0 (* span 0.52)) (+ yTop drop 500.0)) 260 0 "SLOPE FOR DRAINAGE")
   ;; ── 0.70mm PROFILED DECKING sheet — this section looks ALONG the corrugation, so it reads as TWO
   ;;    horizontal lines 45mm apart: BOTTOM solid (decking sheeting line on the flush beam/joist top) +
   ;;    TOP dashed (corrugation crest, hidden).  The concrete (hatched above) shows from the bottom line up.
@@ -2566,6 +2577,31 @@
   (peb-label-with-leader "MAIN BEAM (550 DEEP)" (fr-dp ox oy sc 620 -430) (fr-dp ox oy sc 0 -400) "H" 260)
   (txt-bold "MC" (fr-dp ox oy sc -180 -740) 320 0 "DETAIL - A")
   (txt "MC" (fr-dp ox oy sc -180 -830) 240 0 "JOIST CONNECTION  (N.T.S.)")
+  (princ))
+
+(defun draw-fr-drainage (wid H ht / drnX topY frCT botY)
+  ;;  Flat-roof ROOF DRAINAGE OUTLET + DOWNSPOUT (owner 15-Jul): the flat roof drains internally through a
+  ;;  drainage outlet (domed grate) cut through the slab + decking, then a downspout down inside the
+  ;;  building — NOT the normal PEB eave gutter.  Placed near the LOW (left) side that the fall drains to.
+  (setq frCT (fr-col-top H ht))            ; deck / beam-bottom level
+  (setq drnX (* wid 0.15))                 ; drain near the low side
+  (setq topY (+ H 40.0))                   ; slab top at the drain (low end ~ H)
+  (setq botY 1500.0)                       ; downspout runs down to ~1.5 m AFL
+  (setvar "CLAYER" "GUTTER") (setvar "PLINEWID" 0.0)
+  ;; outlet body cut through the slab + decking
+  (command "RECTANG" (list (- drnX 95.0) frCT) (list (+ drnX 95.0) topY))
+  ;; domed grate on top
+  (command "ARC" (list (- drnX 95.0) topY) (list drnX (+ topY 130.0)) (list (+ drnX 95.0) topY))
+  ;; downspout pipe down into the building
+  (command "LINE" (list (- drnX 55.0) frCT) (list (- drnX 55.0) botY) "")
+  (command "LINE" (list (+ drnX 55.0) frCT) (list (+ drnX 55.0) botY) "")
+  (command "LINE" (list (- drnX 55.0) botY) (list (+ drnX 55.0) botY) "")
+  ;; labels
+  (setvar "CLAYER" "TEXT")
+  (peb-label-with-leader "DRAINAGE OUTLET (BY OTHERS)"
+                         (list (+ drnX 3800.0) (+ topY 1500.0)) (list drnX (+ topY 130.0)) "H" 240)
+  (peb-label-with-leader "DOWNSPOUT (BY OTHERS)"
+                         (list (+ drnX 3800.0) (+ botY 900.0)) (list (+ drnX 55.0) (+ botY 900.0)) "H" 240)
   (princ))
 
 (defun draw-petrol-frame (W H ht cb / ovh cx1 cx2 rt colw)
@@ -7091,9 +7127,13 @@
       ;; flush in the 550mm main beam).
       (draw-brick-wall    wid brickH)                        ; brick to 3.048m (dwarf wall)
       (draw-girts         wid H brickH nil nil)              ; girts on the sheeted portion
-      (draw-downpipes     wid H brickH T)                    ; slight fall -> drain + downpipe on the LOW (left) side only
-      (draw-eave-features wid H T)                           ; gutter on the LOW (left) side only (no right gutter)
       (draw-floor-buildup 0.0 wid H 550.0 550.0 125.0)       ; 550 main beam, 300 joists flush, 45 decking, 125 concrete
+      ;; COLUMN label (draw-downpipes usually supplies it; the flat roof has no PEB downpipe)
+      (peb-label-pline-leader "COLUMN"
+                             (list (max 1800.0 (+ ht 800.0)) (- (fr-col-top H ht) 700.0))
+                             (list (+ ht 50.0) (- (fr-col-top H ht) 700.0)) "H" 220)
+      ;; internal ROOF DRAINAGE (outlet + downspout) — flat roof does NOT use the normal PEB eave gutter
+      (draw-fr-drainage wid H ht)
       ;; wall sheeting (2 lines each side) from the brick top up to the eave
       (if (and brickH (< brickH H))
         (progn
