@@ -2249,6 +2249,49 @@
   (command "C")
 )
 
+(defun draw-rc-support (x0 x1 topY roller / w bx bx1 bx2 pt slot lbl lx)
+  ;;  Roof-on-RCC support (owner 15-Jul markups 1/2/3/5): a THICK base plate sitting ON the RCC column top —
+  ;;  ONLY the column width, NOT extended inward — with 2 anchor bolts hooking down into the concrete.
+  ;;  roller=T  → anchor bolts sit in SLOTTED holes (the roofing-system ROLLER end, free to slide for thermal
+  ;;              movement); roller=nil → PINNED (fixed).  One end of the roof is roller, the other pinned.
+  (setvar "CLAYER" "PLATES")
+  (setq w (- x1 x0) pt 70.0)                                   ; thick plate (exaggerated for section visibility)
+  (peb-solid-quad (list x0 topY) (list x1 topY) (list x0 (+ topY pt)) (list x1 (+ topY pt)))
+  (setq bx1 (+ x0 (* w 0.27)) bx2 (+ x0 (* w 0.73)) slot 120.0)
+  (foreach bx (list bx1 bx2)
+    (command "DONUT" 0 (* 40 *PEB-TEXT-SCALE*) (list bx (+ topY (/ pt 2.0))) "")   ; anchor bolt head/nut
+    (command "LINE" (list bx (+ topY pt)) (list bx (- topY 450.0)) "")             ; anchor rod into the concrete
+    (if roller                                                                     ; SLOTTED hole (roller)
+      (progn
+        (command "LINE" (list (- bx slot) topY) (list (+ bx slot) topY) "")
+        (command "LINE" (list (- bx slot) (+ topY pt)) (list (+ bx slot) (+ topY pt)) ""))))
+  (setvar "CLAYER" "TEXT")
+  (setq lbl (if roller "ROLLER SUPPORT (SLOTTED)" "PINNED SUPPORT")
+        lx  (if (< x0 1000.0) (- x0 2200.0) (+ x1 2200.0)))
+  (peb-label-with-leader lbl (list lx (- topY 500.0))
+                         (list (/ (+ x0 x1) 2.0) (+ topY (/ pt 2.0))) "H" 220)
+  (princ))
+
+(defun draw-rc-ridge (W H rise ht / dp x0 yTop yBot pt ext)
+  ;;  RC ridge/peak connection (owner 15-Jul markups 6/7): TWO vertical plates straddling the ridge seam,
+  ;;  extending 100mm BEYOND BOTH flanges (above the top flange AND below the bottom flange).  Peak rafter
+  ;;  depth dp matches build-rc-rafter-polygon (deepest at the peak).
+  (setq dp   (max 600.0 (* ht 1.10))
+        x0   (/ W 2.0)
+        yTop (+ H rise)                    ; top flange at the ridge
+        yBot (- (+ H rise) dp)             ; bottom flange (underside) at the ridge
+        pt   150.0 ext 100.0)              ; true plate 30mm; drawn thicker for visibility on the section
+  (setvar "CLAYER" "PLATES")
+  (peb-solid-quad (list (- x0 pt) (- yBot ext)) (list x0 (- yBot ext))
+                  (list (- x0 pt) (+ yTop ext)) (list x0 (+ yTop ext)))        ; left plate
+  (peb-solid-quad (list x0 (- yBot ext)) (list (+ x0 pt) (- yBot ext))
+                  (list x0 (+ yTop ext)) (list (+ x0 pt) (+ yTop ext)))        ; right plate (2mm gap nominal)
+  (draw-stiff-top (- x0 pt) (+ yTop ext) 100.0 110.0 -1)
+  (draw-stiff-top (+ x0 pt) (+ yTop ext) 100.0 110.0  1)
+  (draw-stiff-bot (- x0 pt) (- yBot ext) 100.0 110.0 -1)
+  (draw-stiff-bot (+ x0 pt) (- yBot ext) 100.0 110.0  1)
+  (princ))
+
 (defun draw-mg-frame (W H rise ht rd cb numGab spanPerGab /
                        gW gap i j gxL gxR midX rxC subSpanW intColW
                        midD kneeL ridgeL rPts vXL vXR k subX subColH)
@@ -3720,11 +3763,13 @@
 )
 
 (defun draw-ridge-plate (W H rise rd ep)
-  ;;  Ridge connection plate (vertical, at the ridge centerline)
+  ;;  Ridge connection plate (vertical, at the ridge centerline).  Owner 15-Jul (markups 6/7): the plate MUST
+  ;;  extend 100mm BEYOND BOTH flanges — 100 above the top flange AND 100 below the bottom flange (it used to
+  ;;  stop 100mm ABOVE the bottom flange).  Top flange at ridge = H+rise; bottom flange (underside) = H+rise-rd.
   (setvar "CLAYER" "PLATES")
   (command "RECTANG"
-    (list (- (/ W 2.0) (/ ep 2.0)) (+ H rise (- 0 rd) (* 100.0)))
-    (list (+ (/ W 2.0) (/ ep 2.0)) (+ H rise        )))
+    (list (- (/ W 2.0) (/ ep 2.0)) (- (+ H rise (- 0 rd)) 100.0))   ; bottom = bottom flange - 100
+    (list (+ (/ W 2.0) (/ ep 2.0)) (+ (+ H rise)          100.0)))  ; top    = top flange + 100
   (command "HATCH" "SOLID" "L" "")
 )
 
@@ -6852,13 +6897,20 @@
         (draw-f2-connplate (- wid ht) wid by bd nil T)         ; right edge → beam on the LEFT only
         (foreach xc f2ixs
           (draw-f2-connplate (- xc (/ ht 2.0)) (+ xc (/ ht 2.0)) by bd nil nil))))
+    ((= stype "RC")
+      ;; ROOF ON RCC COLUMNS (owner 15-Jul): NO steel base plates at the FFL (the columns ARE concrete).
+      ;; Support = a thick base plate ON each column top (column width only) with anchor bolts — PINNED on the
+      ;; LEFT, ROLLER (slotted) on the RIGHT so the roof can expand.  Rafter web splice/ridge plates as usual.
+      (setq rcDe (max 200.0 (* ht 0.35)))
+      (draw-rc-support 0.0 500.0 (- H rcDe) nil)                ; LEFT column → PINNED
+      (draw-rc-support (- wid 500.0) wid (- H rcDe) T)          ; RIGHT column → ROLLER
+      (draw-rc-ridge wid H rise ht))                           ; ridge plate (extends beyond both flanges)
     (T
       (progn
         (draw-base-plates   wid cb ep)
-        ;; RC (Roof on RCC columns) = "Roofing System": ONE horizontal base plate on the rafter bottom
-        ;; sitting directly on the RCC column (rcc=T, anchor bolts).  CS = steel (two-plate knee).
-        (draw-haunch-plates cols H ht ep nil nil (= stype "RC"))
-        (if (member stype '("CS" "RC"))
+        ;; CS = steel (two-plate knee).
+        (draw-haunch-plates cols H ht ep nil nil nil)
+        (if (= stype "CS")
           (draw-rafter-stiffeners cols ridges H rise ht rd nil)))))
 
   ;; ── Valley gutter (between adjacent gables in MG) ───────────
