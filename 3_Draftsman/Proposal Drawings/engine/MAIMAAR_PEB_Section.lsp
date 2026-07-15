@@ -5962,22 +5962,26 @@
 ;; anchored at the TOP, PROJECT-INFORMATION block anchored at the BOTTOM (exact
 ;; mirror of the Mammut proposal-drawing title block).  Every value links to the IF.
 (defun peb-titleblock-mammut (X0 Y0 W H data
-                              / white grey green cyan midX cw val lbl bv sm
+                              / white grey green cyan midX cw val lbl bv sm s
                               yCur bt rh bottomH lx vx ux c1x c2x tb-get tb-hdiv)
   (setq white 7 grey 8 green 3 cyan 4)
+  ;; content SIZE height: global *PEB-TB-SIZEH* caps it for a very tall (F2) flush strip so text stays
+  ;; readable (top section top-aligned at Y0+H, bottom section bottom-aligned at Y0, gap in the middle).
+  ;; Normally nil → s = H (fills the strip; every existing frame unchanged).
+  (setq s (if (and *PEB-TB-SIZEH* (> *PEB-TB-SIZEH* 0.0)) *PEB-TB-SIZEH* H))
   (defun tb-get (k) (cond ((cdr (assoc k data))) (T "")))
   (defun tb-hdiv (y) (tb-line X0 y (+ X0 W) y white))
   (setq midX (+ X0 (* W 0.50)) cw (* W 0.90)
-        val (* H 0.0140) lbl (* H 0.0112) bv (* H 0.0160) sm (* H 0.0108))
+        val (* s 0.0140) lbl (* s 0.0112) bv (* s 0.0160) sm (* s 0.0108))
   (tb-rect X0 Y0 (+ X0 W) (+ Y0 H) white)
 
   ;; ===================== TOP : GENERAL NOTES =====================
   (setq yCur (+ Y0 H))
-  (setq rh (* H 0.026) bt yCur yCur (- yCur rh))
-  (tb-mtext midX (+ yCur (* rh 0.28)) (* H 0.0140) cw 5
+  (setq rh (* s 0.026) bt yCur yCur (- yCur rh))
+  (tb-mtext midX (+ yCur (* rh 0.28)) (* s 0.0140) cw 5
             "{\\fArial|b1;GENERAL NOTES}" white)
   (tb-hdiv yCur)
-  (setq rh (* H 0.122) bt yCur yCur (- yCur rh))
+  (setq rh (* s 0.122) bt yCur yCur (- yCur rh))
   (tb-mtext (+ X0 (* W 0.04)) (- bt (* sm 1.3))
     (tb-fith "    DIMENSIONS & LEVELS WILL BE SHOWN IN THE" cw (* sm 0.92)) cw 1
     (strcat "1. ALL DIMENSIONS ARE IN MM.\\P"
@@ -5989,17 +5993,17 @@
             "    TECHNICAL & FINANCIAL PROPOSAL.") white)
   (tb-hdiv yCur)
   ;; ----- disclaimer -----
-  (setq rh (* H 0.058) bt yCur yCur (- yCur rh))
+  (setq rh (* s 0.058) bt yCur yCur (- yCur rh))
   (tb-mtext midX (+ yCur (* rh 0.5))
-    (tb-fith "MAIMAAR STEEL (PVT) LTD - NOT FOR CONSTRUCTION" cw (* H 0.0105)) cw 5
+    (tb-fith "MAIMAAR STEEL (PVT) LTD - NOT FOR CONSTRUCTION" cw (* s 0.0105)) cw 5
     (strcat "{\\fArial|b1;THIS DOCUMENT IS A PROPOSAL DRAWING OF\\P"
             "MAIMAAR STEEL (PVT) LTD - NOT FOR CONSTRUCTION}") cyan)
   (tb-hdiv yCur)
   ;; ----- DESIGN-LOAD table (Mammut format) -----
   (setq lx (+ X0 (* W 0.05)) vx (+ X0 (* W 0.60)) ux (+ X0 (* W 0.80)))
-  (setq rh (* H 0.052) bt yCur yCur (- yCur rh))
-  (tb-mtext (+ X0 (* W 0.04)) (- bt (* H 0.0150))
-    (tb-fith "SUPPORT IT'S OWN DEAD LOAD PLUS:" cw (* H 0.0120)) cw 1
+  (setq rh (* s 0.052) bt yCur yCur (- yCur rh))
+  (tb-mtext (+ X0 (* W 0.04)) (- bt (* s 0.0150))
+    (tb-fith "SUPPORT IT'S OWN DEAD LOAD PLUS:" cw (* s 0.0120)) cw 1
     (strcat "{\\fArial|b1;THE BUILDING HAS BEEN DESIGNED TO\\P"
             "SUPPORT IT'S OWN DEAD LOAD PLUS:}") green)
   (foreach r (list
@@ -6012,25 +6016,25 @@
        (list "SEISMIC LOAD"           (tb-get "SEISMIC")  "")
        (list "TEMPERATURE LOAD"       (tb-get "TEMP")     "")
        (list "RAINFALL INTENSITY"     (tb-get "RAIN")     "MM/HR"))
-    (setq rh (* H 0.0200) yCur (- yCur rh))
+    (setq rh (* s 0.0200) yCur (- yCur rh))
     (tb-mtext lx (+ yCur (* rh 0.5)) sm 0 4 (car r) white)
     (tb-mtext vx (+ yCur (* rh 0.5)) (tb-fith (cadr r) (* W 0.19) val) 0 4 (cadr r) green)
     (if (/= (caddr r) "")
       (tb-mtext ux (+ yCur (* rh 0.5)) sm 0 4 (caddr r) grey)))
-  (setq rh (* H 0.024) yCur (- yCur rh))
+  (setq rh (* s 0.024) yCur (- yCur rh))
   (tb-mtext (+ X0 (* W 0.04)) (+ yCur (* rh 0.4))
     (tb-fith (strcat "AS PER " (tb-get "CODE") " METAL BUILDING SYSTEMS MANUAL")
-             cw (* H 0.0100)) cw 1
+             cw (* s 0.0100)) cw 1
     (strcat "{\\fArial|i1;AS PER " (tb-get "CODE")
             " METAL BUILDING SYSTEMS MANUAL}") green)
   (tb-hdiv yCur)
 
   ;; ============ BOTTOM : PROJECT INFORMATION (anchored to bottom) ============
-  (setq bottomH (* H 0.515))
+  (setq bottomH (* s 0.515))
   (setq yCur (+ Y0 bottomH))
   (tb-hdiv yCur)
   ;; rev table : two sub-rows x cols
-  (setq rh (* H 0.026))
+  (setq rh (* s 0.026))
   (tb-mtext (+ X0 (* W 0.11)) (- yCur (* rh 0.55)) val 0 5 (tb-get "REV")  green)
   (tb-mtext (+ X0 (* W 0.41)) (- yCur (* rh 0.55)) val 0 5 (tb-get "DATE") green)
   (tb-mtext (+ X0 (* W 0.80)) (- yCur (* rh 0.55)) val 0 5 (tb-get "DRN")  green)
@@ -6048,12 +6052,12 @@
   (setq yCur (- yCur (* rh 2.0)))
   (tb-hdiv yCur)
   ;; PROJECT
-  (setq bt yCur rh (* H 0.058) yCur (- yCur rh))
+  (setq bt yCur rh (* s 0.058) yCur (- yCur rh))
   (tb-mtext (+ X0 (* W 0.04)) (- bt (* lbl 1.3)) lbl cw 1 "PROJECT :" grey)
   (tb-mtext midX (+ yCur (* rh 0.30)) (tb-fith (tb-get "PROJECT") (* 1.9 cw) bv) cw 5 (tb-get "PROJECT") green)
   (tb-hdiv yCur)
   ;; CUSTOMER
-  (setq bt yCur rh (* H 0.048) yCur (- yCur rh))
+  (setq bt yCur rh (* s 0.048) yCur (- yCur rh))
   (tb-mtext (+ X0 (* W 0.04)) (- bt (* lbl 1.3)) lbl cw 1 "CUSTOMER :" grey)
   (tb-mtext midX (+ yCur (* rh 0.28)) (tb-fith (tb-get "CUSTOMER") (* 1.6 cw) bv) cw 5 (tb-get "CUSTOMER") green)
   (tb-hdiv yCur)
@@ -6061,7 +6065,7 @@
   ;; Hierarchy LOGO > NAME > ADDRESS.  The address used to sit inside the logo box and print white;
   ;; it is now below the wordmark, in grey.  Wordmark capped at bv (= the CUSTOMER value height) so a
   ;; proposal sheet still reads as addressed to the client.
-  (setq bt yCur rh (* H 0.175) yCur (- yCur rh))
+  (setq bt yCur rh (* s 0.175) yCur (- yCur rh))
   (tb-mtext (+ X0 (* W 0.04)) (- bt (* lbl 1.3)) lbl cw 1 "STEEL CONTRACTOR :" grey)
   (peb-tb-place-logo (+ X0 (* W 0.14)) (+ yCur (* rh 0.60))
                      (+ X0 (* W 0.86)) (- bt (* lbl 2.4)))
@@ -6077,14 +6081,14 @@
                     (list "Bldg. No." (tb-get "BLDGNO"))
                     (list "Bldg. Name." (tb-get "BLDGNAME"))
                     (list "No. Of Identical Bldg." (tb-get "IDENTICAL")))
-    (setq rh (* H 0.024) yCur (- yCur rh))
+    (setq rh (* s 0.024) yCur (- yCur rh))
     (tb-mtext (+ X0 (* W 0.05)) (+ yCur (* rh 0.50)) lbl 0 4 (car pr) grey)
     (tb-mtext (+ X0 (* W 0.52)) (+ yCur (* rh 0.50))
               (tb-fith (strcat ": " (cadr pr)) (* W 0.44) val) (* W 0.45) 4
               (strcat ": " (cadr pr)) green)
     (tb-hdiv yCur))
   ;; Drawing Title
-  (setq bt yCur rh (* H 0.045) yCur (- yCur rh))
+  (setq bt yCur rh (* s 0.045) yCur (- yCur rh))
   (tb-mtext (+ X0 (* W 0.04)) (- bt (* lbl 1.2)) lbl cw 1 "Drawing Title :" grey)
   (tb-mtext midX (+ yCur (* rh 0.26)) (tb-fith (tb-get "DRGTITLE") cw bv) cw 5
             (strcat "{\\fArial|b1;" (tb-get "DRGTITLE") "}") green)
@@ -7732,7 +7736,14 @@
   ;; 7000*PEB-TEXT-SCALE (its top edge ~7250*TS); raise the border top to 8000*PEB-TEXT-SCALE so a visible
   ;; GAP shows between the double-line top border and "CLEAR SPAN GABLE".  MUST use *PEB-TEXT-SCALE* (the
   ;; SAME scale the title uses) — tbScale differs from it and left the title touching the border.
-  (setq tbFrmT (+ H rise (* 8000.0 *PEB-TEXT-SCALE*)))  ; clear ABOVE the section heading (title-block strip height)
+  ;; STRICT (owner 16-Jul, ALL drawings): the title-block strip is FLUSH with the sheet double-line border on
+  ;; TOP/BOTTOM/RIGHT.  For F2 the heading is LIFTED, so the strip top must reach the raised border (border top
+  ;; = 5 rows above the heading top line; strip top = border + 480·TS).  The title-block CONTENT is capped to a
+  ;; natural height inside peb-titleblock-mammut so it stays readable (top section top-aligned, bottom section
+  ;; bottom-aligned, gap absorbed in the middle) instead of stretching.
+  (setq tbFrmT (if (and (= stype "F2") *PEB-F2-HEAD-SUB*)
+                 (+ *PEB-F2-HEAD-SUB* (* 1900 *PEB-TEXT-SCALE*) (* (+ (* 5.0 420.0) 480.0) *PEB-TEXT-SCALE*))
+                 (+ H rise (* 8000.0 *PEB-TEXT-SCALE*))))
   (setq tbBldgR (+ wid (* 6000.0 *PEB-DIM-SCALE*)))     ; right of the frame + dims
   (setq tbStripH (- tbFrmT tbFrmB))
   (setq tbStripW (max 10000.0                           ; absolute floor: notes text must not wrap/overlap on narrow frames (LT/canopy)
@@ -7786,7 +7797,12 @@
       (cons "SCALE"     "N.T.S.")
       (cons "SHEETSIZE" (if (= stype "F2") "A0" "A1"))   ; G+1 is taller → larger sheet
       (cons "SHEETNO"   (strcat "PRO-" tbBno))))
+  ;; Content-sizing cap (global, read by peb-titleblock-mammut): normally nil (content fills the strip, every
+  ;; existing frame unchanged).  For F2 the strip is TALL (flush to the raised border), so cap the content to
+  ;; its natural height so text stays readable and the extra height becomes a clean middle gap.
+  (setq *PEB-TB-SIZEH* (if (= stype "F2") (min tbStripH (* tbStripW 1.6)) nil))
   (peb-titleblock-mammut tbStripX tbFrmB tbStripW tbStripH tbData)
+  (setq *PEB-TB-SIZEH* nil)
   ;; Drawing border wraps the section + the title strip.
   ;; owner 14-Jul STRICT: the RIGHT-SIDE TITLE BLOCK must be FLUSH on all 3 outer sides (right, top,
   ;; bottom) with the sheet's double-line frame — its own box line coincides with the border's INNER line
@@ -7796,12 +7812,7 @@
   (setq borderL (- (* 6000.0 *PEB-DIM-SCALE*))
         borderB (+ tbFrmB (* 480.0 *PEB-TEXT-SCALE*))
         borderR (- (+ tbStripX tbStripW) (* 480.0 *PEB-TEXT-SCALE*))
-        borderT (- tbFrmT (* 480.0 *PEB-TEXT-SCALE*)))
-  ;; F2 (multi-storey flat roof): the heading is LIFTED, so raise ONLY the top border to sit exactly 5 rows
-  ;; above the heading TOP line (owner 16-Jul).  Title-block strip keeps its natural height (tbFrmT), so it
-  ;; is NOT stretched — the border just encloses a taller sheet above it.
-  (if (and (= stype "F2") *PEB-F2-HEAD-SUB*)
-    (setq borderT (+ *PEB-F2-HEAD-SUB* (* 1900 *PEB-TEXT-SCALE*) (* 5.0 (* 420.0 *PEB-TEXT-SCALE*)))))
+        borderT (- tbFrmT (* 480.0 *PEB-TEXT-SCALE*)))   ; flush with the (F2-raised) title-block strip top
 
   ;; Restore drawing scales (title block done)
   (setq *PEB-TEXT-SCALE* *PEB-OLD-TEXT-SCALE*)

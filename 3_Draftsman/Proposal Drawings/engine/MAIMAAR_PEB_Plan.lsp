@@ -1770,21 +1770,22 @@
 ;; mirror of the Mammut proposal-drawing title block).  Every value links to the IF.
 (defun peb-titleblock-mammut (X0 Y0 W H data
                               / white grey green cyan midX cw val lbl bv sm
-                              yCur bt rh bottomH lx vx ux c1x c2x tb-get tb-hdiv)
+                              yCur bt rh bottomH lx vx ux c1x c2x tb-get tb-hdiv s)
   (setq white 7 grey 8 green 3 cyan 4)
+  (setq s (if (and *PEB-TB-SIZEH* (> *PEB-TB-SIZEH* 0.0)) *PEB-TB-SIZEH* H))   ; F2 flush-strip content cap (owner 16-Jul)
   (defun tb-get (k) (cond ((cdr (assoc k data))) (T "")))
   (defun tb-hdiv (y) (tb-line X0 y (+ X0 W) y white))
   (setq midX (+ X0 (* W 0.50)) cw (* W 0.90)
-        val (* H 0.0140) lbl (* H 0.0112) bv (* H 0.0160) sm (* H 0.0108))
+        val (* s 0.0140) lbl (* s 0.0112) bv (* s 0.0160) sm (* s 0.0108))
   (tb-rect X0 Y0 (+ X0 W) (+ Y0 H) white)
 
   ;; ===================== TOP : GENERAL NOTES =====================
   (setq yCur (+ Y0 H))
-  (setq rh (* H 0.026) bt yCur yCur (- yCur rh))
-  (tb-mtext midX (+ yCur (* rh 0.28)) (* H 0.0140) cw 5
+  (setq rh (* s 0.026) bt yCur yCur (- yCur rh))
+  (tb-mtext midX (+ yCur (* rh 0.28)) (* s 0.0140) cw 5
             "{\\fArial|b1;GENERAL NOTES}" white)
   (tb-hdiv yCur)
-  (setq rh (* H 0.122) bt yCur yCur (- yCur rh))
+  (setq rh (* s 0.122) bt yCur yCur (- yCur rh))
   (tb-mtext (+ X0 (* W 0.04)) (- bt (* sm 1.3))
     (tb-fith "    DIMENSIONS & LEVELS WILL BE SHOWN IN THE" cw (* sm 0.75)) cw 1  ; owner 5-Jul: smaller so the 8-line note fits its box (was overflowing into the disclaimer)
     (strcat "1. ALL DIMENSIONS ARE IN MM.\\P"
@@ -1796,20 +1797,20 @@
             "    TECHNICAL & FINANCIAL PROPOSAL.") white)
   (tb-hdiv yCur)
   ;; ----- disclaimer -----
-  (setq rh (* H 0.058) bt yCur yCur (- yCur rh))
+  (setq rh (* s 0.058) bt yCur yCur (- yCur rh))
   (tb-mtext midX (+ yCur (* rh 0.5))
-    (tb-fith "MAIMAAR STEEL (PVT) LTD - NOT FOR CONSTRUCTION" cw (* H 0.0105)) cw 5
+    (tb-fith "MAIMAAR STEEL (PVT) LTD - NOT FOR CONSTRUCTION" cw (* s 0.0105)) cw 5
     (strcat "{\\fArial|b1;THIS DOCUMENT IS A PROPOSAL DRAWING OF\\P"
             "MAIMAAR STEEL (PVT) LTD - NOT FOR CONSTRUCTION}") cyan)
   (tb-hdiv yCur)
   ;; ----- DESIGN-LOAD table (Mammut format) -----
   (setq lx (+ X0 (* W 0.05)) vx (+ X0 (* W 0.70)) ux (+ X0 (* W 0.865)))   ; owner 7-Jul: value+unit cols pushed right (into the empty right margin) so labels never touch the value and the table fills its width
-  (setq rh (* H 0.052) bt yCur yCur (- yCur rh))
+  (setq rh (* s 0.052) bt yCur yCur (- yCur rh))
   ;; owner 5-Jul: the BOLD heading is wider than tb-fith's non-bold estimate, so it was wrapping to 3 lines
   ;; and the 3rd overran the first load row.  Size it small enough that each half stays on ONE line (2 lines
   ;; total) and give the wrap the full inner width.
-  (tb-mtext (+ X0 (* W 0.035)) (- bt (* H 0.0110))
-    (tb-fith "THE BUILDING HAS BEEN DESIGNED TO" (* cw 0.80) (* H 0.0086)) (* W 0.93) 1
+  (tb-mtext (+ X0 (* W 0.035)) (- bt (* s 0.0110))
+    (tb-fith "THE BUILDING HAS BEEN DESIGNED TO" (* cw 0.80) (* s 0.0086)) (* W 0.93) 1
     (strcat "{\\fArial|b1;THE BUILDING HAS BEEN DESIGNED TO\\P"
             "SUPPORT IT'S OWN DEAD LOAD PLUS:}") green)
   (foreach r (list
@@ -1822,7 +1823,7 @@
        (list "SEISMIC LOAD"           (tb-get "SEISMIC")  "")
        (list "TEMPERATURE LOAD"       (tb-get "TEMP")     "")
        (list "RAINFALL INTENSITY"     (tb-get "RAIN")     "MM/HR"))
-    (setq rh (* H 0.0200) yCur (- yCur rh))
+    (setq rh (* s 0.0200) yCur (- yCur rh))
     ;; owner 7-Jul: FIT the label to the label column so long ones (WIND SPEED (3-SEC GUST),
     ;; RAINFALL INTENSITY, ADD'L. COLLATERAL LOAD) can't overflow into the value; tighten the value
     ;; width so it can't touch the unit (KPH was rendering as "PH").
@@ -1832,20 +1833,20 @@
       (tb-mtext ux (+ yCur (* rh 0.5)) (tb-fith (caddr r) (* W 0.13) sm) 0 4 (caddr r) grey)))
   ;; code note — taller row + smaller fit so the 2-line text stays INSIDE the box
   ;; (above the divider), never overwriting the rule below.
-  (setq rh (* H 0.044) yCur (- yCur rh))
+  (setq rh (* s 0.044) yCur (- yCur rh))
   (tb-mtext (+ X0 (* W 0.04)) (+ yCur (* rh 0.74))
     (tb-fith (strcat "AS PER " (tb-get "CODE") " METAL BUILDING SYSTEMS MANUAL")
-             (* cw 1.02) (* H 0.0092)) cw 1
+             (* cw 1.02) (* s 0.0092)) cw 1
     (strcat "{\\fArial|i1;AS PER " (tb-get "CODE")
             " METAL BUILDING SYSTEMS MANUAL}") green)
   (tb-hdiv yCur)
 
   ;; ============ BOTTOM : PROJECT INFORMATION (anchored to bottom) ============
-  (setq bottomH (* H 0.515))
+  (setq bottomH (* s 0.515))
   (setq yCur (+ Y0 bottomH))
   (tb-hdiv yCur)
   ;; rev table : two sub-rows x cols
-  (setq rh (* H 0.026))
+  (setq rh (* s 0.026))
   (tb-mtext (+ X0 (* W 0.11)) (- yCur (* rh 0.55)) val 0 5 (tb-get "REV")  green)
   (tb-mtext (+ X0 (* W 0.41)) (- yCur (* rh 0.55)) val 0 5 (tb-get "DATE") green)
   (tb-mtext (+ X0 (* W 0.80)) (- yCur (* rh 0.55)) (tb-fith (tb-get "DRN") (* W 0.12) val) 0 5 (tb-get "DRN")  green)   ; owner 5-Jul: fit initials to the cell
@@ -1863,13 +1864,13 @@
   (setq yCur (- yCur (* rh 2.0)))
   (tb-hdiv yCur)
   ;; PROJECT NAME — label on its own line, value left-aligned BELOW it (no overlap)
-  (setq bt yCur rh (* H 0.090) yCur (- yCur rh))
+  (setq bt yCur rh (* s 0.090) yCur (- yCur rh))
   (tb-mtext (+ X0 (* W 0.04)) (- bt (* lbl 1.3)) lbl cw 1 "PROJECT NAME :" grey)
   (tb-mtext (+ X0 (* W 0.06)) (- bt (* lbl 3.0))
             (tb-fith (tb-get "PROJECT") (* 3.2 cw) (* bv 0.92)) (* cw 0.92) 1 (tb-get "PROJECT") green)
   (tb-hdiv yCur)
   ;; CUSTOMER
-  (setq bt yCur rh (* H 0.048) yCur (- yCur rh))
+  (setq bt yCur rh (* s 0.048) yCur (- yCur rh))
   (tb-mtext (+ X0 (* W 0.04)) (- bt (* lbl 1.3)) lbl cw 1 "CUSTOMER :" grey)
   (tb-mtext midX (+ yCur (* rh 0.28)) (tb-fith (tb-get "CUSTOMER") (* 1.6 cw) bv) cw 5 (tb-get "CUSTOMER") green)
   (tb-hdiv yCur)
@@ -1881,7 +1882,7 @@
   ;;   * wordmark is capped at bv — the same height as the CUSTOMER value — so a proposal drawing
   ;;     still reads as addressed to the client rather than as an advertisement.
   ;; Cell grown 0.118H -> 0.140H; the bottom block had 0.066H of footer slack, now 0.044H (still ~4*lbl).
-  (setq bt yCur rh (* H 0.140) yCur (- yCur rh))
+  (setq bt yCur rh (* s 0.140) yCur (- yCur rh))
   (tb-mtext (+ X0 (* W 0.04)) (- bt (* lbl 1.3)) lbl cw 1 "STEEL CONTRACTOR :" grey)
   (peb-tb-place-logo (+ X0 (* W 0.14)) (+ yCur (* rh 0.56))
                      (+ X0 (* W 0.86)) (- bt (* lbl 2.4)))
@@ -1900,14 +1901,14 @@
                     (list "Bldg. No." (tb-get "BLDGNO"))
                     (list "Bldg. Name." (tb-get "BLDGNAME"))
                     (list "No. Of Identical Bldg." (tb-get "IDENTICAL")))
-    (setq rh (* H 0.0240) yCur (- yCur rh))
+    (setq rh (* s 0.0240) yCur (- yCur rh))
     (tb-mtext (+ X0 (* W 0.05)) (+ yCur (* rh 0.50)) (tb-fith (car pr) (* W 0.44) lbl) 0 4 (car pr) grey)   ; owner 5-Jul: fit long labels (No. Of Identical Bldg.) so the value doesn't overlap
     (tb-mtext (+ X0 (* W 0.55)) (+ yCur (* rh 0.50))
               (tb-fith (strcat ": " (cadr pr)) (* W 0.42) val) (* W 0.43) 4
               (strcat ": " (cadr pr)) green)
     (tb-hdiv yCur))
   ;; Drawing Title
-  (setq bt yCur rh (* H 0.045) yCur (- yCur rh))
+  (setq bt yCur rh (* s 0.045) yCur (- yCur rh))
   (tb-mtext (+ X0 (* W 0.04)) (- bt (* lbl 1.2)) lbl cw 1 "Drawing Title :" grey)
   (tb-mtext midX (+ yCur (* rh 0.20)) (tb-fith (tb-get "DRGTITLE") cw (* bv 0.82)) cw 5   ; owner 5-Jul: lower + smaller so it clears the label
             (strcat "{\\fArial|b1;" (tb-get "DRGTITLE") "}") green)
