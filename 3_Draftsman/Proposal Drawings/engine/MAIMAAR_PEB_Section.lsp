@@ -6336,9 +6336,18 @@
   )
 
   ;; ── Text styles ──────────────────────────────────────────────
-  (make-text-style "PEB-TITLE" "romand.shx")
-  (make-text-style "PEB-BODY"  "romans.shx")
-  (make-text-style "PEB-DIM"   "romans.shx")
+  ;; owner 15-Jul STANDARD: ARIAL (proportional TrueType) for body/title/dim — matches the approved
+  ;; frame set (was romans.shx single-stroke).  entmake via peb-std-ttf-style avoids the TTF -STYLE
+  ;; prompt-count hang; falls back to the romans .shx styles only if Standard.lsp isn't loaded.
+  (if (boundp 'peb-std-ttf-style)
+    (progn
+      (peb-std-ttf-style "PEB-TITLE" "arialbd.ttf")
+      (peb-std-ttf-style "PEB-BODY"  "arial.ttf")
+      (peb-std-ttf-style "PEB-DIM"   "arial.ttf"))
+    (progn
+      (make-text-style "PEB-TITLE" "romand.shx")
+      (make-text-style "PEB-BODY"  "romans.shx")
+      (make-text-style "PEB-DIM"   "romans.shx")))
 
   ;; ── Linetypes ────────────────────────────────────────────────
   (safe-load-ltype "CENTER")
@@ -6597,14 +6606,17 @@
       ;; ROTATED knee (owner 14-Jul): HORIZONTAL base plate on the LEFT steel column top, welded to the
       ;; rafter bottom (seam at H-ht), spanning the column depth (ht) inward.
       (draw-knee-hplate 0.0 ht (- H ht) 45.0 4 nil -1)   ; LT left steel column — outer = left
-      ;; ONE connection/splice plate at the MID-SPAN rafter KINK (owner 15-Jul): the underside vertex where
-      ;; the two web tapers meet — both webs change (deepen) away from it toward the knee and the wall.
-      ;; STIFFENED depth-plate (draw-cant-vplate = 2 solid plates + 4 stiffener triangles), spanning the
-      ;; thin mid-span web.
+      ;; ONE rafter SPLICE at mid-span (owner 15-Jul): TWO solid plates (40 thick, 2mm gap, no bolts)
+      ;; spanning the web + 100 beyond BOTH flanges, with a stiffener gusset (100x100) on BOTH sides AT the
+      ;; TOP and BOTTOM flange (the gussets sit inside the 100 extension, NOT sticking out past the plate).
       (setq ltMidX (/ wid 2.0))
-      (setq ltTopY (+ H (* slopeRise 0.5)))                    ; rafter top flange at mid-span
-      (setq ltUndY (- ltTopY ltMidD))                          ; thin underside at the mid-span kink
-      (draw-cant-vplate ltMidX ltUndY ltTopY 40.0 2)
+      (setq ltTopY (+ H (* slopeRise 0.5)))                    ; top flange at mid-span
+      (setq ltUndY (- ltTopY ltMidD))                          ; bottom flange at mid-span
+      (peb-conn-plate-depth ltMidX ltUndY ltTopY 40.0 2)       ; 2 solid plates, 100 beyond flanges, no bolts
+      (draw-stiff-top (- ltMidX 40.0) ltTopY 100.0 100.0 -1)   ; top-left gusset  (flange -> plate edge)
+      (draw-stiff-top (+ ltMidX 40.0) ltTopY 100.0 100.0  1)   ; top-right gusset
+      (draw-stiff-bot (- ltMidX 40.0) ltUndY 100.0 100.0 -1)   ; bottom-left gusset
+      (draw-stiff-bot (+ ltMidX 40.0) ltUndY 100.0 100.0  1)   ; bottom-right gusset
       ;; Bearing / end plate at the existing wall (right) + CHEMICAL ANCHOR BOLTS into the masonry
       (setvar "CLAYER" "PLATES")
       (setq ltWtop (+ H slopeRise))

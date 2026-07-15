@@ -205,15 +205,28 @@
     (vl-catch-all-apply
       '(lambda () (command "_.-STYLE" name font "" "" "" "" "" "")))))
 
+;; TTF text style via entmake (group 3 = font file) — no -STYLE prompt-count issues that a .ttf
+;; font would otherwise cause (TTF has no "Vertical?" prompt, unlike .shx).
+(defun peb-std-ttf-style (name font)
+  (if (not (tblsearch "STYLE" name))
+    (vl-catch-all-apply
+      (function (lambda ()
+        (entmake (list '(0 . "STYLE") '(100 . "AcDbSymbolTableRecord")
+                       '(100 . "AcDbTextStyleTableRecord") (cons 2 name)
+                       '(70 . 0) '(40 . 0.0) '(41 . 1.0) '(50 . 0.0) '(71 . 0) '(42 . 2.5)
+                       (cons 3 font) (cons 4 ""))))))))
+
 ;; One call to lay the full presentation standard into the current drawing.
 (defun peb-std-setup ( / )
   (vl-catch-all-apply '(lambda () (setvar "LWDISPLAY" 1)))  ; show lineweights
   ;; preload the linetypes the standard uses
   (foreach lt '("DASHDOT" "HIDDEN" "CENTER" "DASHED" "DOT") (peb-std-ltype lt))
   (peb-ensure-layers)
-  (peb-std-textstyle "PEB-TITLE" "romand.shx")
-  (peb-std-textstyle "PEB-BODY"  "romans.shx")
-  (peb-std-textstyle "PEB-DIM"   "romans.shx")
+  ;; owner 15-Jul STANDARD: body / title / dim text = ARIAL (proportional TrueType), matching the
+  ;; approved frame set — NOT romans.shx single-stroke (that regressed the look).  Applies to EVERY frame.
+  (peb-std-ttf-style "PEB-TITLE" "arialbd.ttf")
+  (peb-std-ttf-style "PEB-BODY"  "arial.ttf")
+  (peb-std-ttf-style "PEB-DIM"   "arial.ttf")
   (peb-std-textstyle "ROMAND"    "romand.shx")
   (peb-std-textstyle "OPEN"      "romand.shx")
   (princ "\nMAIMAAR PEB presentation standard ready (layers + colours + styles).")
