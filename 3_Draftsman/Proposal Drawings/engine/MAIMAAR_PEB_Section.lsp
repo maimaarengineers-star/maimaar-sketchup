@@ -86,13 +86,14 @@
     ("LEAN-TO" . "LT") ("LEAN TO" . "LT")
     ("MULTI-GABLE" . "MG") ("MULTI GABLE" . "MG")
     ("FLAT ROOF" . "FR") ("ROOF ON RCC COLUMNS" . "RC") ("ROOF SYSTEM" . "RC")
+    ("FLAT ROOF G+1" . "F2") ("DOUBLE STOREY FLAT ROOF" . "F2") ("FLAT ROOF DOUBLE STOREY" . "F2")
     ("ARCHED CLEAR SPAN" . "ACS") ("ARCHED MULTI-SPAN" . "AMS")
     ("ARCHED MULTI SPAN" . "AMS") ("BUTTERFLY" . "BF")
     ("CANTILEVER CANOPY" . "CC") ("PETROL CANOPY" . "PP") ("PETROL PUMP" . "PP")))
 
 (defun peb-frame-display-to-code (s / up pair)
   (setq up (strcase (vl-string-trim " " s)))
-  (cond ((member up '("CS" "SS" "MS" "LT" "MG" "FR" "RC" "ACS" "AMS" "BF" "CC" "PP")) up)
+  (cond ((member up '("CS" "SS" "MS" "LT" "MG" "FR" "F2" "RC" "ACS" "AMS" "BF" "CC" "PP")) up)
         ((assoc up *PEB-FRAME-CODE-MAP*) (cdr (assoc up *PEB-FRAME-CODE-MAP*)))
         ;; fuzzy fallbacks for verbose IF strings
         ((wcmatch up "*ROOF*SYSTEM*,*RCC*,*ON RCC*,*RC COLUMN*") "RC")
@@ -2450,7 +2451,22 @@
   (command "RECTANG" (list (- W ht) 0.0)   (list W  colTop))        ; RIGHT straight column
 )
 
-(defun draw-floor-buildup (x0 x1 yTop beamD joistD slabT / span deckCrest bTop bBot bf jw jBotF jx nJ step jLabX drop ov cx0 cx1)
+(defun draw-f2-frame (W H ht cb / colTop xc)
+  ;;  DOUBLE-STOREY (G+1) FLAT ROOF (owner 15-Jul): 4 FULL-HEIGHT straight steel columns — 2 EDGE + 2
+  ;;  INTERMEDIATE (mezzanine columns at W/3 & 2W/3 → three ~10m bays for a 30m span, spacing < 10m) — that
+  ;;  carry BOTH the intermediate floor AND the top flat roof.  Column top = roof main-beam bottom (H-720),
+  ;;  H = roof concrete-slab top.  The intermediate-floor main beam frames INTO these same columns lower down.
+  (setq colTop (- H 720.0))
+  (setvar "CLAYER" "FRAME") (setvar "PLINEWID" 0.0)
+  (command "RECTANG" (list 0.0 0.0)      (list ht colTop))            ; LEFT edge column
+  (command "RECTANG" (list (- W ht) 0.0) (list W  colTop))            ; RIGHT edge column
+  (foreach xc (list (/ W 3.0) (* 2.0 (/ W 3.0)))                      ; 2 INTERMEDIATE columns
+    (command "RECTANG" (list (- xc (/ ht 2.0)) 0.0) (list (+ xc (/ ht 2.0)) colTop)))
+)
+
+(defun draw-floor-buildup (x0 x1 yTop beamD joistD slabT lbls / span deckCrest bTop bBot bf jw jBotF jx nJ step jLabX drop ov cx0 cx1)
+  ;;  `lbls` = T draws the 4 detailed labels (CONCRETE/DECKING/JOIST/BEAM); nil = geometry only (used by the
+  ;;  G+1 intermediate floor, which carries a single "INTERMEDIATE FLOOR" callout instead).
   ;;  FLAT-ROOF RCC-on-steel build-up (owner 15-Jul spec):
   ;;    125mm CONCRETE  on  0.70mm PROFILED DECKING PANEL  on  STEEL JOISTS @ 1.5m,
   ;;    the joists sitting WITHIN the MAIN BEAM web with their TOPS FLUSH with the main-beam top flange.
@@ -2494,25 +2510,27 @@
     (command "LINE" (list jx (- bTop bf))        (list jx jBotF) "")                ; joist web
     (setq jx (+ jx step)))
   ;; ── Labels ──
-  (setvar "CLAYER" "TEXT")
-  (setq jLabX (+ x0 (* step 2.0)))         ; a real joist station for the joist leader
-  ;; roof labels — SHORT legs (800), spread HORIZONTALLY so nothing overlaps (owner: no long M-Ladder legs)
-  (peb-label-with-leader "125mm THICK CONCRETE"
-                         (list (+ x0 (* span 0.28)) (+ yTop 800.0))
-                         (list (+ x0 (* span 0.28)) (- yTop (/ slabT 2.0)))
-                         "V" 220)
-  (peb-label-with-leader "0.70mm PROFILED DECKING PANEL"
-                         (list (+ x0 (* span 0.45)) (+ yTop 800.0))
-                         (list (+ x0 (* span 0.45)) (* (+ bTop deckCrest) 0.5))
-                         "V" 220)
-  (peb-label-with-leader "STEEL JOIST @ 1.5m C/C"
-                         (list (+ x0 (* span 0.42)) (- bBot 800.0))
-                         (list (+ x0 (* span 0.42)) (* (+ (- bTop bf) jBotF) 0.5))
-                         "V" 220)
-  (peb-label-with-leader "MAIN BEAM"
-                         (list (+ x0 (* span 0.80)) (- bBot 800.0))
-                         (list (+ x0 (* span 0.80)) (+ bBot (/ bf 2.0)))
-                         "V" 220)
+  (if lbls
+    (progn
+      (setvar "CLAYER" "TEXT")
+      (setq jLabX (+ x0 (* step 2.0)))         ; a real joist station for the joist leader
+      ;; roof labels — SHORT legs (800), spread HORIZONTALLY so nothing overlaps (owner: no long M-Ladder legs)
+      (peb-label-with-leader "125mm THICK CONCRETE"
+                             (list (+ x0 (* span 0.28)) (+ yTop 800.0))
+                             (list (+ x0 (* span 0.28)) (- yTop (/ slabT 2.0)))
+                             "V" 220)
+      (peb-label-with-leader "0.70mm PROFILED DECKING PANEL"
+                             (list (+ x0 (* span 0.45)) (+ yTop 800.0))
+                             (list (+ x0 (* span 0.45)) (* (+ bTop deckCrest) 0.5))
+                             "V" 220)
+      (peb-label-with-leader "STEEL JOIST @ 1.5m C/C"
+                             (list (+ x0 (* span 0.42)) (- bBot 800.0))
+                             (list (+ x0 (* span 0.42)) (* (+ (- bTop bf) jBotF) 0.5))
+                             "V" 220)
+      (peb-label-with-leader "MAIN BEAM"
+                             (list (+ x0 (* span 0.80)) (- bBot 800.0))
+                             (list (+ x0 (* span 0.80)) (+ bBot (/ bf 2.0)))
+                             "V" 220)))
   (princ))
 
 (defun fr-dp (ox oy sc lx ly) (list (+ ox (* lx sc)) (+ oy (* ly sc))))  ; detail local->world
@@ -5648,6 +5666,7 @@
     ((= stype "LT") "LEAN-TO")
     ((= stype "MG") "MULTI-GABLE")
     ((= stype "FR") "FLAT ROOF")
+    ((= stype "F2") "FLAT ROOF (G+1)")
     ((= stype "RC") "ROOF ON RCC COLUMNS")
     ((member stype '("CC" "BF")) (if *PEB-CANOPY-NAME* *PEB-CANOPY-NAME* "CANTILEVER CANOPY"))
     ((= stype "PP") "PETROL PUMP CANOPY")
@@ -6322,7 +6341,7 @@
   (setq slopeD   (slope-denom slopeStr))
 
   (setq stype (strcase (MSPL-Get-Str data "STYPE")))
-  (if (not (member stype '("CS" "SS" "MS" "LT" "MG" "FR" "RC" "CC" "BF" "ACS" "AMS" "PP")))
+  (if (not (member stype '("CS" "SS" "MS" "LT" "MG" "FR" "F2" "RC" "CC" "BF" "ACS" "AMS" "PP")))
     (setq stype "CS"))
   ;; proper canopy name for this sheet; nil for non-canopy stypes (reset every sheet, never stale).
   (setq *PEB-CANOPY-NAME* (peb-canopy-name stype data))
@@ -6526,6 +6545,8 @@
       (draw-lt-frame wid H slopeRise ht cb))
     ((= stype "FR")
       (draw-fr-frame wid H ht cb))
+    ((= stype "F2")
+      (draw-f2-frame wid H ht cb))
     ((= stype "PP")
       ;; Petrol Pump / CNG canopy — near-flat roof on inset columns, cantilever both sides.
       (draw-petrol-frame wid H ht cb))
@@ -6779,6 +6800,26 @@
       (peb-solid-quad (list (- wid ht) (- frCT 30.0)) (list wid (- frCT 30.0))
                       (list (- wid ht) frCT) (list wid frCT))
       (draw-stiff-bot (- wid ht) (- frCT 30.0) 100.0 130.0 1))  ; inner gusset (into the column)
+    ((= stype "F2")
+      ;; DOUBLE-STOREY FLAT ROOF: base plate at EACH of the 4 columns + a roof beam-on-column CONNECTION
+      ;; PLATE (30mm) + stiffeners at every column top (frCT = roof main-beam bottom).  Edge columns get an
+      ;; inner gusset; the 2 intermediate columns (continuous roof beam over them) get gussets BOTH sides.
+      (setq frCT (- H 720.0))
+      (draw-base-plate-at 0.0 ht ep (* 25 *PEB-TEXT-SCALE*))
+      (draw-base-plate-at (- wid ht) wid ep (* 25 *PEB-TEXT-SCALE*))
+      (foreach xc (list (/ wid 3.0) (* 2.0 (/ wid 3.0)))
+        (draw-base-plate-at (- xc (/ ht 2.0)) (+ xc (/ ht 2.0)) ep (* 25 *PEB-TEXT-SCALE*)))
+      (setvar "CLAYER" "PLATES")
+      (peb-solid-quad (list 0.0 (- frCT 30.0)) (list ht (- frCT 30.0)) (list 0.0 frCT) (list ht frCT))
+      (draw-stiff-bot ht (- frCT 30.0) 100.0 130.0 -1)
+      (peb-solid-quad (list (- wid ht) (- frCT 30.0)) (list wid (- frCT 30.0))
+                      (list (- wid ht) frCT) (list wid frCT))
+      (draw-stiff-bot (- wid ht) (- frCT 30.0) 100.0 130.0 1)
+      (foreach xc (list (/ wid 3.0) (* 2.0 (/ wid 3.0)))
+        (peb-solid-quad (list (- xc (/ ht 2.0)) (- frCT 30.0)) (list (+ xc (/ ht 2.0)) (- frCT 30.0))
+                        (list (- xc (/ ht 2.0)) frCT) (list (+ xc (/ ht 2.0)) frCT))
+        (draw-stiff-bot (- xc (/ ht 2.0)) (- frCT 30.0) 100.0 130.0 -1)
+        (draw-stiff-bot (+ xc (/ ht 2.0)) (- frCT 30.0) 100.0 130.0 1)))
     (T
       (progn
         (draw-base-plates   wid cb ep)
@@ -7170,7 +7211,7 @@
       ;; flush in the 550mm main beam).
       (draw-brick-wall    wid brickH)                        ; brick to 3.048m (dwarf wall)
       (draw-girts         wid H brickH nil nil)              ; girts on the sheeted portion
-      (draw-floor-buildup 0.0 wid H 550.0 550.0 125.0)       ; 550 main beam, 300 joists flush, 45 decking, 125 concrete
+      (draw-floor-buildup 0.0 wid H 550.0 550.0 125.0 T)     ; 550 main beam, 300 joists flush, 45 decking, 125 concrete
       ;; COLUMN label (draw-downpipes usually supplies it; the flat roof has no PEB downpipe)
       (peb-label-pline-leader "COLUMN"
                              (list (max 1800.0 (+ ht 800.0)) (- (fr-col-top H ht) 700.0))
@@ -7221,6 +7262,72 @@
       (command "CIRCLE" (list (+ ht 550.0) (- H 250.0)) 620.0)
       (txt "MC" (list (+ ht 2400.0) (- H 2050.0)) 320 0 "B")
       (draw-fr-detb 1400.0 14900.0 4.3))
+    ((= stype "F2")
+      ;; DOUBLE-STOREY (G+1) FLAT ROOF (owner 15-Jul): TOP floor = the SAME flat roof (build-up + internal
+      ;; drainage + DETAIL-A/B); an INTERMEDIATE floor (same RCC-on-steel build-up, NO drainage) is added at
+      ;; mid-height, carried on 4 FULL-HEIGHT columns (2 edge + 2 intermediate @ <10m).  H = roof slab TOP.
+      (setq f2gch (/ (- H 1440.0) 2.0)           ; ground-storey clear height (two equal storeys)
+            f2itop (+ f2gch 720.0)                ; intermediate floor slab (concrete) TOP
+            f2rbot (- H 720.0))                   ; roof main-beam bottom = column top
+      (draw-brick-wall    wid brickH)                            ; brick to 3.048m (dwarf wall, both storeys)
+      (draw-girts         wid f2rbot brickH nil nil)             ; girts up the full-height sheeted wall
+      (draw-floor-buildup 0.0 wid f2itop 550.0 550.0 125.0 nil)  ; INTERMEDIATE floor (geometry only)
+      (draw-floor-buildup 0.0 wid H     550.0 550.0 125.0 nil)   ; ROOF (geometry only; build-up broken out in DETAIL-A)
+      (draw-fr-drainage   wid H ht)                              ; internal ROOF drainage only (none at mid floor)
+      ;; Each floor gets ONE callout on the main section (the 125/decking/joist/beam breakdown lives in DETAIL-A,
+      ;; so it is NOT repeated twice on the taller G+1 frame).
+      (setvar "CLAYER" "TEXT")
+      (peb-label-with-leader "TOP FLAT ROOF\\P(RCC ON STEEL DECK) - SEE DETAIL-A"
+                             (list (* wid 0.62) (+ H 950.0))
+                             (list (* wid 0.62) (- H 60.0)) "V" 220)
+      (peb-label-with-leader "INTERMEDIATE FLOOR\\P(RCC ON STEEL DECK) - NO DRAINAGE"
+                             (list (* wid 0.34) (+ f2itop 950.0))
+                             (list (* wid 0.34) (+ f2itop 40.0)) "V" 220)
+      ;; wall sheeting (2 lines each side) from the brick top up to the roof eave
+      (if (and brickH (< brickH f2rbot))
+        (progn
+          (setvar "CLAYER" "CLADDING")
+          (command "LINE" (list -200.0 brickH) (list -200.0 f2rbot) "")
+          (command "LINE" (list -235.0 brickH) (list -235.0 f2rbot) "")
+          (command "LINE" (list (+ wid 200.0) brickH) (list (+ wid 200.0) f2rbot) "")
+          (command "LINE" (list (+ wid 235.0) brickH) (list (+ wid 235.0) f2rbot) "")))
+      ;; COLUMN label (full-height column)
+      (setvar "CLAYER" "TEXT")
+      (peb-label-pline-leader "COLUMN (FULL HEIGHT)"
+                             (list (max 1800.0 (+ ht 800.0)) (- f2rbot 900.0))
+                             (list (+ ht 50.0) (- f2rbot 900.0)) "H" 220)
+      ;; WALL SHEETING callout — 4-leg raised M-Ladder, SAME construction as Clear Span (anchored at the roof eave)
+      (setvar "CLAYER" "TEXT")
+      (setq frWc (strcat "{\\C7;\\H0.42x;{\\fArial|b1;WALL SHEETING:}\\P"
+                         (peb-split-2-lines (peb-panel-label data "WALL")) "}"))
+      ;; Minimal raise (f2rbot+300·TS) so the label sits just above the roof eave, BELOW the detail band.
+      (setq frWtY (- f2rbot 300.0)
+            frWeX -1735.0
+            frWlY (+ f2rbot (* 300 *PEB-TEXT-SCALE*))
+            frWbY (+ (+ f2rbot (* 300 *PEB-TEXT-SCALE*)) (* 175 *PEB-TEXT-SCALE*)))
+      (setq frMl
+        (vl-catch-all-apply 'peb-make-mleader
+          (list (list (list -235.0 frWtY) (list frWeX frWtY)
+                      (list frWeX frWbY) (list (+ frWeX 300.0) frWbY)) frWc)))
+      (if (not (vl-catch-all-error-p frMl))
+        (progn
+          (vl-catch-all-apply (function (lambda () (vla-put-TextAttachmentDirection frMl 0))))
+          (vl-catch-all-apply (function (lambda () (vla-put-TextLeftAttachmentType  frMl 5))))
+          (vl-catch-all-apply (function (lambda () (vla-put-TextRightAttachmentType frMl 5))))))
+      (setvar "CLAYER" "ARROWS") (setvar "PLINEWID" 0.0)
+      (command "PLINE" (list (- -235.0 (* 160 *PEB-TEXT-SCALE*)) frWtY)
+                       "W" (* 55 *PEB-TEXT-SCALE*) 0 (list -235.0 frWtY) "")
+      (setvar "PLINEWID" 0.0)
+      ;; ── Callout "A" (roof joist connection) + DETAIL-A, above the taller frame ──
+      (setvar "CLAYER" "TEXT")
+      (command "CIRCLE" (list (* wid 0.5) (- H 350.0)) 650.0)
+      (txt "MC" (list (* wid 0.5) (- H 1550.0)) 320 0 "A")
+      (draw-fr-detail 28200.0 (+ H 7200.0) 5.0)
+      ;; ── Callout "B" (roof drainage outlet) + DETAIL-B ──
+      (setvar "CLAYER" "TEXT")
+      (command "CIRCLE" (list (+ ht 550.0) (- H 250.0)) 620.0)
+      (txt "MC" (list (+ ht 2400.0) (- H 2050.0)) 320 0 "B")
+      (draw-fr-detb 600.0 (+ H 8000.0) 3.8))
     ((= stype "SS")
       ;; SINGLE SLOPE: low (left) eave = H, HIGH (right) eave = H + monoRise.  The RIGHT wall
       ;; sheeting + girts must climb to the HIGH eave (not the low H, which left the tall wall
@@ -7260,7 +7367,7 @@
   (cond
     ;; arched (curved rafter self-documents), canopies (BF/CC draw their OWN direction-correct
     ;; tag; PP is flat), and FLAT ROOF (level, nominal drainage only) — skip the ridge-pair tag loop.
-    ((member stype '("ACS" "AMS" "BF" "CC" "PP" "FR")) nil)
+    ((member stype '("ACS" "AMS" "BF" "CC" "PP" "FR" "F2")) nil)
     ((member stype '("SS" "LT"))
       ;; SINGLE SLOPE: exactly ONE tag, rising low(left) -> high(right) — a mono
       ;; roof has no ridge, so the old per-half pair (one up-right, one up-left) was wrong.
@@ -7444,7 +7551,7 @@
   ;; ── Title (frame type prominently displayed for review) ─────
   ;; Re-assert stype from the data (defensive: a dim/label helper can clobber the dynamic binding).
   (setq stype (strcase (MSPL-Get-Str data "STYPE")))
-  (if (not (member stype '("CS" "SS" "MS" "LT" "MG" "FR" "RC" "CC" "BF" "ACS" "AMS" "PP"))) (setq stype "CS"))
+  (if (not (member stype '("CS" "SS" "MS" "LT" "MG" "FR" "F2" "RC" "CC" "BF" "ACS" "AMS" "PP"))) (setq stype "CS"))
   (setq *PEB-CANOPY-NAME* (peb-canopy-name stype data))   ; re-assert alongside stype (same defensive reason)
   (setvar "CLAYER" "TEXT")
   ;; owner 14-Jul: lift the whole TITLE BLOCK 3 rows (+700·TS) so the frame sits LOWER relative to the top
@@ -7471,6 +7578,10 @@
   (txt-bold "MC"
        (list (/ wid 2.0) (+ H rise (* 5100 *PEB-TEXT-SCALE*)))
        260 0
+     (if (= stype "F2")
+       ;; G+1: two equal storeys, per-storey clear height = (H-1440)/2 (H = roof concrete top).
+       (strcat (rtos (/ widInput 1000.0) 2 1) "m SPAN  |  STOREY C.H "
+               (rtos (/ (/ (- H 1440.0) 2.0) 1000.0) 2 1) "m  |  G+1 FLAT ROOF")
        (strcat (rtos (/ widInput 1000.0) 2 1) "m SPAN  |  "
                "C.H " (rtos (/ (- H ht) 1000.0) 2 1) "m  |  "
                (cond
@@ -7484,7 +7595,7 @@
                  ;; BF / CC are CANOPIES: a cantilever canopy has a drainage FALL, not a ridge.
                  ((member stype '("BF" "CC"))
                   (strcat "CANOPY  |  FALL " slopeStr))
-                 (T (strcat "RIDGE " (rtos (/ (+ H rise) 1000.0) 2 1) "m  |  SLOPE " slopeStr)))))
+                 (T (strcat "RIDGE " (rtos (/ (+ H rise) 1000.0) 2 1) "m  |  SLOPE " slopeStr))))))
 
   ;; ── Title block (auto-widens for narrow buildings, scales uniformly for big) ──
   ;; Min: 35 m so small buildings still get readable cells.

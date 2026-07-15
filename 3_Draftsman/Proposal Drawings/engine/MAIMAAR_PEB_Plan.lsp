@@ -88,14 +88,17 @@
     ("LEAN-TO" . "LT") ("LEAN TO" . "LT")
     ("MULTI-GABLE" . "MG") ("MULTI GABLE" . "MG")
     ("FLAT ROOF" . "FR") ("ROOF ON RCC COLUMNS" . "RC") ("ROOF SYSTEM" . "RC")
+    ("FLAT ROOF G+1" . "F2") ("DOUBLE STOREY FLAT ROOF" . "F2") ("FLAT ROOF DOUBLE STOREY" . "F2")
     ("ARCHED CLEAR SPAN" . "ACS") ("ARCHED MULTI-SPAN" . "AMS")
     ("ARCHED MULTI SPAN" . "AMS") ("BUTTERFLY" . "BF")
     ("CANTILEVER CANOPY" . "CC") ("PETROL CANOPY" . "PP") ("PETROL PUMP" . "PP")))
 
 (defun peb-frame-display-to-code (s / up pair)
   (setq up (strcase (vl-string-trim " " s)))
-  (cond ((member up '("CS" "SS" "MS" "LT" "MG" "FR" "RC" "ACS" "AMS" "BF" "CC" "PP")) up)
+  (cond ((member up '("CS" "SS" "MS" "LT" "MG" "FR" "F2" "RC" "ACS" "AMS" "BF" "CC" "PP")) up)
         ((setq pair (assoc up *PEB-FRAME-CODE-MAP*)) (cdr pair))
+        ;; G+1 / double-storey flat roof — MUST be tested BEFORE the "*FLAT*" fallback below.
+        ((wcmatch up "*G+1*,*G + 1*,*DOUBLE*STOREY*,*DOUBLE*STORY*,*TWO*STOREY*,*TWO*STORY*") "F2")
         ;; fuzzy fallbacks (owner 8-Jul) — the IF sends VERBOSE option strings that don't match the
         ;; exact alist keys (e.g. "Roof System without steel columns (rafter is fixed on RCC columns)",
         ;; "Multi-Gable (CS & MS)", "Arch Clear Span (ACS)"), which previously all defaulted to CS.
@@ -1546,6 +1549,7 @@
     ((= stype "LT") "LEAN-TO")
     ((= stype "MG") "MULTI-GABLE")
     ((= stype "FR") "FLAT ROOF")
+    ((= stype "F2") "FLAT ROOF (G+1)")
     ((= stype "RC") "ROOF ON RCC COLUMNS - NO STEEL COLUMNS")
     ((member stype '("CC" "BF")) (if *PEB-CANOPY-NAME* *PEB-CANOPY-NAME* "CANTILEVER CANOPY"))
     ((= stype "PP") "PETROL PUMP CANOPY")
