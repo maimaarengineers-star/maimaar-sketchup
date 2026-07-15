@@ -4153,14 +4153,13 @@
           (command "LINE"
             (list labRX rBarY)
             (list (+ labRX rBarLen) rBarY) "")
-          ;; Vertical leader DOWN from LEFT end of bar to sheeting target
+          ;; Vertical leader DOWN from LEFT end of bar to just above the sheeting; SMALL arrowhead (160×55).
           (command "LINE"
             (list labRX rBarY)
-            (list labRX (+ rTargetY (* 1200 *PEB-TEXT-SCALE*))) "")
-          ;; Arrow tip on the roof sheeting line — 4× wider
+            (list labRX (+ rTargetY (* 160 *PEB-TEXT-SCALE*))) "")
           (command "PLINE"
-            (list labRX (+ rTargetY (* 1200 *PEB-TEXT-SCALE*)))
-            "W" (* 320 *PEB-TEXT-SCALE*) 0
+            (list labRX (+ rTargetY (* 160 *PEB-TEXT-SCALE*)))
+            "W" (* 55 *PEB-TEXT-SCALE*) 0
             (list labRX rTargetY) "")
           (setvar "PLINEWID" 0.0))
         (T
@@ -4175,15 +4174,13 @@
           (vl-catch-all-apply
             (function (lambda ()
               (vla-put-TextRightAttachmentType mlResult 5))))
-          ;; owner 14-Jul: "place arrow as did in Wall MLadder" — the 3-vertex roof MLEADER renders only a
-          ;; small native tip, unlike the wall (whose 4-vertex leader falls back to a bold ▼).  Overlay the
-          ;; SAME explicit 320·TS ▼ on the roof sheeting line so both M-Ladders read identically.
+          ;; owner 14-Jul: thin LEG (leader line) + a SMALL arrowhead (160×55, same as the eave-gutter arrow);
+          ;; both the wall & roof M-Ladders read the same.  Leg = bar → just above the roof; head = small ▼.
           (setvar "CLAYER" "ARROWS")
           (setvar "PLINEWID" 0.0)
-          (command "PLINE"
-            (list labRX (+ rTargetY (* 320 *PEB-TEXT-SCALE*)))
-            "W" (* 320 *PEB-TEXT-SCALE*) 0
-            (list labRX rTargetY) "")
+          (command "LINE" (list labRX rBarY) (list labRX (+ rTargetY (* 160 *PEB-TEXT-SCALE*))) "")
+          (command "PLINE" (list labRX (+ rTargetY (* 160 *PEB-TEXT-SCALE*)))
+                           "W" (* 55 *PEB-TEXT-SCALE*) 0 (list labRX rTargetY) "")
           (setvar "PLINEWID" 0.0)
         )
       )
@@ -4329,15 +4326,11 @@
           (command "LINE"
             (list wExtX wBarY)
             (list wExtX wTargetY) "")
-          ;; Horizontal line going RIGHT from extension end to wall sheet
+          ;; Horizontal line going RIGHT to just before the wall sheet; the SINGLE small arrowhead below
+          ;; the cond (160×55) supplies the tip, so no separate (big) arrow here.
           (command "LINE"
             (list wExtX wTargetY)
-            (list (- labWX (* 1200 *PEB-TEXT-SCALE*)) wTargetY) "")
-          ;; Arrow tip on the wall sheeting line — 4× wider than before
-          (command "PLINE"
-            (list (- labWX (* 1200 *PEB-TEXT-SCALE*)) wTargetY)
-            "W" (* 320 *PEB-TEXT-SCALE*) 0
-            (list labWX wTargetY) "")
+            (list (- labWX (* 160 *PEB-TEXT-SCALE*)) wTargetY) "")
           (setvar "PLINEWID" 0.0))
         (T
           ;; MLEADER succeeded.  Set TextLeftAttachmentType = 5
@@ -4352,26 +4345,20 @@
           (vl-catch-all-apply
             (function (lambda ()
               (vla-put-TextRightAttachmentType mlResult 5))))    ; BottomOfTopLine
-          ;; owner 14-Jul: "wire the arrow in BOTH wall & roof M-Ladders" — the native MLEADER renders no
-          ;; visible tip, so overlay the SAME explicit ► arrow as the fallback onto the wall sheeting line.
-          (setvar "CLAYER" "ARROWS")
-          (setvar "PLINEWID" 0.0)
-          (command "PLINE" (list (- labWX (* 1200 *PEB-TEXT-SCALE*)) wTargetY)
-                           "W" (* 320 *PEB-TEXT-SCALE*) 0
-                           (list labWX wTargetY) "")
-          (setvar "PLINEWID" 0.0)
+          ;; (wall-sheeting arrowhead is drawn ONCE below the cond — see the single 160×55 tip.)
         )
       )
     )
     (T
       ;; --- Single-line fallback ---
       (txt "ML" (list labWX labWY) 220 0 wallLbl)))
-  ;; owner 14-Jul: ADD a visible arrowhead at the WALL-SHEETING tip of the M-Ladder (the native MLEADER
-  ;; arrow is unreliable at this scale) — a small filled triangle pointing RIGHT at the sheeting line.
+  ;; owner 14-Jul: the SINGLE wall-sheeting M-Ladder arrowhead — a SMALL triangle (160×55) pointing RIGHT at
+  ;; the sheeting line, SAME size as the eave-gutter / COLUMN / GIRT arrows.  (The per-branch overlays were
+  ;; removed so there is exactly ONE arrow here.)
   (setvar "CLAYER" "ARROWS")
   (setvar "PLINEWID" 0.0)
-  (command "PLINE" (list (- labWX (* 240 *PEB-TEXT-SCALE*)) wTargetY)
-                   "W" (* 90 *PEB-TEXT-SCALE*) 0
+  (command "PLINE" (list (- labWX (* 160 *PEB-TEXT-SCALE*)) wTargetY)
+                   "W" (* 55 *PEB-TEXT-SCALE*) 0
                    (list labWX wTargetY) "")
   (setvar "PLINEWID" 0.0)
   ;; Group the hand-rolled drawing for click-once-select-all.
@@ -4587,10 +4574,10 @@
             (list (+ labRX rBarLen) rBarY) "")
           (command "LINE"
             (list labRX rBarY)
-            (list labRX (+ rTargetY (* 1200 *PEB-TEXT-SCALE*))) "")
+            (list labRX (+ rTargetY (* 160 *PEB-TEXT-SCALE*))) "")
           (command "PLINE"
-            (list labRX (+ rTargetY (* 1200 *PEB-TEXT-SCALE*)))
-            "W" (* 320 *PEB-TEXT-SCALE*) 0
+            (list labRX (+ rTargetY (* 160 *PEB-TEXT-SCALE*)))
+            "W" (* 55 *PEB-TEXT-SCALE*) 0
             (list labRX rTargetY) "")
           (setvar "PLINEWID" 0.0))
         (T
@@ -4672,10 +4659,10 @@
             (list wExtX wTargetY) "")
           (command "LINE"
             (list wExtX wTargetY)
-            (list (- labWX (* 1200 *PEB-TEXT-SCALE*)) wTargetY) "")
+            (list (- labWX (* 160 *PEB-TEXT-SCALE*)) wTargetY) "")
           (command "PLINE"
-            (list (- labWX (* 1200 *PEB-TEXT-SCALE*)) wTargetY)
-            "W" (* 320 *PEB-TEXT-SCALE*) 0
+            (list (- labWX (* 160 *PEB-TEXT-SCALE*)) wTargetY)
+            "W" (* 55 *PEB-TEXT-SCALE*) 0
             (list labWX wTargetY) "")
           (setvar "PLINEWID" 0.0))
         (T
