@@ -7840,9 +7840,7 @@
       (setq *PEB-DIM-TXT* nil)
       (peb-recolor-last-dim 0)))                  ; ByBlock
   (setq *PEB-DIM-TXT* 320.0)
-  ;; owner 16-Jul markup 14: arched frames have no haunch — take CLEAR HEIGHT right up to the eave/gutter (H),
-  ;; not to (H-ht), so the dimension extension line reaches the eave gutter like the wall sheeting.
-  (peb-dim-height-stretch hObjX dimX2 0.0 (if (member stype '("ACS" "AMS")) H (- H ht)) "<>\\PCLEAR HEIGHT")
+  (peb-dim-height-stretch hObjX dimX2 0.0 (- H ht) "<>\\PCLEAR HEIGHT")
   (setq *PEB-DIM-TXT* nil)
   (peb-recolor-last-dim 0)                        ; ByBlock
 
