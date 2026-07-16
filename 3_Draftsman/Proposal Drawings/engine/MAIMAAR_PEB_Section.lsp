@@ -3384,29 +3384,23 @@
 ;;  ONLY — a plate on the RAFTER BOTTOM (top flush with the arch underside) + a COLUMN-CAP plate below a
 ;;  2 mm gap — with NO diagonal stiffener/gusset (curved frames drop the knee triangle).  The steel column
 ;;  tops out at capBot (= rafterBotY - 62), sitting cleanly BELOW the plates (draw-acs/ams-frame match this).
-;;  peb-arch-knee — arched-frame column/rafter connection (owner 16-Jul markups 10/13/09).  dirIn selects
-;;  which way is INTO the span so the RAFTER PLATE extends 100 mm inside and the SOLID knee gusset lands on
-;;  the correct side: +1 = LEFT knee (inside = +x), -1 = RIGHT knee (inside = -x), 0 = CENTRE column (both).
-(defun peb-arch-knee (xL xR rafterBotY dirIn / x0 x1 plateT gap ext rafBot rafTop capTop capBot stH gh rpx0 rpx1)
+;;  peb-arch-knee — arched-frame column/rafter connection (owner 16-Jul markups 10/13/16).  Two SOLID plates
+;;  (rafter + column-cap) spanning the column with NO overhang into the span (markup 16: DO NOT extend), plus
+;;  a SOLID stiffener plate welded between the column INNER flange and the connection plate, pointing INTO the
+;;  column.  dirIn picks the inner flange: +1 = LEFT knee (inner flange at x1), -1 = RIGHT knee (inner flange
+;;  at x0), 0 = CENTRE column (both edges are inner flanges).
+(defun peb-arch-knee (xL xR rafterBotY dirIn / x0 x1 plateT gap rafBot rafTop capTop capBot stH)
   (setvar "CLAYER" "PLATES")
-  (setq plateT 30.0 gap 2.0 ext 100.0 x0 xL x1 xR)
+  (setq plateT 30.0 gap 2.0 x0 xL x1 xR)
   (setq rafTop rafterBotY rafBot (- rafterBotY plateT))       ; rafter-bottom plate (welded to rafter)
   (setq capTop (- rafBot gap) capBot (- capTop plateT))       ; column-cap plate (welded to column)
-  ;; RAFTER plate extends 100 mm INTO the span (owner 16-Jul markup 09).
-  (setq rpx0 (if (< dirIn 0) (- x0 ext) x0)
-        rpx1 (if (> dirIn 0) (+ x1 ext) x1))
-  (if (= dirIn 0) (setq rpx0 (- x0 ext) rpx1 (+ x1 ext)))
-  (peb-solid-quad (list rpx0 rafBot) (list rpx1 rafBot) (list rpx0 rafTop) (list rpx1 rafTop))   ; rafter plate (SOLID)
-  (peb-solid-quad (list x0 capBot) (list x1 capBot) (list x0 capTop) (list x1 capTop))           ; column-cap plate (SOLID)
-  ;; SOLID stiffeners welded UNDER the column-cap plate at BOTH ends (welded with the column).
-  (setq stH 110.0)
-  (draw-rc-gusset x0 capBot (- capBot stH)  90.0  1)
-  (draw-rc-gusset x1 capBot (- capBot stH)  90.0 -1)
-  ;; SOLID knee GUSSET (markup 09 + 15): a filled triangle HANGING DOWN below the connection-plate INNER
-  ;; end (the 100 mm overhang into the span), bracketing it back to the column — points DOWN, not up.
-  (setq gh 130.0)                                             ; gusset drop
-  (if (>= dirIn 0) (command "_.SOLID" (list x1 capBot) (list rpx1 capBot) (list rpx1 (- capBot gh)) "" ""))
-  (if (<= dirIn 0) (command "_.SOLID" (list rpx0 capBot) (list x0 capBot) (list rpx0 (- capBot gh)) "" ""))
+  (peb-solid-quad (list x0 rafBot) (list x1 rafBot) (list x0 rafTop) (list x1 rafTop))   ; rafter plate (SOLID)
+  (peb-solid-quad (list x0 capBot) (list x1 capBot) (list x0 capTop) (list x1 capTop))   ; column-cap plate (SOLID)
+  ;; SOLID stiffener plate welded between the column INNER flange and the connection plate (markup 16):
+  ;; a filled triangle in the corner, vertical edge ON the inner flange, pointing INTO the column.
+  (setq stH 130.0)
+  (if (>= dirIn 0) (draw-rc-gusset x1 capBot (- capBot stH) 110.0 -1))   ; left/centre: inner flange at x1 -> into column (-x)
+  (if (<= dirIn 0) (draw-rc-gusset x0 capBot (- capBot stH) 110.0  1))   ; right/centre: inner flange at x0 -> into column (+x)
   (princ))
 
 (defun draw-arch-conn-plates (stype W H rise ep cb / innerH step x ay t2 hc yiL)
