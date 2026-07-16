@@ -362,20 +362,36 @@
       (command "LINE" (list (+ W girtDepth) yBot) (list (+ W girtDepth cladThk) yBot) "")))
   (princ))
 
-;;  peb-deck-purlins — short purlin ticks perpendicular to a canopy deck segment (x0,y0)->(x1,y1),
-;;  ~1500 mm apart, on the PURLINS layer (owner 13-Jul: "show the purlin on top like Clear Span").
-(defun peb-deck-purlins (x0 y0 x1 y1 / dx dy len ux uy nx ny n i tt px py)
-  (setvar "CLAYER" "PURLINS")
+;;  peb-deck-purlins — FULL Z-purlin SECTIONS hanging BELOW a canopy sheeting deck (x0,y0)->(x1,y1),
+;;  ~1500 mm apart, tilted to the deck slope (owner 16-Jul markup 3: "show the purlin below the sheeting
+;;  line", like Clear Span / the arched frames).  The passed segment is the SHEETING line; each Z-purlin's
+;;  TOP flange sits under it and the 200 mm web drops toward the rafter.
+(defun peb-deck-purlins (x0 y0 x1 y1 / dx dy len ux uy nx ny n i tt px py
+                          depth wtop wbot lip lipDx lipDy
+                          v1x v1y v2x v2y v3x v3y v4x v4y v5x v5y v6x v6y)
+  (setvar "CLAYER" "PURLINS") (setvar "PLINEWID" 0.0)
+  (setq depth 200.0 wtop 60.0 wbot 60.0 lip 20.0 lipDx (* lip 0.5) lipDy (* lip 0.866))
   (setq dx (- x1 x0) dy (- y1 y0) len (sqrt (+ (* dx dx) (* dy dy))))
   (if (> len 1.0)
     (progn
-      (setq ux (/ dx len) uy (/ dy len) nx (- 0 uy) ny ux)   ; along / perpendicular-up
+      (setq ux (/ dx len) uy (/ dy len)          ; u = along the deck
+            nx uy ny (- 0 ux))                    ; n = normal pointing DOWN (below the sheeting)
       (setq n (fix (/ len 1500.0)) i 1)
       (while (< i n)
         (setq tt (* i 1500.0) px (+ x0 (* ux tt)) py (+ y0 (* uy tt)))
-        (command "LINE" (list (+ px (* nx 90.0)) (+ py (* ny 90.0)))
-                        (list (- px (* nx 45.0)) (- py (* ny 45.0))) "")
-        (setq i (1+ i))))))
+        ;; Z-purlin: v3 (top-of-web, TOP flange) just under the sheeting; web DOWN by depth toward the rafter.
+        (setq v3x px v3y py)
+        (setq v4x (+ px (* depth nx)) v4y (+ py (* depth ny)))
+        (setq v2x (+ px (* wtop ux)) v2y (+ py (* wtop uy)))
+        (setq v1x (+ px (* (- wtop lipDx) ux) (* lipDy nx)) v1y (+ py (* (- wtop lipDx) uy) (* lipDy ny)))
+        (setq v5x (+ v4x (* (- 0 wbot) ux)) v5y (+ v4y (* (- 0 wbot) uy)))
+        (setq v6x (+ v4x (* (- lipDx wbot) ux) (* (- 0 lipDy) nx)) v6y (+ v4y (* (- lipDx wbot) uy) (* (- 0 lipDy) ny)))
+        (command "PLINE" (list v6x v6y) "W" 12.0 12.0
+          (list v5x v5y) (list v4x v4y) (list v3x v3y) (list v2x v2y) (list v1x v1y) "")
+        (setvar "FILLETRAD" 4.0)
+        (command "FILLET" "P" (entlast))
+        (setq i (1+ i)))
+      (setvar "PLINEWID" 0.0))))
 
 ;;  draw-purlins-arc — FULL Z-purlin SECTIONS that FOLLOW an arched roof (owner 16-Jul: ACS/AMS purlins must
 ;;  read like Clear Span's — a real 200Z15 section sitting ON the rafter top flange, BELOW the sheeting line,
@@ -6838,10 +6854,9 @@
 
   ;; ── Floor / ground line ──────────────────────────────────────
   (draw-floor-line wid ext)
-  ;; "FFL ±0.00" elevation marker — always centered horizontally
-  ;; under the building (X = wid / 2) so it stays in the middle
-  ;; of the section regardless of building width.
-  (draw-ffl-marker (/ wid 2.0) 0.0)
+  ;; "FFL ±0.00" elevation marker — centered under the building (X = wid/2).  Cantilever canopies
+  ;; (BF/CC/PP) carry a column ON the centre line, so shift the marker clear of it (owner 16-Jul markup 4).
+  (draw-ffl-marker (if (member stype '("BF" "CC" "PP")) (+ (/ wid 2.0) 1800.0) (/ wid 2.0)) 0.0)
 
   ;; ── Frame outline (stype-aware dispatcher) ───────────────────
   (cond
@@ -7861,7 +7876,9 @@
           dimX1 (max (+ wid 1500.0) (+ wid (* 1600 *PEB-DIM-SCALE*)))
           dimX2 (+ dimX1 (peb-dim-text-spacing "vertical"))))
   ;; Drawn dims, then overridden to colour 0 (ByBlock).  UNIFORM dim text (320).
-  (if (and brickH (> brickH 0) (/= stype "RC"))   ; RC = concrete column wall, no brick-masonry dim
+  ;; RC = concrete column wall; BF/CC/PP = cantilever canopies (no walls/sheeting on the sides, so NO brick
+  ;; masonry — owner 16-Jul markup 5).
+  (if (and brickH (> brickH 0) (/= stype "RC") (not (member stype '("BF" "CC" "PP"))))
     (progn
       (setq *PEB-DIM-TXT* 320.0)
       (peb-dim-height-stretch hObjX dimX1 0.0 brickH "<>\\PBRICK MASONRY")
