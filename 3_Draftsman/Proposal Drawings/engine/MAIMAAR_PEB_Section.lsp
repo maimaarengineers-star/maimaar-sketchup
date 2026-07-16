@@ -2329,8 +2329,12 @@
                   (list (- lxo pt) (+ yTop ext)) (list lxo (+ yTop ext)))
   (peb-solid-quad (list rxo (- yBot ext)) (list (+ rxo pt) (- yBot ext))        ; RIGHT plate (SOLID thick)
                   (list rxo (+ yTop ext)) (list (+ rxo pt) (+ yTop ext)))
-  (draw-stiff-fullweb (- lxo pt) yBot yTop 130.0 -1)                            ; full-web gusset (left, outer edge)
-  (draw-stiff-fullweb (+ rxo pt) yBot yTop 130.0  1)                            ; full-web gusset (right, outer edge)
+  ;; stiffener gussets at the TOP and BOTTOM flanges on the outer edge of each plate (owner markup 17 —
+  ;; NOT a mid-web diamond; the gussets sit at the flange corners).
+  (draw-stiff-top (- lxo pt) yTop ext 130.0 -1)
+  (draw-stiff-bot (- lxo pt) yBot ext 130.0 -1)
+  (draw-stiff-top (+ rxo pt) yTop ext 130.0  1)
+  (draw-stiff-bot (+ rxo pt) yBot ext 130.0  1)
   (princ))
 
 ;; RC rafter top-flange / underside Y at any x (mirrors build-rc-rafter-polygon; `inset` pulls the eaves in).
@@ -2351,8 +2355,11 @@
                   (list (- lxo pt) (+ yTop ext)) (list lxo (+ yTop ext)))
   (peb-solid-quad (list rxo (- yBot ext)) (list (+ rxo pt) (- yBot ext))
                   (list rxo (+ yTop ext)) (list (+ rxo pt) (+ yTop ext)))
-  (draw-stiff-fullweb (- lxo pt) yBot yTop 130.0 -1)
-  (draw-stiff-fullweb (+ rxo pt) yBot yTop 130.0  1))
+  ;; stiffener gussets at the TOP and BOTTOM flanges on the outer edge of each plate (owner markup 17)
+  (draw-stiff-top (- lxo pt) yTop ext 130.0 -1)
+  (draw-stiff-bot (- lxo pt) yBot ext 130.0 -1)
+  (draw-stiff-top (+ rxo pt) yTop ext 130.0  1)
+  (draw-stiff-bot (+ rxo pt) yBot ext 130.0  1))
 (defun draw-rc-splices (W H rise ht / inset hw nP i sx)
   ;;  Transport limit (owner 15-Jul): a rafter piece can't exceed 12m, so split EACH half (eave→peak) into
   ;;  equal pieces ≤12m and put a splice connection plate at every interior break.  `inset` = the fascia eave
