@@ -2918,14 +2918,15 @@
   (setq midX (/ W 2.0))
   (setq peakY (+ H rise))
   (setq innerH 200.0)        ; rafter web depth (approx)
-  ;; LEFT column (rectangular pier)
+  ;; LEFT column (rectangular pier) — OUTER face AT x=0 (owner 16-Jul): match the CS convention so the
+  ;; shared girt/brick/base-plate/knee routines (all anchored to x=0 / x=W) land OUTSIDE the column.
   (command "RECTANG"
-    (list (- 0.0 (/ cb 2.0)) 0.0)
-    (list (/ cb 2.0)         H))
-  ;; RIGHT column (rectangular pier)
+    (list 0.0 0.0)
+    (list cb  H))
+  ;; RIGHT column (rectangular pier) — OUTER face AT x=W
   (command "RECTANG"
-    (list (- W (/ cb 2.0))   0.0)
-    (list (+ W (/ cb 2.0))   H))
+    (list (- W cb) 0.0)
+    (list W        H))
   ;; OUTER (top) curved rafter — ARC through 3 points
   ;;   (0, H) → (midX, peakY) → (W, H)
   (command "ARC"
@@ -2977,18 +2978,18 @@
   (setq q1 (/ halfW 2.0))                    ; quarter-X of LEFT arch
   (setq q3 (+ halfW (/ halfW 2.0)))          ; quarter-X of RIGHT arch
   (setq peakInnerY (+ H rise (- 0 (* 0.15 rise))))  ; intermediate Y
-  ;; LEFT column (at x=0)
+  ;; LEFT column — OUTER face AT x=0 (owner 16-Jul, matches CS so girts/brick/plates land outside)
   (command "RECTANG"
-    (list (- 0.0 (/ cb 2.0)) 0.0)
-    (list (/ cb 2.0)         H))
-  ;; CENTER column rises to peak
+    (list 0.0 0.0)
+    (list cb  H))
+  ;; CENTER column rises to peak (interior column stays CENTRED on halfW)
   (command "RECTANG"
     (list (- halfW (/ cb 2.0)) 0.0)
     (list (+ halfW (/ cb 2.0)) peakY))
-  ;; RIGHT column
+  ;; RIGHT column — OUTER face AT x=W
   (command "RECTANG"
-    (list (- W (/ cb 2.0)) 0.0)
-    (list (+ W (/ cb 2.0)) H))
+    (list (- W cb) 0.0)
+    (list W        H))
   ;; LEFT arch outer: (0, H) → (q1, peakInnerY) → (halfW, peakY)
   (command "ARC"
     (list 0.0   H)
@@ -3325,14 +3326,16 @@
 ;;  draw-arch-conn-plates — connection plates for the ARCHED types (owner 13-Jul): a plate pair at
 ;;  each column-arch SPRINGING, plus mid-arch SPLICE plate pairs every <=12 m along the arch (the arch
 ;;  is a continuous member spliced to <=12 m shipping pieces).  Splice Y follows the parabolic arch.
-(defun draw-arch-conn-plates (stype W H rise ep / innerH step x ay t2)
+(defun draw-arch-conn-plates (stype W H rise ep cb / innerH step x ay t2 hc)
   (setq innerH 200.0)                                       ; arch web depth (matches the frame)
-  ;; SPRINGING = column-arch junction: ROTATED HORIZONTAL base plate on the column top, welded under the
-  ;; arch springing (owner 14-Jul), spanning the column width (~400).
-  (draw-knee-hplate 0.0          400.0 (- H innerH) 45.0 3 nil -1)   ; left springing  (outer = left)
-  (draw-knee-hplate (- W 400.0)  W     (- H innerH) 45.0 3 nil  1)   ; right springing (outer = right)
+  (if (or (null cb) (<= cb 0.0)) (setq cb 400.0))           ; guard: fall back to legacy width
+  (setq hc (/ cb 2.0))
+  ;; SPRINGING = column-arch junction: the STANDARD 2-solid-plate knee (owner 16-Jul) welded under the
+  ;; arch springing, spanning the ACTUAL column width (0..cb / W-cb..W) so it aligns with the pier.
+  (draw-knee-hplate 0.0          cb        (- H innerH) 45.0 3 nil -1)   ; left springing  (outer = left)
+  (draw-knee-hplate (- W cb)     W         (- H innerH) 45.0 3 nil  1)   ; right springing (outer = right)
   (if (= stype "AMS")
-    (draw-knee-hplate (- (/ W 2.0) 200.0) (+ (/ W 2.0) 200.0) (- (+ H rise) innerH) 45.0 3 nil nil))  ; centre-peak col
+    (draw-knee-hplate (- (/ W 2.0) hc) (+ (/ W 2.0) hc) (- (+ H rise) innerH) 45.0 3 nil nil))  ; centre-peak col
   ;; SPLICE plates every <=12 m along the arch (between the rafters), depth-aware on the arch web.
   (setq step (/ W (float (1+ (fix (/ W 12000.0))))))
   (setq x step)
@@ -6916,7 +6919,7 @@
       (cond
         ((= stype "ACS") (draw-base-plates wid cb ep))
         ((= stype "AMS") (draw-base-plates-multi cols cb ep 400.0)))
-      (draw-arch-conn-plates stype wid H rise ep))
+      (draw-arch-conn-plates stype wid H rise ep cb))
     ((member stype '("BF" "CC"))
       ;; Canopies (owner 13-Jul): NO plates at the free wing tips.  Base plate at the mast/support
       ;; column base + the STANDARD 2-plate rafter-column connection at the mast/support column TOP.
