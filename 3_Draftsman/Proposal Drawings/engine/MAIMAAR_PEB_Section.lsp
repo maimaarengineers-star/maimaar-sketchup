@@ -2239,9 +2239,9 @@
   ;; fascia → only the OUTER PORTION of the column (owner 16-Jul) rises past the roof; the rafter tucks BEHIND
   ;; it (inset by that outer-portion width) and drains to a valley gutter.  plain → eaves flush at 0/W.
   (setq *PEB-RC-PARAW* (* rccW 0.45))     ; outer portion of the column that extends up as the fascia parapet
-  ;; rafter eave sits at the INNER column face (leaving the parapet slice + a valley gutter between it and the
-  ;; parapet); the roof sheeting is trimmed to this line and drains into the gutter (owner markup 16).
-  (setq *PEB-RC-INSET* (if fascia (- rccW 40.0) 0.0))
+  ;; owner markup 18: EXTEND the rafter (and its trimmed roof sheeting) right up to the FASCIA inner face; the
+  ;; valley gutter then rests ON TOP of the rafter end, tucked against the fascia.
+  (setq *PEB-RC-INSET* (if fascia *PEB-RC-PARAW* 0.0))
   (draw-rcc-columns (list 0.0 W) colTop rccW)
   (setvar "CLAYER" "FRAME")
   (setvar "PLINEWID" 0.0)
@@ -2269,24 +2269,24 @@
     (setvar "CELTYPE" "HIDDEN") (setvar "CELTSCALE" 300.0)
     (command "LINE" (list (+ (car g) 90.0) baseY) (list (+ (car g) 90.0) (- pTop 90.0)) "")   ; outer-face bar
     (setvar "CELTYPE" "BYLAYER") (setvar "CELTSCALE" 1.0))
-  ;; VALLEY GUTTER (owner markup 16): a U-channel BETWEEN the parapet and the roof — its OUTER wall runs up the
-  ;; parapet inner face (ivL/ivR), its INNER upstand sits at the rafter-eave/sheeting line (*PEB-RC-INSET*) where
-  ;; the trimmed roof sheeting laps in.
-  (setq gIn (if (and *PEB-RC-INSET* (> *PEB-RC-INSET* 0.0)) *PEB-RC-INSET* (+ paraW 250.0)))
+  ;; VALLEY GUTTER (owner markup 18): a SMALL box gutter RESTING ON TOP of the rafter end, tucked against the
+  ;; fascia inner face (ivL/ivR) — outer wall up the fascia, bottom on the rafter top (~H), a low inner upstand
+  ;; the roof sheeting laps over.
+  (setq gIn 240.0)                                  ; small gutter width (inboard from the fascia)
   (setvar "CLAYER" "GUTTER") (setvar "PLINEWID" 0.0)
-  (foreach g (list (list ivL gIn) (list ivR (- W gIn)))
-    (setq gxOut (car g) gxIn (cadr g))
+  (foreach g (list (list ivL 1.0) (list ivR -1.0))
+    (setq gxOut (car g) gxIn (+ (car g) (* (cadr g) gIn)))
     (command "PLINE"
-      (list gxOut (+ H 60.0))       ; top of the OUTER wall, against the parapet
-      (list gxOut (- H 190.0))      ; outer bottom
-      (list gxIn  (- H 190.0))      ; inner bottom
-      (list gxIn  (+ H 20.0)) ""))  ; INNER upstand — the roof sheeting laps over this into the channel
+      (list gxOut (+ H 260.0))      ; top of the OUTER wall, up the fascia
+      (list gxOut (+ H 20.0))       ; down onto the rafter top at the fascia
+      (list gxIn  (+ H 20.0))       ; bottom along the rafter top
+      (list gxIn  (+ H 150.0)) "")) ; low INNER upstand — the sheeting laps over this into the channel
   ;; labels
   (setvar "CLAYER" "TEXT")
   (peb-label-with-leader "RCC PARAPET / FASCIA (HIDES ROOF PEAK)"
                          (list (- 0.0 3200.0) (- pTop 500.0)) (list (/ paraW 2.0) (- pTop 500.0)) "H" 220)
   (peb-label-with-leader "VALLEY GUTTER"
-                         (list (+ ivL 2800.0) (+ H 1400.0)) (list (+ ivL 250.0) (- H 100.0)) "H" 220)
+                         (list (+ ivL 1500.0) (+ H 800.0)) (list (+ ivL 120.0) (+ H 120.0)) "H" 160)
   (peb-label-with-leader "CLOSURE TRIM + FLOWABLE MASTIC"
                          (list (- ivL 3000.0) (+ H 2100.0)) (list ivL (+ H 250.0)) "H" 200)
   (princ))
@@ -2307,11 +2307,8 @@
       (progn
         (command "LINE" (list (- bx slot) topY) (list (+ bx slot) topY) "")
         (command "LINE" (list (- bx slot) (+ topY pt)) (list (+ bx slot) (+ topY pt)) ""))))
-  (setvar "CLAYER" "TEXT")
-  (setq lbl (if roller "ROLLER SUPPORT (SLOTTED)" "PINNED SUPPORT")
-        lx  (if (< x0 1000.0) (- x0 2200.0) (+ x1 2200.0)))
-  (peb-label-with-leader lbl (list lx (- topY 500.0))
-                         (list (/ (+ x0 x1) 2.0) (+ topY (/ pt 2.0))) "H" 220)
+  ;; PINNED / ROLLER SUPPORT text labels removed (owner markup 19) — the slotted-hole geometry already shows the
+  ;; roller end vs the fixed (pinned) end, so the callouts are redundant.
   (princ))
 
 (defun draw-rc-ridge (W H rise ht / dp x0 yTop yBot pt gp ext lxo rxo)
@@ -7549,10 +7546,13 @@
       (draw-cladding      data wid H rise H monoRise nil nil)   ; brickH=H -> roof sheeting only, no wall sheet
       (draw-purlins       wid H rise)
       (draw-eave-strut    wid H rise)
-      ;; NO draw-brick-wall (concrete column IS the wall) and NO draw-girts (no sheeted wall)
-      (if (not *PEB-RC-FASCIA*)                    ; fascia option replaces the eave gutter with a valley gutter
-        (progn (draw-downpipes wid H H nil)        ; downpipe only in the plain (gutter) arrangement
-               (draw-eave-features wid H nil)))
+      ;; NO draw-girts (no sheeted wall).  Fascia option → valley gutter (no eave gutter/brick).  PLAIN option
+      ;; (owner markup 20) → BRICK MASONRY on the OUTER side of each RCC column (full height) + an EAVE GUTTER
+      ;; hanging JUST OUTSIDE the column, with a downpipe.
+      (if (not *PEB-RC-FASCIA*)
+        (progn (draw-brick-wall  wid H)            ; brickwork outside the columns (x=-200..0 / W..W+200)
+               (draw-downpipes   wid H H nil)      ; downpipe against the wall
+               (draw-eave-features wid H nil)))    ; eave gutter just outside the column
       (draw-rafter-label  wid H rise ht)
       (setq *PEB-NO-WALL-SHEET* nil))
     (T
