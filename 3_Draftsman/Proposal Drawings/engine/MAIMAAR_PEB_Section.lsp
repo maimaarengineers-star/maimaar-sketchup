@@ -341,6 +341,27 @@
   (command "PLINE" (list (- -235.0 (* 160 *PEB-TEXT-SCALE*)) wTgtY) "W" (* 55 *PEB-TEXT-SCALE*) 0 (list -235.0 wTgtY) "")
   (setvar "PLINEWID" 0.0))
 
+;;  peb-arch-wall-sheeting — the WALL SHEETING line for arched frames (owner 16-Jul): arches bypass
+;;  draw-cladding, so its side-wall sheeting was missing.  Draw the SAME 2 vertical lines OUTSIDE the girts
+;;  (at -girtDepth and -girtDepth-cladThk / mirror on the right), overlapping 50 mm onto the brick at the
+;;  bottom and running UP to the eave/gutter (H) at the top — identical to the Clear Span wall sheeting.
+(defun peb-arch-wall-sheeting (W H brickH / girtDepth cladThk yBot)
+  (setvar "CLAYER" "CLADDING")
+  (setq girtDepth 200.0 cladThk 35.0 yBot (- brickH 50.0))
+  (if (< brickH H)
+    (progn
+      ;; LEFT wall sheeting (2 lines + top/bottom caps)
+      (command "LINE" (list (- 0.0 girtDepth)         yBot) (list (- 0.0 girtDepth)         H) "")
+      (command "LINE" (list (- 0.0 girtDepth cladThk) yBot) (list (- 0.0 girtDepth cladThk) H) "")
+      (command "LINE" (list (- 0.0 girtDepth) H)    (list (- 0.0 girtDepth cladThk) H)    "")
+      (command "LINE" (list (- 0.0 girtDepth) yBot) (list (- 0.0 girtDepth cladThk) yBot) "")
+      ;; RIGHT wall sheeting
+      (command "LINE" (list (+ W girtDepth)         yBot) (list (+ W girtDepth)         H) "")
+      (command "LINE" (list (+ W girtDepth cladThk) yBot) (list (+ W girtDepth cladThk) H) "")
+      (command "LINE" (list (+ W girtDepth) H)    (list (+ W girtDepth cladThk) H)    "")
+      (command "LINE" (list (+ W girtDepth) yBot) (list (+ W girtDepth cladThk) yBot) "")))
+  (princ))
+
 ;;  peb-deck-purlins — short purlin ticks perpendicular to a canopy deck segment (x0,y0)->(x1,y1),
 ;;  ~1500 mm apart, on the PURLINS layer (owner 13-Jul: "show the purlin on top like Clear Span").
 (defun peb-deck-purlins (x0 y0 x1 y1 / dx dy len ux uy nx ny n i tt px py)
@@ -356,12 +377,17 @@
                         (list (- px (* nx 45.0)) (- py (* ny 45.0))) "")
         (setq i (1+ i))))))
 
-;;  draw-purlins-arc — purlin symbol ticks that FOLLOW an arched roof (owner 14-Jul: ACS/AMS purlins must
-;;  follow the curve of the roofing system, like Clear Span shows them on the slope).  Fits a parabola
-;;  y=c0+c1x+c2x^2 through the 3 arch points (x1,y1) end, (x2,y2) peak, (x3,y3) end; ticks ~1500 mm along
-;;  the ARC, perpendicular to the local tangent, on the PURLINS layer.
-(defun draw-purlins-arc (x1 y1 x2 y2 x3 y3 / d12 d23 c0 c1 c2 step x y dyx ln ux uy nx ny prevx prevy acc dseg)
+;;  draw-purlins-arc — FULL Z-purlin SECTIONS that FOLLOW an arched roof (owner 16-Jul: ACS/AMS purlins must
+;;  read like Clear Span's — a real 200Z15 section sitting ON the rafter top flange, BELOW the sheeting line,
+;;  tilted to the LOCAL slope, not a bare tick).  Pass the RAFTER OUTER arc's 3 points (end, peak, end): the
+;;  web base sits on that arc and the 200 mm web rises (normal to the tangent) into the 200 mm gap up to the
+;;  sheeting.  Fits a parabola y=c0+c1x+c2x^2, steps ~1500 mm along the ARC, on the PURLINS layer.
+(defun draw-purlins-arc (x1 y1 x2 y2 x3 y3 / d12 d23 c0 c1 c2 step x y dyx ln ux uy nx ny prevx prevy acc dseg
+                          depth wtop wbot lip lipDx lipDy
+                          v1x v1y v2x v2y v3x v3y v4x v4y v5x v5y v6x v6y)
   (setvar "CLAYER" "PURLINS")
+  (setvar "PLINEWID" 0.0)
+  (setq depth 200.0 wtop 60.0 wbot 60.0 lip 20.0 lipDx (* lip 0.5) lipDy (* lip 0.866))
   (setq d12 (/ (- y1 y2) (- x1 x2))
         d23 (/ (- y2 y3) (- x2 x3))
         c2  (/ (- d12 d23) (- x1 x3))
@@ -376,10 +402,24 @@
       (progn
         (setq acc 0.0
               dyx (+ c1 (* 2.0 c2 x))                 ; dy/dx (local slope)
-              ln  (sqrt (+ 1.0 (* dyx dyx))) ux (/ 1.0 ln) uy (/ dyx ln) nx (- 0 uy) ny ux)
-        (command "LINE" (list (+ x (* nx 90.0)) (+ y (* ny 90.0)))
-                        (list (- x (* nx 45.0)) (- y (* ny 45.0))) "")))
+              ln  (sqrt (+ 1.0 (* dyx dyx)))
+              ux  (/ 1.0 ln) uy (/ dyx ln)            ; u = tangent (increasing x)
+              nx  (- 0 uy) ny ux)                     ; n = normal, points UP (ny=ux>0)
+        ;; Z-purlin: v4 (web base) ON the rafter arc; web up +depth*n; flanges along u (200Z15 profile).
+        (setq v4x x v4y y)
+        (setq v3x (+ x (* depth nx)) v3y (+ y (* depth ny)))
+        (setq v5x (+ x (* (- 0 wbot) ux)) v5y (+ y (* (- 0 wbot) uy)))
+        (setq v6x (+ x (* (- lipDx wbot) ux) (* lipDy nx))
+              v6y (+ y (* (- lipDx wbot) uy) (* lipDy ny)))
+        (setq v2x (+ x (* wtop ux) (* depth nx)) v2y (+ y (* wtop uy) (* depth ny)))
+        (setq v1x (+ x (* (- wtop lipDx) ux) (* (- depth lipDy) nx))
+              v1y (+ y (* (- wtop lipDx) uy) (* (- depth lipDy) ny)))
+        (command "PLINE" (list v6x v6y) "W" 12.0 12.0
+          (list v5x v5y) (list v4x v4y) (list v3x v3y) (list v2x v2y) (list v1x v1y) "")
+        (setvar "FILLETRAD" 4.0)
+        (command "FILLET" "P" (entlast))))
     (setq prevx x prevy y x (+ x step)))
+  (setvar "PLINEWID" 0.0)
   (princ))
 
 ;;  peb-canopy-roof-label — one ROOF SHEETING callout for a canopy deck (no walls).
@@ -2899,7 +2939,7 @@
 )
 
 (defun draw-acs-frame (W H rise ht cb /
-                        midX peakY innerH innerW)
+                        midX peakY innerH innerW colTop)
   ;;  Arched Clear Span (ACS): two R.F. columns with a CURVED ROOF
   ;;  RAFTER spanning between them.  No ridge — single arc from
   ;;  left column top, peaking at building centerline, down to
@@ -2918,15 +2958,18 @@
   (setq midX (/ W 2.0))
   (setq peakY (+ H rise))
   (setq innerH 200.0)        ; rafter web depth (approx)
+  ;; Column TOP drops below the arch underside by 2 plates + gap so the connection stacks cleanly
+  ;; (owner 16-Jul markup 10): column -> cap plate -> 2mm gap -> rafter plate -> arch underside.
+  (setq colTop (- H innerH 62.0))
   ;; LEFT column (rectangular pier) — OUTER face AT x=0 (owner 16-Jul): match the CS convention so the
   ;; shared girt/brick/base-plate/knee routines (all anchored to x=0 / x=W) land OUTSIDE the column.
   (command "RECTANG"
     (list 0.0 0.0)
-    (list cb  H))
+    (list cb  colTop))
   ;; RIGHT column (rectangular pier) — OUTER face AT x=W
   (command "RECTANG"
     (list (- W cb) 0.0)
-    (list W        H))
+    (list W        colTop))
   ;; OUTER (top) curved rafter — ARC through 3 points
   ;;   (0, H) → (midX, peakY) → (W, H)
   (command "ARC"
@@ -2951,7 +2994,7 @@
 )
 
 (defun draw-ams-frame (W H rise ht cb /
-                        halfW peakY innerH q1 q3 peakInnerY)
+                        halfW peakY innerH q1 q3 peakInnerY colTop colTopC)
   ;;  Arched Multi-Span (AMS-01): three R.F. columns with TWO
   ;;  CURVED arches.  Center column rises to the peak; left and
   ;;  right columns at clear height H.
@@ -2977,19 +3020,24 @@
   ;; halfway up the rise.
   (setq q1 (/ halfW 2.0))                    ; quarter-X of LEFT arch
   (setq q3 (+ halfW (/ halfW 2.0)))          ; quarter-X of RIGHT arch
-  (setq peakInnerY (+ H rise (- 0 (* 0.15 rise))))  ; intermediate Y
+  ;; Quarter-point control: LOW enough that each arch is still RISING as it reaches the centre, so the two
+  ;; arches form a clean PEAK (not a depression) at the centre column — owner 16-Jul markup AMS-3.
+  (setq peakInnerY (+ H (* 0.72 rise)))
+  ;; Column TOPS drop below the arch underside by 2 plates + gap (owner 16-Jul markup 10).
+  (setq colTop  (- H     innerH 62.0)                ; eave columns: below the springing underside
+        colTopC (- peakY innerH 62.0))               ; centre column: below the peak underside
   ;; LEFT column — OUTER face AT x=0 (owner 16-Jul, matches CS so girts/brick/plates land outside)
   (command "RECTANG"
     (list 0.0 0.0)
-    (list cb  H))
-  ;; CENTER column rises to peak (interior column stays CENTRED on halfW)
+    (list cb  colTop))
+  ;; CENTER column rises to just below the peak (interior column stays CENTRED on halfW)
   (command "RECTANG"
     (list (- halfW (/ cb 2.0)) 0.0)
-    (list (+ halfW (/ cb 2.0)) peakY))
+    (list (+ halfW (/ cb 2.0)) colTopC))
   ;; RIGHT column — OUTER face AT x=W
   (command "RECTANG"
     (list (- W cb) 0.0)
-    (list W        H))
+    (list W        colTop))
   ;; LEFT arch outer: (0, H) → (q1, peakInnerY) → (halfW, peakY)
   (command "ARC"
     (list 0.0   H)
@@ -3326,26 +3374,49 @@
 ;;  draw-arch-conn-plates — connection plates for the ARCHED types (owner 13-Jul): a plate pair at
 ;;  each column-arch SPRINGING, plus mid-arch SPLICE plate pairs every <=12 m along the arch (the arch
 ;;  is a continuous member spliced to <=12 m shipping pieces).  Splice Y follows the parabolic arch.
+;;  peb-arch-knee — the arched-frame column-arch connection (owner 16-Jul, markup 10): TWO SOLID plates
+;;  ONLY — a plate on the RAFTER BOTTOM (top flush with the arch underside) + a COLUMN-CAP plate below a
+;;  2 mm gap — with NO diagonal stiffener/gusset (curved frames drop the knee triangle).  The steel column
+;;  tops out at capBot (= rafterBotY - 62), sitting cleanly BELOW the plates (draw-acs/ams-frame match this).
+(defun peb-arch-knee (xL xR rafterBotY / x0 x1 plateT gap rafBot rafTop capTop capBot stH)
+  (setvar "CLAYER" "PLATES")
+  (setq plateT 30.0 gap 2.0 x0 xL x1 xR)                      ; plates span the column width — NO overhang (owner 16-Jul markup 13)
+  (setq rafTop rafterBotY rafBot (- rafterBotY plateT))       ; rafter-bottom plate (welded to rafter, top flush w/ arch underside)
+  (setq capTop (- rafBot gap) capBot (- capTop plateT))       ; column-cap plate (welded to column) below the 2 mm gap
+  (peb-solid-quad (list x0 rafBot) (list x1 rafBot) (list x0 rafTop) (list x1 rafTop))   ; rafter plate (SOLID)
+  (peb-solid-quad (list x0 capBot) (list x1 capBot) (list x0 capTop) (list x1 capTop))   ; column-cap plate (SOLID)
+  ;; SOLID stiffeners welded UNDER the column-cap plate at BOTH ends (owner 16-Jul markups 13 & AMS-3):
+  ;; the stiffener plate is welded with the column, one at each flange face, pointing down-inward.
+  (setq stH 110.0)
+  (draw-rc-gusset x0 capBot (- capBot stH)  90.0  1)          ; left  end (points down-inward)
+  (draw-rc-gusset x1 capBot (- capBot stH)  90.0 -1)          ; right end (points down-inward)
+  (princ))
+
 (defun draw-arch-conn-plates (stype W H rise ep cb / innerH step x ay t2 hc)
   (setq innerH 200.0)                                       ; arch web depth (matches the frame)
   (if (or (null cb) (<= cb 0.0)) (setq cb 400.0))           ; guard: fall back to legacy width
   (setq hc (/ cb 2.0))
-  ;; SPRINGING = column-arch junction: the STANDARD 2-solid-plate knee (owner 16-Jul) welded under the
-  ;; arch springing, spanning the ACTUAL column width (0..cb / W-cb..W) so it aligns with the pier.
-  (draw-knee-hplate 0.0          cb        (- H innerH) 45.0 3 nil -1)   ; left springing  (outer = left)
-  (draw-knee-hplate (- W cb)     W         (- H innerH) 45.0 3 nil  1)   ; right springing (outer = right)
+  ;; SPRINGING knees — 2 solid plates, NO diagonal (owner 16-Jul), spanning the actual column width.
+  (peb-arch-knee 0.0            cb              (- H innerH))            ; left springing
+  (peb-arch-knee (- W cb)       W               (- H innerH))            ; right springing
   (if (= stype "AMS")
-    (draw-knee-hplate (- (/ W 2.0) hc) (+ (/ W 2.0) hc) (- (+ H rise) innerH) 45.0 3 nil nil))  ; centre-peak col
-  ;; SPLICE plates every <=12 m along the arch (between the rafters), depth-aware on the arch web.
+    (peb-arch-knee (- (/ W 2.0) hc) (+ (/ W 2.0) hc) (- (+ H rise) innerH)))  ; centre-peak column
+  ;; SPLICE plates every <=12 m along the arch + SOLID flange stiffeners both sides (owner 16-Jul markup 11).
   (setq step (/ W (float (1+ (fix (/ W 12000.0))))))
   (setq x step)
   (while (< x (- W 1.0))
     (if (> (abs (- x (/ W 2.0))) 400.0)                     ; skip if it lands on the peak springing
       (progn
         (setq t2 (/ (- x (/ W 2.0)) (/ W 2.0)))
-        (setq ay (+ H (* rise (- 1.0 (* t2 t2)))))          ; parabolic arch outer Y at x
-        (peb-conn-plate-depth x (- ay innerH) ay 40.0 2)))
-    (setq x (+ x step))))
+        (setq ay (+ H (* rise (- 1.0 (* t2 t2)))))          ; parabolic arch OUTER Y at x
+        (peb-conn-plate-depth x (- ay innerH) ay 40.0 2)    ; the 2-plate vertical splice
+        ;; SOLID stiffener gussets at TOP (ay) and BOTTOM (ay-innerH) flanges, both plate faces
+        (draw-rc-gusset (- x 40.0) ay             (+ ay 100.0)             100.0 -1)
+        (draw-rc-gusset (+ x 40.0) ay             (+ ay 100.0)             100.0  1)
+        (draw-rc-gusset (- x 40.0) (- ay innerH)  (- ay innerH 100.0)      100.0 -1)
+        (draw-rc-gusset (+ x 40.0) (- ay innerH)  (- ay innerH 100.0)      100.0  1)))
+    (setq x (+ x step)))
+  (princ))
 
 (defun draw-base-plates-multi (cols cb ep intColW / boltR x i n thisW)
   ;;  Base plates for MS / MG with intermediate columns.
@@ -7312,33 +7383,37 @@
       (setvar "CLAYER" "ARROWS")
       (draw-l-leader (- wid 2500.0) ltEwY wid ltEwY "H"))
     ((member stype '("ACS" "AMS"))
-      ;; Arched frames — brick walls + girts + downpipes + eave features
-      ;; apply normally (they're at column locations).  Cladding/purlins
-      ;; follow the CURVED roof so they need a future arched-cladding
-      ;; routine; for now skip those, which is acceptable at proposal stage
-      ;; (the curved rafter outline already shows the roof geometry).
+      ;; Arched frames — brick walls + girts + downpipes + eave features apply normally (column locations).
+      ;; Roof cladding + Z-purlins follow the CURVED rafter; wall sheeting added here (arches bypass draw-cladding).
       (draw-brick-wall    wid brickH)
       (draw-girts         wid H brickH nil nil)
+      (peb-arch-wall-sheeting wid H brickH)      ; owner 16-Jul: wall sheeting lines OUTSIDE girts, brick->eave/gutter
       (draw-downpipes     wid H brickH nil)
       (draw-eave-features wid H nil)
-      ;; ── Curved roof cladding: arcs offset above the rafter (2 lines = sheet thickness) ──
-      ;; Same 3-point arcs as the frame's rafter (draw-acs-frame / draw-ams-frame), lifted 200/235.
+      ;; ── Curved roof cladding: arcs offset 200/235 above the rafter (2 lines = sheet thickness) ──
+      ;; Same 3-point arcs as the frame's rafter (draw-acs-frame / draw-ams-frame).  Z-purlins ride the
+      ;; RAFTER OUTER arc (H..H+rise) so their 200 mm web sits in the gap BELOW the sheeting (owner 16-Jul).
       (setvar "CLAYER" "CLADDING")
       (if (= stype "ACS")
         (progn
           (command "ARC" (list 0.0 (+ H 200.0)) (list (/ wid 2.0) (+ H rise 200.0)) (list wid (+ H 200.0)))
           (command "ARC" (list 0.0 (+ H 235.0)) (list (/ wid 2.0) (+ H rise 235.0)) (list wid (+ H 235.0)))
-          ;; purlin symbols FOLLOWING the arch (owner 14-Jul)
-          (draw-purlins-arc 0.0 (+ H 200.0) (/ wid 2.0) (+ H rise 200.0) wid (+ H 200.0)))
+          (draw-purlins-arc 0.0 H (/ wid 2.0) (+ H rise) wid H))
         (progn                                   ; AMS: two arches meeting at the centre peak
-          (setq amHalf (/ wid 2.0) amQ1 (/ wid 4.0) amQ3 (* wid 0.75) amPk (+ H (* rise 0.85)))
+          (setq amHalf (/ wid 2.0) amQ1 (/ wid 4.0) amQ3 (* wid 0.75) amPk (+ H (* rise 0.72)))
           (command "ARC" (list 0.0 (+ H 200.0)) (list amQ1 (+ amPk 200.0)) (list amHalf (+ H rise 200.0)))
           (command "ARC" (list 0.0 (+ H 235.0)) (list amQ1 (+ amPk 235.0)) (list amHalf (+ H rise 235.0)))
           (command "ARC" (list amHalf (+ H rise 200.0)) (list amQ3 (+ amPk 200.0)) (list wid (+ H 200.0)))
           (command "ARC" (list amHalf (+ H rise 235.0)) (list amQ3 (+ amPk 235.0)) (list wid (+ H 235.0)))
-          ;; purlin symbols FOLLOWING both arch spans (owner 14-Jul)
-          (draw-purlins-arc 0.0 (+ H 200.0) amQ1 (+ amPk 200.0) amHalf (+ H rise 200.0))
-          (draw-purlins-arc amHalf (+ H rise 200.0) amQ3 (+ amPk 200.0) wid (+ H 200.0))))
+          (draw-purlins-arc 0.0 H amQ1 amPk amHalf (+ H rise))
+          (draw-purlins-arc amHalf (+ H rise) amQ3 amPk wid H)))
+      ;; Extend the ROOF SHEETING down INTO the eave gutter at BOTH eaves (owner 16-Jul: "extend roof
+      ;; sheeting line till gutter") — both sheet lines drop into the gutter trough (water drips in).
+      (setvar "CLAYER" "CLADDING")
+      (command "LINE" (list 0.0 (+ H 200.0)) (list -270.0 (+ H 150.0)) "")
+      (command "LINE" (list 0.0 (+ H 235.0)) (list -270.0 (+ H 185.0)) "")
+      (command "LINE" (list wid (+ H 200.0)) (list (+ wid 270.0) (+ H 150.0)) "")
+      (command "LINE" (list wid (+ H 235.0)) (list (+ wid 270.0) (+ H 185.0)) "")
       ;; ROOF + WALL SHEETING callouts (arches bypass draw-cladding, so add them here)
       (peb-arch-sheeting-labels data wid H rise)
       ;; "CURVED ROOF RAFTER" label — single MLEADER pointing at the
@@ -7765,7 +7840,9 @@
       (setq *PEB-DIM-TXT* nil)
       (peb-recolor-last-dim 0)))                  ; ByBlock
   (setq *PEB-DIM-TXT* 320.0)
-  (peb-dim-height-stretch hObjX dimX2 0.0 (- H ht) "<>\\PCLEAR HEIGHT")
+  ;; owner 16-Jul markup 14: arched frames have no haunch — take CLEAR HEIGHT right up to the eave/gutter (H),
+  ;; not to (H-ht), so the dimension extension line reaches the eave gutter like the wall sheeting.
+  (peb-dim-height-stretch hObjX dimX2 0.0 (if (member stype '("ACS" "AMS")) H (- H ht)) "<>\\PCLEAR HEIGHT")
   (setq *PEB-DIM-TXT* nil)
   (peb-recolor-last-dim 0)                        ; ByBlock
 
