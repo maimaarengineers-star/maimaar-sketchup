@@ -2938,8 +2938,26 @@
     "C")
 )
 
+;;  peb-arc3-y — Y on the CIRCULAR arc through 3 points at a query X (UPPER branch — a roof arch bulges up
+;;  above its circle centre).  Falls back to a parabola if the 3 points are collinear.  Used to cut the
+;;  arched rafter EXACTLY at the connection plate (owner 16-Jul markup 13: rafter ends at the connection,
+;;  it does not run out to the eave — only the sheeting overhangs to the gutter).
+(defun peb-arc3-y (x1 y1 x2 y2 x3 y3 xq / a b c d e f det cx cy r dd)
+  (setq a (- x2 x1) b (- y2 y1) c (- x3 x1) d (- y3 y1))
+  (setq e (+ (* a (+ x1 x2)) (* b (+ y1 y2))))
+  (setq f (+ (* c (+ x1 x3)) (* d (+ y1 y3))))
+  (setq det (* 2.0 (- (* a d) (* b c))))
+  (if (equal det 0.0 1e-9)
+    (+ y1 (* 4.0 (- y2 y1) (/ (- xq x1) (- x3 x1)) (- 1.0 (/ (- xq x1) (- x3 x1)))))   ; parabola fallback
+    (progn
+      (setq cx (/ (- (* d e) (* b f)) det)
+            cy (/ (- (* a f) (* c e)) det)
+            r  (sqrt (+ (expt (- x1 cx) 2) (expt (- y1 cy) 2))))
+      (setq dd (- (* r r) (expt (- xq cx) 2)))
+      (+ cy (sqrt (max 0.0 dd))))))
+
 (defun draw-acs-frame (W H rise ht cb /
-                        midX peakY innerH innerW colTop)
+                        midX peakY innerH innerW colTop yoC yiC)
   ;;  Arched Clear Span (ACS): two R.F. columns with a CURVED ROOF
   ;;  RAFTER spanning between them.  No ridge — single arc from
   ;;  left column top, peaking at building centerline, down to
@@ -2958,9 +2976,13 @@
   (setq midX (/ W 2.0))
   (setq peakY (+ H rise))
   (setq innerH 200.0)        ; rafter web depth (approx)
-  ;; Column TOP drops below the arch underside by 2 plates + gap so the connection stacks cleanly
-  ;; (owner 16-Jul markup 10): column -> cap plate -> 2mm gap -> rafter plate -> arch underside.
-  (setq colTop (- H innerH 62.0))
+  ;; The rafter is CUT at the connection plate (x=cb / W-cb) — it does NOT run out to the eave (owner 16-Jul
+  ;; markup 13); only the roof sheeting overhangs to the gutter.  yoC/yiC = outer/inner rafter Y at the cut.
+  (setq yoC (peb-arc3-y 0.0 H midX peakY W H cb)
+        yiC (- yoC innerH))
+  ;; Column TOP drops below the rafter underside by 2 plates + gap so the connection stacks cleanly
+  ;; (owner 16-Jul markup 10): column -> cap plate -> 2mm gap -> rafter plate -> rafter underside.
+  (setq colTop (- yiC 62.0))
   ;; LEFT column (rectangular pier) — OUTER face AT x=0 (owner 16-Jul): match the CS convention so the
   ;; shared girt/brick/base-plate/knee routines (all anchored to x=0 / x=W) land OUTSIDE the column.
   (command "RECTANG"
@@ -2970,31 +2992,19 @@
   (command "RECTANG"
     (list (- W cb) 0.0)
     (list W        colTop))
-  ;; OUTER (top) curved rafter — ARC through 3 points
-  ;;   (0, H) → (midX, peakY) → (W, H)
-  (command "ARC"
-    (list 0.0  H)
-    (list midX peakY)
-    (list W    H))
-  ;; INNER (bottom) curved rafter — offset inward by web depth
-  (command "ARC"
-    (list 0.0  (- H innerH))
-    (list midX (- peakY innerH))
-    (list W    (- H innerH)))
-  ;; Cap pieces at the column-rafter junctions (small horizontal lines
-  ;; closing the rafter section against the column top).
-  (command "LINE"
-    (list 0.0 H)
-    (list 0.0 (- H innerH))
-    "")
-  (command "LINE"
-    (list W   H)
-    (list W   (- H innerH))
-    "")
+  ;; OUTER (top) curved rafter — FULL: the TOP flange runs right out to the column OUTER flange at the eave
+  ;; (owner 16-Jul markup 09): (0, H) → (midX, peakY) → (W, H)
+  (command "ARC" (list 0.0 H) (list midX peakY) (list W H))
+  ;; INNER (bottom) curved rafter — CUT at the connection plate: the BOTTOM flange stops at x=cb / W-cb
+  (command "ARC" (list cb yiC) (list midX (- peakY innerH)) (list (- W cb) yiC))
+  ;; Close the TOP flange onto the connection plate at each eave (short vertical end face at the outer flange).
+  (command "LINE" (list 0.0 H) (list 0.0 yiC) "")
+  (command "LINE" (list W   H) (list W   yiC) "")
 )
 
 (defun draw-ams-frame (W H rise ht cb /
-                        halfW peakY innerH q1 q3 peakInnerY colTop colTopC)
+                        halfW peakY innerH q1 q3 peakInnerY colTop colTopC
+                        hc yoLs yoLc yoRc yoRs)
   ;;  Arched Multi-Span (AMS-01): three R.F. columns with TWO
   ;;  CURVED arches.  Center column rises to the peak; left and
   ;;  right columns at clear height H.
@@ -3023,45 +3033,41 @@
   ;; Quarter-point control: LOW enough that each arch is still RISING as it reaches the centre, so the two
   ;; arches form a clean PEAK (not a depression) at the centre column — owner 16-Jul markup AMS-3.
   (setq peakInnerY (+ H (* 0.72 rise)))
-  ;; Column TOPS drop below the arch underside by 2 plates + gap (owner 16-Jul markup 10).
-  (setq colTop  (- H     innerH 62.0)                ; eave columns: below the springing underside
-        colTopC (- peakY innerH 62.0))               ; centre column: below the peak underside
+  ;; Rafter CUT points (owner 16-Jul markup 13): each arch ENDS at its connection plates — the OUTER
+  ;; springings (cb / W-cb) and the CENTRE column edges (halfW±hc) — not at the eave.  Only sheeting overhangs.
+  (setq hc   (/ cb 2.0)
+        yoLs (peb-arc3-y 0.0 H q1 peakInnerY halfW peakY cb)                 ; left arch @ left springing
+        yoLc (peb-arc3-y 0.0 H q1 peakInnerY halfW peakY (- halfW hc))       ; left arch @ centre-col edge
+        yoRc (peb-arc3-y halfW peakY q3 peakInnerY W H (+ halfW hc))         ; right arch @ centre-col edge
+        yoRs (peb-arc3-y halfW peakY q3 peakInnerY W H (- W cb)))            ; right arch @ right springing
+  ;; Column TOPS drop below the rafter underside by 2 plates + gap (owner 16-Jul markup 10).
+  (setq colTop  (- yoLs innerH 62.0)                 ; eave columns: below the springing underside
+        colTopC (- yoLc innerH 62.0))                ; centre column: below the centre-edge underside
   ;; LEFT column — OUTER face AT x=0 (owner 16-Jul, matches CS so girts/brick/plates land outside)
   (command "RECTANG"
     (list 0.0 0.0)
     (list cb  colTop))
   ;; CENTER column rises to just below the peak (interior column stays CENTRED on halfW)
   (command "RECTANG"
-    (list (- halfW (/ cb 2.0)) 0.0)
-    (list (+ halfW (/ cb 2.0)) colTopC))
+    (list (- halfW hc) 0.0)
+    (list (+ halfW hc) colTopC))
   ;; RIGHT column — OUTER face AT x=W
   (command "RECTANG"
     (list (- W cb) 0.0)
     (list W        colTop))
-  ;; LEFT arch outer: (0, H) → (q1, peakInnerY) → (halfW, peakY)
-  (command "ARC"
-    (list 0.0   H)
-    (list q1    peakInnerY)
-    (list halfW peakY))
-  ;; LEFT arch inner: offset by web depth
-  (command "ARC"
-    (list 0.0   (- H innerH))
-    (list q1    (- peakInnerY innerH))
-    (list halfW (- peakY innerH)))
-  ;; RIGHT arch outer: (halfW, peakY) → (q3, peakInnerY) → (W, H)
-  (command "ARC"
-    (list halfW peakY)
-    (list q3    peakInnerY)
-    (list W     H))
-  ;; RIGHT arch inner
-  (command "ARC"
-    (list halfW (- peakY innerH))
-    (list q3    (- peakInnerY innerH))
-    (list W     (- H innerH)))
-  ;; Section caps at column-arch junctions
-  (command "LINE" (list 0.0 H) (list 0.0 (- H innerH)) "")
-  (command "LINE" (list W   H) (list W   (- H innerH)) "")
-  (command "LINE" (list halfW peakY) (list halfW (- peakY innerH)) "")
+  ;; LEFT arch OUTER (FULL — top flange runs to the eave outer flange and over the centre column):
+  (command "ARC" (list 0.0 H) (list q1 peakInnerY) (list halfW peakY))
+  ;; LEFT arch INNER (CUT at cb .. halfW-hc — bottom flange stops at the connection plates)
+  (command "ARC" (list cb (- yoLs innerH)) (list q1 (- peakInnerY innerH)) (list (- halfW hc) (- yoLc innerH)))
+  ;; RIGHT arch OUTER (FULL): (halfW, peakY) → (q3, peakInnerY) → (W, H)
+  (command "ARC" (list halfW peakY) (list q3 peakInnerY) (list W H))
+  ;; RIGHT arch INNER (CUT at halfW+hc .. W-cb)
+  (command "ARC" (list (+ halfW hc) (- yoRc innerH)) (list q3 (- peakInnerY innerH)) (list (- W cb) (- yoRs innerH)))
+  ;; Close TOP flanges onto the connection plates: eave outer flanges (x=0/W) + both centre-column edges.
+  (command "LINE" (list 0.0 H) (list 0.0 (- yoLs innerH)) "")
+  (command "LINE" (list W   H) (list W   (- yoRs innerH)) "")
+  (command "LINE" (list (- halfW hc) yoLc) (list (- halfW hc) (- yoLc innerH)) "")
+  (command "LINE" (list (+ halfW hc) yoRc) (list (+ halfW hc) (- yoRc innerH)) "")
 )
 
 (defun draw-bf-frame (W H rise ht cb intColW / cx de dp halfCol)
@@ -3378,29 +3384,45 @@
 ;;  ONLY — a plate on the RAFTER BOTTOM (top flush with the arch underside) + a COLUMN-CAP plate below a
 ;;  2 mm gap — with NO diagonal stiffener/gusset (curved frames drop the knee triangle).  The steel column
 ;;  tops out at capBot (= rafterBotY - 62), sitting cleanly BELOW the plates (draw-acs/ams-frame match this).
-(defun peb-arch-knee (xL xR rafterBotY / x0 x1 plateT gap rafBot rafTop capTop capBot stH)
+;;  peb-arch-knee — arched-frame column/rafter connection (owner 16-Jul markups 10/13/09).  dirIn selects
+;;  which way is INTO the span so the RAFTER PLATE extends 100 mm inside and the SOLID knee gusset lands on
+;;  the correct side: +1 = LEFT knee (inside = +x), -1 = RIGHT knee (inside = -x), 0 = CENTRE column (both).
+(defun peb-arch-knee (xL xR rafterBotY dirIn / x0 x1 plateT gap ext rafBot rafTop capTop capBot stH gh rpx0 rpx1)
   (setvar "CLAYER" "PLATES")
-  (setq plateT 30.0 gap 2.0 x0 xL x1 xR)                      ; plates span the column width — NO overhang (owner 16-Jul markup 13)
-  (setq rafTop rafterBotY rafBot (- rafterBotY plateT))       ; rafter-bottom plate (welded to rafter, top flush w/ arch underside)
-  (setq capTop (- rafBot gap) capBot (- capTop plateT))       ; column-cap plate (welded to column) below the 2 mm gap
-  (peb-solid-quad (list x0 rafBot) (list x1 rafBot) (list x0 rafTop) (list x1 rafTop))   ; rafter plate (SOLID)
-  (peb-solid-quad (list x0 capBot) (list x1 capBot) (list x0 capTop) (list x1 capTop))   ; column-cap plate (SOLID)
-  ;; SOLID stiffeners welded UNDER the column-cap plate at BOTH ends (owner 16-Jul markups 13 & AMS-3):
-  ;; the stiffener plate is welded with the column, one at each flange face, pointing down-inward.
+  (setq plateT 30.0 gap 2.0 ext 100.0 x0 xL x1 xR)
+  (setq rafTop rafterBotY rafBot (- rafterBotY plateT))       ; rafter-bottom plate (welded to rafter)
+  (setq capTop (- rafBot gap) capBot (- capTop plateT))       ; column-cap plate (welded to column)
+  ;; RAFTER plate extends 100 mm INTO the span (owner 16-Jul markup 09).
+  (setq rpx0 (if (< dirIn 0) (- x0 ext) x0)
+        rpx1 (if (> dirIn 0) (+ x1 ext) x1))
+  (if (= dirIn 0) (setq rpx0 (- x0 ext) rpx1 (+ x1 ext)))
+  (peb-solid-quad (list rpx0 rafBot) (list rpx1 rafBot) (list rpx0 rafTop) (list rpx1 rafTop))   ; rafter plate (SOLID)
+  (peb-solid-quad (list x0 capBot) (list x1 capBot) (list x0 capTop) (list x1 capTop))           ; column-cap plate (SOLID)
+  ;; SOLID stiffeners welded UNDER the column-cap plate at BOTH ends (welded with the column).
   (setq stH 110.0)
-  (draw-rc-gusset x0 capBot (- capBot stH)  90.0  1)          ; left  end (points down-inward)
-  (draw-rc-gusset x1 capBot (- capBot stH)  90.0 -1)          ; right end (points down-inward)
+  (draw-rc-gusset x0 capBot (- capBot stH)  90.0  1)
+  (draw-rc-gusset x1 capBot (- capBot stH)  90.0 -1)
+  ;; SOLID knee GUSSET (markup 09): filled triangle sitting on the rafter plate's INNER end, rising toward
+  ;; the (cut) rafter bottom flange — fills the re-entrant corner of the knee.
+  (setq gh 130.0)                                             ; gusset rise
+  (if (>= dirIn 0) (command "_.SOLID" (list x1 rafTop) (list rpx1 rafTop) (list rpx1 (+ rafTop gh)) "" ""))
+  (if (<= dirIn 0) (command "_.SOLID" (list rpx0 rafTop) (list x0 rafTop) (list rpx0 (+ rafTop gh)) "" ""))
   (princ))
 
-(defun draw-arch-conn-plates (stype W H rise ep cb / innerH step x ay t2 hc)
+(defun draw-arch-conn-plates (stype W H rise ep cb / innerH step x ay t2 hc yiL)
   (setq innerH 200.0)                                       ; arch web depth (matches the frame)
   (if (or (null cb) (<= cb 0.0)) (setq cb 400.0))           ; guard: fall back to legacy width
   (setq hc (/ cb 2.0))
+  ;; Rafter-bottom Y at the OUTER springing CUT (x=cb) — must match the cut rafter (draw-acs/ams-frame).
+  (if (= stype "ACS")
+    (setq yiL (- (peb-arc3-y 0.0 H (/ W 2.0) (+ H rise) W H cb) innerH))
+    (setq yiL (- (peb-arc3-y 0.0 H (/ W 4.0) (+ H (* 0.72 rise)) (/ W 2.0) (+ H rise) cb) innerH)))
   ;; SPRINGING knees — 2 solid plates, NO diagonal (owner 16-Jul), spanning the actual column width.
-  (peb-arch-knee 0.0            cb              (- H innerH))            ; left springing
-  (peb-arch-knee (- W cb)       W               (- H innerH))            ; right springing
+  (peb-arch-knee 0.0            cb              yiL  1)                 ; left springing  (inside = +x)
+  (peb-arch-knee (- W cb)       W               yiL -1)                 ; right springing (inside = -x)
   (if (= stype "AMS")
-    (peb-arch-knee (- (/ W 2.0) hc) (+ (/ W 2.0) hc) (- (+ H rise) innerH)))  ; centre-peak column
+    (peb-arch-knee (- (/ W 2.0) hc) (+ (/ W 2.0) hc)
+      (- (peb-arc3-y 0.0 H (/ W 4.0) (+ H (* 0.72 rise)) (/ W 2.0) (+ H rise) (- (/ W 2.0) hc)) innerH) 0))  ; centre column (both)
   ;; SPLICE plates every <=12 m along the arch + SOLID flange stiffeners both sides (owner 16-Jul markup 11).
   (setq step (/ W (float (1+ (fix (/ W 12000.0))))))
   (setq x step)
@@ -7843,6 +7865,15 @@
   (peb-dim-height-stretch hObjX dimX2 0.0 (- H ht) "<>\\PCLEAR HEIGHT")
   (setq *PEB-DIM-TXT* nil)
   (peb-recolor-last-dim 0)                        ; ByBlock
+  ;; owner 16-Jul markup 14: arched frames — extend the CLEAR HEIGHT witness line UP to the eave gutter (H)
+  ;; so it references the top of the structure (the measured value stays 7000 = H-ht).  The extension runs
+  ;; from the object face out to the dim line at the eave level.
+  (if (member stype '("ACS" "AMS"))
+    (progn
+      (setvar "CLAYER" "DIMENSIONS")
+      (setvar "PLINEWID" 0.0)
+      (command "LINE" (list hObjX (- H ht)) (list hObjX H) "")     ; witness continues up the object face to the eave
+      (command "LINE" (list hObjX H)        (list dimX2 H) "")))   ; horizontal reference at the eave gutter
 
   ;; Width dimensions at the bottom — VLA path via peb-dim-h-stretch
   ;; (single grip-editable AcDbRotatedDimension; falls back to hand-
