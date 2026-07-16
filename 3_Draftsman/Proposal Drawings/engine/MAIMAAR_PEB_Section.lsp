@@ -7277,22 +7277,22 @@
           ;; RIGHT wing deck (2 lines): centre PEAK down-out to the RIGHT tip overhang (x=wid+270)
           (command "LINE" (list bfcx (+ H rise 200.0)) (list (+ wid 270.0) (- (+ H 200.0) (* bfm 270.0))) "")
           (command "LINE" (list bfcx (+ H rise 235.0)) (list (+ wid 270.0) (- (+ H 235.0) (* bfm 270.0))) "")
-          ;; EAVE GUTTER at BOTH low free tips (Falcon drains at the tips)
-          (setvar "CLAYER" "GUTTER")
+          ;; NO eave gutters (owner 16-Jul: remove eave gutters from the canopies).  The low free tips get a
+          ;; CLOSED drip TRIM instead (down the outer face, return in, back up to the bottom sheet).
+          (setvar "CLAYER" "CLADDING")
           (setvar "PLINEWID" 0.0)
           (command "PLINE"
-            (list -420.0 (- (+ H 250.0) (* bfm 270.0)))
-            (list -270.0 (- (+ H  60.0) (* bfm 270.0)))
-            (list -120.0 (- (+ H 250.0) (* bfm 270.0)))
+            (list -270.0 (- (+ H 235.0) (* bfm 270.0)))
+            (list -270.0 (- (- (+ H 200.0) (* bfm 270.0)) 250.0))
+            (list -235.0 (- (- (+ H 200.0) (* bfm 270.0)) 250.0))
+            (list -235.0 (- (+ H 200.0) (* bfm 270.0)))
             "")
           (command "PLINE"
-            (list (+ wid 120.0) (- (+ H 250.0) (* bfm 270.0)))
-            (list (+ wid 270.0) (- (+ H  60.0) (* bfm 270.0)))
-            (list (+ wid 420.0) (- (+ H 250.0) (* bfm 270.0)))
+            (list (+ wid 270.0) (- (+ H 235.0) (* bfm 270.0)))
+            (list (+ wid 270.0) (- (- (+ H 200.0) (* bfm 270.0)) 250.0))
+            (list (+ wid 235.0) (- (- (+ H 200.0) (* bfm 270.0)) 250.0))
+            (list (+ wid 235.0) (- (+ H 200.0) (* bfm 270.0)))
             "")
-          (setvar "CLAYER" "TEXT")
-          (txt "MC" (list -270.0 (- (+ H 900.0) (* bfm 270.0))) 200 0 "EAVE GUTTER")
-          (txt "MC" (list (+ wid 270.0) (- (+ H 900.0) (* bfm 270.0))) 200 0 "EAVE GUTTER")
           ;; FALL callouts on each wing (drain OUTWARD toward the tips)
           (txt "MC" (list (* wid 0.22) (+ H (* rise 0.62) 700.0)) 240 0 "FALL")
           (txt "MC" (list (* wid 0.78) (+ H (* rise 0.62) 700.0)) 240 0 "FALL")
@@ -7500,7 +7500,8 @@
       ;; The roof falls SLIGHTLY to a VALLEY GUTTER over EACH box column; each valley has a DOWN PIPE
       ;; running down INSIDE the box column.  Centre + both outer edges are the high points (a shallow
       ;; W).  Tube purlins carry the sheeting; a ceiling/soffit lines the underside.  No brick wall.
-      (draw-eave-features wid H nil)
+      ;; NO eave gutters (owner 16-Jul: remove eave gutters from the canopies) — PP drains to the valley
+      ;; gutters over the box columns; the outer edges keep only the fascia band.
       (setq ppOvh (* wid 0.22))                       ; matches draw-petrol-frame overhang -> valley X
       (setq ppCx1 ppOvh)                              ; left column / valley line
       (setq ppCx2 (- wid ppOvh))                      ; right column / valley line
