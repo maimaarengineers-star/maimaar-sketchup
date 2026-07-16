@@ -3396,11 +3396,12 @@
   (setq capTop (- rafBot gap) capBot (- capTop plateT))       ; column-cap plate (welded to column)
   (peb-solid-quad (list x0 rafBot) (list x1 rafBot) (list x0 rafTop) (list x1 rafTop))   ; rafter plate (SOLID)
   (peb-solid-quad (list x0 capBot) (list x1 capBot) (list x0 capTop) (list x1 capTop))   ; column-cap plate (SOLID)
-  ;; SOLID stiffener plate welded between the column INNER flange and the connection plate (markup 16):
-  ;; a filled triangle in the corner, vertical edge ON the inner flange, pointing INTO the column.
+  ;; SOLID stiffener plate welded to the column INNER flange, on the OUTSIDE of it (the SPAN/rafter side),
+  ;; NOT flush with the web inside the column (owner 16-Jul markup 17): filled triangle, vertical edge ON the
+  ;; inner flange, projecting INTO the span.
   (setq stH 130.0)
-  (if (>= dirIn 0) (draw-rc-gusset x1 capBot (- capBot stH) 110.0 -1))   ; left/centre: inner flange at x1 -> into column (-x)
-  (if (<= dirIn 0) (draw-rc-gusset x0 capBot (- capBot stH) 110.0  1))   ; right/centre: inner flange at x0 -> into column (+x)
+  (if (>= dirIn 0) (draw-rc-gusset x1 capBot (- capBot stH) 110.0  1))   ; left/centre-right inner flange -> into span (+x)
+  (if (<= dirIn 0) (draw-rc-gusset x0 capBot (- capBot stH) 110.0 -1))   ; right/centre-left  inner flange -> into span (-x)
   (princ))
 
 (defun draw-arch-conn-plates (stype W H rise ep cb / innerH step x ay t2 hc yiL)
