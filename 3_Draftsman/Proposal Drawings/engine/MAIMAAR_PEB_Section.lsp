@@ -2281,14 +2281,10 @@
       (list gxOut (+ H 20.0))       ; down onto the rafter top at the fascia
       (list gxIn  (+ H 20.0))       ; bottom along the rafter top
       (list gxIn  (+ H 150.0)) "")) ; low INNER upstand — the sheeting laps over this into the channel
-  ;; labels
+  ;; labels — only VALLEY GUTTER kept (owner markup 21 removed the RCC PARAPET/FASCIA + CLOSURE TRIM callouts).
   (setvar "CLAYER" "TEXT")
-  (peb-label-with-leader "RCC PARAPET / FASCIA (HIDES ROOF PEAK)"
-                         (list (- 0.0 3200.0) (- pTop 500.0)) (list (/ paraW 2.0) (- pTop 500.0)) "H" 220)
   (peb-label-with-leader "VALLEY GUTTER"
                          (list (+ ivL 1500.0) (+ H 800.0)) (list (+ ivL 120.0) (+ H 120.0)) "H" 160)
-  (peb-label-with-leader "CLOSURE TRIM + FLOWABLE MASTIC"
-                         (list (- ivL 3000.0) (+ H 2100.0)) (list ivL (+ H 250.0)) "H" 200)
   (princ))
 
 (defun draw-rc-support (x0 x1 topY roller / w bx bx1 bx2 pt slot lbl lx)
