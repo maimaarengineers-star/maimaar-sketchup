@@ -7281,20 +7281,22 @@
           (command "LINE" (list bfcx (+ H rise 200.0)) (list (+ wid 270.0) (- (+ H 200.0) (* bfm 270.0))) "")
           (command "LINE" (list bfcx (+ H rise 235.0)) (list (+ wid 270.0) (- (+ H 235.0) (* bfm 270.0))) "")
           ;; NO eave gutters (owner 16-Jul: remove eave gutters from the canopies).  The low free tips get a
-          ;; CLOSED drip TRIM instead (down the outer face, return in, back up to the bottom sheet).
+          ;; FULLY CLOSED drip TRIM (covers the sheet end, hems back to the bottom sheet corner).
           (setvar "CLAYER" "CLADDING")
           (setvar "PLINEWID" 0.0)
           (command "PLINE"
             (list -270.0 (- (+ H 235.0) (* bfm 270.0)))
-            (list -270.0 (- (- (+ H 200.0) (* bfm 270.0)) 250.0))
-            (list -235.0 (- (- (+ H 200.0) (* bfm 270.0)) 250.0))
+            (list -270.0 (- (- (+ H 200.0) (* bfm 270.0)) 220.0))
+            (list -235.0 (- (- (+ H 200.0) (* bfm 270.0)) 220.0))
             (list -235.0 (- (+ H 200.0) (* bfm 270.0)))
+            (list -270.0 (- (+ H 200.0) (* bfm 270.0)))
             "")
           (command "PLINE"
             (list (+ wid 270.0) (- (+ H 235.0) (* bfm 270.0)))
-            (list (+ wid 270.0) (- (- (+ H 200.0) (* bfm 270.0)) 250.0))
-            (list (+ wid 235.0) (- (- (+ H 200.0) (* bfm 270.0)) 250.0))
+            (list (+ wid 270.0) (- (- (+ H 200.0) (* bfm 270.0)) 220.0))
+            (list (+ wid 235.0) (- (- (+ H 200.0) (* bfm 270.0)) 220.0))
             (list (+ wid 235.0) (- (+ H 200.0) (* bfm 270.0)))
+            (list (+ wid 270.0) (- (+ H 200.0) (* bfm 270.0)))
             "")
           ;; FALL callouts on each wing (drain OUTWARD toward the tips)
           (txt "MC" (list (* wid 0.22) (+ H (* rise 0.62) 700.0)) 240 0 "FALL")
@@ -7323,19 +7325,21 @@
           (command "LINE" (list (+ bfcx 265.0) bfBrkY) (list (+ wid 270.0) (+ H rise 200.0 (* bfm 270.0))) "")
           (command "LINE" (list (+ bfcx 265.0) (+ bfBrkY 35.0)) (list (+ wid 270.0) (+ H rise 235.0 (* bfm 270.0))) "")
           (command "LINE" (list (+ bfcx 265.0) bfBrkY) (list (+ bfcx 265.0) (+ bfBrkY 35.0)) "")   ; sheet end-cap
-          ;; Tip drip TRIM at both high eaves — a CLOSED fascia capping the sheeting end (owner 16-Jul markup 6):
-          ;; down the outer face, return in, back up to the bottom sheet.
+          ;; Tip drip TRIM at both high eaves — a FULLY CLOSED fascia (owner 16-Jul markup: close the trims
+          ;; properly).  Covers the sheet END (top->bottom face) then hems back to the bottom sheet corner.
           (command "PLINE"
-            (list -270.0 (+ H rise 235.0 (* bfm 270.0)))
-            (list -270.0 (- (+ H rise 200.0 (* bfm 270.0)) 250.0))
-            (list -235.0 (- (+ H rise 200.0 (* bfm 270.0)) 250.0))
-            (list -235.0 (+ H rise 200.0 (* bfm 270.0)))
+            (list -270.0 (+ H rise 235.0 (* bfm 270.0)))            ; TOP sheet corner
+            (list -270.0 (- (+ H rise 200.0 (* bfm 270.0)) 220.0))  ; DOWN outer face (covers the sheet end)
+            (list -235.0 (- (+ H rise 200.0 (* bfm 270.0)) 220.0))  ; hem return in
+            (list -235.0 (+ H rise 200.0 (* bfm 270.0)))            ; up to bottom-sheet level
+            (list -270.0 (+ H rise 200.0 (* bfm 270.0)))            ; IN to the BOTTOM sheet corner (closes)
             "")
           (command "PLINE"
             (list (+ wid 270.0) (+ H rise 235.0 (* bfm 270.0)))
-            (list (+ wid 270.0) (- (+ H rise 200.0 (* bfm 270.0)) 250.0))
-            (list (+ wid 235.0) (- (+ H rise 200.0 (* bfm 270.0)) 250.0))
+            (list (+ wid 270.0) (- (+ H rise 200.0 (* bfm 270.0)) 220.0))
+            (list (+ wid 235.0) (- (+ H rise 200.0 (* bfm 270.0)) 220.0))
             (list (+ wid 235.0) (+ H rise 200.0 (* bfm 270.0)))
+            (list (+ wid 270.0) (+ H rise 200.0 (* bfm 270.0)))
             "")
           ;; VALLEY GUTTER — box gutter migrated from the Multi-Gable detail (owner 17-Jul): outer LIPS at
           ;; bfcx±340 (the wing sheets overlap 75mm inside them), walls down to a flat trough bottom.
@@ -7920,6 +7924,13 @@
       (setvar "PLINEWID" 0.0)
       (command "LINE" (list hObjX (- H ht)) (list hObjX H) "")     ; witness continues up the object face to the eave
       (command "LINE" (list hObjX H)        (list dimX2 H) "")))   ; horizontal reference at the eave gutter
+  ;; owner 17-Jul: canopies — extend the CLEAR HEIGHT witness UP to the ROOF deck level (value stays H-ht).
+  (if (member stype '("BF" "CC" "PP"))
+    (progn
+      (setvar "CLAYER" "DIMENSIONS")
+      (setvar "PLINEWID" 0.0)
+      (command "LINE" (list hObjX (- H ht)) (list hObjX (+ H rise 200.0)) "")
+      (command "LINE" (list hObjX (+ H rise 200.0)) (list dimX2 (+ H rise 200.0)) "")))
 
   ;; Width dimensions at the bottom — VLA path via peb-dim-h-stretch
   ;; (single grip-editable AcDbRotatedDimension; falls back to hand-
