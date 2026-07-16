@@ -3402,11 +3402,11 @@
   (setq stH 110.0)
   (draw-rc-gusset x0 capBot (- capBot stH)  90.0  1)
   (draw-rc-gusset x1 capBot (- capBot stH)  90.0 -1)
-  ;; SOLID knee GUSSET (markup 09): filled triangle sitting on the rafter plate's INNER end, rising toward
-  ;; the (cut) rafter bottom flange — fills the re-entrant corner of the knee.
-  (setq gh 130.0)                                             ; gusset rise
-  (if (>= dirIn 0) (command "_.SOLID" (list x1 rafTop) (list rpx1 rafTop) (list rpx1 (+ rafTop gh)) "" ""))
-  (if (<= dirIn 0) (command "_.SOLID" (list rpx0 rafTop) (list x0 rafTop) (list rpx0 (+ rafTop gh)) "" ""))
+  ;; SOLID knee GUSSET (markup 09 + 15): a filled triangle HANGING DOWN below the connection-plate INNER
+  ;; end (the 100 mm overhang into the span), bracketing it back to the column — points DOWN, not up.
+  (setq gh 130.0)                                             ; gusset drop
+  (if (>= dirIn 0) (command "_.SOLID" (list x1 capBot) (list rpx1 capBot) (list rpx1 (- capBot gh)) "" ""))
+  (if (<= dirIn 0) (command "_.SOLID" (list rpx0 capBot) (list x0 capBot) (list rpx0 (- capBot gh)) "" ""))
   (princ))
 
 (defun draw-arch-conn-plates (stype W H rise ep cb / innerH step x ay t2 hc yiL)
