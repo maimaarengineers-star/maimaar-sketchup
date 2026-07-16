@@ -7355,6 +7355,14 @@
             "")
           (setvar "CLAYER" "TEXT")
           (txt "MC" (list bfcx (+ H rise (* 900 *PEB-TEXT-SCALE*))) 200 0 "VALLEY GUTTER")
+          ;; M-Ladder DOWN-ARROW to the valley gutter (owner 17-Jul, same as the Multi-Gable): shaft + SOLID head.
+          (setvar "CLAYER" "ARROWS")
+          (setvar "PLINEWID" 0.0)
+          (command "LINE" (list bfcx (+ H rise (* 550 *PEB-TEXT-SCALE*)))
+                          (list bfcx (+ bfBrkY 230.0)) "")
+          (peb-solid-quad (list (- bfcx (* 130 *PEB-TEXT-SCALE*)) (+ bfBrkY 230.0))
+                          (list (+ bfcx (* 130 *PEB-TEXT-SCALE*)) (+ bfBrkY 230.0))
+                          (list bfcx (+ bfBrkY 30.0)) (list bfcx (+ bfBrkY 30.0)))
           ;; DOWN SPOUT through the central mast
           (peb-label-with-leader "DOWN SPOUT"
                                  (list (+ bfcx 2300.0) (* H 0.45))
