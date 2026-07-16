@@ -7255,10 +7255,11 @@
     ;; ── BF (Butterfly): center column only, no walls ──
     ;; Add COLUMN label pointing at center column inner flange.
     ((= stype "BF")
+      ;; COLUMN label close to the centre column (owner 16-Jul markup 1: short leader, not right across the span).
       (peb-label-pline-leader "COLUMN"
-                             (list (max 1800.0 (+ ht 800.0))
+                             (list (- (/ wid 2.0) 3200.0)     ; text just LEFT of the centre column
                                    (- H ht 700.0))            ; text Y, 700 below knee
-                             (list (+ (/ wid 2.0) 200.0)      ; arrow at center col R-flange
+                             (list (- (/ wid 2.0) 200.0)      ; arrow at centre col LEFT flange
                                    (- H ht 700.0))
                              "H"
                              220)
@@ -7315,9 +7316,20 @@
           ;; RIGHT wing deck (2 lines): valley up to the high eave (x=wid+270, overhang)
           (command "LINE" (list bfcx (+ H 200.0)) (list (+ wid 270.0) (+ H rise 200.0 (* bfm 270.0))) "")
           (command "LINE" (list bfcx (+ H 235.0)) (list (+ wid 270.0) (+ H rise 235.0 (* bfm 270.0))) "")
-          ;; Tip fascia at both high eaves (short vertical bands)
-          (command "LINE" (list -270.0 (+ H rise 235.0 (* bfm 270.0))) (list -270.0 (- (+ H rise 200.0 (* bfm 270.0)) 500.0)) "")
-          (command "LINE" (list (+ wid 270.0) (+ H rise 235.0 (* bfm 270.0))) (list (+ wid 270.0) (- (+ H rise 200.0 (* bfm 270.0)) 500.0)) "")
+          ;; Tip drip TRIM at both high eaves — a CLOSED fascia capping the sheeting end (owner 16-Jul markup 6):
+          ;; down the outer face, return in, back up to the bottom sheet.
+          (command "PLINE"
+            (list -270.0 (+ H rise 235.0 (* bfm 270.0)))
+            (list -270.0 (- (+ H rise 200.0 (* bfm 270.0)) 250.0))
+            (list -235.0 (- (+ H rise 200.0 (* bfm 270.0)) 250.0))
+            (list -235.0 (+ H rise 200.0 (* bfm 270.0)))
+            "")
+          (command "PLINE"
+            (list (+ wid 270.0) (+ H rise 235.0 (* bfm 270.0)))
+            (list (+ wid 270.0) (- (+ H rise 200.0 (* bfm 270.0)) 250.0))
+            (list (+ wid 235.0) (- (+ H rise 200.0 (* bfm 270.0)) 250.0))
+            (list (+ wid 235.0) (+ H rise 200.0 (* bfm 270.0)))
+            "")
           ;; Central VALLEY GUTTER trough (drains to centre)
           (setvar "CLAYER" "GUTTER")
           (setvar "PLINEWID" 0.0)
