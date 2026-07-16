@@ -12,6 +12,17 @@
 ;   C:PEB-SECTION                   interactive (Pick-file dialog)
 ;   (peb-section-from-file <path>)  non-interactive (used by Excel VBA)
 ; ============================================================================
+;
+; ============================================================================
+; STANDING DRAWING RULES (owner — apply to ALL section drawings, always)
+;   1. TITLE BLOCK must be FLUSH with the sheet double-lines on TOP, BOTTOM and
+;      RIGHT for every drawing, whatever the size; General Notes top-aligned.
+;   2. CONNECTION-PLATE GUSSETS (stiffeners) must be FILLED SOLID and must NOT
+;      extend BEYOND the 100 mm extension of the connection plates (they stay
+;      within the plate end lines).  See draw-rc-gusset.
+;   3. CONNECTION PLATES on a rafter always EXTEND 100 mm BEYOND the TOP flange
+;      AND 100 mm BEYOND the BOTTOM flange (ext = 100 in draw-rc-ridge/splice).
+; ============================================================================
 
 ;; ===================== FILE READER =====================
 
@@ -2324,10 +2335,11 @@
                   (list rxo (+ yTop ext)) (list (+ rxo pt) (+ yTop ext)))
   ;; stiffener gussets at the TOP and BOTTOM flanges on the outer edge of each plate (owner markup 17 —
   ;; NOT a mid-web diamond; the gussets sit at the flange corners).
-  (draw-stiff-top (- lxo pt) yTop ext 130.0 -1)
-  (draw-stiff-bot (- lxo pt) yBot ext 130.0 -1)
-  (draw-stiff-top (+ rxo pt) yTop ext 130.0  1)
-  (draw-stiff-bot (+ rxo pt) yBot ext 130.0  1)
+  ;; FILLED gussets kept within the plate end lines (owner markup 22): plate top = yTop+ext, bottom = yBot-ext.
+  (draw-rc-gusset (- lxo pt) yTop (+ yTop ext) 130.0 -1)
+  (draw-rc-gusset (- lxo pt) yBot (- yBot ext) 130.0 -1)
+  (draw-rc-gusset (+ rxo pt) yTop (+ yTop ext) 130.0  1)
+  (draw-rc-gusset (+ rxo pt) yBot (- yBot ext) 130.0  1)
   (princ))
 
 ;; RC rafter top-flange / underside Y at any x (mirrors build-rc-rafter-polygon; `inset` pulls the eaves in).
@@ -2348,11 +2360,11 @@
                   (list (- lxo pt) (+ yTop ext)) (list lxo (+ yTop ext)))
   (peb-solid-quad (list rxo (- yBot ext)) (list (+ rxo pt) (- yBot ext))
                   (list rxo (+ yTop ext)) (list (+ rxo pt) (+ yTop ext)))
-  ;; stiffener gussets at the TOP and BOTTOM flanges on the outer edge of each plate (owner markup 17)
-  (draw-stiff-top (- lxo pt) yTop ext 130.0 -1)
-  (draw-stiff-bot (- lxo pt) yBot ext 130.0 -1)
-  (draw-stiff-top (+ rxo pt) yTop ext 130.0  1)
-  (draw-stiff-bot (+ rxo pt) yBot ext 130.0  1))
+  ;; FILLED gussets at the flanges, kept within the plate end lines (owner markups 17/22)
+  (draw-rc-gusset (- lxo pt) yTop (+ yTop ext) 130.0 -1)
+  (draw-rc-gusset (- lxo pt) yBot (- yBot ext) 130.0 -1)
+  (draw-rc-gusset (+ rxo pt) yTop (+ yTop ext) 130.0  1)
+  (draw-rc-gusset (+ rxo pt) yBot (- yBot ext) 130.0  1))
 (defun draw-rc-splices (W H rise ht / inset hw nP i sx)
   ;;  Transport limit (owner 15-Jul): a rafter piece can't exceed 12m, so split EACH half (eave→peak) into
   ;;  equal pieces ≤12m and put a splice connection plate at every interior break.  `inset` = the fascia eave
@@ -3387,6 +3399,18 @@
     (list (+ xEdge (* dir w)) (/ (+ yBot yTop) 2.0))
     (list xEdge yTop)
     "C"))
+
+(defun draw-rc-gusset (xEdge yFlange plateEnd w dir)
+  ;;  FILLED stiffener gusset (owner markup 22): a SOLID triangle on the OUTER face of the connection plate, in
+  ;;  the flange->plate-end extension zone — from the flange corner (xEdge,yFlange) along the plate edge to the
+  ;;  plate END (xEdge,plateEnd) and out by w along the flange (xEdge+dir*w, yFlange).  It stays WITHIN the plate
+  ;;  end line (does NOT poke past it) and is fully hatched (solid).
+  ;; 3-point SOLID: p1 p2 p3, then "" to finish the triangle (4th point = Enter) and "" to exit the loop.
+  (command "_.SOLID"
+    (list xEdge yFlange)
+    (list (+ xEdge (* dir w)) yFlange)
+    (list xEdge plateEnd)
+    "" ""))
 
 ;; ── Plate-pair de-duplication tracker ─────────────────────────────────
 ;;  draw-rafter-stiffeners pushes (kxL kyBot) onto *PEB-DRAWN-PLATES* every
