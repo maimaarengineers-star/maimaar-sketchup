@@ -4305,6 +4305,22 @@
   (txt "MC" (list labOne (+ ay (/ rise 2.0))) 220 0 "1")
 )
 
+(defun draw-rc-brick-hidden (W H / bw seg y)
+  ;;  ROOFING SYSTEM (RC) brick masonry — owner 16-Jul: the wall runs BETWEEN the RCC pillars (in-plane) and the
+  ;;  section is cut AT a pillar, so the brick is BEYOND the cut plane.  Show it as a HIDDEN (dotted) outline
+  ;;  with a few dotted courses — NOT a solid cut hatch — on the outer side of each column.
+  (setvar "CLAYER" "BRICK-WALL")
+  (setq bw 200.0)
+  (setvar "CELTYPE" "HIDDEN") (setvar "CELTSCALE" 300.0)
+  (foreach seg (list (list (- 0.0 bw) 0.0) (list W (+ W bw)))
+    (command "RECTANG" (list (car seg) 0.0) (list (cadr seg) H))
+    (setq y 600.0)
+    (while (< y (- H 300.0))                                  ; a few dotted brick courses to read as masonry
+      (command "LINE" (list (car seg) y) (list (cadr seg) y) "")
+      (setq y (+ y 600.0))))
+  (setvar "CELTYPE" "BYLAYER") (setvar "CELTSCALE" 1.0)
+  (princ))
+
 (defun draw-brick-wall (W brickH / bw y nextY row brickLen)
   ;;  Brick walls on the outside of LEFT and RIGHT side columns.
   ;;  Each brick drawn as an INDIVIDUAL RECTANGLE outline, alternating
@@ -7570,7 +7586,7 @@
       ;; (owner markup 20) → BRICK MASONRY on the OUTER side of each RCC column (full height) + an EAVE GUTTER
       ;; hanging JUST OUTSIDE the column, with a downpipe.
       (if (not *PEB-RC-FASCIA*)
-        (progn (draw-brick-wall  wid H)            ; brickwork outside the columns (x=-200..0 / W..W+200)
+        (progn (draw-rc-brick-hidden wid H)        ; brick masonry BEYOND the cut → dotted/hidden outline
                (draw-downpipes   wid H H nil)      ; downpipe against the wall
                (draw-eave-features wid H nil)))    ; eave gutter just outside the column
       (draw-rafter-label  wid H rise ht)
