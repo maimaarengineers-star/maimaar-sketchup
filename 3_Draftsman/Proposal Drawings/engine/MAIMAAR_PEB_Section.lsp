@@ -2202,21 +2202,24 @@
     (setq i (1+ i)))
   (princ))
 
-(defun draw-rcc-columns (cols H rccW / x x0 x1 bx)
+(defun draw-rcc-columns (cols H rccW brickExt / x x0 x1 sx0 sx1 bx)
   ;;  RCC (Reinforced Concrete) columns — presentable concrete section (owner 16-Jul "very presentable"):
   ;;  a clean rectangle outline + AR-CONC concrete hatch + 2 vertical REINFORCEMENT bars (hidden/dashed) inset
-  ;;  from the faces.  Used for stype = RC.
+  ;;  from the faces.  Used for stype = RC.  `brickExt` WIDENS the OUTER face of the end columns out to the
+  ;;  flush brick-masonry face (owner 16-Jul, flush case); 0 = column edge only.  sx0/sx1 = STRUCTURAL faces
+  ;;  (rebar insets from these, never into the brick zone).
+  (if (null brickExt) (setq brickExt 0.0))
   (setvar "CLAYER" "RCC-COLUMN")
   (foreach x cols
     (cond
-      ((equal x (car cols)  0.001) (setq x0 x                 x1 (+ x rccW)))          ; LEFT end (flush at 0)
-      ((equal x (last cols) 0.001) (setq x0 (- x rccW)        x1 x))                   ; RIGHT end (flush at W)
-      (T                           (setq x0 (- x (/ rccW 2.0)) x1 (+ x (/ rccW 2.0)))))  ; interior (centred)
+      ((equal x (car cols)  0.001) (setq x0 (- x brickExt) x1 (+ x rccW)         sx0 x            sx1 (+ x rccW)))  ; LEFT (widen OUT)
+      ((equal x (last cols) 0.001) (setq x0 (- x rccW)     x1 (+ x brickExt)     sx0 (- x rccW)   sx1 x))           ; RIGHT (widen OUT)
+      (T                           (setq x0 (- x (/ rccW 2.0)) x1 (+ x (/ rccW 2.0)) sx0 x0 sx1 x1)))               ; interior
     (command "RECTANG" (list x0 0.0) (list x1 H))
     (command "HATCH" "AR-CONC" 100 0 "L" "")   ; sparser aggregate — cleaner concrete look (owner markup 17)
-    ;; two vertical reinforcement bars, dashed, inset 90mm from each face
+    ;; two vertical reinforcement bars, dashed, inset 90mm from the STRUCTURAL faces (not into the brick zone)
     (setvar "CELTYPE" "HIDDEN") (setvar "CELTSCALE" 300.0)
-    (foreach bx (list (+ x0 90.0) (- x1 90.0))
+    (foreach bx (list (+ sx0 90.0) (- sx1 90.0))
       (command "LINE" (list bx 90.0) (list bx (- H 90.0)) ""))
     (setvar "CELTYPE" "BYLAYER") (setvar "CELTSCALE" 1.0)))
 
@@ -2253,7 +2256,11 @@
   ;; owner markup 18: EXTEND the rafter (and its trimmed roof sheeting) right up to the FASCIA inner face; the
   ;; valley gutter then rests ON TOP of the rafter end, tucked against the fascia.
   (setq *PEB-RC-INSET* (if fascia *PEB-RC-PARAW* 0.0))
-  (draw-rcc-columns (list 0.0 W) colTop rccW)
+  ;; FLUSH brick case (owner 16-Jul): the plain roof-system wall has brick masonry FLUSH with the columns, so
+  ;; widen the column OUT to the brick face and show the brick as dotted lines WITHIN it (draw-rc-brick-hidden).
+  ;; No brick on the fascia option.
+  (setq *PEB-RC-BRICKEXT* (if fascia 0.0 200.0))
+  (draw-rcc-columns (list 0.0 W) colTop rccW *PEB-RC-BRICKEXT*)
   (setvar "CLAYER" "FRAME")
   (setvar "PLINEWID" 0.0)
   (setq pts (build-rc-rafter-polygon W H rise de dp *PEB-RC-INSET*))
@@ -4305,18 +4312,22 @@
   (txt "MC" (list labOne (+ ay (/ rise 2.0))) 220 0 "1")
 )
 
-(defun draw-rc-brick-hidden (W H / bw seg y)
-  ;;  ROOFING SYSTEM (RC) brick masonry — owner 16-Jul: the wall runs BETWEEN the RCC pillars (in-plane) and the
-  ;;  section is cut AT a pillar, so the brick is BEYOND the cut plane.  Show it as a HIDDEN (dotted) outline
-  ;;  with a few dotted courses — NOT a solid cut hatch — on the outer side of each column.
+(defun draw-rc-brick-hidden (W H / bw seg xo xi y)
+  ;;  ROOFING SYSTEM (RC) brick masonry, FLUSH with the RCC columns (owner 16-Jul): the section is cut AT a
+  ;;  pillar and the brick runs BETWEEN pillars (beyond the cut), so the column is drawn WIDENED out to the
+  ;;  brick face (see draw-rcc-columns brickExt) and the brick masonry is shown as HIDDEN (dotted) lines WITHIN
+  ;;  that widened zone — a dashed interface at the structural column face + a few dashed courses.
+  ;;  (NOT-flush case = dotted outline OUTSIDE the column; not used here.)
+  (setq bw (if (and *PEB-RC-BRICKEXT* (> *PEB-RC-BRICKEXT* 0.0)) *PEB-RC-BRICKEXT* 200.0))
   (setvar "CLAYER" "BRICK-WALL")
-  (setq bw 200.0)
   (setvar "CELTYPE" "HIDDEN") (setvar "CELTSCALE" 300.0)
-  (foreach seg (list (list (- 0.0 bw) 0.0) (list W (+ W bw)))
-    (command "RECTANG" (list (car seg) 0.0) (list (cadr seg) H))
+  ;; each seg = (outer-face-x  structural-face-x) of the brick zone
+  (foreach seg (list (list (- 0.0 bw) 0.0) (list (+ W bw) W))
+    (setq xo (car seg) xi (cadr seg))
+    (command "LINE" (list xi 0.0) (list xi H) "")            ; dashed interface at the structural column face
     (setq y 600.0)
-    (while (< y (- H 300.0))                                  ; a few dotted brick courses to read as masonry
-      (command "LINE" (list (car seg) y) (list (cadr seg) y) "")
+    (while (< y (- H 300.0))                                 ; dashed brick courses within the flush zone
+      (command "LINE" (list xo y) (list xi y) "")
       (setq y (+ y 600.0))))
   (setvar "CELTYPE" "BYLAYER") (setvar "CELTSCALE" 1.0)
   (princ))
