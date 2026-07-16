@@ -3389,19 +3389,23 @@
 ;;  a SOLID stiffener plate welded between the column INNER flange and the connection plate, pointing INTO the
 ;;  column.  dirIn picks the inner flange: +1 = LEFT knee (inner flange at x1), -1 = RIGHT knee (inner flange
 ;;  at x0), 0 = CENTRE column (both edges are inner flanges).
-(defun peb-arch-knee (xL xR rafterBotY dirIn / x0 x1 plateT gap rafBot rafTop capTop capBot stH)
+(defun peb-arch-knee (xL xR rafterBotY dirIn / x0 x1 plateT gap gw rafBot rafTop capTop capBot stH px0 px1)
   (setvar "CLAYER" "PLATES")
-  (setq plateT 30.0 gap 2.0 x0 xL x1 xR)
+  (setq plateT 30.0 gap 2.0 gw 110.0 x0 xL x1 xR)
   (setq rafTop rafterBotY rafBot (- rafterBotY plateT))       ; rafter-bottom plate (welded to rafter)
   (setq capTop (- rafBot gap) capBot (- capTop plateT))       ; column-cap plate (welded to column)
-  (peb-solid-quad (list x0 rafBot) (list x1 rafBot) (list x0 rafTop) (list x1 rafTop))   ; rafter plate (SOLID)
-  (peb-solid-quad (list x0 capBot) (list x1 capBot) (list x0 capTop) (list x1 capTop))   ; column-cap plate (SOLID)
+  ;; The top plates EXTEND on the inner-flange side by the stiffener width so the stiffener's full top edge
+  ;; welds to the plate (owner 16-Jul markup 18) — extension is exactly the stiffener projection, no more.
+  (setq px0 (if (<= dirIn 0) (- x0 gw) x0)
+        px1 (if (>= dirIn 0) (+ x1 gw) x1))
+  (peb-solid-quad (list px0 rafBot) (list px1 rafBot) (list px0 rafTop) (list px1 rafTop))   ; rafter plate (SOLID)
+  (peb-solid-quad (list px0 capBot) (list px1 capBot) (list px0 capTop) (list px1 capTop))   ; column-cap plate (SOLID)
   ;; SOLID stiffener plate welded to the column INNER flange, on the OUTSIDE of it (the SPAN/rafter side),
   ;; NOT flush with the web inside the column (owner 16-Jul markup 17): filled triangle, vertical edge ON the
-  ;; inner flange, projecting INTO the span.
+  ;; inner flange, projecting INTO the span — its top edge runs under the extended plate.
   (setq stH 130.0)
-  (if (>= dirIn 0) (draw-rc-gusset x1 capBot (- capBot stH) 110.0  1))   ; left/centre-right inner flange -> into span (+x)
-  (if (<= dirIn 0) (draw-rc-gusset x0 capBot (- capBot stH) 110.0 -1))   ; right/centre-left  inner flange -> into span (-x)
+  (if (>= dirIn 0) (draw-rc-gusset x1 capBot (- capBot stH) gw  1))   ; left/centre-right inner flange -> into span (+x)
+  (if (<= dirIn 0) (draw-rc-gusset x0 capBot (- capBot stH) gw -1))   ; right/centre-left  inner flange -> into span (-x)
   (princ))
 
 (defun draw-arch-conn-plates (stype W H rise ep cb / innerH step x ay t2 hc yiL)
