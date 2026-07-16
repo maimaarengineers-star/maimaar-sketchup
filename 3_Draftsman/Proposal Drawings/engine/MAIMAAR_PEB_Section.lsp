@@ -2957,7 +2957,7 @@
       (+ cy (sqrt (max 0.0 dd))))))
 
 (defun draw-acs-frame (W H rise ht cb /
-                        midX peakY innerH innerW colTop yoC yiC)
+                        midX peakY innerH innerW colTop yoC yiC cutX)
   ;;  Arched Clear Span (ACS): two R.F. columns with a CURVED ROOF
   ;;  RAFTER spanning between them.  No ridge — single arc from
   ;;  left column top, peaking at building centerline, down to
@@ -2976,9 +2976,11 @@
   (setq midX (/ W 2.0))
   (setq peakY (+ H rise))
   (setq innerH 200.0)        ; rafter web depth (approx)
-  ;; The rafter is CUT at the connection plate (x=cb / W-cb) — it does NOT run out to the eave (owner 16-Jul
-  ;; markup 13); only the roof sheeting overhangs to the gutter.  yoC/yiC = outer/inner rafter Y at the cut.
-  (setq yoC (peb-arc3-y 0.0 H midX peakY W H cb)
+  ;; The BOTTOM flange STOPS at the INNER edge of the (extended) rafter connection plate — cutX = cb + 110
+  ;; (the plate/stiffener extension), so it does not cross the extended plate (owner 16-Jul markup 19).
+  ;; The TOP flange still runs full out to the eave.  yoC/yiC = outer/inner rafter Y at that cut.
+  (setq cutX (+ cb 110.0))
+  (setq yoC (peb-arc3-y 0.0 H midX peakY W H cutX)
         yiC (- yoC innerH))
   ;; Column TOP drops below the rafter underside by 2 plates + gap so the connection stacks cleanly
   ;; (owner 16-Jul markup 10): column -> cap plate -> 2mm gap -> rafter plate -> rafter underside.
@@ -2995,8 +2997,8 @@
   ;; OUTER (top) curved rafter — FULL: the TOP flange runs right out to the column OUTER flange at the eave
   ;; (owner 16-Jul markup 09): (0, H) → (midX, peakY) → (W, H)
   (command "ARC" (list 0.0 H) (list midX peakY) (list W H))
-  ;; INNER (bottom) curved rafter — CUT at the connection plate: the BOTTOM flange stops at x=cb / W-cb
-  (command "ARC" (list cb yiC) (list midX (- peakY innerH)) (list (- W cb) yiC))
+  ;; INNER (bottom) curved rafter — CUT at the extended plate inner edge (cutX): bottom flange stops there
+  (command "ARC" (list cutX yiC) (list midX (- peakY innerH)) (list (- W cutX) yiC))
   ;; Close the TOP flange onto the connection plate at each eave (short vertical end face at the outer flange).
   (command "LINE" (list 0.0 H) (list 0.0 yiC) "")
   (command "LINE" (list W   H) (list W   yiC) "")
@@ -3004,7 +3006,7 @@
 
 (defun draw-ams-frame (W H rise ht cb /
                         halfW peakY innerH q1 q3 peakInnerY colTop colTopC
-                        hc yoLs yoLc yoRc yoRs)
+                        hc yoLs yoLc yoRc yoRs lsX lcX rcX rsX)
   ;;  Arched Multi-Span (AMS-01): three R.F. columns with TWO
   ;;  CURVED arches.  Center column rises to the peak; left and
   ;;  right columns at clear height H.
@@ -3035,11 +3037,16 @@
   (setq peakInnerY (+ H (* 0.72 rise)))
   ;; Rafter CUT points (owner 16-Jul markup 13): each arch ENDS at its connection plates — the OUTER
   ;; springings (cb / W-cb) and the CENTRE column edges (halfW±hc) — not at the eave.  Only sheeting overhangs.
+  ;; Bottom flanges STOP at the EXTENDED plate inner edges (±110 past the column flanges) — markup 19.
   (setq hc   (/ cb 2.0)
-        yoLs (peb-arc3-y 0.0 H q1 peakInnerY halfW peakY cb)                 ; left arch @ left springing
-        yoLc (peb-arc3-y 0.0 H q1 peakInnerY halfW peakY (- halfW hc))       ; left arch @ centre-col edge
-        yoRc (peb-arc3-y halfW peakY q3 peakInnerY W H (+ halfW hc))         ; right arch @ centre-col edge
-        yoRs (peb-arc3-y halfW peakY q3 peakInnerY W H (- W cb)))            ; right arch @ right springing
+        lsX  (+ cb 110.0)                     ; left  springing cut
+        lcX  (- halfW hc 110.0)               ; left  arch @ centre-col plate edge
+        rcX  (+ halfW hc 110.0)               ; right arch @ centre-col plate edge
+        rsX  (- W cb 110.0)                   ; right springing cut
+        yoLs (peb-arc3-y 0.0 H q1 peakInnerY halfW peakY lsX)
+        yoLc (peb-arc3-y 0.0 H q1 peakInnerY halfW peakY lcX)
+        yoRc (peb-arc3-y halfW peakY q3 peakInnerY W H rcX)
+        yoRs (peb-arc3-y halfW peakY q3 peakInnerY W H rsX))
   ;; Column TOPS drop below the rafter underside by 2 plates + gap (owner 16-Jul markup 10).
   (setq colTop  (- yoLs innerH 62.0)                 ; eave columns: below the springing underside
         colTopC (- yoLc innerH 62.0))                ; centre column: below the centre-edge underside
@@ -3057,17 +3064,15 @@
     (list W        colTop))
   ;; LEFT arch OUTER (FULL — top flange runs to the eave outer flange and over the centre column):
   (command "ARC" (list 0.0 H) (list q1 peakInnerY) (list halfW peakY))
-  ;; LEFT arch INNER (CUT at cb .. halfW-hc — bottom flange stops at the connection plates)
-  (command "ARC" (list cb (- yoLs innerH)) (list q1 (- peakInnerY innerH)) (list (- halfW hc) (- yoLc innerH)))
+  ;; LEFT arch INNER (CUT at lsX .. lcX — bottom flange stops at the extended connection plates)
+  (command "ARC" (list lsX (- yoLs innerH)) (list q1 (- peakInnerY innerH)) (list lcX (- yoLc innerH)))
   ;; RIGHT arch OUTER (FULL): (halfW, peakY) → (q3, peakInnerY) → (W, H)
   (command "ARC" (list halfW peakY) (list q3 peakInnerY) (list W H))
-  ;; RIGHT arch INNER (CUT at halfW+hc .. W-cb)
-  (command "ARC" (list (+ halfW hc) (- yoRc innerH)) (list q3 (- peakInnerY innerH)) (list (- W cb) (- yoRs innerH)))
-  ;; Close TOP flanges onto the connection plates: eave outer flanges (x=0/W) + both centre-column edges.
+  ;; RIGHT arch INNER (CUT at rcX .. rsX)
+  (command "ARC" (list rcX (- yoRc innerH)) (list q3 (- peakInnerY innerH)) (list rsX (- yoRs innerH)))
+  ;; Close TOP flanges onto the plates at the eaves (x=0/W).  Centre: bottom flanges meet the extended plate.
   (command "LINE" (list 0.0 H) (list 0.0 (- yoLs innerH)) "")
   (command "LINE" (list W   H) (list W   (- yoRs innerH)) "")
-  (command "LINE" (list (- halfW hc) yoLc) (list (- halfW hc) (- yoLc innerH)) "")
-  (command "LINE" (list (+ halfW hc) yoRc) (list (+ halfW hc) (- yoRc innerH)) "")
 )
 
 (defun draw-bf-frame (W H rise ht cb intColW / cx de dp halfCol)
@@ -3412,16 +3417,17 @@
   (setq innerH 200.0)                                       ; arch web depth (matches the frame)
   (if (or (null cb) (<= cb 0.0)) (setq cb 400.0))           ; guard: fall back to legacy width
   (setq hc (/ cb 2.0))
-  ;; Rafter-bottom Y at the OUTER springing CUT (x=cb) — must match the cut rafter (draw-acs/ams-frame).
+  ;; Rafter-bottom Y at the OUTER springing CUT (x=cb+110, the extended plate inner edge) — must match the cut
+  ;; rafter (draw-acs/ams-frame) so the bottom flange meets the plate exactly (owner 16-Jul markup 19).
   (if (= stype "ACS")
-    (setq yiL (- (peb-arc3-y 0.0 H (/ W 2.0) (+ H rise) W H cb) innerH))
-    (setq yiL (- (peb-arc3-y 0.0 H (/ W 4.0) (+ H (* 0.72 rise)) (/ W 2.0) (+ H rise) cb) innerH)))
+    (setq yiL (- (peb-arc3-y 0.0 H (/ W 2.0) (+ H rise) W H (+ cb 110.0)) innerH))
+    (setq yiL (- (peb-arc3-y 0.0 H (/ W 4.0) (+ H (* 0.72 rise)) (/ W 2.0) (+ H rise) (+ cb 110.0)) innerH)))
   ;; SPRINGING knees — 2 solid plates, NO diagonal (owner 16-Jul), spanning the actual column width.
   (peb-arch-knee 0.0            cb              yiL  1)                 ; left springing  (inside = +x)
   (peb-arch-knee (- W cb)       W               yiL -1)                 ; right springing (inside = -x)
   (if (= stype "AMS")
     (peb-arch-knee (- (/ W 2.0) hc) (+ (/ W 2.0) hc)
-      (- (peb-arc3-y 0.0 H (/ W 4.0) (+ H (* 0.72 rise)) (/ W 2.0) (+ H rise) (- (/ W 2.0) hc)) innerH) 0))  ; centre column (both)
+      (- (peb-arc3-y 0.0 H (/ W 4.0) (+ H (* 0.72 rise)) (/ W 2.0) (+ H rise) (- (/ W 2.0) hc 110.0)) innerH) 0))  ; centre column (both)
   ;; SPLICE plates every <=12 m along the arch + SOLID flange stiffeners both sides (owner 16-Jul markup 11).
   (setq step (/ W (float (1+ (fix (/ W 12000.0))))))
   (setq x step)
@@ -7428,13 +7434,14 @@
           (command "ARC" (list amHalf (+ H rise 235.0)) (list amQ3 (+ amPk 235.0)) (list wid (+ H 235.0)))
           (draw-purlins-arc 0.0 H amQ1 amPk amHalf (+ H rise))
           (draw-purlins-arc amHalf (+ H rise) amQ3 amPk wid H)))
-      ;; Extend the ROOF SHEETING down INTO the eave gutter at BOTH eaves (owner 16-Jul: "extend roof
-      ;; sheeting line till gutter") — both sheet lines drop into the gutter trough (water drips in).
-      (setvar "CLAYER" "CLADDING")
-      (command "LINE" (list 0.0 (+ H 200.0)) (list -270.0 (+ H 150.0)) "")
-      (command "LINE" (list 0.0 (+ H 235.0)) (list -270.0 (+ H 185.0)) "")
-      (command "LINE" (list wid (+ H 200.0)) (list (+ wid 270.0) (+ H 150.0)) "")
-      (command "LINE" (list wid (+ H 235.0)) (list (+ wid 270.0) (+ H 185.0)) "")
+      ;; ROOF SHEETING rides OVER the gutter INNER wall (at -200 / W+200, top H+200) then DROPS INTO the
+      ;; trough — the sheeting ends INSIDE the gutter and the gutter inner sheeting line sits BELOW it
+      ;; (owner 16-Jul markup 19).  3-point path: eave -> up over the inner lip -> down into the trough.
+      (setvar "CLAYER" "CLADDING") (setvar "PLINEWID" 0.0)
+      (command "PLINE" (list 0.0 (+ H 200.0)) (list -205.0 (+ H 212.0)) (list -330.0 (+ H 110.0)) "")
+      (command "PLINE" (list 0.0 (+ H 235.0)) (list -205.0 (+ H 247.0)) (list -330.0 (+ H 145.0)) "")
+      (command "PLINE" (list wid (+ H 200.0)) (list (+ wid 205.0) (+ H 212.0)) (list (+ wid 330.0) (+ H 110.0)) "")
+      (command "PLINE" (list wid (+ H 235.0)) (list (+ wid 205.0) (+ H 247.0)) (list (+ wid 330.0) (+ H 145.0)) "")
       ;; ROOF + WALL SHEETING callouts (arches bypass draw-cladding, so add them here)
       (peb-arch-sheeting-labels data wid H rise)
       ;; "CURVED ROOF RAFTER" label — single MLEADER pointing at the
