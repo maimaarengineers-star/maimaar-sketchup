@@ -3104,12 +3104,13 @@
   (setq dp (max 350.0 (* (/ W 24000.0) 700.0)))   ; mast (deep) web depth
   (setq de (max 200.0 (* (/ W 24000.0) 400.0)))   ; tip (thin) web depth
 
-  ;; Center column (rectangular) — EXTENDED TILL THE TOP / valley (owner 14-Jul), the two wings connect
-  ;; to its SIDES at the mast underside (H-dp); the column continues up to the valley (H).
+  ;; Center column (rectangular) — TOPS OUT below the rafter underside (H-dp) by the 2-plate connection
+  ;; stack (owner 16-Jul markup 2: gable-style valley connection), so the two wings land on a horizontal
+  ;; connection-plate pair on the column top (drawn in the plate dispatch), not floating side plates.
   (setvar "CLAYER" "FRAME")
   (command "RECTANG"
     (list (- cx halfCol) 0.0)
-    (list (+ cx halfCol) H))
+    (list (+ cx halfCol) (- H dp 62.0)))
 
   ;; Frame outline: butterfly (V top), underside tapers de (tip) -> dp (mast)
   (command "PLINE"
@@ -3131,11 +3132,12 @@
   (setq halfCol (/ intColW 2.0))
   (setq dp (max 350.0 (* (/ W 24000.0) 700.0)))   ; mast (deep) web depth
   (setq de (max 200.0 (* (/ W 24000.0) 400.0)))   ; tip (thin) web depth
-  ;; Center column (up to the peak underside, deep web)
+  ;; Center column — TOPS OUT below the rafter underside (peak-dp) by the 2-plate connection stack, so the
+  ;; two wings land on a horizontal connection-plate pair on the column top (owner 16-Jul markup 2).
   (setvar "CLAYER" "FRAME")
   (command "RECTANG"
     (list (- cx halfCol) 0.0)
-    (list (+ cx halfCol) (+ H rise (- 0 dp))))
+    (list (+ cx halfCol) (- (+ H rise) dp 62.0)))
   ;; Frame outline: peak top; underside tapers de (tip) -> dp (mast)
   (command "PLINE"
     (list 0.0       H)                            ; LEFT low eave (tip top)
@@ -7052,9 +7054,10 @@
           (setq bfBotY (if bfPk (- (+ H rise) dpP) (- H dpP))
                 bfTopY (if bfPk (+ H rise) H))
           (draw-base-plate-at (- (/ wid 2.0) 200.0) (+ (/ wid 2.0) 200.0) ep (* 25 *PEB-TEXT-SCALE*))
-          ;; I-shape (vertical) connection plate on BOTH SIDES of the centre column — one per wing (owner 14-Jul).
-          (draw-cant-vplate (- (/ wid 2.0) bfHalf) bfBotY bfTopY 45.0 3)
-          (draw-cant-vplate (+ (/ wid 2.0) bfHalf) bfBotY bfTopY 45.0 3))))
+          ;; GABLE-STYLE valley/peak connection (owner 16-Jul markup 2): a HORIZONTAL 2-plate stack on the
+          ;; column TOP (rafter plate + column-cap plate + lower-plate stiffeners) where the two wings land —
+          ;; migrated from the gable-frame ridge/valley detail, replacing the floating side plates.
+          (peb-conn-plate-pair (/ wid 2.0) bfBotY bfHalf 30.0 0))))
     ((= stype "SS")
       ;; SINGLE SLOPE: (1) a KNEE connection plate at EACH column-rafter junction (on the deep underside
       ;; topY-ht), and (2) a RAFTER SPLICE plate ~3-4 m from EVERY column at the haunch end (deep->thin
