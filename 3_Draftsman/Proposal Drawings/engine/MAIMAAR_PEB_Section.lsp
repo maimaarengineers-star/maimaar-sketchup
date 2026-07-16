@@ -7312,13 +7312,17 @@
         (progn
           (setq bfcx (/ wid 2.0))
           (setq bfm  (/ rise bfcx))                   ; wing rise per run (high at eaves, low at valley)
+          (setq bfBrkY (+ H 200.0 (* bfm 265.0)))     ; deck Y where the sheet ends 75mm INTO the gutter
           (setvar "CLAYER" "CLADDING")
-          ;; LEFT wing deck (2 lines): high eave (x=-270, overhang) down to the valley (bfcx)
-          (command "LINE" (list -270.0 (+ H rise 200.0 (* bfm 270.0))) (list bfcx (+ H 200.0)) "")
-          (command "LINE" (list -270.0 (+ H rise 235.0 (* bfm 270.0))) (list bfcx (+ H 235.0)) "")
-          ;; RIGHT wing deck (2 lines): valley up to the high eave (x=wid+270, overhang)
-          (command "LINE" (list bfcx (+ H 200.0)) (list (+ wid 270.0) (+ H rise 200.0 (* bfm 270.0))) "")
-          (command "LINE" (list bfcx (+ H 235.0)) (list (+ wid 270.0) (+ H rise 235.0 (* bfm 270.0))) "")
+          ;; LEFT wing deck (2 lines): high eave down toward the valley, ENDING 75mm inside the gutter lip
+          ;; (owner 17-Jul: migrated Multi-Gable valley detail — sheet overlaps into the gutter + end-cap).
+          (command "LINE" (list -270.0 (+ H rise 200.0 (* bfm 270.0))) (list (- bfcx 265.0) bfBrkY) "")
+          (command "LINE" (list -270.0 (+ H rise 235.0 (* bfm 270.0))) (list (- bfcx 265.0) (+ bfBrkY 35.0)) "")
+          (command "LINE" (list (- bfcx 265.0) bfBrkY) (list (- bfcx 265.0) (+ bfBrkY 35.0)) "")   ; sheet end-cap
+          ;; RIGHT wing deck (2 lines): mirror
+          (command "LINE" (list (+ bfcx 265.0) bfBrkY) (list (+ wid 270.0) (+ H rise 200.0 (* bfm 270.0))) "")
+          (command "LINE" (list (+ bfcx 265.0) (+ bfBrkY 35.0)) (list (+ wid 270.0) (+ H rise 235.0 (* bfm 270.0))) "")
+          (command "LINE" (list (+ bfcx 265.0) bfBrkY) (list (+ bfcx 265.0) (+ bfBrkY 35.0)) "")   ; sheet end-cap
           ;; Tip drip TRIM at both high eaves — a CLOSED fascia capping the sheeting end (owner 16-Jul markup 6):
           ;; down the outer face, return in, back up to the bottom sheet.
           (command "PLINE"
@@ -7333,14 +7337,17 @@
             (list (+ wid 235.0) (- (+ H rise 200.0 (* bfm 270.0)) 250.0))
             (list (+ wid 235.0) (+ H rise 200.0 (* bfm 270.0)))
             "")
-          ;; Central VALLEY GUTTER trough (drains to centre)
+          ;; VALLEY GUTTER — box gutter migrated from the Multi-Gable detail (owner 17-Jul): outer LIPS at
+          ;; bfcx±340 (the wing sheets overlap 75mm inside them), walls down to a flat trough bottom.
           (setvar "CLAYER" "GUTTER")
           (setvar "PLINEWID" 0.0)
           (command "PLINE"
-            (list (- bfcx 320.0) (+ H 250.0))
-            (list (- bfcx 150.0) (+ H  60.0))
-            (list (+ bfcx 150.0) (+ H  60.0))
-            (list (+ bfcx 320.0) (+ H 250.0))
+            (list (- bfcx 340.0) (+ bfBrkY 25.0))       ; left lip
+            (list (- bfcx 340.0) (+ H 120.0))           ; down left wall
+            (list (- bfcx 190.0) (+ H  40.0))           ; slope to flat bottom
+            (list (+ bfcx 190.0) (+ H  40.0))           ; flat trough bottom
+            (list (+ bfcx 340.0) (+ H 120.0))           ; up right wall
+            (list (+ bfcx 340.0) (+ bfBrkY 25.0))       ; right lip
             "")
           (setvar "CLAYER" "TEXT")
           (txt "MC" (list bfcx (+ H rise (* 900 *PEB-TEXT-SCALE*))) 200 0 "VALLEY GUTTER")
