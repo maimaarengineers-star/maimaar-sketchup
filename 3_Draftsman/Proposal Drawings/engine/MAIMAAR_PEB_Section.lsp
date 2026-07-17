@@ -7341,17 +7341,20 @@
             (list (+ wid 235.0) (+ H rise 200.0 (* bfm 270.0)))
             (list (+ wid 270.0) (+ H rise 200.0 (* bfm 270.0)))
             "")
-          ;; VALLEY GUTTER — box gutter migrated from the Multi-Gable detail (owner 17-Jul): outer LIPS at
-          ;; bfcx±340 (the wing sheets overlap 75mm inside them), walls down to a flat trough bottom.
+          ;; VALLEY GUTTER — clean BOX gutter (owner 17-Jul refinement, per Multi-Gable): small OUTER LIPS
+          ;; folded out at the sheet-end level (bfcx±340), near-vertical walls, and a symmetric flat trough
+          ;; bottom.  The two wing sheets overlap 75 mm inside the lips (bfcx±265).
           (setvar "CLAYER" "GUTTER")
           (setvar "PLINEWID" 0.0)
           (command "PLINE"
-            (list (- bfcx 340.0) (+ bfBrkY 25.0))       ; left lip
-            (list (- bfcx 340.0) (+ H 120.0))           ; down left wall
-            (list (- bfcx 190.0) (+ H  40.0))           ; slope to flat bottom
-            (list (+ bfcx 190.0) (+ H  40.0))           ; flat trough bottom
-            (list (+ bfcx 340.0) (+ H 120.0))           ; up right wall
-            (list (+ bfcx 340.0) (+ bfBrkY 25.0))       ; right lip
+            (list (- bfcx 390.0) bfBrkY)                ; left lip — folded OUT
+            (list (- bfcx 330.0) bfBrkY)                ; left lip inner corner
+            (list (- bfcx 300.0) (+ H 55.0))            ; down the left wall
+            (list (- bfcx 170.0) (+ H 40.0))            ; small slope to the flat bottom
+            (list (+ bfcx 170.0) (+ H 40.0))            ; flat trough bottom
+            (list (+ bfcx 300.0) (+ H 55.0))            ; up the right wall
+            (list (+ bfcx 330.0) bfBrkY)                ; right lip inner corner
+            (list (+ bfcx 390.0) bfBrkY)                ; right lip — folded OUT
             "")
           (setvar "CLAYER" "TEXT")
           (txt "MC" (list bfcx (+ H rise (* 900 *PEB-TEXT-SCALE*))) 200 0 "VALLEY GUTTER")
