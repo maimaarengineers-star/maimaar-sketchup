@@ -7070,13 +7070,19 @@
         (draw-base-plates       wid cb ep))           ; SSCS: two end columns
       ;; (1) ROTATED knee base plate at each column top — HORIZONTAL, welded to rafter bottom, on the
       ;;     column top (owner 14-Jul). Column top = rafter underside at the column = ss-topY(cx)-ht.
+      ;; owner 17-Jul: SINGLE SLOPE knees now use the BUTTERFLY connection detail — TWO SOLID connection
+      ;; plates + SOLID gusset plates tying the plates into the web and both flange faces
+      ;; (peb-conn-plate-pair), replacing the old thin-line diagonal-gusset knee.  SS-only change; the
+      ;; shared gable knee (CS/MS/MG via draw-haunch-plates -> draw-knee-hplate) is untouched.
+      ;; Each plate spans the member depth (ht) on the column top: left/right end knees sit inside the
+      ;; end column, interior (SSMS) columns straddle their station.
       (setq ssFirst (car cols) ssLast (last cols))
       (foreach cx cols
         (setq ssSeam (- (ss-topY cx H slopeRiseP wid) ht))
         (cond
-          ((equal cx ssFirst 1.0) (draw-knee-hplate cx (+ cx ht) ssSeam 45.0 3 nil -1))
-          ((equal cx ssLast  1.0) (draw-knee-hplate (- cx ht) cx ssSeam 45.0 3 nil  1))
-          (T                      (draw-knee-hplate (- cx (/ ht 2.0)) (+ cx (/ ht 2.0)) ssSeam 45.0 3 nil nil))))
+          ((equal cx ssFirst 1.0) (peb-conn-plate-pair (+ cx (/ ht 2.0)) ssSeam (/ ht 2.0) 30.0 0))
+          ((equal cx ssLast  1.0) (peb-conn-plate-pair (- cx (/ ht 2.0)) ssSeam (/ ht 2.0) 30.0 0))
+          (T                      (peb-conn-plate-pair cx ssSeam (/ ht 2.0) 30.0 0))))
       ;; (2) splice plates at the haunch ends — sized to the THIN rafter depth (topY-midD .. topY) + 100
       (setq ssNC (length cols) ssK 0)
       (while (< ssK ssNC)
