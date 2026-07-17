@@ -7430,8 +7430,10 @@
                                "H" 220))
       ;; Purlins along the wing + ROOF SHEETING callout (like Clear Span)
       (peb-deck-purlins 0.0 (+ ccEL 200.0) wid (+ ccER 200.0))
-      (peb-canopy-roof-label data (* wid 0.60) (+ ccEL (* ccS (* wid 0.60)) 200.0)
-                             (+ ccEL (* ccS (* wid 0.60)) 200.0 (* 900 *PEB-TEXT-SCALE*))))
+      ;; raise the ROOFING SYSTEM label CLEAR above the HIGH eave (owner 17-Jul: was colliding with
+      ;; the FALL tag / slope) — same generous top band the Butterfly/Falcon peaks get.
+      (peb-canopy-roof-label data (* wid 0.72) (+ ccEL (* ccS (* wid 0.72)) 200.0)
+                             (+ (max ccEL ccER) 200.0 (* 2600 *PEB-TEXT-SCALE*))))
     ;; ── LT (Lean-To): one PEB column on left, masonry wall on right ──
     ;; LT has a sloped roof (single slope from low eave to wall top), so
     ;; it gets the full set of labels: COLUMN (left), GIRTS, DOWN PIPE
@@ -7556,7 +7558,9 @@
       (peb-deck-purlins ppCx1 (+ H 200.0)     ppMid (+ H 200.0 ppS))
       (peb-deck-purlins ppMid (+ H 200.0 ppS) ppCx2 (+ H 200.0))
       (peb-deck-purlins ppCx2 (+ H 200.0)     wid   (+ H 200.0 ppS))
-      (peb-canopy-roof-label data (* wid 0.60) (+ H 200.0 ppS) (+ H 200.0 ppS (* 900 *PEB-TEXT-SCALE*)))
+      ;; raise the ROOFING SYSTEM label CLEAR above the VALLEY GUTTER / FALL callouts (owner 17-Jul:
+      ;; was overlapping them on the near-flat deck).
+      (peb-canopy-roof-label data (* wid 0.72) (+ H 200.0 ppS) (+ H 200.0 ppS (* 2600 *PEB-TEXT-SCALE*)))
       ;; ── VALLEY GUTTER trough + DOWN PIPE (inside the box column) at EACH column ──
       (foreach ppx (list ppCx1 ppCx2)
         (setvar "CLAYER" "GUTTER")
