@@ -7324,29 +7324,28 @@
           (setq bfcx (/ wid 2.0))
           (setq bfm  (/ rise bfcx))                 ; wing rise per run (high at peak, low at tips)
           (setvar "CLAYER" "CLADDING")
-          ;; LEFT wing deck (2 lines): centre PEAK (bfcx) down-out to the LEFT tip overhang (x=-270)
-          (command "LINE" (list bfcx (+ H rise 200.0)) (list -270.0 (- (+ H 200.0) (* bfm 270.0))) "")
-          (command "LINE" (list bfcx (+ H rise 235.0)) (list -270.0 (- (+ H 235.0) (* bfm 270.0))) "")
-          ;; RIGHT wing deck (2 lines): centre PEAK down-out to the RIGHT tip overhang (x=wid+270)
-          (command "LINE" (list bfcx (+ H rise 200.0)) (list (+ wid 270.0) (- (+ H 200.0) (* bfm 270.0))) "")
-          (command "LINE" (list bfcx (+ H rise 235.0)) (list (+ wid 270.0) (- (+ H 235.0) (* bfm 270.0))) "")
-          ;; NO eave gutters (owner 16-Jul: remove eave gutters from the canopies).  The low free tips get a
-          ;; FULLY CLOSED drip TRIM (covers the sheet end, hems back to the bottom sheet corner).
+          ;; owner 18-Jul: sheet ENDS AT THE RAFTER LINE (low tips x=0 / x=wid) — NO overhang past the rafter.
+          ;; LEFT wing deck (2 lines): centre PEAK (bfcx) down-out to the LEFT low tip (rafter line, x=0).
+          (command "LINE" (list bfcx (+ H rise 200.0)) (list 0.0 (+ H 200.0)) "")
+          (command "LINE" (list bfcx (+ H rise 235.0)) (list 0.0 (+ H 235.0)) "")
+          ;; RIGHT wing deck (2 lines): centre PEAK down-out to the RIGHT low tip (rafter line, x=wid).
+          (command "LINE" (list bfcx (+ H rise 200.0)) (list wid (+ H 200.0)) "")
+          (command "LINE" (list bfcx (+ H rise 235.0)) (list wid (+ H 235.0)) "")
+          ;; EAVE TRIM wraps the sheet+purlin edge AT the rafter line (no overhang): top leg IN over the sheet,
+          ;; fold DOWN at the tip, bottom leg back IN under the purlin (owner 18-Jul markup 18/edge).
           (setvar "CLAYER" "CLADDING")
           (setvar "PLINEWID" 0.0)
           (command "PLINE"
-            (list -270.0 (- (+ H 235.0) (* bfm 270.0)))
-            (list -270.0 (- (- (+ H 200.0) (* bfm 270.0)) 220.0))
-            (list -235.0 (- (- (+ H 200.0) (* bfm 270.0)) 220.0))
-            (list -235.0 (- (+ H 200.0) (* bfm 270.0)))
-            (list -270.0 (- (+ H 200.0) (* bfm 270.0)))
+            (list  30.0 (+ (+ H 235.0) 40.0))
+            (list   0.0 (+ (+ H 235.0) 40.0))
+            (list   0.0 (- H 40.0))
+            (list  30.0 (- H 40.0))
             "")
           (command "PLINE"
-            (list (+ wid 270.0) (- (+ H 235.0) (* bfm 270.0)))
-            (list (+ wid 270.0) (- (- (+ H 200.0) (* bfm 270.0)) 220.0))
-            (list (+ wid 235.0) (- (- (+ H 200.0) (* bfm 270.0)) 220.0))
-            (list (+ wid 235.0) (- (+ H 200.0) (* bfm 270.0)))
-            (list (+ wid 270.0) (- (+ H 200.0) (* bfm 270.0)))
+            (list (- wid 30.0) (+ (+ H 235.0) 40.0))
+            (list wid (+ (+ H 235.0) 40.0))
+            (list wid (- H 40.0))
+            (list (- wid 30.0) (- H 40.0))
             "")
           ;; FALL callouts on each wing (drain OUTWARD toward the tips)
           (txt "MC" (list (* wid 0.22) (+ H (* rise 0.62) 700.0)) 240 0 "FALL")
@@ -7354,9 +7353,13 @@
           ;; TWO slope tags — left wing rises up-RIGHT to the peak (+1), right wing up-LEFT (-1)
           (draw-slope-tag (* bfcx 0.5) (+ H (* rise 0.5) 235.0 (* 300 *PEB-TEXT-SCALE*)) slopeD  1)
           (draw-slope-tag (* bfcx 1.5) (+ H (* rise 0.5) 235.0 (* 300 *PEB-TEXT-SCALE*)) slopeD -1)
-          ;; Purlins on both wings follow the slopes + ROOFING SYSTEM callout
+          ;; Purlins on both wings follow the slopes + a purlin at EACH low tip edge (owner 18-Jul).
           (peb-deck-purlins 0.0 (+ H 200.0) bfcx (+ H rise 200.0))
           (peb-deck-purlins bfcx (+ H rise 200.0) wid (+ H 200.0))
+          (peb-z-purlin-at 150.0 (+ (+ H 200.0) (* bfm 150.0))
+                           (/ 1.0 (sqrt (+ 1.0 (* bfm bfm)))) (/ bfm (sqrt (+ 1.0 (* bfm bfm)))))
+          (peb-z-purlin-at (- wid 150.0) (+ (+ H 200.0) (* bfm 150.0))
+                           (/ 1.0 (sqrt (+ 1.0 (* bfm bfm)))) (/ (- 0 bfm) (sqrt (+ 1.0 (* bfm bfm)))))
           (peb-canopy-roof-label data (* wid 0.72) (+ H (* rise 0.56) 200.0)
                                  (+ H rise (* 2600 *PEB-TEXT-SCALE*))))
         ;; ── BUTTERFLY finishing: deck on both wings + central VALLEY GUTTER + DOWN SPOUT + FALL ──
