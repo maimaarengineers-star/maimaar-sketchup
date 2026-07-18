@@ -7481,23 +7481,28 @@
       (setq ccEL   (if ccLow H (+ H ccRise)))     ; column-side eave
       (setq ccER   (if ccLow (+ H ccRise) H))     ; free-tip eave
       (setq ccS    (/ (- ccER ccEL) wid))         ; deck slope (rise per run)
-      ;; roof deck: two parallel lines 200 above the rafter top, SMALL overhang (150) each end
+      ;; roof deck: two parallel lines 200 above the rafter top.  owner 18-Jul: sheet ENDS AT THE RAFTER LINE
+      ;; both ends (back column x=0, free tip x=wid) — NO overhang past the rafter.
       (setvar "CLAYER" "CLADDING")
-      (command "LINE" (list -200.0 (+ ccEL 200.0 (* ccS -200.0)))
-                      (list (+ wid 150.0) (+ ccER 200.0 (* ccS 150.0))) "")
-      (command "LINE" (list -200.0 (+ ccEL 235.0 (* ccS -200.0)))
-                      (list (+ wid 150.0) (+ ccER 235.0 (* ccS 150.0))) "")
-      ;; tip fascia: hangs from the deck edge DOWN past the rafter underside, closing the tip
-      (command "LINE" (list (+ wid 150.0) (+ ccER 235.0 (* ccS 150.0)))
-                      (list (+ wid 150.0) (- ccER (* ht 0.5) 50.0)) "")
-      (command "LINE" (list (+ wid 185.0) (+ ccER 235.0 (* ccS 150.0)))
-                      (list (+ wid 185.0) (- ccER (* ht 0.5) 50.0)) "")
-      (command "LINE" (list (+ wid 150.0) (- ccER (* ht 0.5) 50.0))
-                      (list (+ wid 185.0) (- ccER (* ht 0.5) 50.0)) "")   ; fascia bottom cap
+      (command "LINE" (list 0.0 (+ ccEL 200.0)) (list wid (+ ccER 200.0)) "")
+      (command "LINE" (list 0.0 (+ ccEL 235.0)) (list wid (+ ccER 235.0)) "")
+      ;; tip fascia: hangs from the deck edge DOWN past the rafter underside, closing the free tip AT the
+      ;; rafter line (35mm board just inside x=wid, so nothing projects beyond the rafter).
+      (command "LINE" (list wid (+ ccER 235.0))
+                      (list wid (- ccER (* ht 0.5) 50.0)) "")
+      (command "LINE" (list (- wid 35.0) (+ ccER 235.0))
+                      (list (- wid 35.0) (- ccER (* ht 0.5) 50.0)) "")
+      (command "LINE" (list (- wid 35.0) (- ccER (* ht 0.5) 50.0))
+                      (list wid (- ccER (* ht 0.5) 50.0)) "")   ; fascia bottom cap
       (peb-label-with-leader "FASCIA"
                              (list (+ wid 1700.0) (- ccER (* ht 0.25)))
-                             (list (+ wid 185.0)  (- ccER (* ht 0.25)))
+                             (list wid            (- ccER (* ht 0.25)))
                              "H" 220)
+      ;; a purlin at EACH edge (back column tip + free tip), just inside the rafter line (owner 18-Jul).
+      (peb-z-purlin-at 150.0 (+ ccEL 200.0 (* ccS 150.0))
+                       (/ 1.0 (sqrt (+ 1.0 (* ccS ccS)))) (/ ccS (sqrt (+ 1.0 (* ccS ccS)))))
+      (peb-z-purlin-at (- wid 150.0) (+ ccEL 200.0 (* ccS (- wid 150.0)))
+                       (/ 1.0 (sqrt (+ 1.0 (* ccS ccS)))) (/ ccS (sqrt (+ 1.0 (* ccS ccS)))))
       ;; ONE slope tag on the single rafter — direction follows which side is LOW
       (setq ccTagX (* wid 0.45))
       (draw-slope-tag ccTagX (+ ccEL (* ccS ccTagX) 235.0 (* 300 *PEB-TEXT-SCALE*))
