@@ -7304,14 +7304,17 @@
     ;; ── BF (Butterfly): center column only, no walls ──
     ;; Add COLUMN label pointing at center column inner flange.
     ((= stype "BF")
-      ;; COLUMN label close to the centre column (owner 16-Jul markup 1: short leader, not right across the span).
-      (peb-label-pline-leader "COLUMN"
-                             (list (- (/ wid 2.0) 3200.0)     ; text just LEFT of the centre column
-                                   (- H ht 700.0))            ; text Y, 700 below knee
-                             (list (- (/ wid 2.0) 200.0)      ; arrow at centre col LEFT flange
-                                   (- H ht 700.0))
-                             "H"
-                             220)
+      ;; owner 18-Jul markup 20: label the CENTRE column at its ACTUAL valley position (bfVx, not wid/2), with
+      ;; the text on the TAIL (short-leg) side and the leader pointing straight AT the column (no overshoot).
+      (setq bfVx (if (= (strcase (peb-tb-or (MSPL-Get-Str data "CC_FALCON_PEAK") "")) "YES")
+                   (/ wid 2.0) (peb-ridge-x data wid)))
+      (if (< bfVx (/ wid 2.0))
+        (peb-label-pline-leader "COLUMN"                       ; short leg on the LEFT => label on the LEFT
+                               (list (- bfVx 3000.0) (- H ht 700.0))
+                               (list (- bfVx 200.0)  (- H ht 700.0)) "H" 220)
+        (peb-label-pline-leader "COLUMN"                       ; short leg on the RIGHT => label on the RIGHT
+                               (list (+ bfVx 3000.0) (- H ht 700.0))
+                               (list (+ bfVx 200.0)  (- H ht 700.0)) "H" 220))
       (if (= (strcase (peb-tb-or (MSPL-Get-Str data "CC_FALCON_PEAK") "")) "YES")
         ;; ── FALCON finishing (owner 14-Jul): centre PEAK, wings slope DOWN-OUTWARD to the free
         ;;    tips.  NO valley gutter (Falcon drains at the TIPS, not the centre); FALL points
@@ -7410,10 +7413,32 @@
           (peb-solid-quad (list (- bfcx (* 130 *PEB-TEXT-SCALE*)) (+ bfBrkY 230.0))
                           (list (+ bfcx (* 130 *PEB-TEXT-SCALE*)) (+ bfBrkY 230.0))
                           (list bfcx (+ bfBrkY 30.0)) (list bfcx (+ bfBrkY 30.0)))
-          ;; DOWN SPOUT through the valley column
+          ;; owner 18-Jul markup 20: the Ø100 DOWN PIPE — 2 dotted lines down the MIDDLE of the column, from
+          ;; the valley gutter trough down to FFL (100 mm apart = pipe dia).  Define a mm-based DOTTED linetype
+          ;; (dot every 120 mm) once, then draw each LINE with a per-entity scale 1/LTSCALE so the dots render
+          ;; at TRUE mm size (same technique as peb-ridge-line; the huge global LTSCALE would otherwise stretch
+          ;; the pattern past the line and it renders solid — a plain "DOT" linetype isn't loaded here).
+          (if (not (tblsearch "LTYPE" "PEBPIPE"))
+            (vl-catch-all-apply (function (lambda ()
+              (entmake (list '(0 . "LTYPE") '(100 . "AcDbSymbolTableRecord")
+                             '(100 . "AcDbLinetypeTableRecord") '(2 . "PEBPIPE") '(70 . 0)
+                             '(3 . "Pipe . . . .") '(72 . 65) '(73 . 2) '(40 . 120.0)
+                             '(49 . 0.0) '(74 . 0) '(49 . -120.0) '(74 . 0)))))))
+          (setq bfEs (if (> (getvar "LTSCALE") 0.0) (/ 1.0 (getvar "LTSCALE")) 1.0))
+          (if (tblsearch "LTYPE" "PEBPIPE")
+            (progn
+              (entmake (list '(0 . "LINE") (cons 8 "GUTTER") '(6 . "PEBPIPE") (cons 48 bfEs)
+                             (cons 10 (list (- bfcx 50.0) (+ H 40.0) 0.0)) (cons 11 (list (- bfcx 50.0) 0.0 0.0))))
+              (entmake (list '(0 . "LINE") (cons 8 "GUTTER") '(6 . "PEBPIPE") (cons 48 bfEs)
+                             (cons 10 (list (+ bfcx 50.0) (+ H 40.0) 0.0)) (cons 11 (list (+ bfcx 50.0) 0.0 0.0)))))
+            (progn
+              (setvar "CLAYER" "GUTTER")
+              (command "LINE" (list (- bfcx 50.0) (+ H 40.0)) (list (- bfcx 50.0) 0.0) "")
+              (command "LINE" (list (+ bfcx 50.0) (+ H 40.0)) (list (+ bfcx 50.0) 0.0) "")))
+          ;; DOWN SPOUT label pointing at the down pipe
           (peb-label-with-leader "DOWN SPOUT"
                                  (list (+ bfcx 2300.0) (* H 0.45))
-                                 (list (+ bfcx 220.0)  (* H 0.45))
+                                 (list (+ bfcx 60.0)   (* H 0.45))
                                  "H" 220)
           ;; FALL callouts on each wing (drain toward the valley), at each wing's mid-run + own height
           (txt "MC" (list (* bfcx 0.45) (+ H (* bfLR 0.55) 700.0)) 240 0 "FALL")
