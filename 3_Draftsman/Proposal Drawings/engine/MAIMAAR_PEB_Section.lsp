@@ -7355,21 +7355,22 @@
           (command "LINE" (list (+ bfcx 265.0) bfBrkY) (list (+ wid 270.0) (+ H rise 200.0 (* bfm 270.0))) "")
           (command "LINE" (list (+ bfcx 265.0) (+ bfBrkY 35.0)) (list (+ wid 270.0) (+ H rise 235.0 (* bfm 270.0))) "")
           (command "LINE" (list (+ bfcx 265.0) bfBrkY) (list (+ bfcx 265.0) (+ bfBrkY 35.0)) "")   ; sheet end-cap
-          ;; Tip drip TRIM at both high eaves — a FULLY CLOSED fascia (owner 16-Jul markup: close the trims
-          ;; properly).  Covers the sheet END (top->bottom face) then hems back to the bottom sheet corner.
+          ;; owner 18-Jul markup 18: EAVE TRIM / flashing at both high tips WRAPS the sheet+purlin edge —
+          ;; a top leg OVER the sheet top, down the outer tip face, then a bottom leg back IN UNDER the
+          ;; purlin.  Open folded profile (not a filled box).  The sheet no longer shows past the trim.
           (command "PLINE"
-            (list -270.0 (+ H rise 235.0 (* bfm 270.0)))            ; TOP sheet corner
-            (list -270.0 (- (+ H rise 200.0 (* bfm 270.0)) 220.0))  ; DOWN outer face (covers the sheet end)
-            (list -235.0 (- (+ H rise 200.0 (* bfm 270.0)) 220.0))  ; hem return in
-            (list -235.0 (+ H rise 200.0 (* bfm 270.0)))            ; up to bottom-sheet level
-            (list -270.0 (+ H rise 200.0 (* bfm 270.0)))            ; IN to the BOTTOM sheet corner (closes)
+            (list  -30.0 (+ (+ H rise 235.0 (* bfm 270.0)) 40.0))   ; top leg — inward OVER the sheet top
+            (list -270.0 (+ (+ H rise 235.0 (* bfm 270.0)) 40.0))   ; out to the tip (top of trim)
+            (list -310.0 (+ H rise 235.0 (* bfm 270.0)))            ; fold DOWN the outer tip face
+            (list -310.0 (- (+ H rise (* bfm 270.0)) 40.0))         ; down past the sheet + purlin depth
+            (list  -30.0 (- (+ H rise (* bfm 270.0)) 40.0))         ; bottom leg — back IN, UNDER the purlin
             "")
           (command "PLINE"
-            (list (+ wid 270.0) (+ H rise 235.0 (* bfm 270.0)))
-            (list (+ wid 270.0) (- (+ H rise 200.0 (* bfm 270.0)) 220.0))
-            (list (+ wid 235.0) (- (+ H rise 200.0 (* bfm 270.0)) 220.0))
-            (list (+ wid 235.0) (+ H rise 200.0 (* bfm 270.0)))
-            (list (+ wid 270.0) (+ H rise 200.0 (* bfm 270.0)))
+            (list (+ wid  30.0) (+ (+ H rise 235.0 (* bfm 270.0)) 40.0))
+            (list (+ wid 270.0) (+ (+ H rise 235.0 (* bfm 270.0)) 40.0))
+            (list (+ wid 310.0) (+ H rise 235.0 (* bfm 270.0)))
+            (list (+ wid 310.0) (- (+ H rise (* bfm 270.0)) 40.0))
+            (list (+ wid  30.0) (- (+ H rise (* bfm 270.0)) 40.0))
             "")
           ;; VALLEY GUTTER — clean BOX gutter (owner 17-Jul refinement, per Multi-Gable): small OUTER LIPS
           ;; folded out at the sheet-end level (bfcx±340), near-vertical walls, and a symmetric flat trough
