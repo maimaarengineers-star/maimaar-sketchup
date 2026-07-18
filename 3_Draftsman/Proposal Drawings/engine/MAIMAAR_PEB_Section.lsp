@@ -366,32 +366,36 @@
 ;;  ~1500 mm apart, tilted to the deck slope (owner 16-Jul markup 3: "show the purlin below the sheeting
 ;;  line", like Clear Span / the arched frames).  The passed segment is the SHEETING line; each Z-purlin's
 ;;  TOP flange sits under it and the 200 mm web drops toward the rafter.
-(defun peb-deck-purlins (x0 y0 x1 y1 / dx dy len ux uy nx ny n i tt px py
-                          depth wtop wbot lip lipDx lipDy
+;;  peb-z-purlin-at — draw ONE 200Z15 Z-purlin section with its TOP flange at deck point (px,py) and the
+;;  web dropping 200 mm along the DOWN normal.  (ux,uy) = unit vector ALONG the deck.  Extracted so the
+;;  valley purlins (owner 18-Jul markup 16) are drawn by the SAME code as the spaced deck purlins.
+(defun peb-z-purlin-at (px py ux uy / nx ny depth wtop wbot lip lipDx lipDy
                           v1x v1y v2x v2y v3x v3y v4x v4y v5x v5y v6x v6y)
   (setvar "CLAYER" "PURLINS") (setvar "PLINEWID" 0.0)
   (setq depth 200.0 wtop 60.0 wbot 60.0 lip 20.0 lipDx (* lip 0.5) lipDy (* lip 0.866))
+  (setq nx uy ny (- 0 ux))                        ; n = normal pointing DOWN (below the sheeting)
+  (setq v3x px v3y py)
+  (setq v4x (+ px (* depth nx)) v4y (+ py (* depth ny)))
+  (setq v2x (+ px (* wtop ux)) v2y (+ py (* wtop uy)))
+  (setq v1x (+ px (* (- wtop lipDx) ux) (* lipDy nx)) v1y (+ py (* (- wtop lipDx) uy) (* lipDy ny)))
+  (setq v5x (+ v4x (* (- 0 wbot) ux)) v5y (+ v4y (* (- 0 wbot) uy)))
+  (setq v6x (+ v4x (* (- lipDx wbot) ux) (* (- 0 lipDy) nx)) v6y (+ v4y (* (- lipDx wbot) uy) (* (- 0 lipDy) ny)))
+  (command "PLINE" (list v6x v6y) "W" 12.0 12.0
+    (list v5x v5y) (list v4x v4y) (list v3x v3y) (list v2x v2y) (list v1x v1y) "")
+  (setvar "FILLETRAD" 4.0)
+  (command "FILLET" "P" (entlast))
+  (setvar "PLINEWID" 0.0))
+
+(defun peb-deck-purlins (x0 y0 x1 y1 / dx dy len ux uy n i tt px py)
   (setq dx (- x1 x0) dy (- y1 y0) len (sqrt (+ (* dx dx) (* dy dy))))
   (if (> len 1.0)
     (progn
       (setq ux (/ dx len) uy (/ dy len)          ; u = along the deck
-            nx uy ny (- 0 ux))                    ; n = normal pointing DOWN (below the sheeting)
-      (setq n (fix (/ len 1500.0)) i 1)
+            n (fix (/ len 1500.0)) i 1)
       (while (< i n)
         (setq tt (* i 1500.0) px (+ x0 (* ux tt)) py (+ y0 (* uy tt)))
-        ;; Z-purlin: v3 (top-of-web, TOP flange) just under the sheeting; web DOWN by depth toward the rafter.
-        (setq v3x px v3y py)
-        (setq v4x (+ px (* depth nx)) v4y (+ py (* depth ny)))
-        (setq v2x (+ px (* wtop ux)) v2y (+ py (* wtop uy)))
-        (setq v1x (+ px (* (- wtop lipDx) ux) (* lipDy nx)) v1y (+ py (* (- wtop lipDx) uy) (* lipDy ny)))
-        (setq v5x (+ v4x (* (- 0 wbot) ux)) v5y (+ v4y (* (- 0 wbot) uy)))
-        (setq v6x (+ v4x (* (- lipDx wbot) ux) (* (- 0 lipDy) nx)) v6y (+ v4y (* (- lipDx wbot) uy) (* (- 0 lipDy) ny)))
-        (command "PLINE" (list v6x v6y) "W" 12.0 12.0
-          (list v5x v5y) (list v4x v4y) (list v3x v3y) (list v2x v2y) (list v1x v1y) "")
-        (setvar "FILLETRAD" 4.0)
-        (command "FILLET" "P" (entlast))
-        (setq i (1+ i)))
-      (setvar "PLINEWID" 0.0))))
+        (peb-z-purlin-at px py ux uy)
+        (setq i (1+ i))))))
 
 ;;  draw-purlins-arc — FULL Z-purlin SECTIONS that FOLLOW an arched roof (owner 16-Jul: ACS/AMS purlins must
 ;;  read like Clear Span's — a real 200Z15 section sitting ON the rafter top flange, BELOW the sheeting line,
@@ -3262,6 +3266,40 @@
   (draw-stiff-bot xl loBot stW stH  1)
   (draw-stiff-bot xr loBot stW stH -1))
 
+;;  draw-valley-col-plates — the MULTI-GABLE VALLEY connection detail, extracted so BOTH the MG
+;;  gable-boundary column AND the Butterfly/Falcon canopy valley reuse the SAME code (owner 18-Jul
+;;  markup 14: "copy the code from Multi-Gable").  Two vertical end plates flank EACH column flange
+;;  face (4 plates total), 3 bolts per side, a web stiffener across the plate bottom.  The plates run
+;;  from plateBot (just below the rafter underside / column top) up to plateTop (just above the rafter
+;;  top flange at the valley), so they bolt the two wing/gable rafter ends to the column and each other.
+(defun draw-valley-col-plates (x plateBot plateTop / boltR vHalfCol vPThk
+                                vL1xL vL1xR vL2xL vL2xR vR1xL vR1xR vR2xL vR2xR
+                                vMidY vBoltY1 vBoltY2 vBoltY3)
+  (setvar "CLAYER" "PLATES")
+  (setq boltR (* 25 *PEB-TEXT-SCALE*))
+  (setq vHalfCol 200.0 vPThk 20.0)             ; 400 mm column body, 20 mm end plates
+  (setq vL1xR (- x vHalfCol) vL1xL (- vL1xR vPThk)   ; LEFT flange face pair
+        vL2xR vL1xL          vL2xL (- vL2xR vPThk)
+        vR1xL (+ x vHalfCol) vR1xR (+ vR1xL vPThk)   ; RIGHT flange face pair
+        vR2xL vR1xR          vR2xR (+ vR2xL vPThk))
+  (setq vMidY   (/ (+ plateBot plateTop) 2.0)
+        vBoltY1 (+ plateBot 100.0) vBoltY2 vMidY vBoltY3 (- plateTop 100.0))
+  ;; LEFT pair (Plates 3 + 4)
+  (command "RECTANG" (list vL1xL plateBot) (list vL1xR plateTop))
+  (command "RECTANG" (list vL2xL plateBot) (list vL2xR plateTop))
+  (command "DONUT" 0 (* boltR 2) (list vL1xL vBoltY1) "")
+  (command "DONUT" 0 (* boltR 2) (list vL1xL vBoltY2) "")
+  (command "DONUT" 0 (* boltR 2) (list vL1xL vBoltY3) "")
+  ;; RIGHT pair (Plates 1 + 2)
+  (command "RECTANG" (list vR1xL plateBot) (list vR1xR plateTop))
+  (command "RECTANG" (list vR2xL plateBot) (list vR2xR plateTop))
+  (command "DONUT" 0 (* boltR 2) (list vR1xR vBoltY1) "")
+  (command "DONUT" 0 (* boltR 2) (list vR1xR vBoltY2) "")
+  (command "DONUT" 0 (* boltR 2) (list vR1xR vBoltY3) "")
+  ;; Column-web stiffener at plate bottom
+  (command "RECTANG" (list (- x vHalfCol) (- plateBot 20.0)) (list (+ x vHalfCol) plateBot))
+  (princ))
+
 ;;  peb-conn-plate-depth — a connection / splice plate SIZED TO THE MEMBER DEPTH (owner 14-Jul): a
 ;;  vertical bolted end-plate centred at cx spanning the rafter from its BOTTOM flange (yBot) to its
 ;;  TOP flange (yTop), EXTENDED 100 mm BEYOND both flanges (so it is never "small / in the air").
@@ -3967,39 +4005,10 @@
           ((and ridgeX (< (abs (- x ridgeX)) 1.0))
             nil)         ; column at ridge — handled by draw-mg-ridge-col-plates
           (valleyStyle
-            (setq vIntColW  400.0)                       ; column body width
-            (setq vHalfCol  (/ vIntColW 2.0))            ; = 200
-            (setq vPThk     20.0)                        ; end-plate thickness
-            (setq vPlateBot (- (- H ht) 50.0))           ; 50 mm below haunch corner
-            (setq vPlateTop (+ H 50.0))                  ; 50 mm above rafter top flange
-            (setq vL1xR (- x vHalfCol))                  ; column LEFT flange face
-            (setq vL1xL (- vL1xR vPThk))
-            (setq vL2xR vL1xL)
-            (setq vL2xL (- vL2xR vPThk))
-            (setq vR1xL (+ x vHalfCol))                  ; column RIGHT flange face
-            (setq vR1xR (+ vR1xL vPThk))
-            (setq vR2xL vR1xR)
-            (setq vR2xR (+ vR2xL vPThk))
-            (setq vMidY  (/ (+ vPlateBot vPlateTop) 2.0))
-            (setq vBoltY1 (+ vPlateBot 100.0))
-            (setq vBoltY2 vMidY)
-            (setq vBoltY3 (- vPlateTop 100.0))
-            ;; LEFT pair (Plates 3 + 4)
-            (command "RECTANG" (list vL1xL vPlateBot) (list vL1xR vPlateTop))
-            (command "RECTANG" (list vL2xL vPlateBot) (list vL2xR vPlateTop))
-            (command "DONUT" 0 (* boltR 2) (list vL1xL vBoltY1) "")
-            (command "DONUT" 0 (* boltR 2) (list vL1xL vBoltY2) "")
-            (command "DONUT" 0 (* boltR 2) (list vL1xL vBoltY3) "")
-            ;; RIGHT pair (Plates 1 + 2)
-            (command "RECTANG" (list vR1xL vPlateBot) (list vR1xR vPlateTop))
-            (command "RECTANG" (list vR2xL vPlateBot) (list vR2xR vPlateTop))
-            (command "DONUT" 0 (* boltR 2) (list vR1xR vBoltY1) "")
-            (command "DONUT" 0 (* boltR 2) (list vR1xR vBoltY2) "")
-            (command "DONUT" 0 (* boltR 2) (list vR1xR vBoltY3) "")
-            ;; Column-web stiffener at plate bottom
-            (command "RECTANG"
-              (list (- x vHalfCol) (- vPlateBot 20.0))
-              (list (+ x vHalfCol)    vPlateBot)))
+            ;; owner 18-Jul: valley detail extracted to the shared draw-valley-col-plates (reused by the
+            ;; Butterfly/Falcon canopy).  plateBot = 50 below the haunch corner (H-ht); plateTop = 50 above
+            ;; the rafter top flange at the valley (H).
+            (draw-valley-col-plates x (- (- H ht) 50.0) (+ H 50.0)))
           (T
             ;; --- Non-valley interior column under a continuous rafter: HORIZONTAL base plate at the
             ;;     column top (owner 14-Jul), spanning the column depth centred on the column. ---
@@ -7068,10 +7077,11 @@
           (setq bfBotY (if bfPk (- (+ H rise) dpP) (- H dpP))
                 bfTopY (if bfPk (+ H rise) H))
           (draw-base-plate-at (- (/ wid 2.0) 200.0) (+ (/ wid 2.0) 200.0) ep (* 25 *PEB-TEXT-SCALE*))
-          ;; GABLE-STYLE valley/peak connection (owner 16-Jul markup 2): a HORIZONTAL 2-plate stack on the
-          ;; column TOP (rafter plate + column-cap plate + lower-plate stiffeners) where the two wings land —
-          ;; migrated from the gable-frame ridge/valley detail, replacing the floating side plates.
-          (peb-conn-plate-pair (/ wid 2.0) bfBotY bfHalf 30.0 0))))
+          ;; owner 18-Jul markup 14: the two wings meet over the centre column with the SAME connection
+          ;; detail as the Multi-Gable valley — 4 vertical end plates flanking the column + bolts + web
+          ;; stiffener (draw-valley-col-plates).  plateBot = 50 below the mast underside (bfBotY);
+          ;; plateTop = 50 above the valley/peak top flange (bfTopY).
+          (draw-valley-col-plates (/ wid 2.0) (- bfBotY 50.0) (+ bfTopY 50.0)))))
     ((= stype "SS")
       ;; SINGLE SLOPE: (1) a KNEE connection plate at EACH column-rafter junction (on the deep underside
       ;; topY-ht), and (2) a RAFTER SPLICE plate ~3-4 m from EVERY column at the haunch end (deep->thin
@@ -7366,14 +7376,14 @@
           ;; bottom.  The two wing sheets overlap 75 mm inside the lips (bfcx±265).
           (setvar "CLAYER" "GUTTER")
           (setvar "PLINEWID" 0.0)
+          ;; owner 18-Jul markup 17: gutter side walls TAPERED — a clean trapezoidal trough (wide mouth at
+          ;; the lips, narrow flat bottom) instead of near-vertical walls.
           (command "PLINE"
             (list (- bfcx 390.0) bfBrkY)                ; left lip — folded OUT
-            (list (- bfcx 330.0) bfBrkY)                ; left lip inner corner
-            (list (- bfcx 300.0) (+ H 55.0))            ; down the left wall
-            (list (- bfcx 170.0) (+ H 40.0))            ; small slope to the flat bottom
-            (list (+ bfcx 170.0) (+ H 40.0))            ; flat trough bottom
-            (list (+ bfcx 300.0) (+ H 55.0))            ; up the right wall
-            (list (+ bfcx 330.0) bfBrkY)                ; right lip inner corner
+            (list (- bfcx 330.0) bfBrkY)                ; left top inner corner (mouth)
+            (list (- bfcx 140.0) (+ H 40.0))            ; TAPERED left wall down to the trough
+            (list (+ bfcx 140.0) (+ H 40.0))            ; flat trough bottom
+            (list (+ bfcx 330.0) bfBrkY)                ; TAPERED right wall up to the right mouth
             (list (+ bfcx 390.0) bfBrkY)                ; right lip — folded OUT
             "")
           (setvar "CLAYER" "TEXT")
@@ -7400,6 +7410,12 @@
           ;; Purlins on both wings + ROOF SHEETING callout (like Clear Span)
           (peb-deck-purlins 0.0 (+ H rise 200.0) bfcx (+ H 200.0))
           (peb-deck-purlins bfcx (+ H 200.0) wid (+ H rise 200.0))
+          ;; owner 18-Jul markup 16: a purlin EACH SIDE of the valley (just up-slope of the gutter lip, on
+          ;; the wing slope) to carry the gutter lip AND the sheet end.  ux/uy = wing slope unit vector.
+          (peb-z-purlin-at (- bfcx 470.0) (+ bfBrkY (* bfm 205.0))
+                           (/  1.0 (sqrt (+ 1.0 (* bfm bfm)))) (/ (- 0 bfm) (sqrt (+ 1.0 (* bfm bfm)))))
+          (peb-z-purlin-at (+ bfcx 470.0) (+ bfBrkY (* bfm 205.0))
+                           (/ -1.0 (sqrt (+ 1.0 (* bfm bfm)))) (/ (- 0 bfm) (sqrt (+ 1.0 (* bfm bfm)))))
           (peb-canopy-roof-label data (* wid 0.72) (+ H (* rise 0.44) 200.0)
                                  (+ H rise (* 2600 *PEB-TEXT-SCALE*))))))
     ;; ── CC (Cantilever Canopy): one back column, open front ──
@@ -7959,13 +7975,10 @@
       (setvar "PLINEWID" 0.0)
       (command "LINE" (list hObjX (- H ht)) (list hObjX H) "")     ; witness continues up the object face to the eave
       (command "LINE" (list hObjX H)        (list dimX2 H) "")))   ; horizontal reference at the eave gutter
-  ;; owner 17-Jul: canopies — extend the CLEAR HEIGHT witness UP to the ROOF deck level (value stays H-ht).
-  (if (member stype '("BF" "CC" "PP"))
-    (progn
-      (setvar "CLAYER" "DIMENSIONS")
-      (setvar "PLINEWID" 0.0)
-      (command "LINE" (list hObjX (- H ht)) (list hObjX (+ H rise 200.0)) "")
-      (command "LINE" (list hObjX (+ H rise 200.0)) (list dimX2 (+ H rise 200.0)) "")))
+  ;; owner 18-Jul (markup 13): canopies do NOT extend the CLEAR HEIGHT witness up to the roof — the
+  ;; up-witness + top horizontal reference read as stray stepped lines at the free tip.  Removed; the
+  ;; plain CLEAR HEIGHT dimension (drawn above, 0 -> H-ht) stands on its own.  (Arched frames above keep
+  ;; their up-witness because they reference the eave gutter.)
 
   ;; Width dimensions at the bottom — VLA path via peb-dim-h-stretch
   ;; (single grip-editable AcDbRotatedDimension; falls back to hand-
