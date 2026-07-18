@@ -7425,11 +7425,12 @@
                              '(3 . "Pipe . . . .") '(72 . 65) '(73 . 2) '(40 . 120.0)
                              '(49 . 0.0) '(74 . 0) '(49 . -120.0) '(74 . 0)))))))
           (setq bfEs (if (> (getvar "LTSCALE") 0.0) (/ 1.0 (getvar "LTSCALE")) 1.0))
+          ;; THIN (0.09 mm, DXF 370 = 9) so the down pipe reads as a light dotted line, not a bold one.
           (if (tblsearch "LTYPE" "PEBPIPE")
             (progn
-              (entmake (list '(0 . "LINE") (cons 8 "GUTTER") '(6 . "PEBPIPE") (cons 48 bfEs)
+              (entmake (list '(0 . "LINE") (cons 8 "GUTTER") '(6 . "PEBPIPE") (cons 48 bfEs) (cons 370 9)
                              (cons 10 (list (- bfcx 50.0) (+ H 40.0) 0.0)) (cons 11 (list (- bfcx 50.0) 0.0 0.0))))
-              (entmake (list '(0 . "LINE") (cons 8 "GUTTER") '(6 . "PEBPIPE") (cons 48 bfEs)
+              (entmake (list '(0 . "LINE") (cons 8 "GUTTER") '(6 . "PEBPIPE") (cons 48 bfEs) (cons 370 9)
                              (cons 10 (list (+ bfcx 50.0) (+ H 40.0) 0.0)) (cons 11 (list (+ bfcx 50.0) 0.0 0.0)))))
             (progn
               (setvar "CLAYER" "GUTTER")
