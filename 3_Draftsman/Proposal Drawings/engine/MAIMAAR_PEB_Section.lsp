@@ -3448,8 +3448,10 @@
   (setq pB (- (min yBot yTop) ext) pT (+ (max yBot yTop) ext))
   (setq xCol2  (- cx (/ gap 2.0)) xCol1  (- xCol2 vPThk)    ; COLUMN-side plate (left of seam)
         xWing1 (+ cx (/ gap 2.0)) xWing2 (+ xWing1 vPThk))  ; WING-back plate  (right of seam)
-  (command "RECTANG" (list xCol1  pB) (list xCol2  pT))     ; plate on the SIDE OF THE COLUMN
-  (command "RECTANG" (list xWing1 pB) (list xWing2 pT))     ; plate on the BACKSIDE OF THE WING
+  ;; owner 18-Jul: draw the connection plates FILLED SOLID (not thin RECTANG outlines) so they read as
+  ;; solid steel at the section scale — matches the Butterfly / Multi-Gable valley plate appearance.
+  (peb-solid-quad (list xCol1  pB) (list xCol2  pB) (list xCol1  pT) (list xCol2  pT))   ; plate on the SIDE OF THE COLUMN
+  (peb-solid-quad (list xWing1 pB) (list xWing2 pB) (list xWing1 pT) (list xWing2 pT))   ; plate on the BACKSIDE OF THE WING
   (setq midY (/ (+ pB pT) 2.0))
   (command "DONUT" 0 (* boltR 2) (list cx (+ pB 100.0)) "")
   (command "DONUT" 0 (* boltR 2) (list cx midY) "")
