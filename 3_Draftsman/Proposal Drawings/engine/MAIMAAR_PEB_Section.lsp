@@ -3317,6 +3317,12 @@
   (command "DONUT" 0 (* boltR 2) (list vR1xR vBoltY3) "")
   ;; Column-web stiffener at plate bottom
   (command "RECTANG" (list (- x vHalfCol) (- plateBot 20.0)) (list (+ x vHalfCol) plateBot))
+  ;; owner 18-Jul: FILLED SOLID gussets at the top of each flange pair, within the plate extension (same as
+  ;; the cantilever connection) — standing gusset rule.
+  (peb-solid-quad (list (- vL2xL 100.0) (- plateTop 50.0)) (list vL2xL (- plateTop 50.0))
+                  (list vL2xL plateTop) (list vL2xL plateTop))
+  (peb-solid-quad (list vR2xR (- plateTop 50.0)) (list (+ vR2xR 100.0) (- plateTop 50.0))
+                  (list vR2xR plateTop) (list vR2xR plateTop))
   (princ))
 
 ;;  peb-conn-plate-depth — a connection / splice plate SIZED TO THE MEMBER DEPTH (owner 14-Jul): a
