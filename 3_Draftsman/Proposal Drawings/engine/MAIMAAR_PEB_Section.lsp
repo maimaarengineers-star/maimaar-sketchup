@@ -3109,11 +3109,12 @@
   (max 350.0 (* (/ W 24000.0) 600.0)))             ; span-scaled THIN tip web (was 400 @ 24m)
 
 ;;  peb-bf-valley-x — the butterfly/canopy VALLEY position (mm from the LEFT eave).  Owner 18-Jul markup 15:
-;;  a DEDICATED canopy valley offset (BP_VALLEY_OFFSET), independent of the gable ridge offset.  Blank / 0 /
-;;  out-of-range => centred (W/2).  Clamped 2 m off each eave so the column never lands on an edge.
-(defun peb-bf-valley-x (data W / v)
-  (setq v (MSPL-Get-Num data "BP_VALLEY_OFFSET"))
-  (if (and v (> v 2000.0) (< v (- W 2000.0))) v (/ W 2.0)))
+;;  reuses the EXISTING IF ridge-offset field (BP_RIDGE_OFFSET, via peb-ridge-x) — the estimator already has
+;;  this input on the frame; for a valley canopy the same value names the valley (low point) position.
+;;  Blank / degenerate => centred (W/2).  (BF is excluded from the CS/MS/RC rise-recompute, so `rise` stays
+;;  central and the per-wing slope math in draw-bf-frame remains 1/slopeD on both wings.)
+(defun peb-bf-valley-x (data W)
+  (peb-ridge-x data W))
 
 (defun draw-bf-frame (W H rise ht cb intColW valleyX / cx de dp halfCol slope leftRise rightRise)
   ;;  Butterfly: CENTER column only, NO side columns.  Two rafters slope UP-OUTWARD from the valley to the
