@@ -448,7 +448,12 @@
   (setq spec (peb-split-2-lines (peb-panel-label data "ROOF")))
   (setq rc (strcat "{\\C7;\\H0.42x;{\\fArial|b1;ROOFING SYSTEM:}\\P" spec "}"))
   (vl-catch-all-apply 'peb-make-mleader
-    (list (list (list ax ay) (list ax topY) (list (+ ax 300.0) topY)) rc)))
+    (list (list (list ax ay) (list ax topY) (list (+ ax 300.0) topY)) rc))
+  ;; owner 18-Jul: WIRE the M-Ladder arrow — an explicit SOLID arrowhead at the sheeting tip (the native
+  ;; MLEADER arrowhead does not render reliably here).  Small filled triangle, tip ON the sheeting.
+  (setvar "CLAYER" "ARROWS") (setvar "PLINEWID" 0.0)
+  (peb-solid-quad (list (- ax 130.0) (+ ay 230.0)) (list (+ ax 130.0) (+ ay 230.0))
+                  (list ax ay) (list ax ay)))
 
 (defun peb-v3-to-legacy (v3 / out project client proposal bldgno revno
                               len wid heightVal brick slope slopeRaw slopeCustom
@@ -2917,19 +2922,23 @@
   (txt "MC" (fr-dp ox oy sc 0 -785) 240 0 "ROOF DRAINAGE  (N.T.S.)")
   (princ))
 
-(defun draw-petrol-frame (W H ht cb / ovh cx1 cx2 rt colw)
+(defun draw-petrol-frame (W H ht cb / ovh cx1 cx2 rt colw ppS mid)
   ;;  PETROL PUMP / CNG CANOPY (owner 9-Jul): a near-flat roof carried on 1-2 rows of columns with
   ;;  CANTILEVER overhangs on both sides — the roof slab spans the full width and projects beyond the
   ;;  two (inset) column lines.  Open underneath (no walls).  Section = across the width.
   (setq ovh  (* W 0.22)              ; side cantilever overhang (each side)
         cx1  ovh cx2 (- W ovh)       ; the two column lines (inset from the roof edges)
         rt   (max (* ht 0.8) 250.0)  ; roof slab band depth
-        colw (max cb 300.0))
+        colw (max cb 300.0)
+        ppS  180.0                   ; slight fall rise at the high points (matches the deck)
+        mid  (/ W 2.0))
   (setvar "CLAYER" "FRAME")
   (setvar "PLINEWID" 0.0)
-  ;; near-flat roof slab — full width, overhanging both column lines (the cantilevers)
+  ;; owner 18-Jul: the FRAME roof band TOP follows the deck's shallow-W SLOPE (high at both edges + centre,
+  ;; low at the two valleys over the columns) so the purlins land ON the frame; bottom stays flat.
   (command "PLINE"
-    (list 0.0 H) (list W H) (list W (- H rt)) (list 0.0 (- H rt)) "C")
+    (list 0.0  (+ H ppS)) (list cx1 H) (list mid (+ H ppS)) (list cx2 H) (list W (+ H ppS))
+    (list W (- H rt)) (list 0.0 (- H rt)) "C")
   ;; left column (floor up to the roof underside)
   (command "PLINE"
     (list (- cx1 (/ colw 2.0)) 0.0) (list (- cx1 (/ colw 2.0)) (- H rt))
