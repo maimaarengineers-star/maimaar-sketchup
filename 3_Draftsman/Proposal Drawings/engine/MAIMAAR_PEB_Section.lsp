@@ -3428,11 +3428,11 @@
   (command "DONUT" 0 (* boltR 2) (list cx (+ pB 100.0)) "")
   (command "DONUT" 0 (* boltR 2) (list cx midY) "")
   (command "DONUT" 0 (* boltR 2) (list cx (- pT 100.0)) "")
-  (setq stW 100.0 stH 110.0)
-  (draw-stiff-top xCol1  pT stW stH -1)
-  (draw-stiff-top xWing2 pT stW stH  1)
-  (draw-stiff-bot xCol1  pB stW stH -1)
-  (draw-stiff-bot xWing2 pB stW stH  1)
+  ;; owner 18-Jul: FILLED SOLID gussets (standing gusset rule) within the 100mm plate extension above the
+  ;; rafter top flange (yTop).  TOP end only — the bottom sits at the column top (open below), no gusset.
+  (setq stW 100.0)
+  (peb-solid-quad (list (- xCol1 stW) yTop) (list xCol1 yTop) (list xCol1 pT) (list xCol1 pT))
+  (peb-solid-quad (list xWing2 yTop) (list (+ xWing2 stW) yTop) (list xWing2 pT) (list xWing2 pT))
   (princ))
 
 ;;  peb-cw-one — draw ONE catwalk as OUTER LINES ONLY at a column (owner 14-Jul): a narrow walkway deck
@@ -7498,21 +7498,22 @@
       (setvar "CLAYER" "CLADDING")
       (command "LINE" (list 0.0 (+ ccEL 200.0)) (list wid (+ ccER 200.0)) "")
       (command "LINE" (list 0.0 (+ ccEL 235.0)) (list wid (+ ccER 235.0)) "")
-      ;; owner 18-Jul: NO fascia on cantilever frames — both eaves (column side x=0, free tip x=wid) get the
-      ;; same wrapping EAVE TRIM as the butterfly tips: top leg IN over the sheet, fold DOWN at the rafter
-      ;; line, bottom leg back IN under the purlin.
-      (command "PLINE"
-        (list  30.0 (+ (+ ccEL 235.0) 40.0))
-        (list   0.0 (+ (+ ccEL 235.0) 40.0))
-        (list   0.0 (- ccEL 40.0))
-        (list  30.0 (- ccEL 40.0))
-        "")
-      (command "PLINE"
-        (list (- wid 30.0) (+ (+ ccER 235.0) 40.0))
-        (list wid (+ (+ ccER 235.0) 40.0))
-        (list wid (- ccER 40.0))
-        (list (- wid 30.0) (- ccER 40.0))
-        "")
+      ;; owner 18-Jul: NO fascia — the HIGH eave gets the wrapping EAVE TRIM (butterfly-style); the LOW
+      ;; (draining) eave gets a GUTTER + DOWN PIPE instead (below).
+      (if (not ccLow)   ; left / column eave is HIGH
+        (command "PLINE"
+          (list  30.0 (+ (+ ccEL 235.0) 40.0))
+          (list   0.0 (+ (+ ccEL 235.0) 40.0))
+          (list   0.0 (- ccEL 40.0))
+          (list  30.0 (- ccEL 40.0))
+          ""))
+      (if ccLow         ; right / free eave is HIGH
+        (command "PLINE"
+          (list (- wid 30.0) (+ (+ ccER 235.0) 40.0))
+          (list wid (+ (+ ccER 235.0) 40.0))
+          (list wid (- ccER 40.0))
+          (list (- wid 30.0) (- ccER 40.0))
+          ""))
       ;; a purlin at EACH edge (back column tip + free tip), just inside the rafter line (owner 18-Jul).
       (peb-z-purlin-at 150.0 (+ ccEL 200.0 (* ccS 150.0))
                        (/ 1.0 (sqrt (+ 1.0 (* ccS ccS)))) (/ ccS (sqrt (+ 1.0 (* ccS ccS)))))
@@ -7525,12 +7526,38 @@
       ;; FALL callout at mid-deck
       (setvar "CLAYER" "TEXT")
       (txt "MC" (list (* wid 0.62) (+ ccEL (* ccS (* wid 0.62)) 900.0)) 260 0 "FALL")
-      ;; DOWN SPOUT only when the canopy drains at the (back) column — a free-tip drain has no column
+      ;; owner 18-Jul: EAVE GUTTER at the LOW (draining) eave + Ø100 dotted DOWN PIPE down the column to FFL.
+      (setq ccLowY (if ccLow ccEL ccER) ccDir (if ccLow -1.0 1.0) ccLowX (if ccLow 0.0 wid))
+      (setvar "CLAYER" "GUTTER") (setvar "PLINEWID" 0.0)
+      (command "PLINE"
+        (list ccLowX (+ ccLowY 235.0))
+        (list (+ ccLowX (* ccDir 60.0)) (+ ccLowY 235.0))         ; outer top lip
+        (list (+ ccLowX (* ccDir 60.0)) (+ ccLowY 20.0))          ; down the outer wall
+        (list (+ ccLowX (* ccDir 230.0)) (+ ccLowY 20.0))         ; trough bottom
+        (list (+ ccLowX (* ccDir 270.0)) (+ ccLowY 235.0))        ; up the inner lip (at the sheet)
+        "")
+      (setvar "CLAYER" "TEXT")
+      (txt "MC" (list (+ ccLowX (* ccDir 900.0)) (+ ccLowY 950.0)) 240 0 "GUTTER")
+      ;; DOWN PIPE (dotted, thin) down the column + DOWN SPOUT label — only when draining at the (back) column.
       (if ccLow
-        (peb-label-with-leader "DOWN SPOUT"
-                               (list -2100.0 (* H 0.5))
-                               (list -220.0  (* H 0.5))
-                               "H" 220))
+        (progn
+          (if (not (tblsearch "LTYPE" "PEBPIPE"))
+            (vl-catch-all-apply (function (lambda ()
+              (entmake (list '(0 . "LTYPE") '(100 . "AcDbSymbolTableRecord")
+                             '(100 . "AcDbLinetypeTableRecord") '(2 . "PEBPIPE") '(70 . 0)
+                             '(3 . "Pipe __ __ __") '(72 . 65) '(73 . 2) '(40 . 150.0)
+                             '(49 . 60.0) '(74 . 0) '(49 . -90.0) '(74 . 0)))))))
+          (setq ccEs (if (> (getvar "LTSCALE") 0.0) (/ 1.0 (getvar "LTSCALE")) 1.0))
+          (if (tblsearch "LTYPE" "PEBPIPE")
+            (progn
+              (entmake (list '(0 . "LINE") (cons 8 "GUTTER") '(6 . "PEBPIPE") (cons 48 ccEs) (cons 370 30)
+                             (cons 10 (list 60.0  (+ ccLowY 20.0) 0.0)) (cons 11 (list 60.0  0.0 0.0))))
+              (entmake (list '(0 . "LINE") (cons 8 "GUTTER") '(6 . "PEBPIPE") (cons 48 ccEs) (cons 370 30)
+                             (cons 10 (list 160.0 (+ ccLowY 20.0) 0.0)) (cons 11 (list 160.0 0.0 0.0))))))
+          (peb-label-with-leader "DOWN SPOUT"
+                                 (list -2100.0 (* H 0.5))
+                                 (list 60.0    (* H 0.5))
+                                 "H" 220)))
       ;; Purlins along the wing + ROOF SHEETING callout (like Clear Span)
       (peb-deck-purlins 0.0 (+ ccEL 200.0) wid (+ ccER 200.0))
       ;; raise the ROOFING SYSTEM label CLEAR above the HIGH eave (owner 17-Jul: was colliding with
