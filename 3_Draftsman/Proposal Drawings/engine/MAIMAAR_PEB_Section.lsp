@@ -7547,13 +7547,20 @@
                              '(100 . "AcDbLinetypeTableRecord") '(2 . "PEBPIPE") '(70 . 0)
                              '(3 . "Pipe __ __ __") '(72 . 65) '(73 . 2) '(40 . 150.0)
                              '(49 . 60.0) '(74 . 0) '(49 . -90.0) '(74 . 0)))))))
-          (setq ccEs (if (> (getvar "LTSCALE") 0.0) (/ 1.0 (getvar "LTSCALE")) 1.0))
+          (setq ccEs (if (> (getvar "LTSCALE") 0.0) (/ 1.0 (getvar "LTSCALE")) 1.0)
+                gcx  (+ ccLowX (* ccDir 145.0)))                    ; gutter outlet centre
           (if (tblsearch "LTYPE" "PEBPIPE")
             (progn
+              ;; ELBOW / BEND: connect the gutter outlet DOWN-and-IN to the vertical down pipe (owner 18-Jul).
               (entmake (list '(0 . "LINE") (cons 8 "GUTTER") '(6 . "PEBPIPE") (cons 48 ccEs) (cons 370 30)
-                             (cons 10 (list 60.0  (+ ccLowY 20.0) 0.0)) (cons 11 (list 60.0  0.0 0.0))))
+                             (cons 10 (list (- gcx 50.0) (+ ccLowY 20.0) 0.0)) (cons 11 (list 60.0  (- ccLowY 120.0) 0.0))))
               (entmake (list '(0 . "LINE") (cons 8 "GUTTER") '(6 . "PEBPIPE") (cons 48 ccEs) (cons 370 30)
-                             (cons 10 (list 160.0 (+ ccLowY 20.0) 0.0)) (cons 11 (list 160.0 0.0 0.0))))))
+                             (cons 10 (list (+ gcx 50.0) (+ ccLowY 20.0) 0.0)) (cons 11 (list 160.0 (- ccLowY 120.0) 0.0))))
+              ;; vertical DOWN PIPE
+              (entmake (list '(0 . "LINE") (cons 8 "GUTTER") '(6 . "PEBPIPE") (cons 48 ccEs) (cons 370 30)
+                             (cons 10 (list 60.0  (- ccLowY 120.0) 0.0)) (cons 11 (list 60.0  0.0 0.0))))
+              (entmake (list '(0 . "LINE") (cons 8 "GUTTER") '(6 . "PEBPIPE") (cons 48 ccEs) (cons 370 30)
+                             (cons 10 (list 160.0 (- ccLowY 120.0) 0.0)) (cons 11 (list 160.0 0.0 0.0))))))
           (peb-label-with-leader "DOWN SPOUT"
                                  (list -2100.0 (* H 0.5))
                                  (list 60.0    (* H 0.5))
