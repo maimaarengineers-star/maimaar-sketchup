@@ -7425,12 +7425,12 @@
                              '(3 . "Pipe __ __ __") '(72 . 65) '(73 . 2) '(40 . 150.0)
                              '(49 . 60.0) '(74 . 0) '(49 . -90.0) '(74 . 0)))))))
           (setq bfEs (if (> (getvar "LTSCALE") 0.0) (/ 1.0 (getvar "LTSCALE")) 1.0))
-          ;; 0.50 mm (DXF 370 = 50) — owner's chosen weight for the down pipe dotted line.
+          ;; 0.30 mm (DXF 370 = 30) — owner's chosen weight for the down pipe dashed line.
           (if (tblsearch "LTYPE" "PEBPIPE")
             (progn
-              (entmake (list '(0 . "LINE") (cons 8 "GUTTER") '(6 . "PEBPIPE") (cons 48 bfEs) (cons 370 50)
+              (entmake (list '(0 . "LINE") (cons 8 "GUTTER") '(6 . "PEBPIPE") (cons 48 bfEs) (cons 370 30)
                              (cons 10 (list (- bfcx 50.0) (+ H 40.0) 0.0)) (cons 11 (list (- bfcx 50.0) 0.0 0.0))))
-              (entmake (list '(0 . "LINE") (cons 8 "GUTTER") '(6 . "PEBPIPE") (cons 48 bfEs) (cons 370 50)
+              (entmake (list '(0 . "LINE") (cons 8 "GUTTER") '(6 . "PEBPIPE") (cons 48 bfEs) (cons 370 30)
                              (cons 10 (list (+ bfcx 50.0) (+ H 40.0) 0.0)) (cons 11 (list (+ bfcx 50.0) 0.0 0.0)))))
             (progn
               (setvar "CLAYER" "GUTTER")
