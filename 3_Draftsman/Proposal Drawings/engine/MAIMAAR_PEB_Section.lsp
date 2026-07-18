@@ -1815,7 +1815,7 @@
       ;; bubble (B) and split the width into TWO modules, so UNEQUAL legs read as a width module ("N@L+M@R").
       ;; Falcon peak stays central; the Butterfly valley honours the ridge-offset (peb-ridge-x).
       (setq bfVx (if (= (strcase (peb-tb-or (MSPL-Get-Str data "CC_FALCON_PEAK") "")) "YES")
-                   (/ W 2.0) (peb-ridge-x data W)))
+                   (/ W 2.0) (peb-bf-valley-x data W)))   ; SAME valley source as the frame/plates/roofing
       (list (list 0.0 bfVx W) (list bfVx)))
 
     ((= stype "PP")
@@ -3116,13 +3116,14 @@
 (defun bf-tip-depth (W)
   (max 350.0 (* (/ W 24000.0) 600.0)))             ; span-scaled THIN tip web (was 400 @ 24m)
 
-;;  peb-bf-valley-x — the butterfly/canopy VALLEY position (mm from the LEFT eave).  Owner 18-Jul markup 15:
-;;  reuses the EXISTING IF ridge-offset field (BP_RIDGE_OFFSET, via peb-ridge-x) — the estimator already has
-;;  this input on the frame; for a valley canopy the same value names the valley (low point) position.
-;;  Blank / degenerate => centred (W/2).  (BF is excluded from the CS/MS/RC rise-recompute, so `rise` stays
-;;  central and the per-wing slope math in draw-bf-frame remains 1/slopeD on both wings.)
-(defun peb-bf-valley-x (data W)
-  (peb-ridge-x data W))
+;;  peb-bf-valley-x — the butterfly/canopy VALLEY (or Falcon peak) position, mm from the LEFT eave.  Owner
+;;  18-Jul markup 15: driven by the IF "Cantilever span" (one wing), serialized as BP_CANT_SPAN — the
+;;  ridgeOffset field is intentionally hidden for canopies.  Blank / degenerate => centred (W/2); clamped
+;;  2% off each eave.  (BF is excluded from the CS/MS/RC rise-recompute, so `rise` stays central and the
+;;  per-wing slope in draw-bf-frame is the ENTERED roof slope on BOTH wings — 1:10, 1:13, 1:15, anything.)
+(defun peb-bf-valley-x (data W / v)
+  (setq v (MSPL-Get-Num data "BP_CANT_SPAN"))
+  (if (and v (> v (* W 0.02)) (< v (* W 0.98))) v (/ W 2.0)))
 
 (defun draw-bf-frame (W H rise ht cb intColW valleyX / cx de dp halfCol slope leftRise rightRise)
   ;;  Butterfly: CENTER column only, NO side columns.  Two rafters slope UP-OUTWARD from the valley to the
