@@ -7741,7 +7741,8 @@
       (txt "MC" (list (* (+ ppCx1 ppMid) 0.5) (+ H ppS 520.0)) 200 0 "FALL")
       (txt "MC" (list (* (+ ppMid ppCx2) 0.5) (+ H ppS 520.0)) 200 0 "FALL")
       (txt "MC" (list (* (+ ppCx2 wid)   0.5) (+ H ppS 520.0)) 200 0 "FALL")
-      ;; DOWN PIPE + BOX COLUMN + FASCIA + CEILING/SOFFIT callouts
+      ;; DOWN PIPE + BOX COLUMN + CEILING/SOFFIT callouts (owner 18-Jul: NO fascia on canopy frames — the
+      ;; FASCIA callout removed; the roof-slab edge itself stays as the structural edge).
       (peb-label-with-leader "DOWN PIPE (IN BOX COLUMN)"
                              (list (- ppCx1 2900.0) (* H 0.55))
                              (list (- ppCx1 90.0)   (* H 0.55))
@@ -7749,10 +7750,6 @@
       (peb-label-with-leader "BOX COLUMN"
                              (list (- ppCx1 2900.0) (* H 0.30))
                              (list (- ppCx1 (/ ppCw 2.0)) (* H 0.30))
-                             "H" 220)
-      (peb-label-with-leader "FASCIA"
-                             (list -2400.0 (- (+ H ppS) 250.0))
-                             (list -20.0   (- (+ H ppS) 250.0))
                              "H" 220)
       (peb-label-with-leader "CEILING / SOFFIT"
                              (list ppMid (- (- H ppRt) 900.0))
