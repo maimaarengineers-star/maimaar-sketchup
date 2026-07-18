@@ -7633,19 +7633,25 @@
           (list (+ ppx (- (/ ppCw 2.0) 45.0)) (- H ppRt))))
       ;; ── Roof sheeting deck (2 lines) — shallow W: high at both edges + centre, low at the valleys ──
       (setvar "CLAYER" "CLADDING")
+      ;; owner 18-Jul: sheet ENDS AT THE RAFTER LINE at both outer edges (x=0 / x=wid) — NO overhang.
       (command "PLINE"
-        (list -270.0        (+ H 200.0 ppS)) (list ppCx1 (+ H 200.0))
-        (list ppMid         (+ H 200.0 ppS)) (list ppCx2 (+ H 200.0))
-        (list (+ wid 270.0) (+ H 200.0 ppS)) "")
+        (list 0.0   (+ H 200.0 ppS)) (list ppCx1 (+ H 200.0))
+        (list ppMid (+ H 200.0 ppS)) (list ppCx2 (+ H 200.0))
+        (list wid   (+ H 200.0 ppS)) "")
       (command "PLINE"
-        (list -270.0        (+ H 235.0 ppS)) (list ppCx1 (+ H 235.0))
-        (list ppMid         (+ H 235.0 ppS)) (list ppCx2 (+ H 235.0))
-        (list (+ wid 270.0) (+ H 235.0 ppS)) "")
-      ;; ── Tube purlins following each of the four sloped deck segments ──
+        (list 0.0   (+ H 235.0 ppS)) (list ppCx1 (+ H 235.0))
+        (list ppMid (+ H 235.0 ppS)) (list ppCx2 (+ H 235.0))
+        (list wid   (+ H 235.0 ppS)) "")
+      ;; ── Tube purlins following each of the four sloped deck segments + a purlin at each outer edge ──
       (peb-deck-purlins 0.0   (+ H 200.0 ppS) ppCx1 (+ H 200.0))
       (peb-deck-purlins ppCx1 (+ H 200.0)     ppMid (+ H 200.0 ppS))
       (peb-deck-purlins ppMid (+ H 200.0 ppS) ppCx2 (+ H 200.0))
       (peb-deck-purlins ppCx2 (+ H 200.0)     wid   (+ H 200.0 ppS))
+      (setq ppES (/ ppS ppCx1))                       ; near-flat outer-segment slope
+      (peb-z-purlin-at 150.0 (- (+ H 200.0 ppS) (* ppES 150.0))
+                       (/ 1.0 (sqrt (+ 1.0 (* ppES ppES)))) (/ (- 0 ppES) (sqrt (+ 1.0 (* ppES ppES)))))
+      (peb-z-purlin-at (- wid 150.0) (- (+ H 200.0 ppS) (* ppES 150.0))
+                       (/ 1.0 (sqrt (+ 1.0 (* ppES ppES)))) (/ ppES (sqrt (+ 1.0 (* ppES ppES)))))
       ;; raise the ROOFING SYSTEM label CLEAR above the VALLEY GUTTER / FALL callouts (owner 17-Jul:
       ;; was overlapping them on the near-flat deck).
       (peb-canopy-roof-label data (* wid 0.72) (+ H 200.0 ppS) (+ H 200.0 ppS (* 2600 *PEB-TEXT-SCALE*)))
