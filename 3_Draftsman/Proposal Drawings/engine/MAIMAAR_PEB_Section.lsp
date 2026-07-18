@@ -7498,18 +7498,21 @@
       (setvar "CLAYER" "CLADDING")
       (command "LINE" (list 0.0 (+ ccEL 200.0)) (list wid (+ ccER 200.0)) "")
       (command "LINE" (list 0.0 (+ ccEL 235.0)) (list wid (+ ccER 235.0)) "")
-      ;; tip fascia: hangs from the deck edge DOWN past the rafter underside, closing the free tip AT the
-      ;; rafter line (35mm board just inside x=wid, so nothing projects beyond the rafter).
-      (command "LINE" (list wid (+ ccER 235.0))
-                      (list wid (- ccER (* ht 0.5) 50.0)) "")
-      (command "LINE" (list (- wid 35.0) (+ ccER 235.0))
-                      (list (- wid 35.0) (- ccER (* ht 0.5) 50.0)) "")
-      (command "LINE" (list (- wid 35.0) (- ccER (* ht 0.5) 50.0))
-                      (list wid (- ccER (* ht 0.5) 50.0)) "")   ; fascia bottom cap
-      (peb-label-with-leader "FASCIA"
-                             (list (+ wid 1700.0) (- ccER (* ht 0.25)))
-                             (list wid            (- ccER (* ht 0.25)))
-                             "H" 220)
+      ;; owner 18-Jul: NO fascia on cantilever frames — both eaves (column side x=0, free tip x=wid) get the
+      ;; same wrapping EAVE TRIM as the butterfly tips: top leg IN over the sheet, fold DOWN at the rafter
+      ;; line, bottom leg back IN under the purlin.
+      (command "PLINE"
+        (list  30.0 (+ (+ ccEL 235.0) 40.0))
+        (list   0.0 (+ (+ ccEL 235.0) 40.0))
+        (list   0.0 (- ccEL 40.0))
+        (list  30.0 (- ccEL 40.0))
+        "")
+      (command "PLINE"
+        (list (- wid 30.0) (+ (+ ccER 235.0) 40.0))
+        (list wid (+ (+ ccER 235.0) 40.0))
+        (list wid (- ccER 40.0))
+        (list (- wid 30.0) (- ccER 40.0))
+        "")
       ;; a purlin at EACH edge (back column tip + free tip), just inside the rafter line (owner 18-Jul).
       (peb-z-purlin-at 150.0 (+ ccEL 200.0 (* ccS 150.0))
                        (/ 1.0 (sqrt (+ 1.0 (* ccS ccS)))) (/ ccS (sqrt (+ 1.0 (* ccS ccS)))))
