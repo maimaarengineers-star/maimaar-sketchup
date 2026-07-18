@@ -3091,18 +3091,31 @@
   (command "LINE" (list W   H) (list W   (- yoRs innerH)) "")
 )
 
+;;  ── Butterfly / Falcon cantilever web-depth (shared, owner 18-Jul) ──────────────────────────────
+;;  ONE source for the tapered-wing depth so the FRAME outline (draw-bf-frame / draw-falcon2-frame)
+;;  and the CONNECTION-PLATE stack (BF plate dispatch) can never drift apart.
+;;  - Deepened for VISUALIZATION: the mast reads as a real deep haunch, not a hairline.
+;;  - VARIES with span: a smaller canopy gets a proportionally shallower wing (W/24000 factor).
+;;  - CAPPED at 42% of the clear height H: if the canopy is LOW/SHORT the haunch can't exceed the
+;;    column it lands on (owner 18-Jul: "should vary in case depth or height decreases").
+(defun bf-mast-depth (W H / d)
+  (setq d (max 600.0 (* (/ W 24000.0) 1100.0)))   ; span-scaled DEEP mast web (was 700 @ 24m)
+  (min d (* 0.42 H)))                               ; short-canopy guard: never deeper than 0.42*C.H
+(defun bf-tip-depth (W)
+  (max 350.0 (* (/ W 24000.0) 600.0)))             ; span-scaled THIN tip web (was 400 @ 24m)
+
 (defun draw-bf-frame (W H rise ht cb intColW / cx de dp halfCol)
   ;;  Butterfly: CENTER column only, NO side columns.
   ;;  Two rafters slope UP-OUTWARD from center valley to high side eaves.
-  ;;  Wings are TAPERED (owner 13-Jul): DEEP at the mast (ht, max moment on the
+  ;;  Wings are TAPERED (owner 13-Jul): DEEP at the mast (dp, max moment on the
   ;;  cantilever) and THIN at the free tips (de).
   (setq cx (/ W 2.0))
   (setq intColW (max intColW 400.0))
   (setq halfCol (/ intColW 2.0))
-  ;; TWO-side cantilever web (owner 13-Jul): lighter than single-side -- ~700mm at the mast,
-  ;; ~400mm at the tip, for a 12 m wing (each wing spans W/2).
-  (setq dp (max 350.0 (* (/ W 24000.0) 700.0)))   ; mast (deep) web depth
-  (setq de (max 200.0 (* (/ W 24000.0) 400.0)))   ; tip (thin) web depth
+  ;; TWO-side cantilever web (owner 18-Jul): deepened for visualization + span-scaled + C.H-capped
+  ;; via the shared bf-mast-depth / bf-tip-depth helpers (see above).
+  (setq dp (bf-mast-depth W H))   ; mast (deep) web depth
+  (setq de (bf-tip-depth  W))     ; tip (thin) web depth
 
   ;; Center column (rectangular) — TOPS OUT below the rafter underside (H-dp) by the 2-plate connection
   ;; stack (owner 16-Jul markup 2: gable-style valley connection), so the two wings land on a horizontal
@@ -3127,11 +3140,12 @@
 (defun draw-falcon2-frame (W H rise ht cb intColW / cx de dp halfCol)
   ;;  FALCON (2 wings) — CENTER column, PEAK at centre, two wings slope DOWN-OUTWARD to the LOW
   ;;  side eaves (drains at the free ends).  The vertical MIRROR of the Butterfly (owner 8-Jul).
-  ;;  TWO-side cantilever web (owner 13-Jul): DEEP ~700 at the mast, THIN ~400 at the tips (per 12m wing).
+  ;;  TWO-side cantilever web (owner 18-Jul): DEEP mast, THIN tips, via the shared bf-mast-depth /
+  ;;  bf-tip-depth helpers (deepened for visualization, span-scaled, C.H-capped).
   (setq cx (/ W 2.0) intColW (max intColW 400.0))
   (setq halfCol (/ intColW 2.0))
-  (setq dp (max 350.0 (* (/ W 24000.0) 700.0)))   ; mast (deep) web depth
-  (setq de (max 200.0 (* (/ W 24000.0) 400.0)))   ; tip (thin) web depth
+  (setq dp (bf-mast-depth W H))   ; mast (deep) web depth
+  (setq de (bf-tip-depth  W))     ; tip (thin) web depth
   ;; Center column — TOPS OUT below the rafter underside (peak-dp) by the 2-plate connection stack, so the
   ;; two wings land on a horizontal connection-plate pair on the column top (owner 16-Jul markup 2).
   (setvar "CLAYER" "FRAME")
@@ -7048,7 +7062,7 @@
           (draw-base-plate-at 0.0 ht ep (* 25 *PEB-TEXT-SCALE*))   ; base matches the straight column width (ht)
           (draw-cant-vplate ht (- eLp dsP) eLp 45.0 3))             ; I-shape (vertical) on the WING side of the column
         (progn
-          (setq dpP (max 350.0 (* (/ wid 24000.0) 700.0)))
+          (setq dpP (bf-mast-depth wid H))                          ; MUST match draw-bf/falcon frame haunch depth
           (setq bfHalf 200.0)                                       ; centre column half-width (intColW 400)
           (setq bfPk  (= (strcase (peb-tb-or (MSPL-Get-Str data "CC_FALCON_PEAK") "")) "YES"))
           (setq bfBotY (if bfPk (- (+ H rise) dpP) (- H dpP))
