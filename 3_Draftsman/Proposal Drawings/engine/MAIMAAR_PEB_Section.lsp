@@ -447,13 +447,9 @@
   (setvar "CLAYER" "TEXT")
   (setq spec (peb-split-2-lines (peb-panel-label data "ROOF")))
   (setq rc (strcat "{\\C7;\\H0.42x;{\\fArial|b1;ROOFING SYSTEM:}\\P" spec "}"))
+  ;; the M-Ladder arrow is drawn by peb-make-mleader itself now (explicit solid arrowhead, owner 18-Jul).
   (vl-catch-all-apply 'peb-make-mleader
-    (list (list (list ax ay) (list ax topY) (list (+ ax 300.0) topY)) rc))
-  ;; owner 18-Jul: WIRE the M-Ladder arrow — an explicit SOLID arrowhead at the sheeting tip (the native
-  ;; MLEADER arrowhead does not render reliably here).  Small filled triangle, tip ON the sheeting.
-  (setvar "CLAYER" "ARROWS") (setvar "PLINEWID" 0.0)
-  (peb-solid-quad (list (- ax 130.0) (+ ay 230.0)) (list (+ ax 130.0) (+ ay 230.0))
-                  (list ax ay) (list ax ay)))
+    (list (list (list ax ay) (list ax topY) (list (+ ax 300.0) topY)) rc)))
 
 (defun peb-v3-to-legacy (v3 / out project client proposal bldgno revno
                               len wid heightVal brick slope slopeRaw slopeCustom
@@ -1003,7 +999,8 @@
 )
 
 (defun peb-make-mleader (ptList text /
-                          acad doc mspace pts mleader scl flat n upper i p)
+                          acad doc mspace pts mleader scl flat n upper i p
+                          ap0 ap1 adx ady adl aux auy abx aby aaw)
   ;;  Create a native AutoCAD MLEADER (multileader) — single entity that
   ;;  contains BOTH the leader line/arrow AND the text.  Drag the arrow
   ;;  tip, the text, or the corner — they all stay connected because
@@ -1059,10 +1056,11 @@
     (function (lambda () (vla-put-Landing       mleader :vlax-false))))
   (vl-catch-all-apply
     (function (lambda () (vla-put-DoglegEnabled mleader :vlax-false))))
-  ;; Arrow size — owner 14-Jul: 500 (× ScaleFactor ≈ 625 mm) read oversized on the COLUMN/GIRT/DOWN PIPE
-  ;; leaders; 150 gives a clean small arrowhead.  The "Closed Filled" block still comes from the style.
+  ;; owner 18-Jul: the native MLEADER arrowhead does NOT render reliably (missing on vertical-leg M-Ladders
+  ;; like ROOF/WALL SHEETING & ROOFING SYSTEM).  Shrink it to invisible and draw our OWN solid arrowhead
+  ;; below, so EVERY leader gets a guaranteed arrow, uniform across all frames.
   (vl-catch-all-apply
-    (function (lambda () (vla-put-ArrowSize mleader 150.0))))
+    (function (lambda () (vla-put-ArrowSize mleader 1.0))))
   ;; Force text height = body text height (220 × scale).  Caller can
   ;; override later if it wants something bigger (e.g. heading).
   (vl-catch-all-apply
@@ -1072,6 +1070,19 @@
   ;; text string — this leaves regular weight as the surrounding default.
   (vl-catch-all-apply
     (function (lambda () (vla-put-TextStyleName mleader "Standard"))))
+  ;; owner 18-Jul: explicit SOLID arrowhead at the tip (ptList[0]), pointing along the last leader segment
+  ;; (ptList[1] -> ptList[0]).  Replaces the unreliable native arrow (shrunk above) so every M-Ladder is wired.
+  (setq ap0 (car ptList) ap1 (cadr ptList))
+  (setq adx (- (car ap0) (car ap1)) ady (- (cadr ap0) (cadr ap1)))
+  (setq adl (sqrt (+ (* adx adx) (* ady ady))))
+  (if (> adl 1.0)
+    (progn
+      (setq aux (/ adx adl) auy (/ ady adl) aaw 90.0)
+      (setq abx (- (car ap0) (* aux 260.0)) aby (- (cadr ap0) (* auy 260.0)))   ; arrow base centre
+      (setvar "CLAYER" "ARROWS") (setvar "PLINEWID" 0.0)
+      (peb-solid-quad (list (- abx (* auy aaw)) (+ aby (* aux aaw)))
+                      (list (+ abx (* auy aaw)) (- aby (* aux aaw)))
+                      ap0 ap0)))
   mleader
 )
 
@@ -3597,22 +3608,16 @@
   (command "_.SOLID" bl br tl tr ""))
 
 (defun draw-stiff-top (xOuter yEdge w h dx)
-  ;;  Triangular stiffener ABOVE the upper plate, outline only.
-  ;;  yEdge = top edge Y of the upper plate.
-  (command "PLINE"
-    (list xOuter             yEdge)
-    (list xOuter             (+ yEdge h))
-    (list (+ xOuter (* dx w)) yEdge)
-    "C"))
+  ;;  Triangular stiffener ABOVE the upper plate — FILLED SOLID (owner 18-Jul: standing gusset rule; matches
+  ;;  the cantilever + valley connections).  yEdge = top edge Y of the upper plate; apex `h` above.
+  (peb-solid-quad (list xOuter yEdge) (list (+ xOuter (* dx w)) yEdge)
+                  (list xOuter (+ yEdge h)) (list xOuter (+ yEdge h))))
 
 (defun draw-stiff-bot (xOuter yEdge w h dx)
-  ;;  Triangular stiffener BELOW the lower plate, outline only.
-  ;;  yEdge = bottom edge Y of the lower plate.
-  (command "PLINE"
-    (list xOuter             yEdge)
-    (list xOuter             (- yEdge h))
-    (list (+ xOuter (* dx w)) yEdge)
-    "C"))
+  ;;  Triangular stiffener BELOW the lower plate — FILLED SOLID (owner 18-Jul).  yEdge = bottom edge Y of the
+  ;;  lower plate; apex `h` below.
+  (peb-solid-quad (list xOuter (- yEdge h)) (list xOuter (- yEdge h))
+                  (list xOuter yEdge) (list (+ xOuter (* dx w)) yEdge)))
 
 (defun draw-stiff-fullweb (xEdge yBot yTop w dir)
   ;;  FULL-WEB stiffener gusset (owner 16-Jul markup 15): the stiffener spans the WHOLE web (yBot flange -> yTop
