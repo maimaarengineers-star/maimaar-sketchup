@@ -38,7 +38,7 @@ It exists in two synchronized forms:
 | Grid number / letter | `GRID-TEXT` | TEXT / AcDbText | red 1 | Continuous | 0.09 | `peb-text` (via `peb-bubble`) | all |
 | Column (I-section) | `COLUMNS` | LWPOLYLINE + SOLID | red 1 | Continuous | **0.50** | `peb-poly`+`peb-solid` | Plan, Sec |
 | Column centre-line | `COL-CENTER` | LINE | red 1 | CENTER | 0.09 | `peb-line` | Plan |
-| Base plate | `PLATES` | LWPOLYLINE | white 7 | Continuous | 0.35 | `peb-rect` | Plan(AB) |
+| Base plate | `PLATES` | LWPOLYLINE | red 1 | Continuous | 0.35 | `peb-rect` | Plan(AB) |
 | Anchor bolt | `BOLTS` | CIRCLE / AcDbCircle | white 7 | Continuous | 0.09 | `peb-circle` | Plan(AB) |
 | Cross-bracing X | `CROSS` | LINE | cyan 4 | DASHED | 0.18 | `peb-line` | Plan |
 | Ridge line | `RIDGE` | LINE | blue 5 | HIDDEN | 0.18 | `peb-line` | Plan, Sec |

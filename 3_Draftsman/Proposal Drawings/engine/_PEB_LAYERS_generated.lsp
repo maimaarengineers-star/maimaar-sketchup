@@ -18,7 +18,7 @@
     ("CL"           1    "CENTER" 0.09)
     ("CROSS"        4    "DOT" 0.18)
     ("BOLTS"        7    "Continuous" 0.09)
-    ("PLATES"       7    "Continuous" 0.35)
+    ("PLATES"       1    "Continuous" 0.35)
     ("FRAME"        1    "Continuous" 0.30)
     ("FRAME-FILL"   8    "Continuous" 0.09)
     ("RIDGE"        5    "HIDDEN" 0.18)
