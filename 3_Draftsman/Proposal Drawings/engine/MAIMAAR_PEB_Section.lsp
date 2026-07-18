@@ -3444,7 +3444,9 @@
                           xCol1 xCol2 xWing1 xWing2 midY stW stH)
   (setvar "CLAYER" "PLATES")
   (setq boltR (* 25 *PEB-TEXT-SCALE*))
-  (setq vPThk 20.0 gap 50.0 ext 100.0)
+  ;; owner 18-Jul: widen the seam GAP so the two solid plates read as clearly separate (the old 50mm gap
+  ;; was ~the bolt diameter, so the bolts bridged it and the pair looked like one block).
+  (setq vPThk 20.0 gap 140.0 ext 100.0)
   (setq pB (- (min yBot yTop) ext) pT (+ (max yBot yTop) ext))
   (setq xCol2  (- cx (/ gap 2.0)) xCol1  (- xCol2 vPThk)    ; COLUMN-side plate (left of seam)
         xWing1 (+ cx (/ gap 2.0)) xWing2 (+ xWing1 vPThk))  ; WING-back plate  (right of seam)
