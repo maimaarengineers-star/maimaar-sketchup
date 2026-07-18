@@ -1728,7 +1728,7 @@
 
 (defun compute-section-layout (data stype W /
                                 cols ridges numMod numGab spanPerGab gW
-                                i sp cum modw)
+                                i sp cum modw bfVx)
   ;;  Returns a list (cols ridges) where:
   ;;    cols   = sorted list of column X positions (length >= 2)
   ;;    ridges = sorted list of ridge X positions  (length = N gables)
@@ -1809,6 +1809,14 @@
       ;; with apexes at the quarter-points. Ridges = peak X (= W/2)
       ;; for grid bubble + dim purposes.
       (list (list 0.0 (/ W 2.0) W) (list (/ W 2.0))))
+
+    ((= stype "BF")
+      ;; Butterfly/Falcon 2-wing canopy — a MIDDLE pillar at the valley/peak (owner 18-Jul): give it a grid
+      ;; bubble (B) and split the width into TWO modules, so UNEQUAL legs read as a width module ("N@L+M@R").
+      ;; Falcon peak stays central; the Butterfly valley honours the ridge-offset (peb-ridge-x).
+      (setq bfVx (if (= (strcase (peb-tb-or (MSPL-Get-Str data "CC_FALCON_PEAK") "")) "YES")
+                   (/ W 2.0) (peb-ridge-x data W)))
+      (list (list 0.0 bfVx W) (list bfVx)))
 
     ((= stype "PP")
       ;; Petrol Pump canopy — TWO inset column lines (roof cantilevers beyond each), no ridge.
