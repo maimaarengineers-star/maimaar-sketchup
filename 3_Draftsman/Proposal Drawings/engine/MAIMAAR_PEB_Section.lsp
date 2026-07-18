@@ -3108,36 +3108,45 @@
 (defun bf-tip-depth (W)
   (max 350.0 (* (/ W 24000.0) 600.0)))             ; span-scaled THIN tip web (was 400 @ 24m)
 
-(defun draw-bf-frame (W H rise ht cb intColW / cx de dp halfCol)
-  ;;  Butterfly: CENTER column only, NO side columns.
-  ;;  Two rafters slope UP-OUTWARD from center valley to high side eaves.
-  ;;  Wings are TAPERED (owner 13-Jul): DEEP at the mast (dp, max moment on the
-  ;;  cantilever) and THIN at the free tips (de).
-  (setq cx (/ W 2.0))
+;;  peb-bf-valley-x — the butterfly/canopy VALLEY position (mm from the LEFT eave).  Owner 18-Jul markup 15:
+;;  a DEDICATED canopy valley offset (BP_VALLEY_OFFSET), independent of the gable ridge offset.  Blank / 0 /
+;;  out-of-range => centred (W/2).  Clamped 2 m off each eave so the column never lands on an edge.
+(defun peb-bf-valley-x (data W / v)
+  (setq v (MSPL-Get-Num data "BP_VALLEY_OFFSET"))
+  (if (and v (> v 2000.0) (< v (- W 2000.0))) v (/ W 2.0)))
+
+(defun draw-bf-frame (W H rise ht cb intColW valleyX / cx de dp halfCol slope leftRise rightRise)
+  ;;  Butterfly: CENTER column only, NO side columns.  Two rafters slope UP-OUTWARD from the valley to the
+  ;;  high side eaves.  Owner 18-Jul markup 15: the valley (and column) can be OFF-CENTRE (valleyX) — both
+  ;;  wings keep the SAME fall, so the LONGER wing's tip sits HIGHER (leftRise / rightRise differ).
+  ;;  Wings are TAPERED (owner 13-Jul): DEEP at the mast (dp) and THIN at the free tips (de).
+  (setq cx (if valleyX valleyX (/ W 2.0)))
   (setq intColW (max intColW 400.0))
   (setq halfCol (/ intColW 2.0))
+  (setq slope     (/ rise (/ W 2.0)))          ; fall slope (rise per run) — identical on both wings
+  (setq leftRise  (* slope cx))                ; longer wing -> higher tip
+  (setq rightRise (* slope (- W cx)))
   ;; TWO-side cantilever web (owner 18-Jul): deepened for visualization + span-scaled + C.H-capped
   ;; via the shared bf-mast-depth / bf-tip-depth helpers (see above).
   (setq dp (bf-mast-depth W H))   ; mast (deep) web depth
   (setq de (bf-tip-depth  W))     ; tip (thin) web depth
 
-  ;; Center column (rectangular) — TOPS OUT below the rafter underside (H-dp) by the 2-plate connection
-  ;; stack (owner 16-Jul markup 2: gable-style valley connection), so the two wings land on a horizontal
-  ;; connection-plate pair on the column top (drawn in the plate dispatch), not floating side plates.
+  ;; Center column (rectangular) at the valley — TOPS OUT below the rafter underside (H-dp) by the 2-plate
+  ;; connection stack (owner 16-Jul markup 2), so the two wings land on a connection-plate pair on the top.
   (setvar "CLAYER" "FRAME")
   (command "RECTANG"
     (list (- cx halfCol) 0.0)
     (list (+ cx halfCol) (- H dp 62.0)))
 
-  ;; Frame outline: butterfly (V top), underside tapers de (tip) -> dp (mast)
+  ;; Frame outline: butterfly (V top), underside tapers de (tip) -> dp (mast); tips at their own rises.
   (command "PLINE"
-    (list 0.0       (+ H rise))                 ; LEFT high eave outside (tip top)
-    (list cx        H)                          ; VALLEY (centre top, lowest roof point)
-    (list W         (+ H rise))                 ; RIGHT high eave outside (tip top)
-    (list W         (+ H rise (- 0 de)))        ; right tip UNDERSIDE (thin ~400)
-    (list (+ cx halfCol) (- H dp))              ; mast right haunch (column top, deep ~700)
-    (list (- cx halfCol) (- H dp))              ; mast left haunch (column top, deep ~700)
-    (list 0.0       (+ H rise (- 0 de)))        ; left tip UNDERSIDE (thin ~400)
+    (list 0.0       (+ H leftRise))             ; LEFT high eave outside (tip top)
+    (list cx        H)                          ; VALLEY (lowest roof point, under the column)
+    (list W         (+ H rightRise))            ; RIGHT high eave outside (tip top)
+    (list W         (+ H rightRise (- 0 de)))   ; right tip UNDERSIDE (thin)
+    (list (+ cx halfCol) (- H dp))              ; mast right haunch (column top, deep)
+    (list (- cx halfCol) (- H dp))              ; mast left haunch (column top, deep)
+    (list 0.0       (+ H leftRise (- 0 de)))    ; left tip UNDERSIDE (thin)
     "C")
 )
 
@@ -6920,7 +6929,7 @@
       ;; when CC_FALCON_PEAK=Yes (owner 8-Jul).
       (if (= (strcase (peb-tb-or (MSPL-Get-Str data "CC_FALCON_PEAK") "")) "YES")
         (draw-falcon2-frame wid H rise ht cb 400.0)
-        (draw-bf-frame wid H rise ht cb 400.0)))
+        (draw-bf-frame wid H rise ht cb 400.0 (peb-bf-valley-x data wid))))
     ((= stype "ACS")
       ;; Arched Clear Span — single curved roof arc, 2 R.F. columns
       (draw-acs-frame wid H rise ht cb))
@@ -7072,16 +7081,14 @@
           (draw-cant-vplate ht (- eLp dsP) eLp 45.0 3))             ; I-shape (vertical) on the WING side of the column
         (progn
           (setq dpP (bf-mast-depth wid H))                          ; MUST match draw-bf/falcon frame haunch depth
-          (setq bfHalf 200.0)                                       ; centre column half-width (intColW 400)
           (setq bfPk  (= (strcase (peb-tb-or (MSPL-Get-Str data "CC_FALCON_PEAK") "")) "YES"))
+          (setq bfVx  (if bfPk (/ wid 2.0) (peb-bf-valley-x data wid)))   ; valley/column x (markup 15 offset)
           (setq bfBotY (if bfPk (- (+ H rise) dpP) (- H dpP))
                 bfTopY (if bfPk (+ H rise) H))
-          (draw-base-plate-at (- (/ wid 2.0) 200.0) (+ (/ wid 2.0) 200.0) ep (* 25 *PEB-TEXT-SCALE*))
-          ;; owner 18-Jul markup 14: the two wings meet over the centre column with the SAME connection
-          ;; detail as the Multi-Gable valley — 4 vertical end plates flanking the column + bolts + web
-          ;; stiffener (draw-valley-col-plates).  plateBot = 50 below the mast underside (bfBotY);
-          ;; plateTop = 50 above the valley/peak top flange (bfTopY).
-          (draw-valley-col-plates (/ wid 2.0) (- bfBotY 50.0) (+ bfTopY 50.0)))))
+          (draw-base-plate-at (- bfVx 200.0) (+ bfVx 200.0) ep (* 25 *PEB-TEXT-SCALE*))
+          ;; owner 18-Jul markup 14: the two wings meet over the column with the SAME connection detail as
+          ;; the Multi-Gable valley — 4 vertical end plates flanking the column + bolts + web stiffener.
+          (draw-valley-col-plates bfVx (- bfBotY 50.0) (+ bfTopY 50.0)))))
     ((= stype "SS")
       ;; SINGLE SLOPE: (1) a KNEE connection plate at EACH column-rafter junction (on the deep underside
       ;; topY-ht), and (2) a RAFTER SPLICE plate ~3-4 m from EVERY column at the haunch end (deep->thin
@@ -7342,43 +7349,40 @@
         ;; ── BUTTERFLY finishing: deck on both wings + central VALLEY GUTTER + DOWN SPOUT + FALL ──
         ;; Reference (Nestle Butterfly Canopy): wings drain INWARD to a centre valley gutter & downspout.
         (progn
-          (setq bfcx (/ wid 2.0))
-          (setq bfm  (/ rise bfcx))                   ; wing rise per run (high at eaves, low at valley)
-          (setq bfBrkY (+ H 200.0 (* bfm 265.0)))     ; deck Y where the sheet ends 75mm INTO the gutter
+          (setq bfcx (peb-bf-valley-x data wid))       ; VALLEY position (markup 15 offset; default centre)
+          (setq bfm  (/ rise (/ wid 2.0)))             ; fall slope (rise per run) — SAME on both wings
+          (setq bfLR (* bfm bfcx))                     ; LEFT wing rise (tip height above the valley)
+          (setq bfRR (* bfm (- wid bfcx)))             ; RIGHT wing rise (longer wing => higher tip)
+          (setq bfBrkY (+ H 200.0 (* bfm 265.0)))      ; deck Y where the sheet ends 75mm INTO the gutter
           (setvar "CLAYER" "CLADDING")
           ;; LEFT wing deck (2 lines): high eave down toward the valley, ENDING 75mm inside the gutter lip
-          ;; (owner 17-Jul: migrated Multi-Gable valley detail — sheet overlaps into the gutter + end-cap).
-          (command "LINE" (list -270.0 (+ H rise 200.0 (* bfm 270.0))) (list (- bfcx 265.0) bfBrkY) "")
-          (command "LINE" (list -270.0 (+ H rise 235.0 (* bfm 270.0))) (list (- bfcx 265.0) (+ bfBrkY 35.0)) "")
+          ;; (owner 17-Jul: Multi-Gable valley detail — sheet overlaps into the gutter + end-cap).
+          (command "LINE" (list -270.0 (+ H bfLR 200.0 (* bfm 270.0))) (list (- bfcx 265.0) bfBrkY) "")
+          (command "LINE" (list -270.0 (+ H bfLR 235.0 (* bfm 270.0))) (list (- bfcx 265.0) (+ bfBrkY 35.0)) "")
           (command "LINE" (list (- bfcx 265.0) bfBrkY) (list (- bfcx 265.0) (+ bfBrkY 35.0)) "")   ; sheet end-cap
-          ;; RIGHT wing deck (2 lines): mirror
-          (command "LINE" (list (+ bfcx 265.0) bfBrkY) (list (+ wid 270.0) (+ H rise 200.0 (* bfm 270.0))) "")
-          (command "LINE" (list (+ bfcx 265.0) (+ bfBrkY 35.0)) (list (+ wid 270.0) (+ H rise 235.0 (* bfm 270.0))) "")
+          ;; RIGHT wing deck (2 lines): mirror (its own rise)
+          (command "LINE" (list (+ bfcx 265.0) bfBrkY) (list (+ wid 270.0) (+ H bfRR 200.0 (* bfm 270.0))) "")
+          (command "LINE" (list (+ bfcx 265.0) (+ bfBrkY 35.0)) (list (+ wid 270.0) (+ H bfRR 235.0 (* bfm 270.0))) "")
           (command "LINE" (list (+ bfcx 265.0) bfBrkY) (list (+ bfcx 265.0) (+ bfBrkY 35.0)) "")   ; sheet end-cap
           ;; owner 18-Jul markup 18: EAVE TRIM / flashing at both high tips WRAPS the sheet+purlin edge —
-          ;; a top leg OVER the sheet top, down the outer tip face, then a bottom leg back IN UNDER the
-          ;; purlin.  Open folded profile (not a filled box).  The sheet no longer shows past the trim.
+          ;; top leg OVER the sheet, down the outer tip face, bottom leg back IN under the purlin.  Per-wing rise.
           (command "PLINE"
-            (list  -30.0 (+ (+ H rise 235.0 (* bfm 270.0)) 40.0))   ; top leg — inward OVER the sheet top
-            (list -270.0 (+ (+ H rise 235.0 (* bfm 270.0)) 40.0))   ; out to the tip (top of trim)
-            (list -310.0 (+ H rise 235.0 (* bfm 270.0)))            ; fold DOWN the outer tip face
-            (list -310.0 (- (+ H rise (* bfm 270.0)) 40.0))         ; down past the sheet + purlin depth
-            (list  -30.0 (- (+ H rise (* bfm 270.0)) 40.0))         ; bottom leg — back IN, UNDER the purlin
+            (list  -30.0 (+ (+ H bfLR 235.0 (* bfm 270.0)) 40.0))
+            (list -270.0 (+ (+ H bfLR 235.0 (* bfm 270.0)) 40.0))
+            (list -310.0 (+ H bfLR 235.0 (* bfm 270.0)))
+            (list -310.0 (- (+ H bfLR (* bfm 270.0)) 40.0))
+            (list  -30.0 (- (+ H bfLR (* bfm 270.0)) 40.0))
             "")
           (command "PLINE"
-            (list (+ wid  30.0) (+ (+ H rise 235.0 (* bfm 270.0)) 40.0))
-            (list (+ wid 270.0) (+ (+ H rise 235.0 (* bfm 270.0)) 40.0))
-            (list (+ wid 310.0) (+ H rise 235.0 (* bfm 270.0)))
-            (list (+ wid 310.0) (- (+ H rise (* bfm 270.0)) 40.0))
-            (list (+ wid  30.0) (- (+ H rise (* bfm 270.0)) 40.0))
+            (list (+ wid  30.0) (+ (+ H bfRR 235.0 (* bfm 270.0)) 40.0))
+            (list (+ wid 270.0) (+ (+ H bfRR 235.0 (* bfm 270.0)) 40.0))
+            (list (+ wid 310.0) (+ H bfRR 235.0 (* bfm 270.0)))
+            (list (+ wid 310.0) (- (+ H bfRR (* bfm 270.0)) 40.0))
+            (list (+ wid  30.0) (- (+ H bfRR (* bfm 270.0)) 40.0))
             "")
-          ;; VALLEY GUTTER — clean BOX gutter (owner 17-Jul refinement, per Multi-Gable): small OUTER LIPS
-          ;; folded out at the sheet-end level (bfcx±340), near-vertical walls, and a symmetric flat trough
-          ;; bottom.  The two wing sheets overlap 75 mm inside the lips (bfcx±265).
+          ;; VALLEY GUTTER — tapered trapezoidal trough (owner markup 17) centred on the valley (bfcx).
           (setvar "CLAYER" "GUTTER")
           (setvar "PLINEWID" 0.0)
-          ;; owner 18-Jul markup 17: gutter side walls TAPERED — a clean trapezoidal trough (wide mouth at
-          ;; the lips, narrow flat bottom) instead of near-vertical walls.
           (command "PLINE"
             (list (- bfcx 390.0) bfBrkY)                ; left lip — folded OUT
             (list (- bfcx 330.0) bfBrkY)                ; left top inner corner (mouth)
@@ -7388,37 +7392,36 @@
             (list (+ bfcx 390.0) bfBrkY)                ; right lip — folded OUT
             "")
           (setvar "CLAYER" "TEXT")
-          (txt "MC" (list bfcx (+ H rise (* 900 *PEB-TEXT-SCALE*))) 200 0 "VALLEY GUTTER")
-          ;; M-Ladder DOWN-ARROW to the valley gutter (owner 17-Jul, same as the Multi-Gable): shaft + SOLID head.
+          (txt "MC" (list bfcx (+ H (max bfLR bfRR) (* 900 *PEB-TEXT-SCALE*))) 200 0 "VALLEY GUTTER")
+          ;; M-Ladder DOWN-ARROW to the valley gutter: shaft + SOLID head.
           (setvar "CLAYER" "ARROWS")
           (setvar "PLINEWID" 0.0)
-          (command "LINE" (list bfcx (+ H rise (* 550 *PEB-TEXT-SCALE*)))
+          (command "LINE" (list bfcx (+ H (max bfLR bfRR) (* 550 *PEB-TEXT-SCALE*)))
                           (list bfcx (+ bfBrkY 230.0)) "")
           (peb-solid-quad (list (- bfcx (* 130 *PEB-TEXT-SCALE*)) (+ bfBrkY 230.0))
                           (list (+ bfcx (* 130 *PEB-TEXT-SCALE*)) (+ bfBrkY 230.0))
                           (list bfcx (+ bfBrkY 30.0)) (list bfcx (+ bfBrkY 30.0)))
-          ;; DOWN SPOUT through the central mast
+          ;; DOWN SPOUT through the valley column
           (peb-label-with-leader "DOWN SPOUT"
                                  (list (+ bfcx 2300.0) (* H 0.45))
                                  (list (+ bfcx 220.0)  (* H 0.45))
                                  "H" 220)
-          ;; FALL callouts on each wing (drain toward centre)
-          (txt "MC" (list (* wid 0.26) (+ H (* rise 0.55) 700.0)) 240 0 "FALL")
-          (txt "MC" (list (* wid 0.74) (+ H (* rise 0.55) 700.0)) 240 0 "FALL")
+          ;; FALL callouts on each wing (drain toward the valley), at each wing's mid-run + own height
+          (txt "MC" (list (* bfcx 0.45) (+ H (* bfLR 0.55) 700.0)) 240 0 "FALL")
+          (txt "MC" (list (+ bfcx (* (- wid bfcx) 0.55)) (+ H (* bfRR 0.55) 700.0)) 240 0 "FALL")
           ;; TWO slope tags — left wing rises up-LEFT (upRight=-1), right wing up-RIGHT (upRight=+1)
-          (draw-slope-tag (* bfcx 0.5) (+ H (- rise (* rise 0.5)) 235.0 (* 300 *PEB-TEXT-SCALE*)) slopeD -1)
-          (draw-slope-tag (* bfcx 1.5) (+ H (- rise (* rise 0.5)) 235.0 (* 300 *PEB-TEXT-SCALE*)) slopeD  1)
-          ;; Purlins on both wings + ROOF SHEETING callout (like Clear Span)
-          (peb-deck-purlins 0.0 (+ H rise 200.0) bfcx (+ H 200.0))
-          (peb-deck-purlins bfcx (+ H 200.0) wid (+ H rise 200.0))
-          ;; owner 18-Jul markup 16: a purlin EACH SIDE of the valley (just up-slope of the gutter lip, on
-          ;; the wing slope) to carry the gutter lip AND the sheet end.  ux/uy = wing slope unit vector.
+          (draw-slope-tag (* bfcx 0.5) (+ H (* bfLR 0.5) 235.0 (* 300 *PEB-TEXT-SCALE*)) slopeD -1)
+          (draw-slope-tag (/ (+ bfcx wid) 2.0) (+ H (* bfRR 0.5) 235.0 (* 300 *PEB-TEXT-SCALE*)) slopeD  1)
+          ;; Purlins on both wings + ROOF SHEETING callout (per-wing rise)
+          (peb-deck-purlins 0.0 (+ H bfLR 200.0) bfcx (+ H 200.0))
+          (peb-deck-purlins bfcx (+ H 200.0) wid (+ H bfRR 200.0))
+          ;; owner 18-Jul markup 16: a purlin EACH SIDE of the valley (up-slope of the gutter lip).
           (peb-z-purlin-at (- bfcx 470.0) (+ bfBrkY (* bfm 205.0))
                            (/  1.0 (sqrt (+ 1.0 (* bfm bfm)))) (/ (- 0 bfm) (sqrt (+ 1.0 (* bfm bfm)))))
           (peb-z-purlin-at (+ bfcx 470.0) (+ bfBrkY (* bfm 205.0))
                            (/ -1.0 (sqrt (+ 1.0 (* bfm bfm)))) (/ (- 0 bfm) (sqrt (+ 1.0 (* bfm bfm)))))
-          (peb-canopy-roof-label data (* wid 0.72) (+ H (* rise 0.44) 200.0)
-                                 (+ H rise (* 2600 *PEB-TEXT-SCALE*))))))
+          (peb-canopy-roof-label data (+ bfcx (* (- wid bfcx) 0.44)) (+ H (* bfRR 0.44) 200.0)
+                                 (+ H bfRR (* 2600 *PEB-TEXT-SCALE*))))))
     ;; ── CC (Cantilever Canopy): one back column, open front ──
     ;; Add COLUMN label pointing at the back (left) column inner flange.
     ((= stype "CC")
