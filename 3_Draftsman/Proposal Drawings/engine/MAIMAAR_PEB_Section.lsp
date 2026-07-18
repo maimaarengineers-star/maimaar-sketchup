@@ -7367,30 +7367,28 @@
           (setq bfRR (* bfm (- wid bfcx)))             ; RIGHT wing rise (longer wing => higher tip)
           (setq bfBrkY (+ H 200.0 (* bfm 265.0)))      ; deck Y where the sheet ends 75mm INTO the gutter
           (setvar "CLAYER" "CLADDING")
-          ;; LEFT wing deck (2 lines): high eave down toward the valley, ENDING 75mm inside the gutter lip
-          ;; (owner 17-Jul: Multi-Gable valley detail — sheet overlaps into the gutter + end-cap).
-          (command "LINE" (list -270.0 (+ H bfLR 200.0 (* bfm 270.0))) (list (- bfcx 265.0) bfBrkY) "")
-          (command "LINE" (list -270.0 (+ H bfLR 235.0 (* bfm 270.0))) (list (- bfcx 265.0) (+ bfBrkY 35.0)) "")
+          ;; owner 18-Jul: the sheet ENDS AT THE RAFTER LINE (tip x=0 / x=wid) — NO overhang past the rafter.
+          ;; LEFT wing deck (2 lines): rafter tip down toward the valley, ending 75mm inside the gutter lip.
+          (command "LINE" (list 0.0 (+ H bfLR 200.0)) (list (- bfcx 265.0) bfBrkY) "")
+          (command "LINE" (list 0.0 (+ H bfLR 235.0)) (list (- bfcx 265.0) (+ bfBrkY 35.0)) "")
           (command "LINE" (list (- bfcx 265.0) bfBrkY) (list (- bfcx 265.0) (+ bfBrkY 35.0)) "")   ; sheet end-cap
-          ;; RIGHT wing deck (2 lines): mirror (its own rise)
-          (command "LINE" (list (+ bfcx 265.0) bfBrkY) (list (+ wid 270.0) (+ H bfRR 200.0 (* bfm 270.0))) "")
-          (command "LINE" (list (+ bfcx 265.0) (+ bfBrkY 35.0)) (list (+ wid 270.0) (+ H bfRR 235.0 (* bfm 270.0))) "")
+          ;; RIGHT wing deck (2 lines): mirror
+          (command "LINE" (list (+ bfcx 265.0) bfBrkY) (list wid (+ H bfRR 200.0)) "")
+          (command "LINE" (list (+ bfcx 265.0) (+ bfBrkY 35.0)) (list wid (+ H bfRR 235.0)) "")
           (command "LINE" (list (+ bfcx 265.0) bfBrkY) (list (+ bfcx 265.0) (+ bfBrkY 35.0)) "")   ; sheet end-cap
-          ;; owner 18-Jul markup 18: EAVE TRIM / flashing at both high tips WRAPS the sheet+purlin edge —
-          ;; top leg OVER the sheet, down the outer tip face, bottom leg back IN under the purlin.  Per-wing rise.
+          ;; EAVE TRIM wraps the sheet+purlin edge AT the rafter line (no overhang): top leg IN over the sheet,
+          ;; fold DOWN at the tip (x=0 / x=wid), bottom leg back IN under the purlin (owner 18-Jul markup 18/edge).
           (command "PLINE"
-            (list  -30.0 (+ (+ H bfLR 235.0 (* bfm 270.0)) 40.0))
-            (list -270.0 (+ (+ H bfLR 235.0 (* bfm 270.0)) 40.0))
-            (list -310.0 (+ H bfLR 235.0 (* bfm 270.0)))
-            (list -310.0 (- (+ H bfLR (* bfm 270.0)) 40.0))
-            (list  -30.0 (- (+ H bfLR (* bfm 270.0)) 40.0))
+            (list  30.0 (+ (+ H bfLR 235.0) 40.0))
+            (list   0.0 (+ (+ H bfLR 235.0) 40.0))
+            (list   0.0 (- (+ H bfLR) 40.0))
+            (list  30.0 (- (+ H bfLR) 40.0))
             "")
           (command "PLINE"
-            (list (+ wid  30.0) (+ (+ H bfRR 235.0 (* bfm 270.0)) 40.0))
-            (list (+ wid 270.0) (+ (+ H bfRR 235.0 (* bfm 270.0)) 40.0))
-            (list (+ wid 310.0) (+ H bfRR 235.0 (* bfm 270.0)))
-            (list (+ wid 310.0) (- (+ H bfRR (* bfm 270.0)) 40.0))
-            (list (+ wid  30.0) (- (+ H bfRR (* bfm 270.0)) 40.0))
+            (list (- wid 30.0) (+ (+ H bfRR 235.0) 40.0))
+            (list wid (+ (+ H bfRR 235.0) 40.0))
+            (list wid (- (+ H bfRR) 40.0))
+            (list (- wid 30.0) (- (+ H bfRR) 40.0))
             "")
           ;; VALLEY GUTTER — tapered trapezoidal trough (owner markup 17) centred on the valley (bfcx).
           (setvar "CLAYER" "GUTTER")
@@ -7454,6 +7452,12 @@
           (peb-z-purlin-at (- bfcx 470.0) (+ bfBrkY (* bfm 205.0))
                            (/  1.0 (sqrt (+ 1.0 (* bfm bfm)))) (/ (- 0 bfm) (sqrt (+ 1.0 (* bfm bfm)))))
           (peb-z-purlin-at (+ bfcx 470.0) (+ bfBrkY (* bfm 205.0))
+                           (/ -1.0 (sqrt (+ 1.0 (* bfm bfm)))) (/ (- 0 bfm) (sqrt (+ 1.0 (* bfm bfm)))))
+          ;; owner 18-Jul markup: a purlin at EACH wing EDGE (at the rafter tip, just inside) — the deck-purlin
+          ;; run starts 1500mm in, leaving the edge bare, and the eave trim needs an edge purlin to wrap under.
+          (peb-z-purlin-at 150.0 (- (+ H bfLR 200.0) (* bfm 150.0))
+                           (/  1.0 (sqrt (+ 1.0 (* bfm bfm)))) (/ (- 0 bfm) (sqrt (+ 1.0 (* bfm bfm)))))
+          (peb-z-purlin-at (- wid 150.0) (- (+ H bfRR 200.0) (* bfm 150.0))
                            (/ -1.0 (sqrt (+ 1.0 (* bfm bfm)))) (/ (- 0 bfm) (sqrt (+ 1.0 (* bfm bfm)))))
           (peb-canopy-roof-label data (+ bfcx (* (- wid bfcx) 0.44)) (+ H (* bfRR 0.44) 200.0)
                                  (+ H bfRR (* 2600 *PEB-TEXT-SCALE*))))))
