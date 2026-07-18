@@ -3409,18 +3409,30 @@
   (setq *PEB-KNEE-TOPY* nil)   ; consume the per-knee top-flange hint so it never leaks to the next frame
   (princ))
 
-;;  draw-cant-vplate — CANTILEVER connection = the SAME I-shape detail but UN-rotated (VERTICAL), on the
-;;  SIDE of the column / backside of the rafter web (owner 14-Jul).  peb-conn-plate-depth draws the two
-;;  vertical plates + bolts; this adds the stiffener triangles at the TOP and BOTTOM ends (both flange
-;;  faces) so it matches the knee's I-shape, just vertical.
-(defun draw-cant-vplate (cx yBot yTop plateT nBolt / lo hi stW stH)
-  (peb-conn-plate-depth cx yBot yTop plateT nBolt)
-  (setq lo (- (min yBot yTop) 100.0) hi (+ (max yBot yTop) 100.0))   ; = peb-conn-plate-depth's 100 ext edges
-  (setq stW 100.0 stH 110.0)   ; owner 14-Jul: stiffener JUST till the plate extension (100mm)
-  (draw-stiff-top (- cx plateT) hi stW stH -1)
-  (draw-stiff-top (+ cx plateT) hi stW stH  1)
-  (draw-stiff-bot (- cx plateT) lo stW stH -1)
-  (draw-stiff-bot (+ cx plateT) lo stW stH  1)
+;;  draw-cant-vplate — CANTILEVER column-rafter connection, owner 18-Jul: apply the BUTTERFLY (Multi-Gable
+;;  valley) plate detail — TWO plates bolted at the seam: one on the SIDE OF THE COLUMN (left of the seam)
+;;  and one on the BACKSIDE OF THE WING (right of the seam), each extended 100 mm past both flanges, with
+;;  3 bolts down the seam and stiffener triangles top + bottom.  (Matches draw-valley-col-plates' outline
+;;  plates + donut bolts, but as the one-sided cantilever pair.)  plateT/nBolt kept for call compatibility.
+(defun draw-cant-vplate (cx yBot yTop plateT nBolt / boltR vPThk gap ext pB pT
+                          xCol1 xCol2 xWing1 xWing2 midY stW stH)
+  (setvar "CLAYER" "PLATES")
+  (setq boltR (* 25 *PEB-TEXT-SCALE*))
+  (setq vPThk 20.0 gap 50.0 ext 100.0)
+  (setq pB (- (min yBot yTop) ext) pT (+ (max yBot yTop) ext))
+  (setq xCol2  (- cx (/ gap 2.0)) xCol1  (- xCol2 vPThk)    ; COLUMN-side plate (left of seam)
+        xWing1 (+ cx (/ gap 2.0)) xWing2 (+ xWing1 vPThk))  ; WING-back plate  (right of seam)
+  (command "RECTANG" (list xCol1  pB) (list xCol2  pT))     ; plate on the SIDE OF THE COLUMN
+  (command "RECTANG" (list xWing1 pB) (list xWing2 pT))     ; plate on the BACKSIDE OF THE WING
+  (setq midY (/ (+ pB pT) 2.0))
+  (command "DONUT" 0 (* boltR 2) (list cx (+ pB 100.0)) "")
+  (command "DONUT" 0 (* boltR 2) (list cx midY) "")
+  (command "DONUT" 0 (* boltR 2) (list cx (- pT 100.0)) "")
+  (setq stW 100.0 stH 110.0)
+  (draw-stiff-top xCol1  pT stW stH -1)
+  (draw-stiff-top xWing2 pT stW stH  1)
+  (draw-stiff-bot xCol1  pB stW stH -1)
+  (draw-stiff-bot xWing2 pB stW stH  1)
   (princ))
 
 ;;  peb-cw-one — draw ONE catwalk as OUTER LINES ONLY at a column (owner 14-Jul): a narrow walkway deck
