@@ -3176,8 +3176,11 @@
                     (setq nW     (length wgys)
                           letOfs (if *PEB-GRID-LET-OFS* *PEB-GRID-LET-OFS* 0)
                           vf     (- (peb-grid-letter-index gfW) letOfs)   ; letter A = top (FSW)
-                          vt     (- (peb-grid-letter-index gtW) letOfs)
-                          yy0    (nth (max 0 (min (1- nW) (- nW 1 vf))) wgys)
+                          vt     (- (peb-grid-letter-index gtW) letOfs))
+                    ;; UNIVERSAL RULE (owner): a crane runs COLUMN TO COLUMN — one module.  The bridge can
+                    ;; NOT cross an interior column line, so clamp a multi-module width range to ADJACENT.
+                    (if (> (abs (- vt vf)) 1) (setq vt (+ vf (if (> vt vf) 1 -1))))
+                    (setq yy0    (nth (max 0 (min (1- nW) (- nW 1 vf))) wgys)
                           yy1    (nth (max 0 (min (1- nW) (- nW 1 vt))) wgys))
                     (if (> (abs (- yy1 yy0)) 1.0)
                       (progn
