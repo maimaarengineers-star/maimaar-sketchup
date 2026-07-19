@@ -6675,7 +6675,8 @@
                                 / u sc n pre cap cls hookH nC gfW gtW cf ct xL xR midX capStr
                                   idxL idxR hwL hwR brkLen fw ft beamD railNubH etH bd
                                   capY bridgeTop bridgeBot railTop beamTop beamBot hoistTop hoistBot
-                                  xBL xBR cb cx bx dir hw labeled hkTip modCount modSeen k a total idxInMod hoistX)
+                                  xBL xBR cb cx bx dir hw labeled hkTip modCount modSeen k a total idxInMod hoistX
+                                  brD gpH bxi)
   (if (= (strcase (MSPL-Get-Str data "CR_TOGGLE")) "YES")
     (progn
       (setq u  (max 250.0 (/ wid 45.0))
@@ -6724,9 +6725,9 @@
             (if (< (- xR xL) 1.0) (setq xL (nth 0 cols) xR (nth (1- nC) cols) idxL 0 idxR (1- nC)))
             ;; ── vertical stack, built DOWN from the rafter ceiling so the bridge never overrides
             ;;    the roof:  rafter/clearHt > bridge > end-truck > rail > I-beam > bracket ; hoist+hook below.
-            (setq fw       (* u 0.55)                     ; I-beam flange half-width
-                  ft       (max 60.0 (* u 0.14))          ; flange thickness
-                  beamD    (max 450.0 (* u 1.30))         ; crane beam depth
+            (setq fw       (max 180.0 (* u 0.32))         ; I-beam flange half-width — READABLE on the frame
+                  ft       (max 60.0 (* u 0.14))          ; flange thickness (true 200mm shown in the PLAN)
+                  beamD    (* fw 4.0)                     ; crane beam depth = 4x flange (realistic I proportion)
                   railNubH (* u 0.28)                     ; crane rail on top of the beam
                   etH      (* u 0.55)                     ; end-truck (bridge-to-rail) connection height
                   bd       (* u 0.90)                     ; bridge girder depth
@@ -6746,29 +6747,42 @@
                   ;; the bridge spans beam-to-beam.  hwL/hwR are the per-column offsets to the inner
                   ;; flange (side col = full depth inside the line; interior = half web), so the beam
                   ;; centre lands exactly on the inner flange and never overshoots a column.
-                  xBL  (+ xL hwL)                         ; left  rail centre = left column inner flange
-                  xBR  (- xR hwR))                        ; right rail centre = right column inner flange
+                  xBL  (+ xL hwL fw)                      ; left  beam: OUTER flange edge ON the inner flange
+                  xBR  (- xR (+ hwR fw)))                 ; right beam: OUTER flange edge ON the inner flange
             (if (< (- xBR xBL) (* u 2.0)) (setq xBL (+ xL (* u 0.8)) xBR (- xR (* u 0.8))))
             (setq midX (/ (+ xBL xBR) 2.0) capStr (rtos cap 2 0))
             ;; hook height (from BS) clamped to sit below the hoist and above the floor
             (if (or (null hookH) (<= hookH 0.0)) (setq hookH (- hoistBot (* u 1.8))))
             (setq hookH (max (* clearHt 0.12) (min hookH (- hoistBot (* u 0.5)))))
-            ;; ── per module column: simple triangular BRACKET (on the real column face) + I-BEAM on top + RAIL ──
+            ;; ── per module column: the TR crane-beam-to-column CONNECTION (manual DETAIL-1) ──
+            ;;    stack up:  built-up BRACKET (flanges + SOLID web) + triangular GUSSET off the
+            ;;    column inner flange  ->  crane BEAM (I) on it  ->  cap channel + small I-RAIL
+            ;;    ->  END-CARRIAGE WHEEL  ->  bridge.  Steel members drawn SOLID.
+            (setq brD (* fw 2.4)                          ; bracket depth (proportional to the beam)
+                  gpH (* fw 1.8))                         ; gusset (GP) height below the bracket
             (foreach cb (list (list xL xBL 1.0 hwL) (list xR xBR -1.0 hwR))
-              (setq cx (+ (car cb) (* (caddr cb) (cadddr cb)))   ; real inner column face
-                    bx (cadr cb) dir (caddr cb))
-              ;; triangular bracket gusset from the column face out to the I-beam, top at beamBot
-              (peb-crane-sec-line cx beamBot (+ bx (* dir fw)) beamBot)                 ; bracket top
-              (peb-crane-sec-line (+ bx (* dir fw)) beamBot cx (- beamBot (* u 0.95)))  ; bracket diagonal
-              (peb-crane-sec-line cx beamBot cx (- beamBot (* u 0.95)))                 ; bracket back (at column face)
-              ;; crane beam I-section (top flange + bottom flange + web) sitting ON the bracket
-              (peb-crane-sec-box (- bx fw) (- beamTop ft) (+ bx fw) beamTop)            ; top flange
-              (peb-crane-sec-box (- bx fw) beamBot (+ bx fw) (+ beamBot ft))            ; bottom flange
-              (peb-crane-sec-line bx (- beamTop ft) bx (+ beamBot ft))                  ; web
-              ;; crane RAIL on top of the beam
-              (peb-crane-sec-box (- bx (* u 0.16)) beamTop (+ bx (* u 0.16)) railTop)
-              ;; bridge-to-rail CONNECTION (end truck) riding on the rail
-              (peb-crane-sec-box (- bx (* fw 0.85)) railTop (+ bx (* fw 0.85)) bridgeBot))
+              (setq cx  (+ (car cb) (* (caddr cb) (cadddr cb)))   ; column INNER FLANGE
+                    bx  (cadr cb) dir (caddr cb)
+                    bxi (+ bx (* dir fw)))                        ; beam INNER edge (into the module)
+              ;; BRACKET — built-up rectangular section, clean OUTLINE (web box + flange lines)
+              (peb-crane-sec-sbox cx (- beamBot brD) bxi beamBot)                      ; bracket web (outline)
+              (peb-crane-sec-sline cx beamBot bxi beamBot)                             ; top flange (beam seat)
+              (peb-crane-sec-sline cx (- beamBot brD) bxi (- beamBot brD))             ; bottom flange
+              ;; triangular GUSSET PLATE (GP) — outline, between the bracket/beam and the column
+              (peb-crane-sec-sline cx (- beamBot brD) cx (- beamBot brD gpH))          ; GP vertical (at column)
+              (peb-crane-sec-sline cx (- beamBot brD gpH) bxi (- beamBot brD))         ; GP hypotenuse
+              ;; CRANE BEAM — I-section (200mm flange), outer flange edge ON the inner flange, SOLID
+              (peb-crane-sec-sbox (- bx fw) (- beamTop ft) (+ bx fw) beamTop)          ; top flange
+              (peb-crane-sec-sbox (- bx fw) beamBot (+ bx fw) (+ beamBot ft))          ; bottom flange
+              (peb-crane-sec-sline bx (- beamTop ft) bx (+ beamBot ft))               ; web
+              ;; CAP CHANNEL + small I-RAIL on top of the beam (SOLID)
+              (peb-crane-sec-sbox (- bx (* u 0.14)) beamTop (+ bx (* u 0.14)) (+ beamTop (* railNubH 0.35))) ; cap channel
+              (peb-crane-sec-sline (- bx (* u 0.10)) railTop (+ bx (* u 0.10)) railTop)                       ; rail head
+              (peb-crane-sec-sline bx (+ beamTop (* railNubH 0.35)) bx railTop)                               ; rail web
+              (peb-crane-sec-sline (- bx (* u 0.10)) (+ beamTop (* railNubH 0.35)) (+ bx (* u 0.10)) (+ beamTop (* railNubH 0.35))) ; rail base
+              ;; END-CARRIAGE WHEEL on the rail (the bridge end-truck rides on it)
+              (entmake (list (cons 0 "CIRCLE") (cons 8 "COMP-CRANE-SEC")
+                             (list 10 bx (/ (+ railTop bridgeBot) 2.0) 0.0) (cons 40 (/ etH 2.2)))))
             ;; ── crane BRIDGE girder — spans c/c of rails, on the end trucks ──
             (peb-crane-sec-box xBL bridgeBot xBR bridgeTop)
             ;; ── spread SERIES cranes: if >1 crane shares this width-module, offset each hoist
