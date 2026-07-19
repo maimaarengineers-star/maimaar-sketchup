@@ -2937,6 +2937,25 @@
 (defun peb-crane-fp-box (xa ya xb yb lts)
   (peb-crane-fp-line xa ya xb ya lts) (peb-crane-fp-line xb ya xb yb lts)
   (peb-crane-fp-line xb yb xa yb lts) (peb-crane-fp-line xa yb xa ya lts))
+;; CRANE-BEAM runway line — a distinctive LONG-DASH linetype (900 dash / 300 gap, TRUE mm via
+;; per-entity scale 1/LTSCALE) so the crane runway reads clearly apart from the short-dash sheeting /
+;; grid / other HIDDEN lines on the plan (owner 19-Jul).  Falls back to HIDDEN if the LT can't be made.
+(defun peb-crane-beam-line (xa ya xb yb / es)
+  (if (not (tblsearch "LTYPE" "CRANEBEAM"))
+    (vl-catch-all-apply (function (lambda ()
+      (entmake (list '(0 . "LTYPE") '(100 . "AcDbSymbolTableRecord")
+                     '(100 . "AcDbLinetypeTableRecord") '(2 . "CRANEBEAM") '(70 . 0)
+                     '(3 . "Crane beam ____ ____") '(72 . 65) '(73 . 2) '(40 . 1200.0)
+                     '(49 . 900.0) '(74 . 0) '(49 . -300.0) '(74 . 0)))))))
+  (setq es (if (> (getvar "LTSCALE") 0.0) (/ 1.0 (getvar "LTSCALE")) 1.0))
+  (if (tblsearch "LTYPE" "CRANEBEAM")
+    (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-FP") (cons 6 "CRANEBEAM") (cons 48 es)
+                   (list 10 xa ya 0.0) (list 11 xb yb 0.0)))
+    (peb-crane-fp-line xa ya xb yb (max 0.7 (/ (getvar "LTSCALE") 130.0)))))
+;; end-carriage WHEEL — a small solid (continuous) circle so the 2 wheels read as wheels, not dashes.
+(defun peb-crane-wheel (cx cy r)
+  (entmake (list (cons 0 "CIRCLE") (cons 8 "COMP-CRANE-FP") (cons 6 "Continuous")
+                 (list 10 cx cy 0.0) (cons 40 r))))
 
 (defun peb-draw-crane (data len wid /
                         u sc n pre span cap typ cls loc runlen
@@ -2947,7 +2966,7 @@
                         midx runTxt capInt byoth craneIdx runY ah a ax dir capX clX clY
                         bracedXs usedCapX b bestX bestD cand dmin bxc px fr
                         yN yF flts txc tyc thw thh yy pt
-                        wgys nW letOfs gfW gtW vf vt yy0 yy1 rbw off xb colOff off0 off1)
+                        wgys nW letOfs gfW gtW vf vt yy0 yy1 rbw off xb colOff off0 off1 cbIn)
   (if (= (strcase (MSPL-Get-Str data "CR_TOGGLE")) "YES")
     (progn
       (setq u  (max 400.0 (min 3000.0 (/ (max len wid) 70.0))))
@@ -3102,12 +3121,16 @@
                       (progn
                         (setq yN (min yy0 yy1) yF (max yy0 yy1)
                               colOff (/ (if (and (boundp '*PEB-COL-WEB*) *PEB-COL-WEB*) *PEB-COL-WEB* 700.0) 2.0))
-                        ;; UNIVERSAL RULE: the crane beam sits ON each column's INNER FLANGE and the
-                        ;; bridge spans beam-to-beam.  A SIDE column (sheeting line at y=0 / y=wid) has
+                        ;; UNIVERSAL RULE: the crane beam sits just INSIDE each column's INNER FLANGE and
+                        ;; the bridge spans beam-to-beam.  A SIDE column (sheeting line at y=0 / y=wid) has
                         ;; its FULL web INSIDE the grid line -> offset the whole web; an INTERIOR column
                         ;; is centred on the line -> offset HALF the web.  (guard: never invert.)
-                        (setq off0 (if (< yN 1.0)         (* colOff 2.0) colOff)
-                              off1 (if (> yF (- wid 1.0)) (* colOff 2.0) colOff))
+                        ;; The offset lands at the inner-flange FACE; add `cbIn` so the WHOLE 200mm beam band
+                        ;; (drawn later as yN±100) sits INBOARD of the flange with a clear gap — its lines
+                        ;; never fall flush with the column web/flange.  cbIn = half the 200mm beam + 100 gap.
+                        (setq cbIn (+ 100.0 100.0)
+                              off0 (+ (if (< yN 1.0)         (* colOff 2.0) colOff) cbIn)
+                              off1 (+ (if (> yF (- wid 1.0)) (* colOff 2.0) colOff) cbIn))
                         (if (> (- yF yN) (* (+ off0 off1) 1.3)) (setq yN (+ yN off0) yF (- yF off1)))))))
                 (if (null yN)                            ; fallback: span centred (single span)
                   (progn
@@ -3123,11 +3146,12 @@
                       txc (+ bx (/ gw 2.0))              ; girder centre-x
                       tyc (/ (+ yN yF) 2.0)              ; bridge mid-span
                       flts (max 0.7 (/ (getvar "LTSCALE") 130.0))) ; finer, LTSCALE-aware dash density
-                ;; (1) RUNWAY BEAMS — each drawn as a DOUBLE line (beam width rbw), the beam
-                ;;     straddling its module column line (yN / yF).
+                ;; (1) RUNWAY BEAMS — each drawn as a DOUBLE LONG-DASH line (beam width rbw), sitting
+                ;;     just INSIDE the module column's inner flange (yN / yF).  Long-dash linetype
+                ;;     differentiates the crane beam from the sheeting / grid lines.
                 (foreach yy (list yN yF)
-                  (peb-crane-fp-line x0 (- yy (/ rbw 2.0)) x1 (- yy (/ rbw 2.0)) flts)
-                  (peb-crane-fp-line x0 (+ yy (/ rbw 2.0)) x1 (+ yy (/ rbw 2.0)) flts))
+                  (peb-crane-beam-line x0 (- yy (/ rbw 2.0)) x1 (- yy (/ rbw 2.0)))
+                  (peb-crane-beam-line x0 (+ yy (/ rbw 2.0)) x1 (+ yy (/ rbw 2.0))))
                 ;; (3) BRACKETS — the runway rides on a bracket off each main column; draw a small
                 ;;     support pad where a runway crosses a column (bay grid line) inside the run.
                 (foreach xb bayPts
@@ -3138,10 +3162,13 @@
                 ;; BRIDGE GIRDER — two lines across the span between the two runways.
                 (peb-crane-fp-line bx yN bx yF flts)
                 (peb-crane-fp-line (+ bx gw) yN (+ bx gw) yF flts)
-                ;; (2) END TRUCKS — the wheel box where the bridge lands on BOTH runways.
+                ;; (2) END CARRIAGES — the end-truck box where the bridge lands on BOTH runways,
+                ;;     each carrying 2 WHEELS (small solid circles) riding on the runway beam.
                 (foreach yy (list yN yF)
                   (peb-crane-fp-box (- txc (* gw 0.85)) (- yy (* gw 0.32))
-                                    (+ txc (* gw 0.85)) (+ yy (* gw 0.32)) flts))
+                                    (+ txc (* gw 0.85)) (+ yy (* gw 0.32)) flts)
+                  (peb-crane-wheel (- txc (* gw 0.52)) yy (* gw 0.20))
+                  (peb-crane-wheel (+ txc (* gw 0.52)) yy (* gw 0.20)))
                 ;; TROLLEY + HOOK — accurate hoist symbol (mid-run), proportioned in girder-widths:
                 ;; connector cap, main trolley box (with internal division), hook block, hook eye.
                 (foreach s (list
