@@ -6694,7 +6694,9 @@
   (peb-crane-sec-line xb yb xa yb) (peb-crane-sec-line xa yb xa ya))
 
 (defun peb-draw-crane-section (data wid cols H ht / u sc n pre cap cls hookH nC
-                                gfW gtW cf ct xL xR midX railTop railBot bd capStr)
+                                gfW gtW cf ct xL xR midX capStr
+                                beamD fw ft brkOff railY beamBotY bridgeBot bridgeTop
+                                hoistBot xBL xBR cb cx bx dir labeled)
   (if (= (strcase (MSPL-Get-Str data "CR_TOGGLE")) "YES")
     (progn
       (setq u  (max 250.0 (/ wid 45.0))
@@ -6731,31 +6733,67 @@
                       ct (max 0 (min (1- nC) ct)))
                 (if (/= cf ct) (setq xL (nth (min cf ct) cols) xR (nth (max cf ct) cols)))))
             (if (< (- xR xL) 1.0) (setq xL (nth 0 cols) xR (nth (1- nC) cols)))
-            (setq midX    (/ (+ xL xR) 2.0)
-                  bd      (* u 0.8)                          ; beam / girder depth
-                  railTop (min (- H (* u 1.2)) (+ hookH (* u 3.0)))
-                  railTop (max railTop (* H 0.35))
-                  railBot (- railTop bd)
-                  capStr  (rtos cap 2 0))
-            ;; runway beams — a box at each module column (rail on its bracket)
-            (peb-crane-sec-box (- xL (* u 0.35)) railBot (+ xL (* u 0.35)) railTop)
-            (peb-crane-sec-box (- xR (* u 0.35)) railBot (+ xR (* u 0.35)) railTop)
-            ;; bridge girder — box spanning between the runways, riding on top of them
-            (peb-crane-sec-box xL railTop xR (+ railTop bd))
-            ;; trolley — box hung under the bridge at mid-span + motor block beside it
-            (peb-crane-sec-box (- midX (* u 0.90)) (- railTop (* u 1.30)) (+ midX (* u 0.90)) railTop)
-            (peb-crane-sec-box (+ midX (* u 0.90)) (- railTop (* u 1.10)) (+ midX (* u 1.60)) (- railTop (* u 0.40)))
-            ;; hook — line down to the hook height + a small hook cup
-            (peb-crane-sec-line midX (- railTop (* u 1.30)) midX (+ hookH (* u 0.5)))
+            ;; ── TR (Top-Running) crane section — Technical Manual §10.6 p262-264.
+            ;;    Vertical stack (FFL up):  hookH (max hook ht) < hoist < bridge < rail
+            ;;    = top of crane beam.  The crane beam rides on a BEAM BRACKET off the
+            ;;    column (+ angle brace); the bridge spans c/c of rails; the hoist hangs
+            ;;    under the bridge with the hook to the hook height.
+            (setq beamD     (max 500.0 (* u 1.60))       ; crane beam depth
+                  fw        (* u 0.55)                    ; crane beam flange half-width
+                  ft        (max 60.0 (* u 0.14))         ; flange thickness
+                  brkOff    (* u 1.20)                    ; beam inset from column ("VARIES")
+                  railY     (min (- H (* u 1.4)) (+ hookH (* u 3.2))) ; TOP of crane beam / rail
+                  railY     (max railY (* H 0.38))
+                  beamBotY  (- railY beamD)
+                  bridgeBot (+ railY (* u 0.35))          ; bridge sits above the rail
+                  bridgeTop (+ bridgeBot (* u 0.95))
+                  hoistBot  (- bridgeBot (* u 1.55))      ; hoist hangs below the bridge
+                  xBL       (+ xL brkOff fw)              ; left  crane-beam / rail centre
+                  xBR       (- xR (+ brkOff fw))          ; right crane-beam / rail centre
+                  capStr    (rtos cap 2 0))
+            (if (< (- xBR xBL) (* u 2.0))
+              (setq xBL (+ xL (* u 0.6)) xBR (- xR (* u 0.6))))
+            (setq midX (/ (+ xBL xBR) 2.0))
+            ;; per column: beam bracket + angle brace + crane beam (I) + cap channel/rail
+            (foreach cb (list (list xL xBL 1.0) (list xR xBR -1.0))
+              (setq cx (car cb) bx (cadr cb) dir (caddr cb))
+              (peb-crane-sec-line cx beamBotY (+ bx (* dir fw)) beamBotY)                 ; bracket top flange
+              (peb-crane-sec-line cx (- beamBotY (* u 0.5)) (+ bx (* dir fw)) (- beamBotY (* u 0.5))) ; bracket bottom
+              (peb-crane-sec-line (+ bx (* dir fw)) beamBotY (+ bx (* dir fw)) (- beamBotY (* u 0.5))) ; bracket end
+              (peb-crane-sec-line cx (+ beamBotY (* u 1.5)) (+ bx (* dir fw)) beamBotY)   ; ANGLE BRACE (diagonal)
+              (peb-crane-sec-box (- bx fw) (- railY ft) (+ bx fw) railY)                  ; crane-beam top flange
+              (peb-crane-sec-box (- bx fw) beamBotY (+ bx fw) (+ beamBotY ft))            ; crane-beam bottom flange
+              (peb-crane-sec-line bx (- railY ft) bx (+ beamBotY ft))                     ; crane-beam web
+              (peb-crane-sec-box (- bx (* u 0.20)) railY (+ bx (* u 0.20)) (+ railY (* u 0.30)))) ; cap channel + rail
+            ;; crane bridge girder — spans c/c of rails, riding on the rails via end trucks
+            (peb-crane-sec-box xBL bridgeBot xBR bridgeTop)
+            (peb-crane-sec-box (- xBL fw) (+ railY (* u 0.30)) (+ xBL fw) bridgeBot)
+            (peb-crane-sec-box (- xBR fw) (+ railY (* u 0.30)) (+ xBR fw) bridgeBot)
+            ;; hoist / trolley hung under the bridge at mid-span + motor block beside it
+            (peb-crane-sec-box (- midX (* u 0.85)) hoistBot (+ midX (* u 0.85)) bridgeBot)
+            (peb-crane-sec-box (+ midX (* u 0.85)) (+ hoistBot (* u 0.30)) (+ midX (* u 1.55)) (- bridgeBot (* u 0.30)))
+            ;; hook — line down to the max hook height + a small hook cup
+            (peb-crane-sec-line midX hoistBot midX (+ hookH (* u 0.5)))
             (entmake (list (cons 0 "ARC") (cons 8 "COMP-CRANE-SEC") (cons 6 "HIDDEN") (cons 48 300.0)
                            (list 10 midX (+ hookH (* u 0.5)) 0.0)
                            (cons 40 (* u 0.28)) (cons 50 180.0) (cons 51 360.0)))
-            ;; label — capacity (+ CMAA class if given)
-            (txt-bold "MC" (list midX (- hookH (* u 0.6))) (/ (* u 0.9) sc) 0.0
-                      (strcat "CAP " capStr "MT CRANE"))
+            ;; part labels — drawn ONCE (first crane) with leaders, to avoid clutter on a multi-crane section
+            (if (not labeled)
+              (progn
+                (peb-crane-sec-line xBR (+ bridgeTop (* u 0.15)) xBR (+ bridgeTop (* u 0.55)))
+                (txt-bold "ML" (list (+ xBR (* u 0.2)) (+ bridgeTop (* u 0.55))) (/ (* u 0.42) sc) 0.0 "CRANE BRIDGE (BY OTHERS)")
+                (peb-crane-sec-line (+ xBR fw) (- railY (* u 0.2)) (+ xBR (* u 1.4)) (- railY (* u 0.2)))
+                (txt-bold "ML" (list (+ xBR (* u 1.5)) (- railY (* u 0.2))) (/ (* u 0.42) sc) 0.0 "CRANE BEAM + RAIL")
+                (peb-crane-sec-line (+ xR (* dir fw)) (- beamBotY (* u 0.3)) (+ xR (* u 1.4)) (- beamBotY (* u 0.3)))
+                (txt-bold "ML" (list (+ xR (* u 1.5)) (- beamBotY (* u 0.3))) (/ (* u 0.42) sc) 0.0 "BEAM BRACKET")
+                (txt-bold "ML" (list (+ midX (* u 1.7)) hoistBot) (/ (* u 0.42) sc) 0.0 "HOIST (BY OTHERS)")
+                (setq labeled T)))
+            ;; capacity label — under the hook, sized to fit inside the module
+            (txt-bold "MC" (list midX (- hookH (* u 0.85))) (/ (* u 0.50) sc) 0.0
+                      (strcat "CAP " capStr " MT"))
             (if (and cls (/= cls ""))
-              (txt-bold "MC" (list midX (- hookH (* u 1.7))) (/ (* u 0.65) sc) 0.0
-                        (strcat "CMAA CLASS " cls)))
+              (txt-bold "MC" (list midX (- hookH (* u 1.55))) (/ (* u 0.38) sc) 0.0
+                        (strcat "CLASS " cls)))
             (princ)))))
         (setq n (1+ n)))
       (setvar "CLAYER" "0")))
