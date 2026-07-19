@@ -2964,13 +2964,16 @@
     (vl-catch-all-apply (function (lambda ()
       (entmake (list '(0 . "LTYPE") '(100 . "AcDbSymbolTableRecord")
                      '(100 . "AcDbLinetypeTableRecord") '(2 . "CRANEDOT") '(70 . 0)
-                     '(3 . "Crane dot . . . .") '(72 . 65) '(73 . 2) '(40 . 130.0)
-                     '(49 . 0.0) '(74 . 0) '(49 . -130.0) '(74 . 0))))))))
+                     '(3 . "Crane bridge __ __ __") '(72 . 65) '(73 . 2) '(40 . 270.0)
+                     '(49 . 150.0) '(74 . 0) '(49 . -120.0) '(74 . 0))))))))  ; owner: SHORT DASH
+;; THICK dotted line/circle for the bridge girder + hoist symbol (owner 19-Jul: show them as THICK
+;; dotted).  Lineweight 0.60mm (cons 370 60) is honoured by the DWG-To-PDF monochrome plot.
 (defun peb-crane-dot-line (xa ya xb yb / es)
   (peb-crane-dot-ensure)
   (setq es (if (> (getvar "LTSCALE") 0.0) (/ 1.0 (getvar "LTSCALE")) 1.0))
   (if (tblsearch "LTYPE" "CRANEDOT")
     (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-FP") (cons 6 "CRANEDOT") (cons 48 es)
+                   (cons 370 60)
                    (list 10 xa ya 0.0) (list 11 xb yb 0.0)))
     (peb-crane-fp-line xa ya xb yb (max 0.7 (/ (getvar "LTSCALE") 130.0)))))
 (defun peb-crane-dot-circle (cx cy r / es)
@@ -2978,6 +2981,7 @@
   (setq es (if (> (getvar "LTSCALE") 0.0) (/ 1.0 (getvar "LTSCALE")) 1.0))
   (entmake (list (cons 0 "CIRCLE") (cons 8 "COMP-CRANE-FP")
                  (cons 6 (if (tblsearch "LTYPE" "CRANEDOT") "CRANEDOT" "HIDDEN")) (cons 48 es)
+                 (cons 370 60)
                  (list 10 cx cy 0.0) (cons 40 r))))
 
 (defun peb-draw-crane (data len wid /
@@ -3182,9 +3186,9 @@
                     (foreach yy (list yN yF)
                       (peb-crane-fp-box (- xb (* gw 0.45)) (- yy (/ rbw 2.0))
                                         (+ xb (* gw 0.45)) (+ yy (/ rbw 2.0)) flts))))
-                ;; BRIDGE GIRDER — two lines across the span between the two runways.
-                (peb-crane-fp-line bx yN bx yF flts)
-                (peb-crane-fp-line (+ bx gw) yN (+ bx gw) yF flts)
+                ;; BRIDGE GIRDER — two THICK DOTTED lines across the span between the two runways.
+                (peb-crane-dot-line bx yN bx yF)
+                (peb-crane-dot-line (+ bx gw) yN (+ bx gw) yF)
                 ;; (2) END CARRIAGES — the end-truck box where the bridge lands on BOTH runways,
                 ;;     each carrying 2 WHEELS (small solid circles) riding on the runway beam.
                 (foreach yy (list yN yF)
@@ -3208,6 +3212,19 @@
                      (list (+ txc (* gw 0.90)) (- tyc (* gw 2.68)) (+ txc (* gw 0.90)) (- tyc (* gw 1.40))))
                   (peb-crane-dot-line (nth 0 s) (nth 1 s) (nth 2 s) (nth 3 s)))   ; DOTTED hoist symbol
                 (peb-crane-dot-circle (- txc (* gw 0.37)) (- tyc (* gw 2.00)) (* gw 0.37))  ; hook eye
+                ;; ── LABEL THE CRANE at the footprint (owner 19-Jul): capacity + CMAA + hoist note,
+                ;;    centred just below the hoist so the crane is identified AT its bridge (kept clear
+                ;;    of the FALL roof tag by stacking DOWN-span, not out to the side). ──
+                (setvar "CLAYER" "COMP-CRANE")
+                (txt-bold "MC" (list txc (+ tyc (* gw 4.05))) (/ (* u 0.42) sc) 0.0
+                          (strcat capInt " TONES CRANE"))
+                (txt-bold "MC" (list txc (+ tyc (* gw 5.00))) (/ (* u 0.30) sc) 0.0
+                          (if (and cls (/= cls ""))
+                            (strcat "CMAA CLASS " cls "   HOIST (BY OTHERS)")
+                            "HOIST (BY OTHERS)"))
+                ;; bridge girder named alongside it (reads up the span)
+                (txt-bold "MC" (list (- bx (* gw 1.05)) (/ (+ yN tyc) 2.0)) (/ (* u 0.30) sc) 90.0
+                          "CRANE BRIDGE (BY OTHERS)")
                 ;; STOPS / BUMPERS — bar across the beam width at each of the 4 runway ends.
                 (foreach pt (list (list x0 yN) (list x1 yN) (list x0 yF) (list x1 yF))
                   (peb-crane-fp-line (car pt) (- (cadr pt) (* rbw 0.9))
