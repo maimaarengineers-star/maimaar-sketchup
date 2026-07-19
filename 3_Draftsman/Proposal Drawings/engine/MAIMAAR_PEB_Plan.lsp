@@ -146,6 +146,26 @@
               (T (setq out (cons (atof seg) out)))))
       (reverse out))))
 
+;; peb-parse-frame-grid (Tier 0) — parse the canonical FRAME-GRID string
+;;   "1@25000 | 2@25000 | 3@25000"   ( | = valley between gables ; = per-gable overrides )
+;; into a LIST OF GABLES, each a list of its sub-module span widths (mm), e.g.
+;;   -> ((25000.0) (25000.0 25000.0) (25000.0 25000.0 25000.0)).
+;; Returns nil for a blank string or one with no "|" — the caller then falls back to the plain
+;; MODEXPR / equal-gable path (so legacy multi-gables are unchanged).  Reuses peb-split-on-char +
+;; peb-parse-mod-expression; per-gable overrides after ";" are ignored here (they shape the roof,
+;; not the plan column grid).
+(defun peb-parse-frame-grid (gridStr / segs out semi spansPart)
+  (setq gridStr (vl-string-trim " " (if gridStr gridStr "")))
+  (if (or (= gridStr "") (not (vl-string-search "|" gridStr)))
+    nil
+    (progn
+      (setq segs (peb-split-on-char gridStr "|") out '())
+      (foreach seg segs
+        (setq semi (vl-string-search ";" seg))
+        (setq spansPart (if semi (substr seg 1 semi) seg))
+        (setq out (cons (peb-parse-mod-expression (vl-string-trim " " spansPart)) out)))
+      (reverse out))))
+
 (defun peb-build-sheeting-string (data prefix / typ outProf outMat pirThk lbl)
   ;; owner 6-Jul: FULL sheeting+insulation build-up label (shared with the Section). Plan's copy WINS in the
   ;; CRM per-building session (Plan loads after Section), so it must emit the SAME complete label the Section
@@ -2918,7 +2938,7 @@
                         gw etL etW yr
                         midx runTxt capInt byoth craneIdx runY ah a ax dir capX clX clY
                         bracedXs usedCapX b bestX bestD cand dmin bxc px fr
-                        yN yF flts)
+                        yN yF flts txc tyc thw thh yy pt)
   (if (= (strcase (MSPL-Get-Str data "CR_TOGGLE")) "YES")
     (progn
       (setq u  (max 400.0 (min 3000.0 (/ (max len wid) 70.0))))
@@ -3062,10 +3082,42 @@
                                  (cons 6 "HIDDEN") (cons 48 flts)
                                  (list 10 (nth 0 s) (nth 1 s) 0.0)
                                  (list 11 (nth 2 s) (nth 3 s) 0.0))))
-                (entmake (list (cons 0 "CIRCLE") (cons 8 "COMP-CRANE-FP")   ; hook eye
+                ;; TROLLEY + HOOK — accurate hoist symbol from the reference, proportioned
+                ;; in girder-widths (gw): end-truck cap, main trolley box (with an internal
+                ;; division line), hook block, and hook-eye circle offset to one side.
+                ;; Assembly straddles the girder at bridge mid-span (txc), stacked along Y.
+                (setq txc (+ bx (/ gw 2.0))          ; girder centre-x
+                      tyc (/ (+ yN yF) 2.0))         ; bridge mid-span
+                (foreach s (list
+                     ;; main trolley box  (2.28gw wide x 2.80gw tall)
+                     (list (- txc (* gw 1.14)) (- tyc (* gw 1.40)) (+ txc (* gw 1.14)) (- tyc (* gw 1.40)))
+                     (list (+ txc (* gw 1.14)) (- tyc (* gw 1.40)) (+ txc (* gw 1.14)) (+ tyc (* gw 1.40)))
+                     (list (+ txc (* gw 1.14)) (+ tyc (* gw 1.40)) (- txc (* gw 1.14)) (+ tyc (* gw 1.40)))
+                     (list (- txc (* gw 1.14)) (+ tyc (* gw 1.40)) (- txc (* gw 1.14)) (- tyc (* gw 1.40)))
+                     ;; internal division line
+                     (list (- txc (* gw 1.14)) (- tyc (* gw 0.40)) (+ txc (* gw 1.14)) (- tyc (* gw 0.40)))
+                     ;; end-truck cap (top, 1.34gw wide x 0.70gw)
+                     (list (- txc (* gw 0.67)) (+ tyc (* gw 1.40)) (- txc (* gw 0.67)) (+ tyc (* gw 2.10)))
+                     (list (- txc (* gw 0.67)) (+ tyc (* gw 2.10)) (+ txc (* gw 0.67)) (+ tyc (* gw 2.10)))
+                     (list (+ txc (* gw 0.67)) (+ tyc (* gw 2.10)) (+ txc (* gw 0.67)) (+ tyc (* gw 1.40)))
+                     ;; hook block (bottom, 1.81gw wide x 1.28gw)
+                     (list (- txc (* gw 0.90)) (- tyc (* gw 1.40)) (- txc (* gw 0.90)) (- tyc (* gw 2.68)))
+                     (list (- txc (* gw 0.90)) (- tyc (* gw 2.68)) (+ txc (* gw 0.90)) (- tyc (* gw 2.68)))
+                     (list (+ txc (* gw 0.90)) (- tyc (* gw 2.68)) (+ txc (* gw 0.90)) (- tyc (* gw 1.40))))
+                  (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-FP")
+                                 (cons 6 "HIDDEN") (cons 48 flts)
+                                 (list 10 (nth 0 s) (nth 1 s) 0.0)
+                                 (list 11 (nth 2 s) (nth 3 s) 0.0))))
+                (entmake (list (cons 0 "CIRCLE") (cons 8 "COMP-CRANE-FP")   ; hook eye (offset)
                                (cons 6 "HIDDEN") (cons 48 flts)
-                               (list 10 (+ bx (/ gw 2.0)) (/ (+ yN yF) 2.0) 0.0)
-                               (cons 40 (* u 0.18))))
+                               (list 10 (- txc (* gw 0.37)) (- tyc (* gw 2.00)) 0.0)
+                               (cons 40 (* gw 0.37))))
+                ;; runway end stops / bumpers — short ticks across each runway end
+                (foreach pt (list (list x0 yN) (list x1 yN) (list x0 yF) (list x1 yF))
+                  (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-FP")
+                                 (cons 6 "HIDDEN") (cons 48 flts)
+                                 (list 10 (car pt) (- (cadr pt) (* gw 0.6)) 0.0)
+                                 (list 11 (car pt) (+ (cadr pt) (* gw 0.6)) 0.0))))
                 (txt-bold "MC" (list (/ (+ x0 x1) 2.0) (- yN (* u 0.30))) (/ (* u 0.34) sc) 0.0
                           (strcat "CRANE RUN : " (peb-comma (rtos (- x1 x0) 2 0))))
                 (setvar "CLAYER" "COMP-CRANE")
@@ -3498,44 +3550,63 @@
       ;; (mgGableW = wid / mgGables), so a 30 + 12 building drew two 21 m gables and put the valley in
       ;; the wrong place.  Fall back to equal division only when the IF gives no modules.
       (progn
+        ;; Gable structure: PREFER the canonical FRAME GRID (Tier 0 — each gable its OWN sub-modules,
+        ;; so a gable can itself be multi-span / clear-span independently).  Fall back to the legacy
+        ;; MODEXPR (each width module = a clear-span gable, uniform SPANSPERGABLE interior columns) or
+        ;; equal division when the IF gives no grid — so existing multi-gables are UNCHANGED.
+        (setq mgGrid (peb-parse-frame-grid (MSPL-Get-Str data "BP_FRAME_GRID")))
         (setq mgSpans (MSPL-Get-Int data "SPANSPERGABLE"))
         (if (or (null mgSpans) (< mgSpans 1)) (setq mgSpans 1))
         (if (> mgSpans 4) (setq mgSpans 4))
-        (setq mgWs (peb-parse-mod-expression (MSPL-Get-Str data "MODEXPR")))
-        (if (and mgWs (> (length mgWs) 1))
-          (progn                                   ; gables FROM the width modules, scaled to close on wid
-            (setq acc 0.0)
-            (foreach s mgWs (setq acc (+ acc s)))
-            (setq sc2 (if (> acc 0.0) (/ wid acc) 1.0))
-            (setq mgWs (mapcar '(lambda (s) (* s sc2)) mgWs)))
-          (progn                                   ; no modules -> the old equal division
-            (setq mgGables (MSPL-Get-Int data "NUMGABLES"))
-            (if (or (null mgGables) (< mgGables 2)) (setq mgGables 2))
-            (setq mgWs '() i 0)
-            (while (< i mgGables)
-              (setq mgWs (append mgWs (list (/ wid mgGables))) i (1+ i)))))
-        (setq mgGables (length mgWs))
-        ;; the NARROWEST gable drives the FALL-arrow offset, so an arrow can never spill out of the
-        ;; small gable of an unequal pair (peb-fall-glyph-set places them at +/- 0.375 * mgGableW).
+        (if (null mgGrid)
+          (progn                                    ; legacy → synthesise a grid from MODEXPR + uniform mgSpans
+            (setq mgWs (peb-parse-mod-expression (MSPL-Get-Str data "MODEXPR")))
+            (if (not (and mgWs (> (length mgWs) 1)))
+              (progn
+                (setq mgGables (MSPL-Get-Int data "NUMGABLES"))
+                (if (or (null mgGables) (< mgGables 2)) (setq mgGables 2))
+                (setq mgWs '() i 0)
+                (while (< i mgGables) (setq mgWs (append mgWs (list (/ wid mgGables))) i (1+ i)))))
+            (setq mgGrid '())
+            (foreach gw mgWs
+              (setq mgSub '() j 0)
+              (while (< j mgSpans) (setq mgSub (append mgSub (list (/ gw (float mgSpans)))) j (1+ j)))
+              (setq mgGrid (append mgGrid (list mgSub))))))
+        ;; ── unified: everything below reads mgGrid (list of gables, each a list of sub-span widths) ──
+        (setq mgWs (mapcar '(lambda (mgG) (apply '+ mgG)) mgGrid))
+        (setq acc 0.0) (foreach s mgWs (setq acc (+ acc s)))
+        (setq sc2 (if (> acc 0.0) (/ wid acc) 1.0))         ; scale so the grid closes EXACTLY on wid
+        (setq mgGables (length mgGrid))
+        (setq mgSpans (apply 'max (mapcar 'length mgGrid))) ; for the fall-arrow offset
+        ;; per-gable span descriptor for the labels: "3 SPAN(S) EACH" when uniform, else "1,2,3 SPANS/GABLE"
+        (setq mgSpanList (mapcar 'length mgGrid) mgSpanDesc "")
+        (foreach n mgSpanList (setq mgSpanDesc (strcat mgSpanDesc (if (= mgSpanDesc "") "" ",") (itoa n))))
+        (setq mgSpanDesc
+          (if (apply '= mgSpanList)
+            (strcat (itoa (car mgSpanList)) " SPAN(S) EACH")
+            (strcat mgSpanDesc " SPANS/GABLE")))
+        (setq mgWs (mapcar '(lambda (w) (* w sc2)) mgWs))
+        ;; the NARROWEST gable drives the FALL-arrow offset (peb-fall-glyph-set uses +/- 0.375*mgGableW).
         (setq mgGableW (apply 'min mgWs))
         (setq mgRidgePts '() mgValleyPts '() mgColumnPts (list 0.0 wid))
-        (setq base 0.0 i 0)
-        (foreach gw mgWs
-          (setq mgRidgePts (append mgRidgePts (list (+ base (/ gw 2.0)))))
-          (setq i (1+ i))
-          (if (< i mgGables)                        ; a valley at every INTERNAL module boundary
+        (setq base 0.0 mgGi 0)
+        (foreach mgG mgGrid
+          (setq gw (* (apply '+ mgG) sc2))
+          (setq mgRidgePts (append mgRidgePts (list (+ base (/ gw 2.0)))))   ; ridge at the gable centre
+          (setq mgGi (1+ mgGi))
+          (if (< mgGi mgGables)                             ; valley (+ valley column) at the gable boundary
             (progn
               (setq valley (+ base gw))
               (setq mgValleyPts (append mgValleyPts (list valley)))
               (setq mgColumnPts (append mgColumnPts (list valley)))))
-          (if (> mgSpans 1)                         ; interior column lines WITHIN this gable
-            (progn
-              (setq mgSpanW (/ gw mgSpans) j 1)
-              (while (< j mgSpans)
-                (setq colY (+ base (* j mgSpanW)))
-                (if (and (> colY 0) (< colY wid))
-                  (setq mgColumnPts (append mgColumnPts (list colY))))
-                (setq j (1+ j)))))
+          (setq mgSubAcc 0.0 mgK 0 mgNsub (length mgG))     ; interior columns at THIS gable's sub-boundaries
+          (foreach mgSp mgG
+            (setq mgK (1+ mgK))
+            (if (< mgK mgNsub)
+              (progn
+                (setq mgSubAcc (+ mgSubAcc (* mgSp sc2)))
+                (setq colY (+ base mgSubAcc))
+                (if (and (> colY 0) (< colY wid)) (setq mgColumnPts (append mgColumnPts (list colY)))))))
           (setq base (+ base gw)))
         (setq mgColumnPts (vl-sort mgColumnPts '<))
         (setq widthPts mgColumnPts)
@@ -3924,7 +3995,7 @@
                                      "S" 600.0)))))
         (setvar "CLAYER" "TEXT")
         (txt "MC" (list (* len 0.50) (+ wid (* 700 *PEB-TEXT-SCALE*))) 300 0
-          (strcat "MULTI-GABLE ROOF | " (itoa mgGables) " GABLES | " (itoa mgSpans) " SPAN(S) EACH GABLE"))
+          (strcat "MULTI-GABLE ROOF | " (itoa mgGables) " GABLES | " mgSpanDesc))
       )
     )
     ((= stype "BF")
@@ -4315,7 +4386,7 @@
                   "")
                 "  |  " (peb-structure-label stype)
                 (if (= stype "MG")
-                  (strcat "  |  " (itoa mgGables) " GABLES — " (itoa mgSpans) " SPAN(S) EACH")
+                  (strcat "  |  " (itoa mgGables) " GABLES — " mgSpanDesc)
                   "")))
       (draw-north-arrow (+ len (* 3000 *PEB-DIM-SCALE*)) (+ wid (* 4200 *PEB-DIM-SCALE*)))))
 
