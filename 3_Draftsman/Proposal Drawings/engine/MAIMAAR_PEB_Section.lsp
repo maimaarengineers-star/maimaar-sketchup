@@ -6690,6 +6690,70 @@
   (peb-crane-sec-line xa ya xb ya) (peb-crane-sec-line xb ya xb yb)
   (peb-crane-sec-line xb yb xa yb) (peb-crane-sec-line xa yb xa ya))
 
+;; solid (continuous) primitives for the DETAILED HOIST symbol — a small crisp detail
+;; reads badly in HIDDEN dashes, and both the manual (Tech §10.6 p262-263) and the Maimaar
+;; house reference draw the hoist body/hook in solid lines.
+(defun peb-crane-sec-sline (xa ya xb yb)
+  (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-SEC")
+                 (list 10 xa ya 0.0) (list 11 xb yb 0.0))))
+(defun peb-crane-sec-sbox (xa ya xb yb)
+  (peb-crane-sec-sline xa ya xb ya) (peb-crane-sec-sline xb ya xb yb)
+  (peb-crane-sec-sline xb yb xa yb) (peb-crane-sec-sline xa yb xa ya))
+(defun peb-crane-sec-circ (cx cy r)
+  (entmake (list (cons 0 "CIRCLE") (cons 8 "COMP-CRANE-SEC")
+                 (list 10 cx cy 0.0) (cons 40 r))))
+(defun peb-crane-sec-arc (cx cy r a0 a1)   ; a0/a1 in DEGREES (entmake ARC wants radians)
+  (entmake (list (cons 0 "ARC") (cons 8 "COMP-CRANE-SEC")
+                 (list 10 cx cy 0.0) (cons 40 r)
+                 (cons 50 (* a0 (/ pi 180.0))) (cons 51 (* a1 (/ pi 180.0))))))
+(defun peb-crane-sec-cross (cx cy a)
+  (peb-crane-sec-sline (- cx a) cy (+ cx a) cy)
+  (peb-crane-sec-sline cx (- cy a) cx (+ cy a)))
+
+;; DETAILED HOIST / TROLLEY in ELEVATION (manual Tech §10.6 p262-263; Maimaar house reference
+;; = the magenta EOT hoist).  cx = hook centreline, topY = hang line just under the bridge,
+;; s = section scale (u).  Trolley body (drum housing) + centre-cross, LEFT open-C end frame,
+;; RIGHT stepped connector -> motor CYLINDER (vertical hatch + rounded end + nub), bottom
+;; MOUNTING plate with 4 bolt dots, HOOK block + curved hook.  Returns the hook-tip y.
+(defun peb-crane-sec-hoist (cx topY s / bt bb ym ct cbb pb hy hr i xh d)
+  (setq bt (- topY (* s 0.06)) bb (- bt (* s 0.70)) ym (/ (+ bt bb) 2.0))
+  ;; main body (drum housing) + centre cross
+  (peb-crane-sec-sbox (- cx (* s 0.70)) bb (+ cx (* s 0.70)) bt)
+  (peb-crane-sec-cross cx ym (* s 0.12))
+  ;; LEFT open-C end frame (opening faces the body)
+  (peb-crane-sec-sline (- cx (* s 0.94)) (- ym (* s 0.17)) (- cx (* s 0.94)) (+ ym (* s 0.17)))
+  (peb-crane-sec-sline (- cx (* s 0.94)) (+ ym (* s 0.17)) (- cx (* s 0.80)) (+ ym (* s 0.17)))
+  (peb-crane-sec-sline (- cx (* s 0.94)) (- ym (* s 0.17)) (- cx (* s 0.80)) (- ym (* s 0.17)))
+  ;; RIGHT stepped connector block
+  (peb-crane-sec-sbox (+ cx (* s 0.70)) (- ym (* s 0.22)) (+ cx (* s 0.98)) (+ ym (* s 0.22)))
+  ;; motor CYLINDER + vertical hatch + rounded right end + end nub
+  (setq ct (+ ym (* s 0.18)) cbb (- ym (* s 0.18)))
+  (peb-crane-sec-sline (+ cx (* s 0.98)) cbb (+ cx (* s 1.36)) cbb)
+  (peb-crane-sec-sline (+ cx (* s 0.98)) ct  (+ cx (* s 1.36)) ct)
+  (peb-crane-sec-sline (+ cx (* s 0.98)) cbb (+ cx (* s 0.98)) ct)
+  (peb-crane-sec-arc (+ cx (* s 1.36)) ym (* s 0.18) 270.0 90.0)
+  (setq i 1)
+  (while (<= i 4)
+    (setq xh (+ cx (* s (+ 0.98 (* i 0.076)))))
+    (peb-crane-sec-sline xh cbb xh ct) (setq i (1+ i)))
+  (peb-crane-sec-sbox (+ cx (* s 1.54)) (- ym (* s 0.10)) (+ cx (* s 1.64)) (+ ym (* s 0.10)))
+  ;; bottom MOUNTING plate + 4 bolt dots + centre cross
+  (setq pb (- bb (* s 0.32)))
+  (peb-crane-sec-sbox (- cx (* s 0.78)) pb (+ cx (* s 0.78)) bb)
+  (foreach d (list (list (- cx (* s 0.60)) (- bb (* s 0.09)))
+                   (list (+ cx (* s 0.60)) (- bb (* s 0.09)))
+                   (list (- cx (* s 0.60)) (+ pb (* s 0.09)))
+                   (list (+ cx (* s 0.60)) (+ pb (* s 0.09))))
+    (peb-crane-sec-circ (car d) (cadr d) (* s 0.05)))
+  (peb-crane-sec-cross cx (/ (+ pb bb) 2.0) (* s 0.09))
+  ;; HOOK block + curved hook + throat cross
+  (peb-crane-sec-sbox (- cx (* s 0.12)) (- pb (* s 0.12)) (+ cx (* s 0.12)) pb)
+  (setq hy (- pb (* s 0.46)) hr (* s 0.17))
+  (peb-crane-sec-sline cx (- pb (* s 0.12)) cx (+ hy hr))
+  (peb-crane-sec-arc cx hy hr 40.0 350.0)
+  (peb-crane-sec-cross cx hy (* s 0.06))
+  (- hy hr))
+
 (defun peb-crane-sec-colhw (cols idx ht u / w)
   ;; real column HALF-WIDTH at column idx: interior -> ms-col-web-at/2; end col -> ht/2.
   (if (and idx (> idx 0) (< idx (1- (length cols))) (boundp 'ms-col-web-at))
@@ -6701,7 +6765,7 @@
                                 / u sc n pre cap cls hookH nC gfW gtW cf ct xL xR midX capStr
                                   idxL idxR hwL hwR brkLen fw ft beamD railNubH etH bd
                                   capY bridgeTop bridgeBot railTop beamTop beamBot hoistTop hoistBot
-                                  xBL xBR cb cx bx dir hw labeled)
+                                  xBL xBR cb cx bx dir hw labeled hkTip)
   (if (= (strcase (MSPL-Get-Str data "CR_TOGGLE")) "YES")
     (progn
       (setq u  (max 250.0 (/ wid 45.0))
@@ -6781,10 +6845,10 @@
               (peb-crane-sec-box (- bx (* fw 0.85)) railTop (+ bx (* fw 0.85)) bridgeBot))
             ;; ── crane BRIDGE girder — spans c/c of rails, on the end trucks ──
             (peb-crane-sec-box xBL bridgeBot xBR bridgeTop)
-            ;; ── HOIST (by others) hung under the bridge at mid-span ──
-            (peb-crane-sec-box (- midX (* u 0.85)) hoistBot (+ midX (* u 0.85)) hoistTop)
-            ;; hook cable down to the hook height
-            (peb-crane-sec-line midX hoistBot midX hookH)
+            ;; ── DETAILED HOIST symbol (manual §10.6) under the bridge at mid-span, then the
+            ;;    lifting CABLE dropping from the hook tip to the hook-height marker near the floor ──
+            (setq hkTip (peb-crane-sec-hoist midX bridgeBot u))
+            (peb-crane-sec-line midX hkTip midX hookH)
             ;; ── HOOK HEIGHT — compact M-Ladder: a SOLID up-arrow pointing at the hook, with
             ;;    the value (from BS CRn_HOOK_HEIGHT) + capacity + class stacked centred below,
             ;;    so every crane's info stays inside its own module (no spill / no clutter).
@@ -6804,7 +6868,7 @@
             (if (not labeled)
               (progn
                 (txt-bold "MC" (list midX (+ bridgeTop (* u 0.55))) (/ (* u 0.42) sc) 0.0 "CRANE BRIDGE (BY OTHERS)")
-                (txt-bold "ML" (list (+ midX (* u 1.05)) (- bridgeBot (* u 0.7))) (/ (* u 0.40) sc) 0.0 "HOIST (BY OTHERS)")
+                (txt-bold "MR" (list (- midX (* u 1.15)) (- bridgeBot (* u 0.45))) (/ (* u 0.40) sc) 0.0 "HOIST (BY OTHERS)")
                 (setq labeled T)))
             (princ)))))
         (setq n (1+ n)))
