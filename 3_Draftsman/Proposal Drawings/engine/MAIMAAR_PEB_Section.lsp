@@ -647,8 +647,9 @@
   (foreach kv v3
     (if (and (car kv)
              (or (wcmatch (strcase (car kv)) "PL*")
-                 (wcmatch (strcase (car kv)) "BR*")))
-      (setq out (cons kv out))))
+                 (wcmatch (strcase (car kv)) "BR*")
+                 (wcmatch (strcase (car kv)) "CR*")))   ; CRANE block (CR_TOGGLE + CRn_*) — was DROPPED,
+      (setq out (cons kv out))))                        ; so the crane never drew in the v3->legacy section path
   (reverse out))
 
 ;; ============================================================================
