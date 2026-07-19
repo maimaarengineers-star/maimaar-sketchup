@@ -3,6 +3,29 @@
 ; PEB Phase-2  --  Cross-Section Drawing  (standalone)
 ; Command: PEB-SECTION
 ;
+; ****************************************************************************
+; ***  UNIVERSAL / STANDING RULES (owner) — ALL SECTIONS MUST FOLLOW  *******
+; ****************************************************************************
+;  0. PURLINS & SHEETING always follow the FRAME's exact rafter roofline
+;     (up each ridge / down each valley / per-gable slope) — never a flat line.
+;  1. CP (Connection Plates) — every bolted connection = TWO filled-SOLID plates,
+;     *PEB-CP-THK*=30 mm thick, *PEB-CP-GAP*=1.5 mm seam, NO bolt donuts, each
+;     extended *PEB-CP-EXT*=100 mm past BOTH flanges (plate len >= web + 200).
+;  2. GP (Gusset Plates) — SMALL solid stiffener triangle tying the CP to the
+;     flange (column & rafter), at BOTH flanges, its flange leg on the flange
+;     SLOPE. Purpose: strengthen the CP<->flange joint.  (draw-rc-gusset / inline)
+;  3. Canopy/Valley connections are SIDE-mounted (rafter to column SIDE, not top).
+;  4. DIMENSIONS: text style = ROMAND (romand.shx); arrowheads = OPEN type.
+;  5. ALL TEXT = ROMAND everywhere (labels/M-ladders/notes/titles); title-block
+;     company name stays bold.
+;  6. G1 — NO gutter and NO "GUTTER" text on the OPEN/FREE cantilever edge.
+;  7. G2 — DOWNPIPES at valley & cantilever = DOTTED (PEBPIPE linetype).
+;  8. G3 — every GUTTER lip sits just BELOW the roof sheeting line.
+;  9. P1 — a PURLIN at each eave + directly under every gutter (eave & valley);
+;     interior purlins BALANCE-spaced at 1.25-1.50 m.
+;  (Keep adding new owner standing rules to THIS block as they are established.)
+; ****************************************************************************
+;
 ; Self-contained: reads PEB_Data_B<n>_A<m>.txt (v3 format, written by
 ; Maimaar_PEB_Input.xlsm Generate Drawings VBA). No Phase-1 dependency.
 ; Geometry inherited from V40 (frame, haunch, plate, dim, stiffener,
@@ -430,14 +453,19 @@
   (command "FILLET" "P" (entlast))
   (setvar "PLINEWID" 0.0))
 
-(defun peb-deck-purlins (x0 y0 x1 y1 / dx dy len ux uy n i tt px py)
+(defun peb-deck-purlins (x0 y0 x1 y1 / dx dy len ux uy n i tt px py sp)
   (setq dx (- x1 x0) dy (- y1 y0) len (sqrt (+ (* dx dx) (* dy dy))))
   (if (> len 1.0)
     (progn
-      (setq ux (/ dx len) uy (/ dy len)          ; u = along the deck
-            n (fix (/ len 1500.0)) i 1)
+      (setq ux (/ dx len) uy (/ dy len))          ; u = along the deck
+      ;; P1 (owner 19-Jul): BALANCE-SPACE the interior deck bays to 1.25-1.5 m (n = ceil(len/1500), step to n-1
+      ;; if that would drop the bay below 1250).  The deck ENDS (eave/tip/valley) carry their own edge/gutter
+      ;; purlins added by the caller, so this drops the interior purlins at even 1.25-1.5 m spacing.
+      (setq n (max 1 (fix (+ 0.9999 (/ len 1500.0)))))
+      (if (and (> n 1) (< (/ len n) 1250.0)) (setq n (1- n)))
+      (setq sp (/ len n) i 1)
       (while (< i n)
-        (setq tt (* i 1500.0) px (+ x0 (* ux tt)) py (+ y0 (* uy tt)))
+        (setq tt (* i sp) px (+ x0 (* ux tt)) py (+ y0 (* uy tt)))
         (peb-z-purlin-at px py ux uy)
         (setq i (1+ i))))))
 
@@ -5310,13 +5338,17 @@
   ;; centre 600mm gap stays clear for the ridge panel.
   (setq d_ridge_offset 300.0)
   (setq d_ridge_purlin (- slopeLen d_ridge_offset))
-  (setq nP (max 1 (fix (+ 0.5 (/ d_ridge_purlin 1500.0)))))
+  ;; P1 (owner 19-Jul): a purlin is FORCED at the eave (d=0) / under the eave+valley gutters; the run to the
+  ;; ridge-offset is then BALANCE-SPACED into bays of 1.25-1.5 m: n = ceil(run/1500), stepped to n-1 if that
+  ;; would drop the bay below 1250 (so every intermediate spacing lands in [1250,1500]).
+  (setq nP (max 1 (fix (+ 0.9999 (/ d_ridge_purlin 1500.0)))))
+  (if (and (> nP 1) (< (/ d_ridge_purlin nP) 1250.0)) (setq nP (1- nP)))
   (setq purlinSpacing (/ d_ridge_purlin nP))
 
   ;; LEFT half: u along rafter toward ridge = (ca, sa); v perp up = (-sa, ca)
   (setq uX ca   uY sa)
   (setq vX (- 0 sa)   vY ca)
-  (setq d purlinSpacing)
+  (setq d 0.0)                 ; P1: FIRST purlin AT the eave (under the eave gutter)
   (while (<= d (+ d_ridge_purlin 0.5))
     (setq xL (* d ca))
     (setq yL (+ H (* d sa)))
@@ -5346,7 +5378,7 @@
   ;; RIGHT half: u along rafter toward ridge = (-ca, sa); v perp up = (sa, ca)
   (setq uX (- 0 ca)   uY sa)
   (setq vX sa   vY ca)
-  (setq d purlinSpacing)
+  (setq d 0.0)                 ; P1: FIRST purlin AT the eave (under the eave gutter)
   (while (<= d (+ d_ridge_purlin 0.5))
     (setq xR (- W (* d ca)))
     (setq yR (+ H (* d sa)))
@@ -5457,7 +5489,11 @@
   (setq ca (/ (/ gW 2.0) slopeLen))
   (setq d_ridge_offset 300.0)
   (setq d_ridge_purlin (- slopeLen d_ridge_offset))
-  (setq nP (max 1 (fix (+ 0.5 (/ d_ridge_purlin 1500.0)))))
+  ;; P1 (owner 19-Jul): a purlin is FORCED at the eave (d=0) / under the eave+valley gutters; the run to the
+  ;; ridge-offset is then BALANCE-SPACED into bays of 1.25-1.5 m: n = ceil(run/1500), stepped to n-1 if that
+  ;; would drop the bay below 1250 (so every intermediate spacing lands in [1250,1500]).
+  (setq nP (max 1 (fix (+ 0.9999 (/ d_ridge_purlin 1500.0)))))
+  (if (and (> nP 1) (< (/ d_ridge_purlin nP) 1250.0)) (setq nP (1- nP)))
   (setq purlinSpacing (/ d_ridge_purlin nP))
   (setq purlinH depth)
 
@@ -5469,7 +5505,7 @@
     ;; --- LEFT half of gable i ---
     (setq uX ca  uY sa)
     (setq vX (- 0 sa)  vY ca)
-    (setq d purlinSpacing)
+    (setq d 0.0)                 ; P1: FIRST purlin AT the eave / valley (under the eave + valley gutters)
     (while (<= d (+ d_ridge_purlin 0.5))
       (setq xL (+ gxL (* d ca)))
       (setq yL (+ H   (* d sa)))
@@ -5495,7 +5531,7 @@
     ;; --- RIGHT half of gable i ---
     (setq uX (- 0 ca)  uY sa)
     (setq vX sa  vY ca)
-    (setq d purlinSpacing)
+    (setq d 0.0)                 ; P1: FIRST purlin AT the eave / valley (under the eave + valley gutters)
     (while (<= d (+ d_ridge_purlin 0.5))
       (setq xR (- gxR (* d ca)))
       (setq yR (+ H   (* d sa)))
@@ -5816,6 +5852,24 @@
   (setvar "PLINEWID" 0.0)
 )
 
+(defun peb-pipe-line (x1 y1 x2 y2 / es)
+  ;; DOTTED down-pipe line (owner 19-Jul G2, UNIVERSAL): every VALLEY / CANTILEVER downpipe renders with the
+  ;; mm-based PEBPIPE dotted linetype so it reads as a pipe, not a solid member.  Per-entity LT scale = 1/LTSCALE
+  ;; makes the dots render at TRUE mm size (the huge global LTSCALE would otherwise stretch the pattern to solid).
+  (if (not (tblsearch "LTYPE" "PEBPIPE"))
+    (vl-catch-all-apply (function (lambda ()
+      (entmake (list '(0 . "LTYPE") '(100 . "AcDbSymbolTableRecord")
+                     '(100 . "AcDbLinetypeTableRecord") '(2 . "PEBPIPE") '(70 . 0)
+                     '(3 . "Pipe __ __ __") '(72 . 65) '(73 . 2) '(40 . 150.0)
+                     '(49 . 60.0) '(74 . 0) '(49 . -90.0) '(74 . 0)))))))
+  (setq es (if (> (getvar "LTSCALE") 0.0) (/ 1.0 (getvar "LTSCALE")) 1.0))
+  (if (tblsearch "LTYPE" "PEBPIPE")
+    (entmake (list '(0 . "LINE") (cons 8 "GUTTER") '(6 . "PEBPIPE") (cons 48 es) (cons 370 30)
+                   (cons 10 (list x1 y1 0.0)) (cons 11 (list x2 y2 0.0))))
+    (progn (setvar "CLAYER" "GUTTER")                    ; fallback: solid if the linetype couldn't be created
+           (command "LINE" (list x1 y1) (list x2 y2) "")))
+  (princ))
+
 (defun draw-downpipes (W H brickH mono / dpW dpOff dpX1L dpX2L dpX1R dpX2R dpTop
                                     labDX labDY labCX labCY mlResult)
   ;;  Vertical down-pipes on the OUTSIDE of the wall sheeting (one per side).
@@ -5870,8 +5924,8 @@
   (setvar "PLINEWID" 0.0)
 )
 
-(defun draw-eave-features (W H mono /
-                          inH outH botW innerX outerX
+(defun draw-eave-features (W H mono slope /
+                          inH outH botW innerX outerX rslope
                           gyTopIn gyBot gyTopOut
                           tx ty ax arrowX arrowY)
   ;;  MAIMAAR-standard eave gutter (open-top trough):
@@ -5882,12 +5936,17 @@
   ;;     BOTTOM flat                       = 190 mm  (= 20 + 170)
   ;;  Inner top sits at H + 200 = roof-sheeting bottom level at the eave.
   (setvar "CLAYER" "GUTTER")
+  ;; G3 (owner 19-Jul, UNIVERSAL): anchor the INNER LIP to the roof-sheet BOTTOM at the lip x (= eave ±200), so
+  ;; the sheet laps OVER the lip and drips into the trough — not a fixed H+200 that floats above the sloped
+  ;; sheet.  slope = roof rise/run at the eave; the sheet bottom (rafter top + purlin 200) drops slope*200 over
+  ;; the 200 mm lip offset.  slope nil/0 => the legacy H+200 (flat sheet at the rafter line).
+  (setq rslope (if slope slope 0.0))
   (setq inH    165.0)               ; INNER vertical height (was 196 - corrected)
   (setq outH   196.0)               ; OUTER vertical height (was 165 - corrected)
   (setq botW   190.0)
-  (setq gyTopIn  (+ H 200.0))       ; inner top (where roof sheet drops in)
-  (setq gyBot    (- gyTopIn inH))   ; bottom y = inner top - 165 = H + 35
-  (setq gyTopOut (+ gyBot outH))    ; outer top = bottom + 196 = H + 231
+  (setq gyTopIn  (- (+ H 200.0) (* rslope 200.0)))   ; inner lip = roof-sheet bottom at the lip x (owner G3)
+  (setq gyBot    (- gyTopIn inH))   ; bottom y = inner top - 165
+  (setq gyTopOut (+ gyBot outH))    ; outer top = bottom + 196
 
   ;; ----- LEFT side eave gutter (per picture 2 reference) -----
   ;; Inner side (toward building) at innerX=-200, height=165 with 100mm lip
@@ -7493,6 +7552,10 @@
           (list (+ cx 514.0) (+ vY0 200.0))   ; right flange OUTER end
           "")
         (setvar "PLINEWID" 0.0)
+        ;; G2 (owner 19-Jul): Ø100 DOTTED valley DOWN PIPE — two PEBPIPE lines down the gable-boundary column,
+        ;; from the trough bottom (vY0+10) to FFL (100 mm apart = pipe dia); a valley must show a drain pipe.
+        (peb-pipe-line (- cx 50.0) (+ vY0 10.0) (- cx 50.0) 0.0)
+        (peb-pipe-line (+ cx 50.0) (+ vY0 10.0) (+ cx 50.0) 0.0)
         ;; Label + M-Ladder DOWN-ARROW to the valley trough (owner 14-Jul).  Explicit shaft + SOLID
         ;; arrowhead so the arrow always renders (the native MLEADER tip does not plot).
         (setvar "CLAYER" "TEXT")
@@ -7734,16 +7797,21 @@
       (txt "MC" (list (* wid 0.62) (+ ccEL (* ccS (* wid 0.62)) 900.0)) 260 0 "FALL")
       ;; owner 18-Jul: EAVE GUTTER at the LOW (draining) eave + Ø100 dotted DOWN PIPE down the column to FFL.
       (setq ccLowY (if ccLow ccEL ccER) ccDir (if ccLow -1.0 1.0) ccLowX (if ccLow 0.0 wid))
-      (setvar "CLAYER" "GUTTER") (setvar "PLINEWID" 0.0)
-      (command "PLINE"
-        (list ccLowX (+ ccLowY 235.0))
-        (list (+ ccLowX (* ccDir 60.0)) (+ ccLowY 235.0))         ; outer top lip
-        (list (+ ccLowX (* ccDir 60.0)) (+ ccLowY 20.0))          ; down the outer wall
-        (list (+ ccLowX (* ccDir 230.0)) (+ ccLowY 20.0))         ; trough bottom
-        (list (+ ccLowX (* ccDir 270.0)) (+ ccLowY 235.0))        ; up the inner lip (at the sheet)
-        "")
-      (setvar "CLAYER" "TEXT")
-      (txt "MC" (list (+ ccLowX (* ccDir 900.0)) (+ ccLowY 950.0)) 240 0 "GUTTER")
+      ;; G1 (owner 19-Jul, UNIVERSAL): a gutter belongs ONLY on a drained/SUPPORTED edge — the column eave.
+      ;; When the canopy drains at the FREE/OPEN cantilever TIP (ccLow = nil) draw NO gutter and NO "GUTTER"
+      ;; text there (the open edge just drips).  So the gutter trough + label are gated on ccLow.
+      (if ccLow
+        (progn
+          (setvar "CLAYER" "GUTTER") (setvar "PLINEWID" 0.0)
+          (command "PLINE"
+            (list ccLowX (+ ccLowY 235.0))
+            (list (+ ccLowX (* ccDir 60.0)) (+ ccLowY 235.0))         ; outer top lip
+            (list (+ ccLowX (* ccDir 60.0)) (+ ccLowY 20.0))          ; down the outer wall
+            (list (+ ccLowX (* ccDir 230.0)) (+ ccLowY 20.0))         ; trough bottom
+            (list (+ ccLowX (* ccDir 270.0)) (+ ccLowY 235.0))        ; up the inner lip (at the sheet)
+            "")
+          (setvar "CLAYER" "TEXT")
+          (txt "MC" (list (+ ccLowX (* ccDir 900.0)) (+ ccLowY 950.0)) 240 0 "GUTTER")))
       ;; DOWN PIPE (dotted, thin) down the column + DOWN SPOUT label — only when draining at the (back) column.
       (if ccLow
         (progn
@@ -7798,7 +7866,7 @@
       (draw-purlins-mono  wid H monoRise)                         ; standard mono purlins (match CS/SS)
       (draw-girts         wid H brickH nil T)                     ; LEFT girts only + GIRT M-Ladder
       (draw-downpipes     wid H brickH T)                         ; LOW-side downpipe + DOWN PIPE + COLUMN M-Ladders
-      (draw-eave-features wid H T)                                ; LOW-side eave gutter + EAVE GUTTER M-Ladder
+      (draw-eave-features wid H T (/ monoRise wid))               ; LOW-side eave gutter (lip anchored to sheet)
       (draw-rafter-label  wid H monoRise ht)
       ;; EXISTING WALL callout (right) — text RIGHT-justified so it sits to the LEFT of its own rightward
       ;; leader (no text/leader overlap); clean horizontal arrowhead at the wall face, no tail dot.
@@ -7863,7 +7931,7 @@
       (draw-eave-strut-mg wid (/ wid numGab) H rise)
       (draw-girts         wid H brickH nil nil)
       (draw-downpipes     wid H brickH nil)
-      (draw-eave-features wid H nil)
+      (draw-eave-features wid H nil (/ rise (/ (/ wid numGab) 2.0)))   ; outer-gable eave, lip anchored to sheet
       (draw-rafter-label  (/ wid numGab) H rise ht))
     ((= stype "PP")
       ;; Petrol Pump / CNG canopy (owner 14-Jul): an OPEN, near-flat canopy on TWO inset BOX columns.
@@ -7920,10 +7988,10 @@
           (list (+ ppx 150.0) (+ H  60.0))
           (list (+ ppx 320.0) (+ H 250.0))
           "")
-        ;; down pipe through the box column (2 vertical lines, valley trough down to the floor)
-        (setvar "CLAYER" "CLADDING")
-        (command "LINE" (list (- ppx 70.0) (+ H 60.0)) (list (- ppx 70.0) 300.0) "")
-        (command "LINE" (list (+ ppx 70.0) (+ H 60.0)) (list (+ ppx 70.0) 300.0) ""))
+        ;; G2 (owner 19-Jul): DOTTED down pipe through the box column (valley trough down to the floor) — the
+        ;; universal PEBPIPE dotted linetype so the valley/cantilever pipe reads as a pipe (was solid CLADDING).
+        (peb-pipe-line (- ppx 70.0) (+ H 60.0) (- ppx 70.0) 300.0)
+        (peb-pipe-line (+ ppx 70.0) (+ H 60.0) (+ ppx 70.0) 300.0))
       (setvar "CLAYER" "TEXT")
       (txt "MC" (list ppCx1 (+ H 200.0 ppS (* 900 *PEB-TEXT-SCALE*))) 200 0 "VALLEY GUTTER")
       (txt "MC" (list ppCx2 (+ H 200.0 ppS (* 900 *PEB-TEXT-SCALE*))) 200 0 "VALLEY GUTTER")
@@ -8091,7 +8159,7 @@
       (draw-purlins-mono  wid H monoRise)                        ; MONO purlins follow the one slope (not gable)
       (draw-girts         wid H brickH ssHR nil)                  ; right girts to the high eave
       (draw-downpipes     wid H brickH T)                         ; mono -> low-side downpipe only
-      (draw-eave-features wid H T)                                ; mono -> low-side gutter only
+      (draw-eave-features wid H T (/ monoRise wid))               ; mono -> low-side gutter (lip anchored to sheet)
       (draw-rafter-label  wid H rise ht))
     ((= stype "RC")
       ;; ROOFING SYSTEM on RCC columns (owner 16-Jul): the SECTION is cut THROUGH the RCC column, so the wall
@@ -8108,7 +8176,7 @@
       (if (not *PEB-RC-FASCIA*)
         (progn (draw-rc-brick-hidden wid H)        ; brick masonry BEYOND the cut → dotted/hidden outline
                (draw-downpipes   wid H H nil)      ; downpipe against the wall
-               (draw-eave-features wid H nil)))    ; eave gutter just outside the column
+               (draw-eave-features wid H nil (/ rise (/ wid 2.0)))))  ; eave gutter outside column, lip on sheet
       (draw-rafter-label  wid H rise ht)
       (setq *PEB-NO-WALL-SHEET* nil))
     (T
@@ -8122,7 +8190,7 @@
       (draw-downpipes     wid H brickH nil)
       ;; RCC-parapet/fascia replaces the eave gutter with a valley gutter (drawn by draw-rc-fascia).
       (if (not (and (= stype "RC") *PEB-RC-FASCIA*))
-        (draw-eave-features wid H nil))
+        (draw-eave-features wid H nil (/ rise (/ wid 2.0))))   ; gable eave, lip anchored to the sheet (owner G3)
       (draw-rafter-label  wid H rise ht)))
 
   ;; ── Slope tags placed 25% in from the RIDGE on each rafter half ──
