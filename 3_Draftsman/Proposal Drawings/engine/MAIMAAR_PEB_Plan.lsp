@@ -541,6 +541,19 @@
   (setq v (MSPL-Get-Num data "BP_RIDGE_OFFSET"))
   (if (and v (> v (* wid 0.02)) (< v (* wid 0.98))) v (/ wid 2.0)))
 
+;; BF VALLEY/PEAK Y (owner 18-Jul).  Plan mirror of the Section's peb-bf-valley-x so the 2-wing canopy's
+;; centre line (Butterfly VALLEY / Falcon PEAK) lands at the SAME station on the plan as on the section.
+;; Falcon peak stays CENTRAL (matches the Section's bfPk=W/2 branch); the Butterfly valley honours
+;; BP_CANT_SPAN (the cantilever wing span = distance of the valley from the near/NSW eave); blank or a
+;; degenerate value => central.  Clamped off the eaves.  Previously the Plan hardcoded wid/2 everywhere,
+;; so an off-centre butterfly disagreed with its own section by |BP_CANT_SPAN - W/2|.
+(defun peb-bf-valley-y (data wid / v)
+  (if (= (strcase (peb-tb-or (MSPL-Get-Str data "CC_FALCON_PEAK") "")) "YES")
+    (/ wid 2.0)
+    (progn
+      (setq v (MSPL-Get-Num data "BP_CANT_SPAN"))
+      (if (and v (> v (* wid 0.02)) (< v (* wid 0.98))) v (/ wid 2.0)))))
+
 ;; RIDGE LINE = dash-dot centre line (owner 4-Jul, Rule Book: "it just shows the line of the ridge").
 ;; FIX (ridge showed SOLID): the stock CENTERX2 pattern is only ~a few drawing units long, so the huge
 ;; global LTSCALE (~380 on big buildings) stretches each dash past the whole line and it renders solid.
@@ -1438,9 +1451,11 @@
           (foreach sx slopeXs
             (arrow-up-big   sx (* wid 0.875) fallU)   ; upper wing falls out toward FSW
             (arrow-down-big sx (* wid 0.125) fallU))  ; lower wing falls out toward NSW
-          (foreach sx slopeXs
-            (arrow-down-big sx (* wid 0.875) fallU)   ; upper wing falls in toward the centre valley
-            (arrow-up-big   sx (* wid 0.125) fallU))))
+          (progn
+            (setq bfVy (peb-bf-valley-y data wid))   ; owner 18-Jul: valley may be off-centre (BP_CANT_SPAN)
+            (foreach sx slopeXs
+              (arrow-down-big sx (+ bfVy (* 0.75 (- wid bfVy))) fallU)   ; upper wing falls in toward the valley
+              (arrow-up-big   sx (* 0.25 bfVy)                  fallU))))) ; lower wing falls in toward the valley
       ((= stype "CC")
         ;; SINGLE-SIDED CANTILEVER (the 1-wing pair -- NOT "Butterfly/Falcon 1-wing", owner 9-Jul).
         ;; Back support column line on NSW (y=0), free edge on FSW (y=wid) -- see the CC column branch
@@ -2902,7 +2917,8 @@
                         x0 x1 yLo yHi bcx hcx hcy hr dg s bx capLbl capY clsY
                         gw etL etW yr
                         midx runTxt capInt byoth craneIdx runY ah a ax dir capX clX clY
-                        bracedXs usedCapX b bestX bestD cand dmin bxc px fr)
+                        bracedXs usedCapX b bestX bestD cand dmin bxc px fr
+                        yN yF flts)
   (if (= (strcase (MSPL-Get-Str data "CR_TOGGLE")) "YES")
     (progn
       (setq u  (max 400.0 (min 3000.0 (/ (max len wid) 70.0))))
@@ -3022,6 +3038,37 @@
                 (if byoth
                   (txt-bold "MC" (list capX (- capY (* u 1.05))) (/ (* u 0.42) sc) 0.0
                             "(BY OTHERS)"))
+
+                ;; ── (3) DASHED CRANE FOOTPRINT — imported from the old reference CLPs ──
+                ;;   2 runway beams (along the length) + bridge girder (across the span)
+                ;;   + hook eye, all HIDDEN linetype, contained in this crane's grid
+                ;;   module [x0 .. x1].  Runways sit symmetric about the building centre
+                ;;   line, offset from each sidewall by (wid-span)/2.
+                (setq yN   (/ (- wid span) 2.0)          ; near runway (toward NSW/bottom)
+                      yF   (/ (+ wid span) 2.0)          ; far  runway (toward FSW/top)
+                      flts (max 1.0 (/ u 400.0)))        ; per-entity dash scale vs global LTSCALE
+                (if (< yN (* u 0.4))         (setq yN (* u 0.4)))
+                (if (> yF (- wid (* u 0.4))) (setq yF (- wid (* u 0.4))))
+                (if (boundp 'safe-load-ltype) (vl-catch-all-apply (function (lambda () (safe-load-ltype "HIDDEN")))))
+                (peb-comp-layer "COMP-CRANE-FP" 8)       ; grey dashed footprint layer
+                (setvar "CLAYER" "COMP-CRANE-FP")
+                (setq bx (+ x0 (* (- x1 x0) 0.62))       ; bridge station along the run
+                      gw (max 200.0 (* u 0.20)))         ; girder width in plan
+                (foreach s (list (list x0 yN x1 yN)                ; near runway beam
+                                 (list x0 yF x1 yF)                ; far  runway beam
+                                 (list bx yN bx yF)                ; bridge girder line 1
+                                 (list (+ bx gw) yN (+ bx gw) yF)) ; bridge girder line 2
+                  (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-FP")
+                                 (cons 6 "HIDDEN") (cons 48 flts)
+                                 (list 10 (nth 0 s) (nth 1 s) 0.0)
+                                 (list 11 (nth 2 s) (nth 3 s) 0.0))))
+                (entmake (list (cons 0 "CIRCLE") (cons 8 "COMP-CRANE-FP")   ; hook eye
+                               (cons 6 "HIDDEN") (cons 48 flts)
+                               (list 10 (+ bx (/ gw 2.0)) (/ (+ yN yF) 2.0) 0.0)
+                               (cons 40 (* u 0.18))))
+                (txt-bold "MC" (list (/ (+ x0 x1) 2.0) (- yN (* u 0.30))) (/ (* u 0.34) sc) 0.0
+                          (strcat "CRANE RUN : " (peb-comma (rtos (- x1 x0) 2 0))))
+                (setvar "CLAYER" "COMP-CRANE")
                 (princ))))) ; end lambda / catch
         (setq n (1+ n)))))
       ;; C/L OF RAFTER — the crane bridge runs symmetric about the rafter centreline
