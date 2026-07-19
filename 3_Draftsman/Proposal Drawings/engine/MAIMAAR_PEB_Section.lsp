@@ -6815,14 +6815,23 @@
             (if (and cls (/= cls ""))
               (txt-bold "MC" (list hoistX (- hookH (* u 2.35))) (/ (* u 0.36) sc) 0.0
                         (strcat "CMAA CLASS " cls)))
-            ;; ── part labels drawn ONCE (manual convention) — crane bridge / hoist / crane beam ──
+            ;; CRANE SPAN (centre-to-centre of rails) — the actual rail span (inner flange to inner flange)
+            (txt-bold "MC" (list hoistX (- hookH (* u 2.90))) (/ (* u 0.34) sc) 0.0
+                      (strcat "SPAN c/c RAILS : " (rtos (- xBR xBL) 2 0)))
+            ;; ── part labels drawn ONCE (manual convention), spaced with leaders into clear space ──
             (if (not labeled)
               (progn
-                (txt-bold "MC" (list midX (+ bridgeTop (* u 0.55))) (/ (* u 0.42) sc) 0.0 "CRANE BRIDGE (BY OTHERS)")
-                (txt-bold "MR" (list (- hoistX (* u 1.90)) (- bridgeBot (* u 0.45))) (/ (* u 0.40) sc) 0.0 "HOIST (BY OTHERS)")
-                ;; CRANE BEAM + RAIL — leader from the left crane beam down-inward to the label
-                (peb-crane-sec-line xBL beamBot (+ xBL (* u 1.1)) (- beamBot (* u 0.8)))
-                (txt-bold "ML" (list (+ xBL (* u 1.2)) (- beamBot (* u 0.8))) (/ (* u 0.40) sc) 0.0 "CRANE BEAM + RAIL")
+                ;; CRANE BRIDGE — shifted toward the module centre, clear of the knee
+                (txt-bold "MC" (list (+ midX (* u 1.6)) (+ bridgeTop (* u 0.62))) (/ (* u 0.40) sc) 0.0 "CRANE BRIDGE (BY OTHERS)")
+                ;; HOIST — short leader off the RIGHT of the hoist into open space
+                (peb-crane-sec-line (+ hoistX (* u 0.85)) (- hoistTop (* u 0.55)) (+ hoistX (* u 1.45)) (- hoistTop (* u 0.55)))
+                (txt-bold "ML" (list (+ hoistX (* u 1.55)) (- hoistTop (* u 0.55))) (/ (* u 0.40) sc) 0.0 "HOIST (BY OTHERS)")
+                ;; CRANE BEAM + RAIL — leader from the crane beam down-inward to the label
+                (peb-crane-sec-line xBL beamBot (+ xBL (* u 1.1)) (- beamBot (* u 0.9)))
+                (txt-bold "ML" (list (+ xBL (* u 1.2)) (- beamBot (* u 0.9))) (/ (* u 0.40) sc) 0.0 "CRANE BEAM + RAIL")
+                ;; HEIGHT OF CRANE BEAM — noted once (top of crane beam above FFL)
+                (txt-bold "MC" (list (+ midX (* u 1.6)) (+ bridgeTop (* u 1.35))) (/ (* u 0.36) sc) 0.0
+                          (strcat "HEIGHT OF CRANE BEAM : " (rtos railTop 2 0)))
                 (setq labeled T)))
             (princ)))))
         (setq n (1+ n)))
