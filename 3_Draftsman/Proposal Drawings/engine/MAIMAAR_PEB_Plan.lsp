@@ -2947,7 +2947,7 @@
                         midx runTxt capInt byoth craneIdx runY ah a ax dir capX clX clY
                         bracedXs usedCapX b bestX bestD cand dmin bxc px fr
                         yN yF flts txc tyc thw thh yy pt
-                        wgys nW letOfs gfW gtW vf vt yy0 yy1 rbw off xb)
+                        wgys nW letOfs gfW gtW vf vt yy0 yy1 rbw off xb colOff)
   (if (= (strcase (MSPL-Get-Str data "CR_TOGGLE")) "YES")
     (progn
       (setq u  (max 400.0 (min 3000.0 (/ (max len wid) 70.0))))
@@ -3095,7 +3095,14 @@
                           vt     (- (peb-grid-letter-index gtW) letOfs)
                           yy0    (nth (max 0 (min (1- nW) (- nW 1 vf))) wgys)
                           yy1    (nth (max 0 (min (1- nW) (- nW 1 vt))) wgys))
-                    (if (> (abs (- yy1 yy0)) 1.0) (setq yN (min yy0 yy1) yF (max yy0 yy1)))))
+                    (if (> (abs (- yy1 yy0)) 1.0)
+                      (progn
+                        (setq yN (min yy0 yy1) yF (max yy0 yy1)
+                              colOff (/ (if (and (boundp '*PEB-COL-WEB*) *PEB-COL-WEB*) *PEB-COL-WEB* 700.0) 2.0))
+                        ;; owner: the crane bridge + runways run between the column INNER FLANGES,
+                        ;; not the grid centrelines — offset each module column line inward by
+                        ;; half the column web (guarded so a narrow module never inverts).
+                        (if (> (- yF yN) (* colOff 3.0)) (setq yN (+ yN colOff) yF (- yF colOff)))))))
                 (if (null yN)                            ; fallback: span centred (single span)
                   (progn
                     (setq yN (/ (- wid span) 2.0) yF (/ (+ wid span) 2.0))
