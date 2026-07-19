@@ -2938,7 +2938,8 @@
                         gw etL etW yr
                         midx runTxt capInt byoth craneIdx runY ah a ax dir capX clX clY
                         bracedXs usedCapX b bestX bestD cand dmin bxc px fr
-                        yN yF flts txc tyc thw thh yy pt)
+                        yN yF flts txc tyc thw thh yy pt
+                        wgys nW letOfs gfW gtW vf vt yy0 yy1)
   (if (= (strcase (MSPL-Get-Str data "CR_TOGGLE")) "YES")
     (progn
       (setq u  (max 400.0 (min 3000.0 (/ (max len wid) 70.0))))
@@ -3061,19 +3062,42 @@
 
                 ;; ── (3) DASHED CRANE FOOTPRINT — imported from the old reference CLPs ──
                 ;;   2 runway beams (along the length) + bridge girder (across the span)
-                ;;   + hook eye, all HIDDEN linetype, contained in this crane's grid
-                ;;   module [x0 .. x1].  Runways sit symmetric about the building centre
-                ;;   line, offset from each sidewall by (wid-span)/2.
-                (setq yN   (/ (- wid span) 2.0)          ; near runway (toward NSW/bottom)
-                      yF   (/ (+ wid span) 2.0)          ; far  runway (toward FSW/top)
-                      flts (max 1.0 (/ u 400.0)))        ; per-entity dash scale vs global LTSCALE
-                (if (< yN (* u 0.4))         (setq yN (* u 0.4)))
-                (if (> yF (- wid (* u 0.4))) (setq yF (- wid (* u 0.4))))
+                ;;   + trolley/hook, all HIDDEN linetype, in this crane's grid module.
+                ;;
+                ;;   RUNWAY Y-PLACEMENT — a crane runs BETWEEN THE COLUMNS OF ITS MODULE.
+                ;;   On a multi-span / multi-gable building the width is divided into modules
+                ;;   by interior column lines (*PEB-WGRID-YS*); the crane's width grid range
+                ;;   CRn_GRID_FROM_W..TO_W names the two column lines bounding its module, so
+                ;;   the runways ride ON those columns.  Each crane can sit in its own module.
+                ;;   Single-span (or no width grid given) -> span centred on the building.
+                ;; width stations = MAIN column lines only (module boundaries), NOT the merged
+                ;; grid lines (*PEB-WGRID-YS* also carries endwall column subdivisions).  This
+                ;; matches the CRM's width-grid-letter derivation (nM+1 letters for nM modules).
+                (setq flts (max 1.0 (/ u 400.0))         ; per-entity dash scale vs global LTSCALE
+                      wgys (peb-comp-width-pts data wid)
+                      gfW  (strcase (MSPL-Get-Str data (strcat pre "GRID_FROM_W")))
+                      gtW  (strcase (MSPL-Get-Str data (strcat pre "GRID_TO_W")))
+                      yN nil yF nil)
+                (if (and wgys (> (length wgys) 1)
+                         (= (strlen gfW) 1) (= (strlen gtW) 1) (>= (ascii gfW) 65) (>= (ascii gtW) 65))
+                  (progn
+                    (setq nW     (length wgys)
+                          letOfs (if *PEB-GRID-LET-OFS* *PEB-GRID-LET-OFS* 0)
+                          vf     (- (peb-grid-letter-index gfW) letOfs)   ; letter A = top (FSW)
+                          vt     (- (peb-grid-letter-index gtW) letOfs)
+                          yy0    (nth (max 0 (min (1- nW) (- nW 1 vf))) wgys)
+                          yy1    (nth (max 0 (min (1- nW) (- nW 1 vt))) wgys))
+                    (if (> (abs (- yy1 yy0)) 1.0) (setq yN (min yy0 yy1) yF (max yy0 yy1)))))
+                (if (null yN)                            ; fallback: span centred (single span)
+                  (progn
+                    (setq yN (/ (- wid span) 2.0) yF (/ (+ wid span) 2.0))
+                    (if (< yN (* u 0.4))         (setq yN (* u 0.4)))
+                    (if (> yF (- wid (* u 0.4))) (setq yF (- wid (* u 0.4))))))
                 (if (boundp 'safe-load-ltype) (vl-catch-all-apply (function (lambda () (safe-load-ltype "HIDDEN")))))
                 (peb-comp-layer "COMP-CRANE-FP" 8)       ; grey dashed footprint layer
                 (setvar "CLAYER" "COMP-CRANE-FP")
                 (setq bx (+ x0 (* (- x1 x0) 0.62))       ; bridge station along the run
-                      gw (max 300.0 (min 900.0 (* span 0.024)))) ; girder width ~2.4% of span (ref-matched)
+                      gw (max 300.0 (min 900.0 (* (- yF yN) 0.024)))) ; girder width ~2.4% of drawn span
                 (foreach s (list (list x0 yN x1 yN)                ; near runway beam
                                  (list x0 yF x1 yF)                ; far  runway beam
                                  (list bx yN bx yF)                ; bridge girder line 1
