@@ -3073,7 +3073,7 @@
                 (peb-comp-layer "COMP-CRANE-FP" 8)       ; grey dashed footprint layer
                 (setvar "CLAYER" "COMP-CRANE-FP")
                 (setq bx (+ x0 (* (- x1 x0) 0.62))       ; bridge station along the run
-                      gw (max 200.0 (* u 0.20)))         ; girder width in plan
+                      gw (max 300.0 (min 900.0 (* span 0.024)))) ; girder width ~2.4% of span (ref-matched)
                 (foreach s (list (list x0 yN x1 yN)                ; near runway beam
                                  (list x0 yF x1 yF)                ; far  runway beam
                                  (list bx yN bx yF)                ; bridge girder line 1
