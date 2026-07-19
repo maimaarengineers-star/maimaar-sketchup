@@ -2,8 +2,22 @@
 
 TASK: Make the ROOF MONITOR a single BS-driven feature that draws consistently in BOTH the
 cross-section (frame) engine and the column-plan engine, so one BS entry can never produce a
-section and a plan that disagree. Work in a git worktree off `main` (the owner is concurrently
-editing MAIMAAR_PEB_Section.lsp — do NOT blind-commit the shared file; coordinate).
+section and a plan that disagree.
+
+## MIGRATION MODEL + BASE (owner 19-Jul — read first)
+- **ONE master file each — INLINE model.** There are only two masters: `MAIMAAR_PEB_Section.lsp` and
+  `MAIMAAR_PEB_Plan.lsp`. Migrate the monitor code INLINE into them (not a separately-loaded file); shared
+  rule/geometry helpers go in `MAIMAAR_PEB_Standard.lsp` (loads first). Retire any scratch/standalone copy
+  so the monitor lives in ONE place. (NOTE: the roof monitor is ALREADY inlined + being refined on `main`
+  — `peb-draw-roof-monitor` in Section, `peb-draw-monitor` in Plan; and the orphaned standalone
+  `MAIMAAR_PEB_Monitor.lsp` holds a richer `peb-draw-roof-monitor-detail` — reconcile to ONE.)
+- **REBASE ONTO CURRENT MAIN FIRST.** `main` already has CP/GP, ROMAND, OPEN dims, title-block, the crane,
+  and the inlined monitor. `git fetch && git rebase main` before you touch anything. NEVER work off an old
+  commit (a worktree was 344 commits behind and would have reverted everything). Commit small; push often.
+- **UNIVERSAL RULES CONFORMANCE (must pass):** connections via the CP/GP helper (`*PEB-CP-THK/GAP/EXT*`,
+  `peb-solid-quad`, `draw-rc-gusset`); ALL text via `txt/txt-bold/txt-rom` (ROMAND); dims via the OPEN-arrow
+  setter; downpipes via the dotted-pipe helper; purlins/sheeting FOLLOW the frame roof profile; members on
+  U1 line-weights; plates/gussets FILLED SOLID.
 
 ## SINGLE SOURCE OF TRUTH (BS → engine)
 - BS input fields: `D:\maimaar-os\2_Sales CRM\public\modules\sales\components.js`

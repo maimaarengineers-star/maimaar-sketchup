@@ -2,8 +2,21 @@
 
 TASK: Make the CRANE a single BS-driven feature that draws consistently in BOTH the cross-section
 (frame) engine and the column-plan engine from ONE BS crane block, so section and plan register the
-same crane on the same column lines. Work in a git worktree off `main` (owner is concurrently editing
-MAIMAAR_PEB_Section.lsp — coordinate, do not blind-commit the shared file).
+same crane on the same column lines.
+
+## MIGRATION MODEL + BASE (owner 19-Jul — read first)
+- **ONE master file each — INLINE model.** Only two masters: `MAIMAAR_PEB_Section.lsp` +
+  `MAIMAAR_PEB_Plan.lsp`. Migrate the crane code INLINE into them; shared rule/geometry helpers go in
+  `MAIMAAR_PEB_Standard.lsp` (loads first). (NOTE: the crane is ALREADY inlined + merged on `main` —
+  `peb-draw-crane-section` in Section, `peb-draw-crane` in Plan; and the CR* v3→legacy passthrough bug is
+  ALREADY FIXED on main. Build on that; don't re-introduce it.)
+- **REBASE ONTO CURRENT MAIN FIRST.** `main` already has CP/GP, ROMAND, OPEN dims, title-block, the monitor,
+  and the crane. `git fetch && git rebase main` before touching anything. NEVER work off an old commit (a
+  worktree was 344 commits behind and would have reverted everything). Commit small; push often.
+- **UNIVERSAL RULES CONFORMANCE (must pass):** connections via the CP/GP helper; ALL text via
+  `txt/txt-bold/txt-rom` (ROMAND); dims via the OPEN-arrow setter; downpipes via the dotted-pipe helper;
+  members on U1 line-weights; plates/gussets FILLED SOLID; the crane bridge must clear the rafter underside
+  (anchor to `cigar-rafter-underside-y`).
 
 ## SINGLE SOURCE OF TRUTH (BS → engine)
 - BS input fields: `D:\maimaar-os\2_Sales CRM\public\modules\sales\components.js`
