@@ -3475,12 +3475,13 @@
 ;;  and one on the BACKSIDE OF THE WING (right of the seam), each extended 100 mm past both flanges, with
 ;;  3 bolts down the seam and stiffener triangles top + bottom.  (Matches draw-valley-col-plates' outline
 ;;  plates + donut bolts, but as the one-sided cantilever pair.)  plateT/nBolt kept for call compatibility.
-(defun draw-cant-vplate (cx yBot yTop plateT nBolt / vPThk gap ext pB pT
+(defun draw-cant-vplate (cx yBot yTop plateT nBolt slope / vPThk gap ext pB pT
                           xCol1 xCol2 xWing1 xWing2 stW stH)
   (setvar "CLAYER" "PLATES")
   ;; CP STANDING RULE: two SOLID plates, *PEB-CP-THK* thick, *PEB-CP-GAP* hairline seam, NO bolts, each
-  ;; extended *PEB-CP-EXT* past both flanges, with GP gusset triangles at BOTH flanges. (Canopy/valley:
+  ;; extended *PEB-CP-EXT* past both flanges, with SMALL GP gusset triangles at BOTH flanges. (Canopy/valley:
   ;; the plates sit on the SIDE of the column — this pair is the side-mounted CP.)
+  (if (not slope) (setq slope 0.0))   ; canopy beam flange slope (0 = horizontal); the GP flange leg follows it
   (setq vPThk *PEB-CP-THK* gap *PEB-CP-GAP* ext *PEB-CP-EXT*)
   (setq pB (- (min yBot yTop) ext) pT (+ (max yBot yTop) ext))
   (setq xCol2  (- cx (/ gap 2.0)) xCol1  (- xCol2 vPThk)    ; COLUMN-side plate (left of seam)
@@ -3490,10 +3491,13 @@
   ;; GP gusset triangles — FILLED SOLID within the *PEB-CP-EXT* extension, at BOTH the top flange (yTop→pT)
   ;; AND the bottom flange (yBot→pB), on the outer edge of each plate (one leg on the plate, one on flange).
   (setq stW *PEB-CP-EXT*)
-  (peb-solid-quad (list (- xCol1 stW) yTop) (list xCol1 yTop) (list xCol1 pT) (list xCol1 pT))   ; col plate, TOP
-  (peb-solid-quad (list xWing2 yTop) (list (+ xWing2 stW) yTop) (list xWing2 pT) (list xWing2 pT)) ; wing plate, TOP
-  (peb-solid-quad (list (- xCol1 stW) yBot) (list xCol1 yBot) (list xCol1 pB) (list xCol1 pB))   ; col plate, BOTTOM
-  (peb-solid-quad (list xWing2 yBot) (list (+ xWing2 stW) yBot) (list xWing2 pB) (list xWing2 pB)) ; wing plate, BOTTOM
+  ;; GP = SMALL solid stiffener triangles tying each CP plate to its flange (column flange + rafter/beam
+  ;; flange), the flange leg following the flange SLOPE (flange corner y shifted by ±stW*slope).  Drawn with
+  ;; peb-solid-quad (plot-safe) — one corner on the CP, one corner ON the flange line.
+  (peb-solid-quad (list (- xCol1 stW) (- yTop (* stW slope))) (list xCol1 yTop) (list xCol1 pT) (list xCol1 pT))   ; col plate, TOP
+  (peb-solid-quad (list xWing2 yTop) (list (+ xWing2 stW) (+ yTop (* stW slope))) (list xWing2 pT) (list xWing2 pT)) ; wing plate, TOP
+  (peb-solid-quad (list (- xCol1 stW) (- yBot (* stW slope))) (list xCol1 yBot) (list xCol1 pB) (list xCol1 pB))   ; col plate, BOTTOM
+  (peb-solid-quad (list xWing2 yBot) (list (+ xWing2 stW) (+ yBot (* stW slope))) (list xWing2 pB) (list xWing2 pB)) ; wing plate, BOTTOM
   (princ))
 
 ;;  peb-cw-one — draw ONE catwalk as OUTER LINES ONLY at a column (owner 14-Jul): a narrow walkway deck
@@ -7288,9 +7292,12 @@
         (progn
           (setq eLp (if (= (strcase (peb-tb-or (MSPL-Get-Str data "CC_LOW_AT_COLUMN") "")) "YES")
                         H (+ H (/ wid slopeD))))
+          (setq ccSlp (if (= (strcase (peb-tb-or (MSPL-Get-Str data "CC_LOW_AT_COLUMN") "")) "YES")
+                          (/ 1.0 slopeD) (/ -1.0 slopeD)))   ; beam top-flange slope at the column (GP follows it)
           (setq dsP (max 450.0 (* (/ wid 12000.0) 1100.0)))
           (draw-base-plate-at 0.0 ht ep (* 25 *PEB-TEXT-SCALE*))   ; base matches the straight column width (ht)
-          (draw-cant-vplate ht (- eLp dsP) eLp 45.0 3))             ; I-shape (vertical) on the WING side of the column
+          ;; yTop = the SLOPED top flange at the plate x=ht so the GP stiffener meets the flange (not floating).
+          (draw-cant-vplate ht (- eLp dsP) (+ eLp (* ccSlp ht)) 45.0 3 ccSlp))
         (progn
           (setq dpP (bf-mast-depth wid H))                          ; MUST match draw-bf/falcon frame haunch depth
           (setq bfPk  (= (strcase (peb-tb-or (MSPL-Get-Str data "CC_FALCON_PEAK") "")) "YES"))
