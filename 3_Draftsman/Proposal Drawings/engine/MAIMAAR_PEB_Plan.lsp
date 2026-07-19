@@ -2947,7 +2947,7 @@
                         midx runTxt capInt byoth craneIdx runY ah a ax dir capX clX clY
                         bracedXs usedCapX b bestX bestD cand dmin bxc px fr
                         yN yF flts txc tyc thw thh yy pt
-                        wgys nW letOfs gfW gtW vf vt yy0 yy1 rbw off xb colOff)
+                        wgys nW letOfs gfW gtW vf vt yy0 yy1 rbw off xb colOff off0 off1)
   (if (= (strcase (MSPL-Get-Str data "CR_TOGGLE")) "YES")
     (progn
       (setq u  (max 400.0 (min 3000.0 (/ (max len wid) 70.0))))
@@ -3099,10 +3099,13 @@
                       (progn
                         (setq yN (min yy0 yy1) yF (max yy0 yy1)
                               colOff (/ (if (and (boundp '*PEB-COL-WEB*) *PEB-COL-WEB*) *PEB-COL-WEB* 700.0) 2.0))
-                        ;; owner: the crane bridge + runways run between the column INNER FLANGES,
-                        ;; not the grid centrelines — offset each module column line inward by
-                        ;; half the column web (guarded so a narrow module never inverts).
-                        (if (> (- yF yN) (* colOff 3.0)) (setq yN (+ yN colOff) yF (- yF colOff)))))))
+                        ;; UNIVERSAL RULE: the crane beam sits ON each column's INNER FLANGE and the
+                        ;; bridge spans beam-to-beam.  A SIDE column (sheeting line at y=0 / y=wid) has
+                        ;; its FULL web INSIDE the grid line -> offset the whole web; an INTERIOR column
+                        ;; is centred on the line -> offset HALF the web.  (guard: never invert.)
+                        (setq off0 (if (< yN 1.0)         (* colOff 2.0) colOff)
+                              off1 (if (> yF (- wid 1.0)) (* colOff 2.0) colOff))
+                        (if (> (- yF yN) (* (+ off0 off1) 1.3)) (setq yN (+ yN off0) yF (- yF off1)))))))
                 (if (null yN)                            ; fallback: span centred (single span)
                   (progn
                     (setq yN (/ (- wid span) 2.0) yF (/ (+ wid span) 2.0))
@@ -3773,8 +3776,9 @@
   (command "UNDO" "BEGIN")
 
   ;; ── Text styles & layers ─────────────────────────────────────
+  ;; owner 19-Jul UNIVERSAL RULE: ALL TEXT = ROMAND (romand.shx) everywhere on the Plan too.
   (make-text-style "PEB-TITLE" "romand.shx")
-  (make-text-style "PEB-BODY"  "romans.shx")
+  (make-text-style "PEB-BODY"  "romand.shx")
   (make-text-style "PEB-DIM"   "romand.shx")   ; owner 19-Jul STANDING: dimension text = ROMAND (match Section)
   (make-text-style "ROMAND"    "romand.shx")   ; dedicated dim style so AutoCAD Properties Text style reads ROMAND
 

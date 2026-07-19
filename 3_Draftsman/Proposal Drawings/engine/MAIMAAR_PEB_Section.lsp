@@ -2087,8 +2087,8 @@
   (setq kneeL  (car  (cigar-taper-lengths W)))
   (setq ridgeL (cadr (cigar-taper-lengths W)))
   (setq boltR  (* 25 *PEB-TEXT-SCALE*))
-  (setq ep     30.0)   ; owner 14-Jul: 30mm plates (more depth), matches the knee detail
-  (setq ext    100.0)              ; plate extension beyond column flange
+  (setq ep     *PEB-CP-THK*)   ; CP rule: 20mm plates
+  (setq ext    *PEB-CP-EXT*)              ; plate extension beyond column flange
   (setq stiffH 100.0)
   (setq n (length cols))
   (setq i 1)
@@ -2107,7 +2107,7 @@
         (setq yOut (cigar-rafter-underside-y outerX 0.0 W ridgeX H rise ht rd midD kneeL ridgeL))
         (setq yIn  (cigar-rafter-underside-y innerX 0.0 W ridgeX H rise ht rd midD kneeL ridgeL))
         (setq mSlp (/ (- yIn yOut) (- innerX outerX)))   ; bottom-flange slope across the plate
-        (setq g    1.0)                                   ; STANDING RULE: 1mm hairline gap between the two plates
+        (setq g    *PEB-CP-GAP*)                           ; CP rule: hairline seam gap between the two plates
         ;; owner 14-Jul: TWO SOLID 20mm plates, sloped parallel to the rafter BOTTOM FLANGE, 1mm hairline, NO
         ;; bolts.  The UPPER plate's top edge lies ON the bottom flange line (it REPLACES the flange at the
         ;; connection) and carries NO stiffeners.
@@ -2462,7 +2462,7 @@
         x0   (/ W 2.0)
         yTop (+ H rise)                    ; top flange at the ridge
         yBot (- (+ H rise) dp)             ; bottom flange (underside) at the ridge
-        pt   110.0 gp 0.5 ext 100.0        ; plate width / HALF-gap: STANDING RULE 1mm hairline seam (VISIBLE as TWO plates)
+        pt   *PEB-CP-THK* gp (/ *PEB-CP-GAP* 2.0) ext *PEB-CP-EXT*   ; CP rule: 20mm plates, hairline HALF-gap
         lxo  (- x0 gp) rxo (+ x0 gp))      ; inner faces of the LEFT / RIGHT bolted end-plate
   (setvar "CLAYER" "PLATES")
   (peb-solid-quad (list (- lxo pt) (- yBot ext)) (list lxo (- yBot ext))        ; LEFT plate (SOLID thick)
@@ -2472,10 +2472,10 @@
   ;; stiffener gussets at the TOP and BOTTOM flanges on the outer edge of each plate (owner markup 17 —
   ;; NOT a mid-web diamond; the gussets sit at the flange corners).
   ;; FILLED gussets kept within the plate end lines (owner markup 22): plate top = yTop+ext, bottom = yBot-ext.
-  (draw-rc-gusset (- lxo pt) yTop (+ yTop ext) 130.0 -1)
-  (draw-rc-gusset (- lxo pt) yBot (- yBot ext) 130.0 -1)
-  (draw-rc-gusset (+ rxo pt) yTop (+ yTop ext) 130.0  1)
-  (draw-rc-gusset (+ rxo pt) yBot (- yBot ext) 130.0  1)
+  (draw-rc-gusset (- lxo pt) yTop (+ yTop ext) 130.0 -1 0.0)
+  (draw-rc-gusset (- lxo pt) yBot (- yBot ext) 130.0 -1 0.0)
+  (draw-rc-gusset (+ rxo pt) yTop (+ yTop ext) 130.0  1 0.0)
+  (draw-rc-gusset (+ rxo pt) yBot (- yBot ext) 130.0  1 0.0)
   (princ))
 
 ;; RC rafter top-flange / underside Y at any x (mirrors build-rc-rafter-polygon; `inset` pulls the eaves in).
@@ -2490,17 +2490,17 @@
 (defun draw-rc-splice (x yTop yBot / pt gp ext lxo rxo)
   ;;  One rafter SPLICE connection at x: TWO bolted end-plates with a HAIRLINE 0.25-0.5mm gap (owner 16-Jul),
   ;;  each spanning the web + 100mm beyond both flanges, with FULL-WEB stiffener gussets on the outer edges.
-  (setq pt 90.0 gp 0.5 ext 100.0 lxo (- x gp) rxo (+ x gp))   ; STANDING RULE: 1mm hairline seam (HALF-gap 0.5)
+  (setq pt *PEB-CP-THK* gp (/ *PEB-CP-GAP* 2.0) ext *PEB-CP-EXT* lxo (- x gp) rxo (+ x gp))   ; CP rule: 20mm plates, hairline HALF-gap
   (setvar "CLAYER" "PLATES")
   (peb-solid-quad (list (- lxo pt) (- yBot ext)) (list lxo (- yBot ext))
                   (list (- lxo pt) (+ yTop ext)) (list lxo (+ yTop ext)))
   (peb-solid-quad (list rxo (- yBot ext)) (list (+ rxo pt) (- yBot ext))
                   (list rxo (+ yTop ext)) (list (+ rxo pt) (+ yTop ext)))
   ;; FILLED gussets at the flanges, kept within the plate end lines (owner markups 17/22)
-  (draw-rc-gusset (- lxo pt) yTop (+ yTop ext) 130.0 -1)
-  (draw-rc-gusset (- lxo pt) yBot (- yBot ext) 130.0 -1)
-  (draw-rc-gusset (+ rxo pt) yTop (+ yTop ext) 130.0  1)
-  (draw-rc-gusset (+ rxo pt) yBot (- yBot ext) 130.0  1))
+  (draw-rc-gusset (- lxo pt) yTop (+ yTop ext) 130.0 -1 0.0)
+  (draw-rc-gusset (- lxo pt) yBot (- yBot ext) 130.0 -1 0.0)
+  (draw-rc-gusset (+ rxo pt) yTop (+ yTop ext) 130.0  1 0.0)
+  (draw-rc-gusset (+ rxo pt) yBot (- yBot ext) 130.0  1 0.0))
 (defun draw-rc-splices (W H rise ht / inset hw nP i sx)
   ;;  Transport limit (owner 15-Jul): a rafter piece can't exceed 12m, so split EACH half (eave→peak) into
   ;;  equal pieces ≤12m and put a splice connection plate at every interior break.  `inset` = the fascia eave
@@ -3326,15 +3326,17 @@
 (defun peb-conn-plate-pair (cx topY halfSpan ep nBolt / boltR i bx loBot stH stW xl xr)
   (setvar "CLAYER" "PLATES")
   (setq boltR (* 25 *PEB-TEXT-SCALE*))
-  ;; STANDING RULE: TWO SOLID 30mm plates with a 1mm hairline gap, NO bolts (same as the gable knee).
-  (setq ep 30.0 stH 110.0 stW 100.0)
-  (setq loBot (- topY ep 1.0 ep))
+  ;; CP RULE: TWO SOLID *PEB-CP-THK* plates with a *PEB-CP-GAP* hairline seam, NO bolts, GP gussets both flanges.
+  (setq ep *PEB-CP-THK* stH 110.0 stW 100.0)
+  (setq loBot (- topY ep *PEB-CP-GAP* ep))
   (setq xl (- cx halfSpan) xr (+ cx halfSpan))
   (peb-solid-quad (list xl (- topY ep)) (list xr (- topY ep)) (list xl topY) (list xr topY))          ; rafter plate (SOLID)
-  (peb-solid-quad (list xl loBot) (list xr loBot) (list xl (- topY ep 1.0)) (list xr (- topY ep 1.0))) ; column plate (SOLID)
-  ;; keep the LOWER (column) plate stiffeners only
+  (peb-solid-quad (list xl loBot) (list xr loBot) (list xl (- topY ep *PEB-CP-GAP*)) (list xr (- topY ep *PEB-CP-GAP*))) ; column plate (SOLID)
+  ;; GP gussets at BOTH flanges: TOP (above the upper plate) and BOTTOM (below the lower plate), each outer edge.
   (draw-stiff-bot xl loBot stW stH  1)
-  (draw-stiff-bot xr loBot stW stH -1))
+  (draw-stiff-bot xr loBot stW stH -1)
+  (draw-stiff-top xl topY stW stH  1)
+  (draw-stiff-top xr topY stW stH -1))
 
 ;;  draw-valley-col-plates — the MULTI-GABLE VALLEY connection detail, extracted so BOTH the MG
 ;;  gable-boundary column AND the Butterfly/Falcon canopy valley reuse the SAME code (owner 18-Jul
@@ -3347,49 +3349,49 @@
                                 vMidY vBoltY1 vBoltY2 vBoltY3)
   (setvar "CLAYER" "PLATES")
   (setq boltR (* 25 *PEB-TEXT-SCALE*))
-  (setq vHalfCol 200.0 vPThk 20.0)             ; 400 mm column body, 20 mm end plates
-  (setq vL1xR (- x vHalfCol) vL1xL (- vL1xR vPThk)   ; LEFT flange face pair
-        vL2xR vL1xL          vL2xL (- vL2xR vPThk)
-        vR1xL (+ x vHalfCol) vR1xR (+ vR1xL vPThk)   ; RIGHT flange face pair
-        vR2xL vR1xR          vR2xR (+ vR2xL vPThk))
-  (setq vMidY   (/ (+ plateBot plateTop) 2.0)
-        vBoltY1 (+ plateBot 100.0) vBoltY2 vMidY vBoltY3 (- plateTop 100.0))
-  ;; LEFT pair (Plates 3 + 4)
-  (command "RECTANG" (list vL1xL plateBot) (list vL1xR plateTop))
-  (command "RECTANG" (list vL2xL plateBot) (list vL2xR plateTop))
-  (command "DONUT" 0 (* boltR 2) (list vL1xL vBoltY1) "")
-  (command "DONUT" 0 (* boltR 2) (list vL1xL vBoltY2) "")
-  (command "DONUT" 0 (* boltR 2) (list vL1xL vBoltY3) "")
-  ;; RIGHT pair (Plates 1 + 2)
-  (command "RECTANG" (list vR1xL plateBot) (list vR1xR plateTop))
-  (command "RECTANG" (list vR2xL plateBot) (list vR2xR plateTop))
-  (command "DONUT" 0 (* boltR 2) (list vR1xR vBoltY1) "")
-  (command "DONUT" 0 (* boltR 2) (list vR1xR vBoltY2) "")
-  (command "DONUT" 0 (* boltR 2) (list vR1xR vBoltY3) "")
+  ;; CP RULE: SOLID *PEB-CP-THK* plates, *PEB-CP-GAP* hairline seam, NO bolts, GP gussets both flanges.
+  (setq vHalfCol 200.0 vPThk *PEB-CP-THK*)     ; 400 mm column body, CP-rule end plates
+  (setq vL1xR (- x vHalfCol) vL1xL (- vL1xR vPThk)           ; LEFT flange face pair (inner plate at column)
+        vL2xR (- vL1xL *PEB-CP-GAP*) vL2xL (- vL2xR vPThk)   ; outer (wing) plate, hairline seam away
+        vR1xL (+ x vHalfCol) vR1xR (+ vR1xL vPThk)           ; RIGHT flange face pair
+        vR2xL (+ vR1xR *PEB-CP-GAP*) vR2xR (+ vR2xL vPThk))
+  ;; LEFT pair — TWO SOLID plates
+  (peb-solid-quad (list vL1xL plateBot) (list vL1xR plateBot) (list vL1xL plateTop) (list vL1xR plateTop))
+  (peb-solid-quad (list vL2xL plateBot) (list vL2xR plateBot) (list vL2xL plateTop) (list vL2xR plateTop))
+  ;; RIGHT pair — TWO SOLID plates
+  (peb-solid-quad (list vR1xL plateBot) (list vR1xR plateBot) (list vR1xL plateTop) (list vR1xR plateTop))
+  (peb-solid-quad (list vR2xL plateBot) (list vR2xR plateBot) (list vR2xL plateTop) (list vR2xR plateTop))
   ;; Column-web stiffener at plate bottom
   (command "RECTANG" (list (- x vHalfCol) (- plateBot 20.0)) (list (+ x vHalfCol) plateBot))
-  ;; owner 18-Jul: FILLED SOLID gussets at the top of each flange pair, within the plate extension (same as
-  ;; the cantilever connection) — standing gusset rule.
-  (peb-solid-quad (list (- vL2xL 100.0) (- plateTop 50.0)) (list vL2xL (- plateTop 50.0))
-                  (list vL2xL plateTop) (list vL2xL plateTop))
-  (peb-solid-quad (list vR2xR (- plateTop 50.0)) (list (+ vR2xR 100.0) (- plateTop 50.0))
-                  (list vR2xR plateTop) (list vR2xR plateTop))
+  ;; GP gussets — FILLED SOLID at BOTH the top flange (plateTop) AND bottom flange (plateBot), on the OUTER
+  ;; edge of each flange pair (one leg on the plate, one on the flange).
+  (draw-rc-gusset vL2xL (- plateTop 50.0) plateTop 100.0 -1 0.0)
+  (draw-rc-gusset vR2xR (- plateTop 50.0) plateTop 100.0  1 0.0)
+  (draw-rc-gusset vL2xL (+ plateBot 50.0) plateBot 100.0 -1 0.0)
+  (draw-rc-gusset vR2xR (+ plateBot 50.0) plateBot 100.0  1 0.0)
   (princ))
 
 ;;  peb-conn-plate-depth — a connection / splice plate SIZED TO THE MEMBER DEPTH (owner 14-Jul): a
 ;;  vertical bolted end-plate centred at cx spanning the rafter from its BOTTOM flange (yBot) to its
 ;;  TOP flange (yTop), EXTENDED 100 mm BEYOND both flanges (so it is never "small / in the air").
 ;;  plateT = plate half-thickness drawn each side of the seam; bolts run down the web line.
-(defun peb-conn-plate-depth (cx yBot yTop plateT nBolt / boltR ext pB pT i by)
+(defun peb-conn-plate-depth (cx yBot yTop plateT nBolt / boltR ext pB pT i by yb yt hg)
   (setvar "CLAYER" "PLATES")
   (setq boltR (* 18 *PEB-TEXT-SCALE*))
-  (setq ext 100.0)                          ; 100 mm beyond top AND bottom flanges
-  (setq pB (- (min yBot yTop) ext) pT (+ (max yBot yTop) ext))
-  ;; STANDING RULE: TWO SOLID plates with a 1mm hairline gap at the seam (±0.5), NO bolts.
-  (peb-solid-quad (list (- cx plateT) pB) (list (- cx 0.5) pB)
-                  (list (- cx plateT) pT) (list (- cx 0.5) pT))   ; plate left of seam (SOLID)
-  (peb-solid-quad (list (+ cx 0.5) pB) (list (+ cx plateT) pB)
-                  (list (+ cx 0.5) pT) (list (+ cx plateT) pT))   ; plate right of seam (SOLID)
+  (setq ext *PEB-CP-EXT*)                    ; extend beyond top AND bottom flanges
+  (setq hg  (/ *PEB-CP-GAP* 2.0))            ; half hairline seam
+  (setq yb (min yBot yTop) yt (max yBot yTop))
+  (setq pB (- yb ext) pT (+ yt ext))
+  ;; CP RULE: TWO SOLID plates with a *PEB-CP-GAP* hairline seam, NO bolts.
+  (peb-solid-quad (list (- cx plateT) pB) (list (- cx hg) pB)
+                  (list (- cx plateT) pT) (list (- cx hg) pT))   ; plate left of seam (SOLID)
+  (peb-solid-quad (list (+ cx hg) pB) (list (+ cx plateT) pB)
+                  (list (+ cx hg) pT) (list (+ cx plateT) pT))   ; plate right of seam (SOLID)
+  ;; GP gussets — FILLED SOLID at TOP (yt) and BOTTOM (yb) flanges, on both plate outer edges.
+  (draw-rc-gusset (- cx plateT) yt (+ yt ext) 100.0 -1 0.0)
+  (draw-rc-gusset (+ cx plateT) yt (+ yt ext) 100.0  1 0.0)
+  (draw-rc-gusset (- cx plateT) yb (- yb ext) 100.0 -1 0.0)
+  (draw-rc-gusset (+ cx plateT) yb (- yb ext) 100.0  1 0.0)
   (princ))
 
 ;;  draw-knee-hplate — the ROTATED (horizontal) column-rafter KNEE connection (owner 14-Jul, STRICT):
@@ -3427,7 +3429,7 @@
       ;; STANDING RULE: REAL 20mm plates, 1mm hairline gap between them, NO bolts shown.  Two SOLID plates
       ;; straddling the seam — upper welded to the rafter bottom (sits AT the column-rafter junction),
       ;; lower on the column top.
-      (setq plateT 30.0 gap 1.0 stW 100.0 stH 110.0)   ; 30mm plates, 1mm hairline gap, stiffener till the 100 ext
+      (setq plateT *PEB-CP-THK* gap *PEB-CP-GAP* stW 100.0 stH 110.0)   ; CP rule: 20mm plates, hairline gap
       ;; EAVE knee (dirOut ±1): the 2 plates STRADDLE the seam (rafter underside = column top).
       ;; INTERIOR column (dirOut nil): the RAFTER (upper) plate top is FLUSH with the rafter bottom flange
       ;; (= ySeam) and the COLUMN (lower) plate sits below the gap (owner 14-Jul).
@@ -3438,11 +3440,13 @@
                       (list x0 topY) (list x1 topY))                            ; rafter plate (SOLID)
       (peb-solid-quad (list x0 loBot) (list x1 loBot)
                       (list x0 (+ loBot plateT)) (list x1 (+ loBot plateT)))    ; column plate (SOLID)
-      ;; INTERIOR column: stiffeners on the LOWER (column) plate only, at both flange ends (owner 14-Jul).
+      ;; INTERIOR column: GP gussets at BOTH flanges (top of upper plate AND bottom of lower plate), both ends.
       (if (null dirOut)
         (progn
           (draw-stiff-bot (+ x0 ext) loBot stW stH -1)
-          (draw-stiff-bot (- x1 ext) loBot stW stH  1)))
+          (draw-stiff-bot (- x1 ext) loBot stW stH  1)
+          (draw-stiff-top (+ x0 ext) topY stW stH -1)
+          (draw-stiff-top (- x1 ext) topY stW stH  1)))
       ;; STIFFENER = a LINE extending FROM THE RAFTER OUTER (TOP) FLANGE down to the connection plate (owner
       ;; 14-Jul, "stiffeners will line extend from rafter outer flange — do as marked").  A VERTICAL
       ;; stiffener sits on the OUTER flange (x0+ext / x1-ext) rising all the way to the rafter OUTER flange,
@@ -3554,7 +3558,7 @@
 ;;  at x0), 0 = CENTRE column (both edges are inner flanges).
 (defun peb-arch-knee (xL xR rafterBotY dirIn / x0 x1 plateT gap gw rafBot rafTop capTop capBot stH px0 px1)
   (setvar "CLAYER" "PLATES")
-  (setq plateT 30.0 gap 1.0 gw 110.0 x0 xL x1 xR)   ; STANDING RULE: 1mm hairline gap
+  (setq plateT *PEB-CP-THK* gap *PEB-CP-GAP* gw 110.0 x0 xL x1 xR)   ; CP rule: 20mm plates, hairline gap
   (setq rafTop rafterBotY rafBot (- rafterBotY plateT))       ; rafter-bottom plate (welded to rafter)
   (setq capTop (- rafBot gap) capBot (- capTop plateT))       ; column-cap plate (welded to column)
   ;; The top plates EXTEND on the inner-flange side by the stiffener width so the stiffener's full top edge
@@ -3567,8 +3571,11 @@
   ;; NOT flush with the web inside the column (owner 16-Jul markup 17): filled triangle, vertical edge ON the
   ;; inner flange, projecting INTO the span — its top edge runs under the extended plate.
   (setq stH 130.0)
-  (if (>= dirIn 0) (draw-rc-gusset x1 capBot (- capBot stH) gw  1))   ; left/centre-right inner flange -> into span (+x)
-  (if (<= dirIn 0) (draw-rc-gusset x0 capBot (- capBot stH) gw -1))   ; right/centre-left  inner flange -> into span (-x)
+  (if (>= dirIn 0) (draw-rc-gusset x1 capBot (- capBot stH) gw  1 0.0))   ; left/centre-right inner flange -> into span (+x)
+  (if (<= dirIn 0) (draw-rc-gusset x0 capBot (- capBot stH) gw -1 0.0))   ; right/centre-left  inner flange -> into span (-x)
+  ;; GP gussets at the TOP flange (rafter underside, rafTop) too — CP rule: gusset at BOTH flanges.
+  (if (>= dirIn 0) (draw-rc-gusset x1 rafTop (+ rafTop stH) gw  1 0.0))
+  (if (<= dirIn 0) (draw-rc-gusset x0 rafTop (+ rafTop stH) gw -1 0.0))
   (princ))
 
 (defun draw-arch-conn-plates (stype W H rise ep cb / innerH step x ay t2 hc yiL)
@@ -3596,10 +3603,10 @@
         (setq ay (+ H (* rise (- 1.0 (* t2 t2)))))          ; parabolic arch OUTER Y at x
         (peb-conn-plate-depth x (- ay innerH) ay 40.0 2)    ; the 2-plate vertical splice
         ;; SOLID stiffener gussets at TOP (ay) and BOTTOM (ay-innerH) flanges, both plate faces
-        (draw-rc-gusset (- x 40.0) ay             (+ ay 100.0)             100.0 -1)
-        (draw-rc-gusset (+ x 40.0) ay             (+ ay 100.0)             100.0  1)
-        (draw-rc-gusset (- x 40.0) (- ay innerH)  (- ay innerH 100.0)      100.0 -1)
-        (draw-rc-gusset (+ x 40.0) (- ay innerH)  (- ay innerH 100.0)      100.0  1)))
+        (draw-rc-gusset (- x 40.0) ay             (+ ay 100.0)             100.0 -1 0.0)
+        (draw-rc-gusset (+ x 40.0) ay             (+ ay 100.0)             100.0  1 0.0)
+        (draw-rc-gusset (- x 40.0) (- ay innerH)  (- ay innerH 100.0)      100.0 -1 0.0)
+        (draw-rc-gusset (+ x 40.0) (- ay innerH)  (- ay innerH 100.0)      100.0  1 0.0)))
     (setq x (+ x step)))
   (princ))
 
@@ -3643,7 +3650,7 @@
 ;;  hairline seam, extended 100 mm past both rafter flanges, with GP (gusset) triangles at BOTH
 ;;  flanges (one leg on the plate extension, one on the flange).  These constants are the SINGLE
 ;;  source of the numbers so the whole rule is tuned in one place.
-(setq *PEB-CP-THK* 20.0)   ; each plate thickness (mm)  — UNIFORM across all connections
+(setq *PEB-CP-THK* 30.0)   ; each plate thickness (mm)  — UNIFORM across all connections (owner: 30mm)
 (setq *PEB-CP-GAP* 1.5)    ; hairline seam gap between the two plates (mm)
 (setq *PEB-CP-EXT* 100.0)  ; plate extension past each flange (mm) — the GP gusset zone
 
@@ -3669,15 +3676,17 @@
     (list xEdge yTop)
     "C"))
 
-(defun draw-rc-gusset (xEdge yFlange plateEnd w dir)
-  ;;  FILLED stiffener gusset (owner markup 22): a SOLID triangle on the OUTER face of the connection plate, in
-  ;;  the flange->plate-end extension zone — from the flange corner (xEdge,yFlange) along the plate edge to the
-  ;;  plate END (xEdge,plateEnd) and out by w along the flange (xEdge+dir*w, yFlange).  It stays WITHIN the plate
-  ;;  end line (does NOT poke past it) and is fully hatched (solid).
+(defun draw-rc-gusset (xEdge yFlange plateEnd w dir slope)
+  ;;  FILLED stiffener gusset (owner markup 22 + slope rule): a SOLID triangle on the OUTER face of the
+  ;;  connection plate, in the flange->plate-end extension zone — from the flange corner (xEdge,yFlange) along
+  ;;  the plate edge to the plate END (xEdge,plateEnd) and out by w ALONG THE FLANGE to
+  ;;  (xEdge+dir*w, yFlange+dir*w*slope).  `slope` = the rafter-flange dy/dx so the flange leg lies EXACTLY on
+  ;;  the sloped flange line (owner: NOT horizontal); pass 0.0 for a truly horizontal flange.  It stays WITHIN
+  ;;  the plate end line (does NOT poke past it) and is fully hatched (solid).
   ;; 3-point SOLID: p1 p2 p3, then "" to finish the triangle (4th point = Enter) and "" to exit the loop.
   (command "_.SOLID"
     (list xEdge yFlange)
-    (list (+ xEdge (* dir w)) yFlange)
+    (list (+ xEdge (* dir w)) (+ yFlange (* dir w slope)))
     (list xEdge plateEnd)
     "" ""))
 
@@ -3711,17 +3720,29 @@
   T
 )
 
-(defun draw-rafter-plate-pair (kxL kyBot kyTop plateThk plateExt slopeL slopeR vShift /)
-  ;;  Draw a pair of splice plates centered on the seam at (kxL).
-  ;;  Plates are axis-aligned rectangles, optionally shifted by vShift (+ = UP).
-  ;;  slopeL/slopeR retained for callers but currently unused.
-  ;;  No stiffeners drawn here — those are drawn separately by each call site.
-  (command "RECTANG"
-    (list (- kxL plateThk) (+ (- kyBot plateExt) vShift))
-    (list kxL              (+ (+ kyTop plateExt) vShift)))
-  (command "RECTANG"
-    (list kxL                  (+ (- kyBot plateExt) vShift))
-    (list (+ kxL plateThk)     (+ (+ kyTop plateExt) vShift)))
+(defun draw-rafter-plate-pair (kxL kyBot kyTop plateThk plateExt slopeL slopeR vShift /
+                                 thk gap ext gw lxo lxi rxi rxo pB pT yb yt)
+  ;;  CP RULE: draw a pair of SOLID splice plates centred on the seam at (kxL), a *PEB-CP-GAP* hairline
+  ;;  apart, each *PEB-CP-THK* thick, extended *PEB-CP-EXT* past BOTH flanges, with GP gusset triangles at
+  ;;  the top AND bottom flange on each plate's OUTER edge.  Optionally shifted by vShift (+ = UP).
+  ;;  slopeL/slopeR + plateThk/plateExt retained for caller compatibility but the CP globals drive the size.
+  (setq thk *PEB-CP-THK* gap *PEB-CP-GAP* ext *PEB-CP-EXT* gw 100.0)
+  (setq lxi (- kxL (/ gap 2.0)))            ; left plate inner edge (at the seam)
+  (setq lxo (- kxL (+ thk (/ gap 2.0))))    ; left plate outer edge
+  (setq rxi (+ kxL (/ gap 2.0)))            ; right plate inner edge (at the seam)
+  (setq rxo (+ kxL (+ thk (/ gap 2.0))))    ; right plate outer edge
+  (setq yb (+ kyBot vShift) yt (+ kyTop vShift))    ; bottom / top flange Y (shifted)
+  (setq pB (- yb ext) pT (+ yt ext))                ; plate bottom / top (ext past flanges)
+  ;; LEFT + RIGHT SOLID plates
+  (peb-solid-quad (list lxo pB) (list lxi pB) (list lxo pT) (list lxi pT))
+  (peb-solid-quad (list rxi pB) (list rxo pB) (list rxi pT) (list rxo pT))
+  ;; GP gussets — TOP flange (yt) and BOTTOM flange (yb), each plate outer edge.  The flange leg follows the
+  ;; local rafter-flange slope (slopeL for the LEFT plate, slopeR for the RIGHT plate); both flanges on a given
+  ;; half share the same slope.
+  (draw-rc-gusset lxo yt (+ yt ext) gw -1 slopeL)
+  (draw-rc-gusset rxo yt (+ yt ext) gw  1 slopeR)
+  (draw-rc-gusset lxo yb (- yb ext) gw -1 slopeL)
+  (draw-rc-gusset rxo yb (- yb ext) gw  1 slopeR)
 )
 
 (defun draw-rafter-stiffeners (cols ridges H rise ht rd apexHasCol /
@@ -3743,7 +3764,7 @@
   ;; kneeL and ridgeL now computed per-gable inside the foreach loop
   (setq stiffSize 75.0)
   (setq plateExt  100.0)   ; plates extend 100 mm BEYOND the rafter top flange AND below bottom flange
-  (setq plateThk   20.0)   ; vertical connection plate thickness
+  (setq plateThk   *PEB-CP-THK*)   ; vertical connection plate thickness (CP rule; draw-rafter-plate-pair reads the global)
   (setq boltR     (* 25 *PEB-TEXT-SCALE*))   ; bolt radius for donut
 
   ;; ── Reset the per-frame plate-pair de-dup tracker ──
@@ -3790,29 +3811,8 @@
       (progn
         (peb-record-plate-drawn kxL kyBot)
     ;; LEFT KNEE END: standard plate detail (2 plates + 3 bolts + 2 stiffeners)
+    ;; CP: draw-rafter-plate-pair now draws the SOLID plates + GP gussets itself (no bolts, no outline stiffeners).
     (draw-rafter-plate-pair kxL kyBot kyTop plateThk plateExt slopeL slopeL 0.0)
-    ;; Bolts at joint line (3 donuts spread along web)
-    (command "DONUT" 0 (* 2 boltR) (list kxL (+ kyBot 50.0)) "")
-    (command "DONUT" 0 (* 2 boltR) (list kxL (+ kyBot (/ midD 2.0))) "")
-    (command "DONUT" 0 (* 2 boltR) (list kxL (- kyTop 50.0)) "")
-    ;; LEFT plate stiffeners (LEFT half rafter, slopeL = +tanA)
-    ;; TOP stiffeners stay horizontal (along straight top flange)
-    (command "PLINE"
-      (list (- kxL plateThk) kyTop) (list (- kxL plateThk) (+ kyTop stiffSize))
-      (list (- kxL plateThk stiffSize) kyTop) "C")
-    ;; BOTTOM stiffener TOP leg slopes along bottom flange (going LEFT = -x = down on LEFT half)
-    (command "PLINE"
-      (list (- kxL plateThk) kyBot)
-      (list (- kxL plateThk) (- kyBot stiffSize))
-      (list (- kxL plateThk stiffSize) (- kyBot (* stiffSize slopeL))) "C")
-    ;; RIGHT plate stiffeners (LEFT half rafter, going +x = up)
-    (command "PLINE"
-      (list (+ kxL plateThk) kyTop) (list (+ kxL plateThk) (+ kyTop stiffSize))
-      (list (+ kxL plateThk stiffSize) kyTop) "C")
-    (command "PLINE"
-      (list (+ kxL plateThk) kyBot)
-      (list (+ kxL plateThk) (- kyBot stiffSize))
-      (list (+ kxL plateThk stiffSize) (+ kyBot (* stiffSize slopeL))) "C")
       ))   ; end (if (not peb-plate-already-drawn) … LEFT KNEE END)
 
     ;; LEFT RIDGE START: web changes from midD → rd here.  Both plates
@@ -3824,25 +3824,6 @@
       (progn
         (peb-record-plate-drawn kxL kyBot)
     (draw-rafter-plate-pair kxL kyBot kyTop plateThk plateExt slopeL slopeL 0.0)
-    (command "DONUT" 0 (* 2 boltR) (list kxL (+ kyBot 50.0)) "")
-    (command "DONUT" 0 (* 2 boltR) (list kxL (+ kyBot (/ midD 2.0))) "")
-    (command "DONUT" 0 (* 2 boltR) (list kxL (- kyTop 50.0)) "")
-    ;; LEFT plate stiffeners (going LEFT = -x = down on LEFT half)
-    (command "PLINE"
-      (list (- kxL plateThk) kyTop) (list (- kxL plateThk) (+ kyTop stiffSize))
-      (list (- kxL plateThk stiffSize) kyTop) "C")
-    (command "PLINE"
-      (list (- kxL plateThk) kyBot)
-      (list (- kxL plateThk) (- kyBot stiffSize))
-      (list (- kxL plateThk stiffSize) (- kyBot (* stiffSize slopeL))) "C")
-    ;; RIGHT plate stiffeners (going +x = up on LEFT half)
-    (command "PLINE"
-      (list (+ kxL plateThk) kyTop) (list (+ kxL plateThk) (+ kyTop stiffSize))
-      (list (+ kxL plateThk stiffSize) kyTop) "C")
-    (command "PLINE"
-      (list (+ kxL plateThk) kyBot)
-      (list (+ kxL plateThk) (- kyBot stiffSize))
-      (list (+ kxL plateThk stiffSize) (+ kyBot (* stiffSize slopeL))) "C")
       ))   ; end (if (not peb-plate-already-drawn) … LEFT RIDGE START)
 
     ;; RIDGE APEX: TWO plates AT the ridge centerline + 4 stiffeners + bolts
@@ -3860,25 +3841,6 @@
         (peb-record-plate-drawn kxL kyBot)
     ;; Apex: LEFT plate is in LEFT half (slope=+tanA), RIGHT plate in RIGHT half (slope=-tanA)
     (draw-rafter-plate-pair kxL kyBot kyTop plateThk plateExt slopeL slopeR 0.0)
-    (command "DONUT" 0 (* 2 boltR) (list kxL (+ kyBot 50.0)) "")
-    (command "DONUT" 0 (* 2 boltR) (list kxL (+ kyBot (/ (- kyTop kyBot) 2.0))) "")
-    (command "DONUT" 0 (* 2 boltR) (list kxL (- kyTop 50.0)) "")
-    ;; LEFT plate stiffeners at ridge (LEFT-half top flange goes DOWN going -x)
-    (command "PLINE"
-      (list (- kxL plateThk) kyTop) (list (- kxL plateThk) (+ kyTop stiffSize))
-      (list (- kxL plateThk stiffSize) kyTop) "C")
-    (command "PLINE"
-      (list (- kxL plateThk) kyBot)
-      (list (- kxL plateThk) (- kyBot stiffSize))
-      (list (- kxL plateThk stiffSize) kyBot) "C")
-    ;; RIGHT plate stiffeners at ridge (RIGHT-half top flange goes DOWN going +x)
-    (command "PLINE"
-      (list (+ kxL plateThk) kyTop) (list (+ kxL plateThk) (+ kyTop stiffSize))
-      (list (+ kxL plateThk stiffSize) kyTop) "C")
-    (command "PLINE"
-      (list (+ kxL plateThk) kyBot)
-      (list (+ kxL plateThk) (- kyBot stiffSize))
-      (list (+ kxL plateThk stiffSize) kyBot) "C")
       ))   ; end (if (not peb-plate-already-drawn) … RIDGE APEX)
       ))   ; end (if (not apexHasCol))
 
@@ -3891,25 +3853,6 @@
       (progn
         (peb-record-plate-drawn kxL kyBot)
     (draw-rafter-plate-pair kxL kyBot kyTop plateThk plateExt slopeR slopeR 0.0)
-    (command "DONUT" 0 (* 2 boltR) (list kxL (+ kyBot 50.0)) "")
-    (command "DONUT" 0 (* 2 boltR) (list kxL (+ kyBot (/ midD 2.0))) "")
-    (command "DONUT" 0 (* 2 boltR) (list kxL (- kyTop 50.0)) "")
-    ;; LEFT plate stiffeners (going -x = up on RIGHT half = toward ridge)
-    (command "PLINE"
-      (list (- kxL plateThk) kyTop) (list (- kxL plateThk) (+ kyTop stiffSize))
-      (list (- kxL plateThk stiffSize) kyTop) "C")
-    (command "PLINE"
-      (list (- kxL plateThk) kyBot)
-      (list (- kxL plateThk) (- kyBot stiffSize))
-      (list (- kxL plateThk stiffSize) (- kyBot (* stiffSize slopeR))) "C")
-    ;; RIGHT plate stiffeners (going +x = down on RIGHT half = toward eave)
-    (command "PLINE"
-      (list (+ kxL plateThk) kyTop) (list (+ kxL plateThk) (+ kyTop stiffSize))
-      (list (+ kxL plateThk stiffSize) kyTop) "C")
-    (command "PLINE"
-      (list (+ kxL plateThk) kyBot)
-      (list (+ kxL plateThk) (- kyBot stiffSize))
-      (list (+ kxL plateThk stiffSize) (+ kyBot (* stiffSize slopeR))) "C")
       ))   ; end (if (not peb-plate-already-drawn) … RIGHT RIDGE START)
 
     ;; RIGHT KNEE END: both plates are in the RIGHT half rafter (slope = -tanA = slopeR)
@@ -3920,25 +3863,6 @@
       (progn
         (peb-record-plate-drawn kxL kyBot)
     (draw-rafter-plate-pair kxL kyBot kyTop plateThk plateExt slopeR slopeR 0.0)
-    (command "DONUT" 0 (* 2 boltR) (list kxL (+ kyBot 50.0)) "")
-    (command "DONUT" 0 (* 2 boltR) (list kxL (+ kyBot (/ midD 2.0))) "")
-    (command "DONUT" 0 (* 2 boltR) (list kxL (- kyTop 50.0)) "")
-    ;; LEFT plate stiffeners (going -x = up on RIGHT half = toward ridge)
-    (command "PLINE"
-      (list (- kxL plateThk) kyTop) (list (- kxL plateThk) (+ kyTop stiffSize))
-      (list (- kxL plateThk stiffSize) kyTop) "C")
-    (command "PLINE"
-      (list (- kxL plateThk) kyBot)
-      (list (- kxL plateThk) (- kyBot stiffSize))
-      (list (- kxL plateThk stiffSize) (- kyBot (* stiffSize slopeR))) "C")
-    ;; RIGHT plate stiffeners (going +x = down on RIGHT half = toward eave)
-    (command "PLINE"
-      (list (+ kxL plateThk) kyTop) (list (+ kxL plateThk) (+ kyTop stiffSize))
-      (list (+ kxL plateThk stiffSize) kyTop) "C")
-    (command "PLINE"
-      (list (+ kxL plateThk) kyBot)
-      (list (+ kxL plateThk) (- kyBot stiffSize))
-      (list (+ kxL plateThk stiffSize) (+ kyBot (* stiffSize slopeR))) "C")
       ))   ; end (if (not peb-plate-already-drawn) … RIGHT KNEE END)
 
     ;; ===== MID-SPAN SPLICE PLATES (12 m max piece rule) =====
@@ -3966,23 +3890,6 @@
             (progn
               (peb-record-plate-drawn kxL kyBot)
           (draw-rafter-plate-pair kxL kyBot kyTop plateThk plateExt slopeL slopeL 0.0)
-          (command "DONUT" 0 (* 2 boltR) (list kxL (+ kyBot 50.0)) "")
-          (command "DONUT" 0 (* 2 boltR) (list kxL (+ kyBot (/ midD 2.0))) "")
-          (command "DONUT" 0 (* 2 boltR) (list kxL (- kyTop 50.0)) "")
-          (command "PLINE"
-            (list (- kxL plateThk) kyTop) (list (- kxL plateThk) (+ kyTop stiffSize))
-            (list (- kxL plateThk stiffSize) kyTop) "C")
-          (command "PLINE"
-            (list (- kxL plateThk) kyBot)
-            (list (- kxL plateThk) (- kyBot stiffSize))
-            (list (- kxL plateThk stiffSize) (- kyBot (* stiffSize slopeL))) "C")
-          (command "PLINE"
-            (list (+ kxL plateThk) kyTop) (list (+ kxL plateThk) (+ kyTop stiffSize))
-            (list (+ kxL plateThk stiffSize) kyTop) "C")
-          (command "PLINE"
-            (list (+ kxL plateThk) kyBot)
-            (list (+ kxL plateThk) (- kyBot stiffSize))
-            (list (+ kxL plateThk stiffSize) (+ kyBot (* stiffSize slopeL))) "C")
             ))   ; end (if (not peb-plate-already-drawn) … LEFT mid-splice)
 
           ;; --- RIGHT half splice (RIGHT half rafter slope = -tanA = slopeR) ---
@@ -3993,23 +3900,6 @@
             (progn
               (peb-record-plate-drawn kxL kyBot)
           (draw-rafter-plate-pair kxL kyBot kyTop plateThk plateExt slopeR slopeR 0.0)
-          (command "DONUT" 0 (* 2 boltR) (list kxL (+ kyBot 50.0)) "")
-          (command "DONUT" 0 (* 2 boltR) (list kxL (+ kyBot (/ midD 2.0))) "")
-          (command "DONUT" 0 (* 2 boltR) (list kxL (- kyTop 50.0)) "")
-          (command "PLINE"
-            (list (- kxL plateThk) kyTop) (list (- kxL plateThk) (+ kyTop stiffSize))
-            (list (- kxL plateThk stiffSize) kyTop) "C")
-          (command "PLINE"
-            (list (- kxL plateThk) kyBot)
-            (list (- kxL plateThk) (- kyBot stiffSize))
-            (list (- kxL plateThk stiffSize) (- kyBot (* stiffSize slopeR))) "C")
-          (command "PLINE"
-            (list (+ kxL plateThk) kyTop) (list (+ kxL plateThk) (+ kyTop stiffSize))
-            (list (+ kxL plateThk stiffSize) kyTop) "C")
-          (command "PLINE"
-            (list (+ kxL plateThk) kyBot)
-            (list (+ kxL plateThk) (- kyBot stiffSize))
-            (list (+ kxL plateThk stiffSize) (+ kyBot (* stiffSize slopeR))) "C")
             ))   ; end (if (not peb-plate-already-drawn) … RIGHT mid-splice)
 
           (setq splI (1+ splI))
@@ -4132,11 +4022,11 @@
   ;;  The vertical apex plates (RIDGE APEX in draw-rafter-stiffeners) are
   ;;  suppressed for this case so the rafter web runs continuous over the peak.
   (setvar "CLAYER" "PLATES")
-  ;; STANDING RULE: TWO SOLID 30mm plates, 1mm hairline gap, NO bolts; stiffener JUST till the plate extension.
-  (setq ep      30.0)
+  ;; CP RULE: TWO SOLID *PEB-CP-THK* plates, *PEB-CP-GAP* hairline seam, NO bolts; GP gussets both flanges.
+  (setq ep      *PEB-CP-THK*)
   (setq upTopY  (- (+ H rise) rd))           ; rafter underside at ridge / column top
   (setq upBotY  (- upTopY ep))               ; upper (rafter) plate bottom edge
-  (setq loTopY  (- upBotY 1.0))              ; lower (column) plate top edge (1mm hairline gap)
+  (setq loTopY  (- upBotY *PEB-CP-GAP*))     ; lower (column) plate top edge (hairline seam)
   (setq loBotY  (- loTopY ep))               ; lower plate bottom edge
   (setq intColW 400.0)                       ; matches draw-mg-multi-frame
   (setq halfCol (/ intColW 2.0))             ; = 200
@@ -6771,11 +6661,15 @@
   (- hy hr))
 
 (defun peb-crane-sec-colhw (cols idx ht u / w)
-  ;; real column HALF-WIDTH at column idx: interior -> ms-col-web-at/2; end col -> ht/2.
+  ;; OFFSET from a column's grid line to its INNER FLANGE (where the crane beam bears).
+  ;; INTERIOR column: centred on its line -> inner flange = HALF the web.
+  ;; SIDE / END column: its FULL depth sits INSIDE the sheeting line -> inner flange = full depth.
   (if (and idx (> idx 0) (< idx (1- (length cols))) (boundp 'ms-col-web-at))
-    (setq w (ms-col-web-at cols idx)) (setq w nil))
-  (if (or (null w) (<= w 0.0)) (setq w ht))
-  (max (* u 0.40) (/ w 2.0)))
+    (progn                                             ; interior — half web
+      (setq w (ms-col-web-at cols idx))
+      (if (or (null w) (<= w 0.0)) (setq w ht))
+      (max (* u 0.30) (/ w 2.0)))
+    (max (* u 0.60) ht)))                              ; side/end — full column depth
 
 (defun peb-draw-crane-section (data wid cols H ht clearHt rise rd ridges
                                 / u sc n pre cap cls hookH nC gfW gtW cf ct xL xR midX capStr
@@ -6848,12 +6742,12 @@
             (setq idxL (vl-position xL cols) idxR (vl-position xR cols)
                   hwL  (peb-crane-sec-colhw cols idxL ht u)
                   hwR  (peb-crane-sec-colhw cols idxR ht u)
-                  ;; RULE (owner): the crane beam runs INNER-FLANGE to INNER-FLANGE — the rail /
-                  ;; I-beam is anchored to the column inner face (outer flange edge ON the inner
-                  ;; flange), NOT floated inward on a cantilever, so the crane can't "move".
-                  ;; The bridge then spans rail-to-rail = inner flange to inner flange.
-                  xBL  (+ xL hwL fw)                      ; left  rail: outer edge ON the inner flange
-                  xBR  (- xR (+ hwR fw)))                 ; right rail: outer edge ON the inner flange
+                  ;; UNIVERSAL RULE (owner): the crane beam sits ON each column's INNER FLANGE and
+                  ;; the bridge spans beam-to-beam.  hwL/hwR are the per-column offsets to the inner
+                  ;; flange (side col = full depth inside the line; interior = half web), so the beam
+                  ;; centre lands exactly on the inner flange and never overshoots a column.
+                  xBL  (+ xL hwL)                         ; left  rail centre = left column inner flange
+                  xBR  (- xR hwR))                        ; right rail centre = right column inner flange
             (if (< (- xBR xBL) (* u 2.0)) (setq xBL (+ xL (* u 0.8)) xBR (- xR (* u 0.8))))
             (setq midX (/ (+ xBL xBR) 2.0) capStr (rtos cap 2 0))
             ;; hook height (from BS) clamped to sit below the hoist and above the floor
@@ -7160,16 +7054,11 @@
   ;; owner 15-Jul STANDARD: ARIAL (proportional TrueType) for body/title/dim — matches the approved
   ;; frame set (was romans.shx single-stroke).  entmake via peb-std-ttf-style avoids the TTF -STYLE
   ;; prompt-count hang; falls back to the romans .shx styles only if Standard.lsp isn't loaded.
-  (if (boundp 'peb-std-ttf-style)
-    (progn
-      (peb-std-ttf-style "PEB-TITLE" "arialbd.ttf")
-      (peb-std-ttf-style "PEB-BODY"  "arial.ttf")
-      ;; owner 19-Jul STANDING RULE: ALL dimension text = ROMAND (Roman Duplex) romand.shx — NOT Arial.
-      (make-text-style  "PEB-DIM"   "romand.shx"))
-    (progn
-      (make-text-style "PEB-TITLE" "romand.shx")
-      (make-text-style "PEB-BODY"  "romans.shx")
-      (make-text-style "PEB-DIM"   "romand.shx")))
+  ;; owner 19-Jul UNIVERSAL RULE: ALL TEXT = ROMAND (romand.shx) everywhere — labels, M-ladders, member
+  ;; callouts, notes, titles, dimensions.  (Title-block company name stays bold via its own MTEXT \\fArial|b1.)
+  (make-text-style "PEB-TITLE" "romand.shx")
+  (make-text-style "PEB-BODY"  "romand.shx")
+  (make-text-style "PEB-DIM"   "romand.shx")
   ;; owner 19-Jul STANDING RULE: dedicated dimension text style literally NAMED "ROMAND" (font romand.shx)
   ;; so the AutoCAD Properties "Text style" field reads ROMAND.  Every dimension's DIMTXSTY points here.
   (make-text-style "ROMAND" "romand.shx")
