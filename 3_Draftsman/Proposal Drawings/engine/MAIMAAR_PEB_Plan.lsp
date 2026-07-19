@@ -447,6 +447,14 @@
   (command "TEXT" "J" just pt (* h *PEB-TEXT-SCALE*) rot str)
 )
 
+;; ROMAND label (owner STANDING RULE: ALL drawing text = ROMAND / romand.shx, not Arial).
+(defun txt-rom (just pt h rot str)
+  (if (not *PEB-TEXT-SCALE*) (setq *PEB-TEXT-SCALE* 1.0))
+  (if str (setq str (strcase str)))
+  (setvar "TEXTSTYLE" "ROMAND")
+  (command "TEXT" "J" just pt (* h *PEB-TEXT-SCALE*) rot str)
+)
+
 (defun txt-dim (just pt h rot str)
   (if (not *PEB-TEXT-SCALE*) (setq *PEB-TEXT-SCALE* 1.0))
   (if str (setq str (strcase str)))
@@ -3094,7 +3102,7 @@
                   (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE")
                                  (list 10 ax runY 0.0)
                                  (list 11 (+ ax (* dir ah)) (- runY (* ah 0.30)) 0.0))))
-                (txt-bold "MC" (list midx (+ runY (* u 0.32))) (/ (* u 0.42) sc) 0.0
+                (txt-rom "MC" (list midx (+ runY (* u 0.32))) (/ (* u 0.42) sc) 0.0
                           (strcat capInt " TONES CRANE RUNNING LENGTH : " runTxt))
 
                 ;; (2) capacity label — placed on the run at the interior point with the MOST
@@ -3109,15 +3117,15 @@
                 (setq capX    (if bestX bestX (/ (+ x0 x1) 2.0))
                       usedCapX (cons capX usedCapX)
                       capY     (* wid 0.50))
-                (txt-bold "MC" (list capX (+ capY (* u 0.35))) (/ (* u 0.50) sc) 0.0
+                (txt-rom "MC" (list capX (+ capY (* u 0.35))) (/ (* u 0.50) sc) 0.0
                           "OVER HEAD CRANE")
-                (txt-bold "MC" (list capX (- capY (* u 0.35))) (/ (* u 0.50) sc) 0.0
+                (txt-rom "MC" (list capX (- capY (* u 0.35))) (/ (* u 0.50) sc) 0.0
                           (strcat capInt " TONES"))
                 (if (and cls (/= cls ""))
-                  (txt-bold "MC" (list capX (- capY (* u 1.00))) (/ (* u 0.38) sc) 0.0
+                  (txt-rom "MC" (list capX (- capY (* u 1.00))) (/ (* u 0.38) sc) 0.0
                             (strcat "CMAA CLASS " cls)))
                 (if byoth
-                  (txt-bold "MC" (list capX (- capY (* u 1.60))) (/ (* u 0.42) sc) 0.0
+                  (txt-rom "MC" (list capX (- capY (* u 1.60))) (/ (* u 0.42) sc) 0.0
                             "(BY OTHERS)"))
 
                 ;; ── (3) DASHED CRANE FOOTPRINT — imported from the old reference CLPs ──
@@ -3219,20 +3227,20 @@
                 ;;    centred just below the hoist so the crane is identified AT its bridge (kept clear
                 ;;    of the FALL roof tag by stacking DOWN-span, not out to the side). ──
                 (setvar "CLAYER" "COMP-CRANE")
-                (txt-bold "MC" (list txc (+ tyc (* gw 4.05))) (/ (* u 0.42) sc) 0.0
+                (txt-rom "MC" (list txc (+ tyc (* gw 4.05))) (/ (* u 0.42) sc) 0.0
                           (strcat capInt " TONES CRANE"))
-                (txt-bold "MC" (list txc (+ tyc (* gw 5.00))) (/ (* u 0.30) sc) 0.0
+                (txt-rom "MC" (list txc (+ tyc (* gw 5.00))) (/ (* u 0.30) sc) 0.0
                           (if (and cls (/= cls ""))
                             (strcat "CMAA CLASS " cls "   HOIST (BY OTHERS)")
                             "HOIST (BY OTHERS)"))
                 ;; bridge girder named alongside it (reads up the span)
-                (txt-bold "MC" (list (- bx (* gw 1.05)) (/ (+ yN tyc) 2.0)) (/ (* u 0.30) sc) 90.0
+                (txt-rom "MC" (list (- bx (* gw 1.05)) (/ (+ yN tyc) 2.0)) (/ (* u 0.30) sc) 90.0
                           "CRANE BRIDGE (BY OTHERS)")
                 ;; STOPS / BUMPERS — bar across the beam width at each of the 4 runway ends.
                 (foreach pt (list (list x0 yN) (list x1 yN) (list x0 yF) (list x1 yF))
                   (peb-crane-fp-line (car pt) (- (cadr pt) (* rbw 0.9))
                                      (car pt) (+ (cadr pt) (* rbw 0.9)) flts))
-                (txt-bold "MC" (list (/ (+ x0 x1) 2.0) (- yN (* u 0.30) (/ rbw 2.0))) (/ (* u 0.34) sc) 0.0
+                (txt-rom "MC" (list (/ (+ x0 x1) 2.0) (- yN (* u 0.30) (/ rbw 2.0))) (/ (* u 0.34) sc) 0.0
                           (strcat "CRANE RUN : " (peb-comma (rtos (- x1 x0) 2 0))))
                 (setvar "CLAYER" "COMP-CRANE")
                 (princ))))) ; end lambda / catch
@@ -3250,7 +3258,7 @@
           (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE")
                          (list 10 clX (/ wid 2.0) 0.0)
                          (list 11 clX (- clY (* u 0.30)) 0.0)))
-          (txt-bold "MC" (list clX clY) (/ (* u 0.42) sc) 0.0 "C/L OF RAFTER")))
+          (txt-rom "MC" (list clX clY) (/ (* u 0.42) sc) 0.0 "C/L OF RAFTER")))
   (setvar "CLAYER" "0")
   (princ))
 
