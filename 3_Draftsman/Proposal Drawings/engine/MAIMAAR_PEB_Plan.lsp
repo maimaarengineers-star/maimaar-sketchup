@@ -1628,6 +1628,9 @@
   ;; UPPERCASE plain strings (labels + IF values); skip RTF blocks ("{\f...}") so
   ;; MText control words (\fArial, \b1, \P) are not corrupted by strcase.
   (if (and str (not (vl-string-search "{" str))) (setq str (strcase str)))
+  ;; owner 19-Jul UNIVERSAL: title-block body = ROMAND — wrap any string WITHOUT an explicit {\f..} font in
+  ;; \fromand.shx (bold \fArial|b1 strings carry their own font and stay bold Arial).
+  (if (and str (not (vl-string-search "\\f" str))) (setq str (strcat "{\\fromand.shx;" str "}")))
   (entmake (list (cons 0 "MTEXT") (cons 100 "AcDbEntity") (cons 8 "0")
                  (cons 62 col) (cons 100 "AcDbMText")
                  (list 10 x y 0.0) (cons 40 h) (cons 41 wid)
@@ -3848,6 +3851,15 @@
   (make-text-style "PEB-BODY"  "romand.shx")
   (make-text-style "PEB-DIM"   "romand.shx")   ; owner 19-Jul STANDING: dimension text = ROMAND (match Section)
   (make-text-style "ROMAND"    "romand.shx")   ; dedicated dim style so AutoCAD Properties Text style reads ROMAND
+  ;; owner 19-Jul UNIVERSAL: title-block MTEXT (tb-mtext) uses the "Standard" style — repoint it to ROMAND
+  ;; (romand.shx) + oblique 0 so ALL title-block body text is ROMAND upright (bold \fArial|b1 headers stay bold).
+  (vl-catch-all-apply
+    (function (lambda (/ so sd)
+      (setq so (tblobjname "STYLE" "Standard"))
+      (if so (progn (setq sd (entget so))
+                    (if (assoc 3  sd) (setq sd (subst (cons 3 "romand.shx") (assoc 3 sd) sd)))
+                    (if (assoc 50 sd) (setq sd (subst (cons 50 0.0) (assoc 50 sd) sd)))
+                    (entmod sd))))))
 
   (safe-load-ltype "CENTER")
   (safe-load-ltype "HIDDEN")

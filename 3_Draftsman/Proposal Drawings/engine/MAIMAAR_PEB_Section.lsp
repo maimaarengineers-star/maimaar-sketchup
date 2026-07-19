@@ -6266,6 +6266,10 @@
   (tb-line x1 y1 x2 y1 col) (tb-line x2 y1 x2 y2 col)
   (tb-line x2 y2 x1 y2 col) (tb-line x1 y2 x1 y1 col))
 (defun tb-mtext (x y h wid attach str col)
+  ;; owner 19-Jul UNIVERSAL: title-block body = ROMAND — wrap any string WITHOUT an explicit {\f..} font in
+  ;; \fromand.shx so notes / load table / project fields render romand.shx.  Bold \fArial|b1 strings already
+  ;; carry their own font, so they are skipped and stay bold Arial.
+  (if (and str (not (vl-string-search "\\f" str))) (setq str (strcat "{\\fromand.shx;" str "}")))
   (entmake (list (cons 0 "MTEXT") (cons 100 "AcDbEntity") (cons 8 "0")
                  (cons 62 col) (cons 100 "AcDbMText")
                  (list 10 x y 0.0) (cons 40 h) (cons 41 wid)
@@ -6412,7 +6416,7 @@
   (tb-mtext (+ X0 (* W 0.04)) (+ yCur (* rh 0.4))
     (tb-fith (strcat "AS PER " (tb-get "CODE") " METAL BUILDING SYSTEMS MANUAL")
              cw (* s 0.0100)) cw 1
-    (strcat "{\\fArial|i1;AS PER " (tb-get "CODE")
+    (strcat "{\\fromand.shx;AS PER " (tb-get "CODE")
             " METAL BUILDING SYSTEMS MANUAL}") green)
   (tb-hdiv yCur)
 
@@ -7170,13 +7174,16 @@
   ;; owner 19-Jul STANDING RULE: dedicated dimension text style literally NAMED "ROMAND" (font romand.shx)
   ;; so the AutoCAD Properties "Text style" field reads ROMAND.  Every dimension's DIMTXSTY points here.
   (make-text-style "ROMAND" "romand.shx")
-  ;; owner 15-Jul: some title-block MTEXT falls back to the default "Standard" style (txt.shx) — repoint
-  ;; the EXISTING Standard style at Arial too so the load table / project fields match the rest.
+  ;; owner 19-Jul UNIVERSAL: the title-block MTEXT uses the "Standard" text style (tb-mtext) — repoint it to
+  ;; ROMAND (romand.shx) + oblique 0 so ALL title-block body text (notes / load table / project fields) is
+  ;; ROMAND upright.  Bold headers + company name keep their inline \fArial|b1 override, so they stay bold.
   (vl-catch-all-apply
     (function (lambda (/ so sd)
       (setq so (tblobjname "STYLE" "Standard"))
       (if so (progn (setq sd (entget so))
-                    (if (assoc 3 sd) (entmod (subst (cons 3 "arial.ttf") (assoc 3 sd) sd))))))))
+                    (if (assoc 3  sd) (setq sd (subst (cons 3 "romand.shx") (assoc 3 sd) sd)))
+                    (if (assoc 50 sd) (setq sd (subst (cons 50 0.0) (assoc 50 sd) sd)))
+                    (entmod sd))))))
 
   ;; ── Linetypes ────────────────────────────────────────────────
   (safe-load-ltype "CENTER")
