@@ -6810,6 +6810,7 @@
       (while (<= n 3)
         (setq pre (strcat "CR" (itoa n) "_"))
         (if (= (strcase (MSPL-Get-Str data (strcat pre "TOGGLE"))) "YES")
+          (progn                       ; UNIVERSAL: show only ONE crane per section (the first enabled)
           (vl-catch-all-apply (function (lambda ( / )
             ;; ── inputs from BS (crane_system -> CR* keys) ──
             (setq cap   (MSPL-Get-Num data (strcat pre "CAP"))
@@ -6998,7 +6999,8 @@
                 (txt-rom "MC" (list (+ midX (* u 1.6)) (+ bridgeTop (* u 1.35))) (/ (* u 0.36) sc) 0.0
                           (strcat "HEIGHT OF CRANE BEAM : " (rtos railTop 2 0)))
                 (setq labeled T)))
-            (princ)))))
+            (princ))))
+          (setq n 3)))               ; drew one crane -> break the loop (one per section)
         (setq n (1+ n)))
       (setvar "CLAYER" "0")))
   (princ))

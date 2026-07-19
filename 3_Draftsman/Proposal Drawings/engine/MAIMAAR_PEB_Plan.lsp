@@ -3038,6 +3038,7 @@
       (while (<= n 3)
         (setq pre (strcat "CR" (itoa n) "_"))
         (if (= (strcase (MSPL-Get-Str data (strcat pre "TOGGLE"))) "YES")
+          (progn                       ; UNIVERSAL: show only ONE crane per plan (the first enabled)
           (vl-catch-all-apply
             (function
               (lambda ( / )
@@ -3243,7 +3244,8 @@
                 (txt-rom "MC" (list (/ (+ x0 x1) 2.0) (- yN (* u 0.30) (/ rbw 2.0))) (/ (* u 0.34) sc) 0.0
                           (strcat "CRANE RUN : " (peb-comma (rtos (- x1 x0) 2 0))))
                 (setvar "CLAYER" "COMP-CRANE")
-                (princ))))) ; end lambda / catch
+                (princ)))) ; end lambda / catch
+          (setq n 3)))                 ; drew one crane -> break the loop (one per plan)
         (setq n (1+ n)))))
       ;; C/L OF RAFTER — the crane bridge runs symmetric about the rafter centreline
       ;; (drawn once, only when at least one crane was placed).  The label is lifted ABOVE
