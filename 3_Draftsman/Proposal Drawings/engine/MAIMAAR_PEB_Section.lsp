@@ -6785,22 +6785,27 @@
             (peb-crane-sec-box (- midX (* u 0.85)) hoistBot (+ midX (* u 0.85)) hoistTop)
             ;; hook cable down to the hook height
             (peb-crane-sec-line midX hoistBot midX hookH)
-            ;; ── HOOK HEIGHT — M-Ladder annotation (arrow at the hook, value from BS) ──
-            (vl-catch-all-apply (function (lambda ()
-              (peb-make-mleader (list (list midX hookH) (list (+ midX (* u 3.0)) hookH))
-                                (strcat "HOOK HEIGHT : " (rtos hookH 2 0))))))
+            ;; ── HOOK HEIGHT — compact M-Ladder: a SOLID up-arrow pointing at the hook, with
+            ;;    the value (from BS CRn_HOOK_HEIGHT) + capacity + class stacked centred below,
+            ;;    so every crane's info stays inside its own module (no spill / no clutter).
+            (entmake (list (cons 0 "SOLID") (cons 8 "COMP-CRANE-SEC")            ; up-arrow AT the hook
+                           (list 10 midX hookH 0.0)
+                           (list 11 (- midX (* u 0.16)) (- hookH (* u 0.5)) 0.0)
+                           (list 12 (+ midX (* u 0.16)) (- hookH (* u 0.5)) 0.0)
+                           (list 13 (+ midX (* u 0.16)) (- hookH (* u 0.5)) 0.0)))
+            (txt-bold "MC" (list midX (- hookH (* u 0.95))) (/ (* u 0.40) sc) 0.0
+                      (strcat "HOOK HEIGHT : " (rtos hookH 2 0)))
+            (txt-bold "MC" (list midX (- hookH (* u 1.70))) (/ (* u 0.52) sc) 0.0
+                      (strcat "CAP " capStr " MT"))
+            (if (and cls (/= cls ""))
+              (txt-bold "MC" (list midX (- hookH (* u 2.35))) (/ (* u 0.36) sc) 0.0
+                        (strcat "CMAA CLASS " cls)))
             ;; ── part labels drawn ONCE (manual convention: BY OTHERS) ──
             (if (not labeled)
               (progn
                 (txt-bold "MC" (list midX (+ bridgeTop (* u 0.55))) (/ (* u 0.42) sc) 0.0 "CRANE BRIDGE (BY OTHERS)")
-                (txt-bold "ML" (list (+ midX (* u 1.0)) (+ hoistBot (* u 0.55))) (/ (* u 0.42) sc) 0.0 "HOIST (BY OTHERS)")
+                (txt-bold "ML" (list (+ midX (* u 1.05)) (- bridgeBot (* u 0.7))) (/ (* u 0.40) sc) 0.0 "HOIST (BY OTHERS)")
                 (setq labeled T)))
-            ;; ── capacity + class (per crane, fits the module) ──
-            (txt-bold "MC" (list midX (- hookH (* u 0.75))) (/ (* u 0.50) sc) 0.0
-                      (strcat "CAP " capStr " MT"))
-            (if (and cls (/= cls ""))
-              (txt-bold "MC" (list midX (- hookH (* u 1.45))) (/ (* u 0.38) sc) 0.0
-                        (strcat "CMAA CLASS " cls)))
             (princ)))))
         (setq n (1+ n)))
       (setvar "CLAYER" "0")))
