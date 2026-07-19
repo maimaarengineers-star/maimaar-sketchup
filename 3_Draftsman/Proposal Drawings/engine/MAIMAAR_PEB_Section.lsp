@@ -6848,8 +6848,12 @@
             (setq idxL (vl-position xL cols) idxR (vl-position xR cols)
                   hwL  (peb-crane-sec-colhw cols idxL ht u)
                   hwR  (peb-crane-sec-colhw cols idxR ht u)
-                  xBL  (+ xL hwL brkLen fw)               ; left  rail / I-beam centre (off the real column face)
-                  xBR  (- xR (+ hwR brkLen fw)))          ; right rail / I-beam centre
+                  ;; RULE (owner): the crane beam runs INNER-FLANGE to INNER-FLANGE — the rail /
+                  ;; I-beam is anchored to the column inner face (outer flange edge ON the inner
+                  ;; flange), NOT floated inward on a cantilever, so the crane can't "move".
+                  ;; The bridge then spans rail-to-rail = inner flange to inner flange.
+                  xBL  (+ xL hwL fw)                      ; left  rail: outer edge ON the inner flange
+                  xBR  (- xR (+ hwR fw)))                 ; right rail: outer edge ON the inner flange
             (if (< (- xBR xBL) (* u 2.0)) (setq xBL (+ xL (* u 0.8)) xBR (- xR (* u 0.8))))
             (setq midX (/ (+ xBL xBR) 2.0) capStr (rtos cap 2 0))
             ;; hook height (from BS) clamped to sit below the hoist and above the floor
@@ -6899,11 +6903,14 @@
             (if (and cls (/= cls ""))
               (txt-bold "MC" (list hoistX (- hookH (* u 2.35))) (/ (* u 0.36) sc) 0.0
                         (strcat "CMAA CLASS " cls)))
-            ;; ── part labels drawn ONCE (manual convention: BY OTHERS) ──
+            ;; ── part labels drawn ONCE (manual convention) — crane bridge / hoist / crane beam ──
             (if (not labeled)
               (progn
                 (txt-bold "MC" (list midX (+ bridgeTop (* u 0.55))) (/ (* u 0.42) sc) 0.0 "CRANE BRIDGE (BY OTHERS)")
                 (txt-bold "MR" (list (- hoistX (* u 1.90)) (- bridgeBot (* u 0.45))) (/ (* u 0.40) sc) 0.0 "HOIST (BY OTHERS)")
+                ;; CRANE BEAM + RAIL — leader from the left crane beam down-inward to the label
+                (peb-crane-sec-line xBL beamBot (+ xBL (* u 1.1)) (- beamBot (* u 0.8)))
+                (txt-bold "ML" (list (+ xBL (* u 1.2)) (- beamBot (* u 0.8))) (/ (* u 0.40) sc) 0.0 "CRANE BEAM + RAIL")
                 (setq labeled T)))
             (princ)))))
         (setq n (1+ n)))
