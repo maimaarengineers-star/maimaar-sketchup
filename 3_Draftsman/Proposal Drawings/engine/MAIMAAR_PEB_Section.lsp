@@ -7012,7 +7012,7 @@
                                   idxL idxR hwL hwR brkLen fw ft beamD railNubH etH bd
                                   capY bridgeTop bridgeBot railTop beamTop beamBot hoistTop hoistBot
                                   xBL xBR cb cx bx dir hw labeled hkTip modCount modSeen k a total idxInMod hoistX
-                                  brD gpH bxi rW dW wx typ isUH braceDir rafYL rafYR rafY)
+                                  brD gpH bxi rW dW wx typ isUH braceDir rafYL rafYR rafY bdBS)
   (if (= (strcase (MSPL-Get-Str data "CR_TOGGLE")) "YES")
     (progn
       (setq u  (max 250.0 (/ wid 45.0))
@@ -7071,7 +7071,9 @@
                   beamD    (* fw 4.0)                     ; crane beam depth = 4x flange (realistic I proportion)
                   railNubH (* u 0.28)                     ; crane rail on top of the beam
                   etH      (* u 0.55)                     ; end-truck (bridge-to-rail) connection height
-                  bd       (* u 0.90)                     ; bridge girder depth
+                  bdBS     (MSPL-Get-Num data (strcat pre "BRIDGE"))   ; bridge girder depth from BS (CRn_BRIDGE, mm)
+                  bd       (if (and bdBS (> bdBS 0.0))    ; use the real depth (clamped drawable), else representative
+                             (max (* u 0.5) (min (* u 2.0) bdBS)) (* u 0.90))
                   brkLen   (* u 1.00))                    ; bracket cantilever length off the column face
             ;; vertical stack — differs by TYPE:
             ;;   TR: beam ON a column bracket -> rail on top -> end-truck WHEEL on rail -> bridge ABOVE.
