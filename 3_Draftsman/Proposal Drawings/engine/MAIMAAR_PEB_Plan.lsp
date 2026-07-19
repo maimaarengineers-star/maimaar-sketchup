@@ -2331,7 +2331,9 @@
       (setq rmlen (MSPL-Get-Num data "RM_LENGTH"))          ; length along the ridge (0/blank = full)
       (if (or (null ow) (<= ow 0.0)) (setq ow 3000.0))      ; Mammut-ish default 3.0 m
       ;; ---- geometry ------------------------------------------------------
-      (setq ridge (/ wid 2.0)                               ; single ridge at mid-width
+      ;; ridge station via peb-ridge-y (honours BP_RIDGE_OFFSET) so the plan monitor lands on the
+      ;; SAME ridge the SECTION uses (peb-ridge-x) — no section/plan disagreement (owner 19-Jul).
+      (setq ridge (peb-ridge-y data wid)                   ; single ridge (offset-aware)
             half  (/ ow 2.0)
             yTop  (+ ridge half)
             yBot  (- ridge half))

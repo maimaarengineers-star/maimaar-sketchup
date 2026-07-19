@@ -1,0 +1,4 @@
+# AutoLISP engine sources are LF-only so CRLF/LF flips never produce whole-file
+# diffs or merge churn when multiple worktrees/terminals edit the shared masters.
+*.lsp text eol=lf
+*.scr text eol=lf
