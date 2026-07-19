@@ -884,6 +884,8 @@
   (setvar "DIMSCALE" (if *PEB-DIM-SCALE* *PEB-DIM-SCALE* 1.0))
   (setvar "DIMTXT"   600.0)
   (setvar "DIMASZ"   600.0)
+  ;; owner 19-Jul STANDING RULE: dimension arrowheads = "OPEN" type (open V, NOT filled solid).
+  (vl-catch-all-apply (function (lambda () (setvar "DIMSAH" 0) (setvar "DIMBLK" "_OPEN"))))
   (setvar "DIMEXE"   100.0)
   (setvar "DIMEXO"   100.0)
   (setvar "DIMGAP"    10.0)
@@ -894,7 +896,7 @@
   (setvar "DIMCLRD"     0)
   (setvar "DIMCLRE"     0)
   (setvar "DIMCLRT"     0)
-  (setvar "DIMTXSTY"    txtStyle)
+  (setvar "DIMTXSTY"    "PEB-DIM")   ; owner 19-Jul STANDING: dimension text = ROMAND (was txtStyle)
   (setvar "DIMDEC"      0)
   (setvar "DIMLUNIT"    2)
   (setvar "DIMATFIT"    3)
@@ -1533,8 +1535,11 @@
   ;; Alt unit format = Architectural ("[ X'-Y\" ]") — DIMALTU=4 + DIMALTF=0.03937.
   (peb-safe-setvar "DIMSCALE" (if *PEB-DIM-SCALE* *PEB-DIM-SCALE* 1.0))
   (peb-safe-setvar "DIMTXT"   600.0)        ; Phase-2A v4: 600 base
-  (peb-safe-setvar "DIMTXSTY" "PEB-TITLE")
+  (peb-safe-setvar "DIMTXSTY" "PEB-DIM")    ; owner 19-Jul STANDING: dimension text = ROMAND (PEB-DIM = romand.shx)
   (peb-safe-setvar "DIMASZ"   600.0)        ; Phase-2A v4: 600 base
+  ;; owner 19-Jul STANDING RULE: dimension arrowheads = "OPEN" type (open V, NOT filled solid).
+  (peb-safe-setvar "DIMSAH" 0)
+  (peb-safe-setvar "DIMBLK" "_OPEN")
   (peb-safe-setvar "DIMEXE"   100.0)
   (peb-safe-setvar "DIMEXO"   100.0)
   (peb-safe-setvar "DIMGAP"    10.0)
@@ -3469,23 +3474,22 @@
 (defun draw-cant-vplate (cx yBot yTop plateT nBolt / vPThk gap ext pB pT
                           xCol1 xCol2 xWing1 xWing2 stW stH)
   (setvar "CLAYER" "PLATES")
-  ;; STANDING RULE (owner): connection plates = two SOLID plates with a small HAIRLINE gap, NO bolts
-  ;; drawn on the seam. Matches the house convention (SS knee/splice peb-conn-plate-pair). Applies to ALL
-  ;; sections. gap = 1mm hairline seam so the pair reads as one clamped, solid bolted joint.
-  (setq vPThk 20.0 gap 1.0 ext 100.0)
+  ;; CP STANDING RULE: two SOLID plates, *PEB-CP-THK* thick, *PEB-CP-GAP* hairline seam, NO bolts, each
+  ;; extended *PEB-CP-EXT* past both flanges, with GP gusset triangles at BOTH flanges. (Canopy/valley:
+  ;; the plates sit on the SIDE of the column — this pair is the side-mounted CP.)
+  (setq vPThk *PEB-CP-THK* gap *PEB-CP-GAP* ext *PEB-CP-EXT*)
   (setq pB (- (min yBot yTop) ext) pT (+ (max yBot yTop) ext))
   (setq xCol2  (- cx (/ gap 2.0)) xCol1  (- xCol2 vPThk)    ; COLUMN-side plate (left of seam)
         xWing1 (+ cx (/ gap 2.0)) xWing2 (+ xWing1 vPThk))  ; WING-back plate  (right of seam)
-  ;; owner 18-Jul: draw the connection plates FILLED SOLID (not thin RECTANG outlines) so they read as
-  ;; solid steel at the section scale — matches the Butterfly / Multi-Gable valley plate appearance.
   (peb-solid-quad (list xCol1  pB) (list xCol2  pB) (list xCol1  pT) (list xCol2  pT))   ; plate on the SIDE OF THE COLUMN
   (peb-solid-quad (list xWing1 pB) (list xWing2 pB) (list xWing1 pT) (list xWing2 pT))   ; plate on the BACKSIDE OF THE WING
-  ;; STANDING RULE: no bolt donuts drawn on the seam — the hairline gap alone shows the joint.
-  ;; owner 18-Jul: FILLED SOLID gussets (standing gusset rule) within the 100mm plate extension above the
-  ;; rafter top flange (yTop).  TOP end only — the bottom sits at the column top (open below), no gusset.
-  (setq stW 100.0)
-  (peb-solid-quad (list (- xCol1 stW) yTop) (list xCol1 yTop) (list xCol1 pT) (list xCol1 pT))
-  (peb-solid-quad (list xWing2 yTop) (list (+ xWing2 stW) yTop) (list xWing2 pT) (list xWing2 pT))
+  ;; GP gusset triangles — FILLED SOLID within the *PEB-CP-EXT* extension, at BOTH the top flange (yTop→pT)
+  ;; AND the bottom flange (yBot→pB), on the outer edge of each plate (one leg on the plate, one on flange).
+  (setq stW *PEB-CP-EXT*)
+  (peb-solid-quad (list (- xCol1 stW) yTop) (list xCol1 yTop) (list xCol1 pT) (list xCol1 pT))   ; col plate, TOP
+  (peb-solid-quad (list xWing2 yTop) (list (+ xWing2 stW) yTop) (list xWing2 pT) (list xWing2 pT)) ; wing plate, TOP
+  (peb-solid-quad (list (- xCol1 stW) yBot) (list xCol1 yBot) (list xCol1 pB) (list xCol1 pB))   ; col plate, BOTTOM
+  (peb-solid-quad (list xWing2 yBot) (list (+ xWing2 stW) yBot) (list xWing2 pB) (list xWing2 pB)) ; wing plate, BOTTOM
   (princ))
 
 ;;  peb-cw-one — draw ONE catwalk as OUTER LINES ONLY at a column (owner 14-Jul): a narrow walkway deck
@@ -3633,6 +3637,15 @@
   ;;  (SOLID's no-bowtie vertex order is p1=BL p2=BR p3=TL p4=TR.)  Used to render the
   ;;  connection plates as SOLID thick plates (owner 14-Jul) instead of thin outlines.
   (command "_.SOLID" bl br tl tr ""))
+
+;; ── CP (CONNECTION PLATES) — owner standing rule 19-Jul ──────────────────────────────
+;;  Every bolted connection in a section = TWO filled-solid plates, uniform thickness, a small
+;;  hairline seam, extended 100 mm past both rafter flanges, with GP (gusset) triangles at BOTH
+;;  flanges (one leg on the plate extension, one on the flange).  These constants are the SINGLE
+;;  source of the numbers so the whole rule is tuned in one place.
+(setq *PEB-CP-THK* 20.0)   ; each plate thickness (mm)  — UNIFORM across all connections
+(setq *PEB-CP-GAP* 1.5)    ; hairline seam gap between the two plates (mm)
+(setq *PEB-CP-EXT* 100.0)  ; plate extension past each flange (mm) — the GP gusset zone
 
 (defun draw-stiff-top (xOuter yEdge w h dx)
   ;;  Triangular stiffener ABOVE the upper plate — FILLED SOLID (owner 18-Jul: standing gusset rule; matches
@@ -6715,7 +6728,7 @@
 ;; s = section scale (u).  Trolley body (drum housing) + centre-cross, LEFT open-C end frame,
 ;; RIGHT stepped connector -> motor CYLINDER (vertical hatch + rounded end + nub), bottom
 ;; MOUNTING plate with 4 bolt dots, HOOK block + curved hook.  Returns the hook-tip y.
-(defun peb-crane-sec-hoist (cx topY s / bt bb ym ct cbb pb hy hr i xh d)
+(defun peb-crane-sec-hoist (cx topY s / bt bb ym ct cbb pb hy hr i xh d bax bay)
   (setq bt (- topY (* s 0.06)) bb (- bt (* s 0.70)) ym (/ (+ bt bb) 2.0))
   ;; main body (drum housing) + centre cross
   (peb-crane-sec-sbox (- cx (* s 0.70)) bb (+ cx (* s 0.70)) bt)
@@ -6748,10 +6761,13 @@
   (peb-crane-sec-cross cx (/ (+ pb bb) 2.0) (* s 0.09))
   ;; HOOK block + curved hook + throat cross
   (peb-crane-sec-sbox (- cx (* s 0.12)) (- pb (* s 0.12)) (+ cx (* s 0.12)) pb)
-  (setq hy (- pb (* s 0.46)) hr (* s 0.17))
-  (peb-crane-sec-sline cx (- pb (* s 0.12)) cx (+ hy hr))
-  (peb-crane-sec-arc cx hy hr 40.0 350.0)
-  (peb-crane-sec-cross cx hy (* s 0.06))
+  ;; open-J hook: shank -> belly curve (top->left->bottom->lower-right, mouth upper-right) -> inward barb
+  (setq hy (- pb (* s 0.50)) hr (* s 0.20))
+  (peb-crane-sec-sline cx (- pb (* s 0.12)) cx (+ hy hr))                 ; shank to top of curve
+  (peb-crane-sec-arc cx hy hr 90.0 315.0)                                ; belly curve
+  (setq bax (+ cx (* hr 0.707)) bay (- hy (* hr 0.707)))                 ; arc end (315 deg)
+  (peb-crane-sec-sline bax bay (+ cx (* hr 0.10)) (- hy (* hr 0.02)))    ; inward barb tip
+  (peb-crane-sec-cross cx hy (* s 0.05))
   (- hy hr))
 
 (defun peb-crane-sec-colhw (cols idx ht u / w)
@@ -7083,13 +7099,11 @@
   ;; arrow set to "_None" and ArrowSize is irrelevant.
   (peb-setup-mleader-style)
 
-  ;; ── Default DIMTXSTY = PEB-TITLE for every dim in the run ──
-  ;; Set globally now so even dims that bypass peb-dim-set-vars (e.g.,
-  ;; legacy callers) still pick up the right text style.  Also save
-  ;; it onto the active dimstyle via _-DIMSTYLE _Save so it persists
-  ;; as the default on the dimstyle itself, not just as an override.
+  ;; ── Default DIMTXSTY = PEB-DIM (ROMAND) for every dim in the run ──
+  ;; owner 19-Jul STANDING RULE: all dimension text is ROMAND (Roman Duplex).  Set globally now so even
+  ;; dims that bypass peb-dim-set-vars (e.g., legacy callers) still pick up the right text style.
   (vl-catch-all-apply
-    (function (lambda () (setvar "DIMTXSTY" "PEB-TITLE"))))
+    (function (lambda () (setvar "DIMTXSTY" "PEB-DIM"))))
 
   ;; ── Working extents ──────────────────────────────────────────
   (setq ext  (* 2500 *PEB-TEXT-SCALE*))   ; horizontal bleed beyond columns
@@ -7124,11 +7138,12 @@
     (progn
       (peb-std-ttf-style "PEB-TITLE" "arialbd.ttf")
       (peb-std-ttf-style "PEB-BODY"  "arial.ttf")
-      (peb-std-ttf-style "PEB-DIM"   "arial.ttf"))
+      ;; owner 19-Jul STANDING RULE: ALL dimension text = ROMAND (Roman Duplex) romand.shx — NOT Arial.
+      (make-text-style  "PEB-DIM"   "romand.shx"))
     (progn
       (make-text-style "PEB-TITLE" "romand.shx")
       (make-text-style "PEB-BODY"  "romans.shx")
-      (make-text-style "PEB-DIM"   "romans.shx")))
+      (make-text-style "PEB-DIM"   "romand.shx")))
   ;; owner 15-Jul: some title-block MTEXT falls back to the default "Standard" style (txt.shx) — repoint
   ;; the EXISTING Standard style at Arial too so the load table / project fields match the rest.
   (vl-catch-all-apply
