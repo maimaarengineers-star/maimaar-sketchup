@@ -3116,7 +3116,7 @@
                 (setvar "CLAYER" "COMP-CRANE-FP")
                 (setq bx  (+ x0 (* (- x1 x0) 0.62))      ; bridge station along the run
                       gw  (max 450.0 (min 1000.0 (* (- yF yN) 0.05))) ; girder/detail scale ~5% of drawn span
-                      rbw (max 300.0 (* gw 0.50))         ; runway beam width in plan (double line)
+                      rbw 200.0                           ; crane-beam top-flange width = STANDARD 200mm (true)
                       txc (+ bx (/ gw 2.0))              ; girder centre-x
                       tyc (/ (+ yN yF) 2.0)              ; bridge mid-span
                       flts (max 0.7 (/ (getvar "LTSCALE") 130.0))) ; finer, LTSCALE-aware dash density
