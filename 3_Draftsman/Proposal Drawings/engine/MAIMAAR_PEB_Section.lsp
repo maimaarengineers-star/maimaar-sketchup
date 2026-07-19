@@ -785,6 +785,13 @@
   (command "TEXT" "J" just pt (* h *PEB-TEXT-SCALE*) rot str)
 )
 
+;; ROMAND label (owner STANDING RULE: ALL drawing text = ROMAND / romand.shx, not Arial).
+(defun txt-rom (just pt h rot str)
+  (if (not *PEB-TEXT-SCALE*) (setq *PEB-TEXT-SCALE* 1.0))
+  (setvar "TEXTSTYLE" "ROMAND")
+  (command "TEXT" "J" just pt (* h *PEB-TEXT-SCALE*) rot str)
+)
+
 (defun txt-dim (just pt h rot str)
   (if (not *PEB-TEXT-SCALE*) (setq *PEB-TEXT-SCALE* 1.0))
   (setvar "TEXTSTYLE" "PEB-DIM")
@@ -6670,7 +6677,7 @@
                      '(49 . 150.0) '(74 . 0) '(49 . -120.0) '(74 . 0)))))))
   (setq es (if (> (getvar "LTSCALE") 0.0) (/ 1.0 (getvar "LTSCALE")) 1.0))
   (if (tblsearch "LTYPE" "CRANEBRG")
-    (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-SEC") (cons 6 "CRANEBRG") (cons 48 es) (cons 370 25)
+    (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-SEC") (cons 6 "CRANEBRG") (cons 48 es) (cons 370 15)
                    (list 10 xa ya 0.0) (list 11 xb yb 0.0)))
     (peb-crane-sec-line xa ya xb yb)))
 (defun peb-crane-sec-dbox (xa ya xb yb)
@@ -6852,7 +6859,13 @@
               (peb-crane-sec-sbox cx (- beamBot brD) bxi beamBot)                      ; bracket web (outline)
               (peb-crane-sec-sline cx beamBot bxi beamBot)                             ; top flange (beam seat)
               (peb-crane-sec-sline cx (- beamBot brD) bxi (- beamBot brD))             ; bottom flange
-              ;; triangular GUSSET PLATE (GP) — outline, between the bracket/beam and the column
+              ;; triangular GUSSET PLATE (GP) — FILLED SOLID (owner STANDING CP/GP rule: GP = small solid
+              ;; stiffener triangle) tying the bracket/beam to the column inner flange, + crisp outline edges
+              (entmake (list (cons 0 "SOLID") (cons 8 "COMP-CRANE-SEC")
+                             (list 10 cx (- beamBot brD) 0.0)                ; A  bracket-bottom @ column
+                             (list 11 cx (- beamBot brD gpH) 0.0)            ; B  apex down the column
+                             (list 12 bxi (- beamBot brD) 0.0)              ; C  bracket-bottom @ beam edge
+                             (list 13 bxi (- beamBot brD) 0.0)))            ; C (triangle: pt4 = pt3)
               (peb-crane-sec-sline cx (- beamBot brD) cx (- beamBot brD gpH))          ; GP vertical (at column)
               (peb-crane-sec-sline cx (- beamBot brD gpH) bxi (- beamBot brD))         ; GP hypotenuse
               ;; CRANE BEAM — I-section (200mm flange), outer flange edge ON the inner flange, SOLID
@@ -6893,29 +6906,29 @@
                            (list 11 (- hoistX (* u 0.16)) (- hookH (* u 0.5)) 0.0)
                            (list 12 (+ hoistX (* u 0.16)) (- hookH (* u 0.5)) 0.0)
                            (list 13 (+ hoistX (* u 0.16)) (- hookH (* u 0.5)) 0.0)))
-            (txt-bold "MC" (list hoistX (- hookH (* u 0.95))) (/ (* u 0.40) sc) 0.0
+            (txt-rom "MC" (list hoistX (- hookH (* u 0.95))) (/ (* u 0.40) sc) 0.0
                       (strcat "HOOK HEIGHT : " (rtos hookH 2 0)))
-            (txt-bold "MC" (list hoistX (- hookH (* u 1.70))) (/ (* u 0.52) sc) 0.0
+            (txt-rom "MC" (list hoistX (- hookH (* u 1.70))) (/ (* u 0.52) sc) 0.0
                       (strcat "CAP " capStr " MT"))
             (if (and cls (/= cls ""))
-              (txt-bold "MC" (list hoistX (- hookH (* u 2.35))) (/ (* u 0.36) sc) 0.0
+              (txt-rom "MC" (list hoistX (- hookH (* u 2.35))) (/ (* u 0.36) sc) 0.0
                         (strcat "CMAA CLASS " cls)))
             ;; CRANE SPAN (centre-to-centre of rails) — the actual rail span (inner flange to inner flange)
-            (txt-bold "MC" (list hoistX (- hookH (* u 2.90))) (/ (* u 0.34) sc) 0.0
+            (txt-rom "MC" (list hoistX (- hookH (* u 2.90))) (/ (* u 0.34) sc) 0.0
                       (strcat "SPAN c/c RAILS : " (rtos (- xBR xBL) 2 0)))
             ;; ── part labels drawn ONCE (manual convention), spaced with leaders into clear space ──
             (if (not labeled)
               (progn
                 ;; CRANE BRIDGE — shifted toward the module centre, clear of the knee
-                (txt-bold "MC" (list (+ midX (* u 1.6)) (+ bridgeTop (* u 0.62))) (/ (* u 0.40) sc) 0.0 "CRANE BRIDGE (BY OTHERS)")
+                (txt-rom "MC" (list (+ midX (* u 1.6)) (+ bridgeTop (* u 0.62))) (/ (* u 0.40) sc) 0.0 "CRANE BRIDGE (BY OTHERS)")
                 ;; HOIST — short leader off the RIGHT of the hoist into open space
                 (peb-crane-sec-line (+ hoistX (* u 0.85)) (- hoistTop (* u 0.55)) (+ hoistX (* u 1.45)) (- hoistTop (* u 0.55)))
-                (txt-bold "ML" (list (+ hoistX (* u 1.55)) (- hoistTop (* u 0.55))) (/ (* u 0.40) sc) 0.0 "HOIST (BY OTHERS)")
+                (txt-rom "ML" (list (+ hoistX (* u 1.55)) (- hoistTop (* u 0.55))) (/ (* u 0.40) sc) 0.0 "HOIST (BY OTHERS)")
                 ;; CRANE BEAM + RAIL — leader from the crane beam down-inward to the label
                 (peb-crane-sec-line xBL beamBot (+ xBL (* u 1.1)) (- beamBot (* u 0.9)))
-                (txt-bold "ML" (list (+ xBL (* u 1.2)) (- beamBot (* u 0.9))) (/ (* u 0.40) sc) 0.0 "CRANE BEAM + RAIL")
+                (txt-rom "ML" (list (+ xBL (* u 1.2)) (- beamBot (* u 0.9))) (/ (* u 0.40) sc) 0.0 "CRANE BEAM + RAIL")
                 ;; HEIGHT OF CRANE BEAM — noted once (top of crane beam above FFL)
-                (txt-bold "MC" (list (+ midX (* u 1.6)) (+ bridgeTop (* u 1.35))) (/ (* u 0.36) sc) 0.0
+                (txt-rom "MC" (list (+ midX (* u 1.6)) (+ bridgeTop (* u 1.35))) (/ (* u 0.36) sc) 0.0
                           (strcat "HEIGHT OF CRANE BEAM : " (rtos railTop 2 0)))
                 (setq labeled T)))
             (princ)))))
