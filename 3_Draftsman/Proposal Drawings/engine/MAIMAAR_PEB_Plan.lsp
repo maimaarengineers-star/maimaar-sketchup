@@ -3511,7 +3511,7 @@
   ( / dataFile data
     project client propinput propno fulldate
     len wid btype rooftype stype widthPts windspeed exposure collateral bldgno revno
-    ppY1 ppY2 ridgeY
+    ppY1 ppY2 ridgeY bfVy
     bays baysp bayPts x1 x2 baylen ewcols ewsp gridWpts ewStations ewY
     lewBrace rewBrace extType intType
     minSp prevp yBayDim yOvrDim yFsw ySub yTtl yFrmTop dimGap topGap txtGap
@@ -4159,7 +4159,8 @@
     ((= stype "BF")
       (progn
         (setvar "CLAYER" "RIDGE")
-        (command "LINE" (list 0 (/ wid 2.0)) (list len (/ wid 2.0)) "")
+        (setq bfVy (peb-bf-valley-y data wid))   ; T1.1: BF centre line at the TRUE valley/peak (BP_CANT_SPAN), not wid/2
+        (command "LINE" (list 0 bfVy) (list len bfVy) "")
       )   ; owner 5-Jul: valley label folded into the centre-line callouts below (was overlapping the AREA tag)
     )
     ((= stype "FR")
@@ -4259,20 +4260,21 @@
     )
     ((= stype "BF")
       (progn
+        (setq bfVy (peb-bf-valley-y data wid))   ; T1.1: centre column at the TRUE valley (BP_CANT_SPAN for butterfly; wid/2 for falcon), matching the Section
         (foreach x bayPts
           (if (= x 0) (setq xdraw leftX) (if (> x (- len 1)) (setq xdraw rightX) (setq xdraw x)))
-          (draw-I-column-lengthwise xdraw (/ wid 2.0)))
+          (draw-I-column-lengthwise xdraw bfVy))
         (setvar "CLAYER" "TEXT")   ; owner 5-Jul: cleared of the AREA tag — one callout above, one below, snug to the falls
         ;; The centre line means the OPPOSITE thing for the two 2-wing canopies (owner 9-Jul):
         ;;   Butterfly -> wings fall INWARD, so the centre is a VALLEY and carries the gutter.
         ;;   Falcon    -> wings fall OUTWARD, so the centre is a RIDGE PEAK and drains at the
         ;;                outer free edges; calling it a valley gutter is simply wrong.
         ;; *PEB-CANOPY-NAME* is set from CC_FALCON_PEAK when the sheet's data is read.
-        (txt-bold "MC" (list (/ len 2.0) (+ (/ wid 2.0) (* 1700 *PEB-TEXT-SCALE*))) 560 0
+        (txt-bold "MC" (list (/ len 2.0) (+ bfVy (* 1700 *PEB-TEXT-SCALE*))) 560 0
           (if (and *PEB-CANOPY-NAME* (wcmatch *PEB-CANOPY-NAME* "FALCON*"))
             "CENTER COLUMN LINE / RIDGE PEAK - FALCON"
             "CENTER COLUMN LINE / VALLEY GUTTER - BUTTERFLY"))
-        (txt-bold "MC" (list (/ len 2.0) (- (/ wid 2.0) (* 1700 *PEB-TEXT-SCALE*))) 560 0 "NO SIDE-WALL COLUMNS - ROOF CANTILEVERS BOTH SIDES")
+        (txt-bold "MC" (list (/ len 2.0) (- bfVy (* 1700 *PEB-TEXT-SCALE*))) 560 0 "NO SIDE-WALL COLUMNS - ROOF CANTILEVERS BOTH SIDES")
       )
     )
     (T

@@ -7951,7 +7951,7 @@
       ;; owner 18-Jul markup 20: label the CENTRE column at its ACTUAL valley position (bfVx, not wid/2), with
       ;; the text on the TAIL (short-leg) side and the leader pointing straight AT the column (no overshoot).
       (setq bfVx (if (= (strcase (peb-tb-or (MSPL-Get-Str data "CC_FALCON_PEAK") "")) "YES")
-                   (/ wid 2.0) (peb-ridge-x data wid)))
+                   (/ wid 2.0) (peb-bf-valley-x data wid)))   ; T1.1: label the valley column at its ACTUAL station (BP_CANT_SPAN), matching the geometry — was peb-ridge-x (BP_RIDGE_OFFSET), the wrong source
       (if (< bfVx (/ wid 2.0))
         (peb-label-pline-leader "COLUMN"                       ; short leg on the LEFT => label on the LEFT
                                (list (- bfVx 3000.0) (- H ht 700.0))
