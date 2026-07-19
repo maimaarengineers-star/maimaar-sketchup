@@ -8754,13 +8754,21 @@
   ;; offset BELOW that by peb-dim-text-spacing (auto-scales with
   ;; DIMTXT × DIMSCALE so dim texts always have a visible gap).
   (setq *PEB-DIM-TXT* 320.0)                   ; owner 14-Jul: match the height dims (uniform dim text)
-  (peb-dim-h-stretch -235.0 (+ wid 235.0)
-                     (- 0.0
-                        (+ (if (> (length cols) 2)
-                             (+ (* 1500 *PEB-DIM-SCALE*) (peb-dim-text-spacing "horizontal"))
-                             (* 1500 *PEB-DIM-SCALE*))
-                           (* 450 *PEB-DIM-SCALE*)))   ; owner 14-Jul: drop the O/O dim clear of the FFL line + FFL text
-                     "<>\\P0/0 OF SHEETING LINE")
+  ;; T1.3: overall width dim honours the BS width basis (WIDTH_REF; steel line when blank) — SAME plane/
+  ;; number/notation as the Plan.  Reuses the Plan's basis engine (peb-basis-suffix / peb-basis-offsets),
+  ;; which is loaded before the section draws (scr order: Standard->Section->Plan).  Falls back to the old
+  ;; sheeting-line label if the basis engine isn't loaded (section-only load).
+  (setq wY (- 0.0
+              (+ (if (> (length cols) 2)
+                   (+ (* 1500 *PEB-DIM-SCALE*) (peb-dim-text-spacing "horizontal"))
+                   (* 1500 *PEB-DIM-SCALE*))
+                 (* 450 *PEB-DIM-SCALE*))))    ; owner 14-Jul: drop the O/O dim clear of the FFL line + FFL text
+  (if (boundp 'peb-basis-suffix)
+    (progn
+      (setq wref  (peb-tb-or (MSPL-Get-Str data "WIDTH_REF") (MSPL-Get-Str data "WIDTH_MOD_REF"))
+            wbOff (peb-basis-offsets wref 200.0))   ; 200 = steel half-web (width); witness lines follow the basis plane
+      (peb-dim-h-stretch (car wbOff) (+ wid (cadr wbOff)) wY (strcat "<>\\P" (peb-basis-suffix wref))))
+    (peb-dim-h-stretch -235.0 (+ wid 235.0) wY "<>\\P0/0 OF SHEETING LINE"))
   (setq *PEB-DIM-TXT* nil)
   (peb-recolor-last-dim 0)                    ; ByBlock for overall width dim
 
