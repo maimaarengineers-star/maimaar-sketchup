@@ -2930,6 +2930,14 @@
 ;;          mm0()).  Capacity is in TONNES (num0()).  Column-trigger thresholds
 ;;          therefore compare cap>20 (t) and span>15000 (mm).
 ;; ============================================================================
+;; small HIDDEN-linetype helpers for the crane footprint (open line + closed box) on COMP-CRANE-FP.
+(defun peb-crane-fp-line (xa ya xb yb lts)
+  (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-FP") (cons 6 "HIDDEN") (cons 48 lts)
+                 (list 10 xa ya 0.0) (list 11 xb yb 0.0))))
+(defun peb-crane-fp-box (xa ya xb yb lts)
+  (peb-crane-fp-line xa ya xb ya lts) (peb-crane-fp-line xb ya xb yb lts)
+  (peb-crane-fp-line xb yb xa yb lts) (peb-crane-fp-line xa yb xa ya lts))
+
 (defun peb-draw-crane (data len wid /
                         u sc n pre span cap typ cls loc runlen
                         numBays cum i sp rem bayPts
@@ -2939,7 +2947,7 @@
                         midx runTxt capInt byoth craneIdx runY ah a ax dir capX clX clY
                         bracedXs usedCapX b bestX bestD cand dmin bxc px fr
                         yN yF flts txc tyc thw thh yy pt
-                        wgys nW letOfs gfW gtW vf vt yy0 yy1)
+                        wgys nW letOfs gfW gtW vf vt yy0 yy1 rbw off xb)
   (if (= (strcase (MSPL-Get-Str data "CR_TOGGLE")) "YES")
     (progn
       (setq u  (max 400.0 (min 3000.0 (/ (max len wid) 70.0))))
@@ -3096,53 +3104,55 @@
                 (if (boundp 'safe-load-ltype) (vl-catch-all-apply (function (lambda () (safe-load-ltype "HIDDEN")))))
                 (peb-comp-layer "COMP-CRANE-FP" 8)       ; grey dashed footprint layer
                 (setvar "CLAYER" "COMP-CRANE-FP")
-                (setq bx (+ x0 (* (- x1 x0) 0.62))       ; bridge station along the run
-                      gw (max 300.0 (min 900.0 (* (- yF yN) 0.024)))) ; girder width ~2.4% of drawn span
-                (foreach s (list (list x0 yN x1 yN)                ; near runway beam
-                                 (list x0 yF x1 yF)                ; far  runway beam
-                                 (list bx yN bx yF)                ; bridge girder line 1
-                                 (list (+ bx gw) yN (+ bx gw) yF)) ; bridge girder line 2
-                  (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-FP")
-                                 (cons 6 "HIDDEN") (cons 48 flts)
-                                 (list 10 (nth 0 s) (nth 1 s) 0.0)
-                                 (list 11 (nth 2 s) (nth 3 s) 0.0))))
-                ;; TROLLEY + HOOK — accurate hoist symbol from the reference, proportioned
-                ;; in girder-widths (gw): end-truck cap, main trolley box (with an internal
-                ;; division line), hook block, and hook-eye circle offset to one side.
-                ;; Assembly straddles the girder at bridge mid-span (txc), stacked along Y.
-                (setq txc (+ bx (/ gw 2.0))          ; girder centre-x
-                      tyc (/ (+ yN yF) 2.0))         ; bridge mid-span
+                (setq bx  (+ x0 (* (- x1 x0) 0.62))      ; bridge station along the run
+                      gw  (max 450.0 (min 1000.0 (* (- yF yN) 0.05))) ; girder/detail scale ~5% of drawn span
+                      rbw (max 300.0 (* gw 0.50))         ; runway beam width in plan (double line)
+                      txc (+ bx (/ gw 2.0))              ; girder centre-x
+                      tyc (/ (+ yN yF) 2.0)              ; bridge mid-span
+                      flts (max 0.7 (/ (getvar "LTSCALE") 130.0))) ; finer, LTSCALE-aware dash density
+                ;; (1) RUNWAY BEAMS — each drawn as a DOUBLE line (beam width rbw), the beam
+                ;;     straddling its module column line (yN / yF).
+                (foreach yy (list yN yF)
+                  (peb-crane-fp-line x0 (- yy (/ rbw 2.0)) x1 (- yy (/ rbw 2.0)) flts)
+                  (peb-crane-fp-line x0 (+ yy (/ rbw 2.0)) x1 (+ yy (/ rbw 2.0)) flts))
+                ;; (3) BRACKETS — the runway rides on a bracket off each main column; draw a small
+                ;;     support pad where a runway crosses a column (bay grid line) inside the run.
+                (foreach xb bayPts
+                  (if (and (>= xb (- x0 1.0)) (<= xb (+ x1 1.0)))
+                    (foreach yy (list yN yF)
+                      (peb-crane-fp-box (- xb (* gw 0.45)) (- yy (/ rbw 2.0))
+                                        (+ xb (* gw 0.45)) (+ yy (/ rbw 2.0)) flts))))
+                ;; BRIDGE GIRDER — two lines across the span between the two runways.
+                (peb-crane-fp-line bx yN bx yF flts)
+                (peb-crane-fp-line (+ bx gw) yN (+ bx gw) yF flts)
+                ;; (2) END TRUCKS — the wheel box where the bridge lands on BOTH runways.
+                (foreach yy (list yN yF)
+                  (peb-crane-fp-box (- txc (* gw 0.85)) (- yy (* gw 0.32))
+                                    (+ txc (* gw 0.85)) (+ yy (* gw 0.32)) flts))
+                ;; TROLLEY + HOOK — accurate hoist symbol (mid-run), proportioned in girder-widths:
+                ;; connector cap, main trolley box (with internal division), hook block, hook eye.
                 (foreach s (list
-                     ;; main trolley box  (2.28gw wide x 2.80gw tall)
                      (list (- txc (* gw 1.14)) (- tyc (* gw 1.40)) (+ txc (* gw 1.14)) (- tyc (* gw 1.40)))
                      (list (+ txc (* gw 1.14)) (- tyc (* gw 1.40)) (+ txc (* gw 1.14)) (+ tyc (* gw 1.40)))
                      (list (+ txc (* gw 1.14)) (+ tyc (* gw 1.40)) (- txc (* gw 1.14)) (+ tyc (* gw 1.40)))
                      (list (- txc (* gw 1.14)) (+ tyc (* gw 1.40)) (- txc (* gw 1.14)) (- tyc (* gw 1.40)))
-                     ;; internal division line
                      (list (- txc (* gw 1.14)) (- tyc (* gw 0.40)) (+ txc (* gw 1.14)) (- tyc (* gw 0.40)))
-                     ;; end-truck cap (top, 1.34gw wide x 0.70gw)
                      (list (- txc (* gw 0.67)) (+ tyc (* gw 1.40)) (- txc (* gw 0.67)) (+ tyc (* gw 2.10)))
                      (list (- txc (* gw 0.67)) (+ tyc (* gw 2.10)) (+ txc (* gw 0.67)) (+ tyc (* gw 2.10)))
                      (list (+ txc (* gw 0.67)) (+ tyc (* gw 2.10)) (+ txc (* gw 0.67)) (+ tyc (* gw 1.40)))
-                     ;; hook block (bottom, 1.81gw wide x 1.28gw)
                      (list (- txc (* gw 0.90)) (- tyc (* gw 1.40)) (- txc (* gw 0.90)) (- tyc (* gw 2.68)))
                      (list (- txc (* gw 0.90)) (- tyc (* gw 2.68)) (+ txc (* gw 0.90)) (- tyc (* gw 2.68)))
                      (list (+ txc (* gw 0.90)) (- tyc (* gw 2.68)) (+ txc (* gw 0.90)) (- tyc (* gw 1.40))))
-                  (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-FP")
-                                 (cons 6 "HIDDEN") (cons 48 flts)
-                                 (list 10 (nth 0 s) (nth 1 s) 0.0)
-                                 (list 11 (nth 2 s) (nth 3 s) 0.0))))
+                  (peb-crane-fp-line (nth 0 s) (nth 1 s) (nth 2 s) (nth 3 s) flts))
                 (entmake (list (cons 0 "CIRCLE") (cons 8 "COMP-CRANE-FP")   ; hook eye (offset)
                                (cons 6 "HIDDEN") (cons 48 flts)
                                (list 10 (- txc (* gw 0.37)) (- tyc (* gw 2.00)) 0.0)
                                (cons 40 (* gw 0.37))))
-                ;; runway end stops / bumpers — short ticks across each runway end
+                ;; STOPS / BUMPERS — bar across the beam width at each of the 4 runway ends.
                 (foreach pt (list (list x0 yN) (list x1 yN) (list x0 yF) (list x1 yF))
-                  (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-FP")
-                                 (cons 6 "HIDDEN") (cons 48 flts)
-                                 (list 10 (car pt) (- (cadr pt) (* gw 0.6)) 0.0)
-                                 (list 11 (car pt) (+ (cadr pt) (* gw 0.6)) 0.0))))
-                (txt-bold "MC" (list (/ (+ x0 x1) 2.0) (- yN (* u 0.30))) (/ (* u 0.34) sc) 0.0
+                  (peb-crane-fp-line (car pt) (- (cadr pt) (* rbw 0.9))
+                                     (car pt) (+ (cadr pt) (* rbw 0.9)) flts))
+                (txt-bold "MC" (list (/ (+ x0 x1) 2.0) (- yN (* u 0.30) (/ rbw 2.0))) (/ (* u 0.34) sc) 0.0
                           (strcat "CRANE RUN : " (peb-comma (rtos (- x1 x0) 2 0))))
                 (setvar "CLAYER" "COMP-CRANE")
                 (princ))))) ; end lambda / catch
