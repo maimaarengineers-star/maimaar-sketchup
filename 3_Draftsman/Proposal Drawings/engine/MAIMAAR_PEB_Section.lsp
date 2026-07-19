@@ -6986,16 +6986,26 @@
 ;; approximate ROOF-UNDERSIDE y at x, so an UNDERHUNG crane beam hangs from the real rafter line
 ;; (each rail's hanger is a different length).  Eave/valley = H, rising linearly to H+rise at the
 ;; nearest ridge; half-gable width ~ wid/(2*Ngables).  Flat/no-ridge => single central gable.
-(defun peb-crane-raf-y (x H rise wid ridges / rx d hw)
+(defun peb-crane-raf-y (x H rise wid ridges ht rd / rx d hw ry midD kneeL htv)
+  ;; TRUE rafter UNDERSIDE at x, using the SAME cigar geometry as the frame polygon
+  ;; (cigar-rafter-underside-y) so it is correct on OFF-CENTRE ridges and in the knee/ridge
+  ;; taper zones.  Falls back to a linear eave->ridge approximation if the cigar helper errors
+  ;; or isn't available.  ht/rd may be nil (older callers) -> sensible defaults.
   (if (or (null rise) (<= rise 0.0))
     H
-    (if (or (null ridges) (= (length ridges) 0))
-      (+ H (* rise (max 0.0 (- 1.0 (abs (/ (- x (/ wid 2.0)) (/ wid 2.0)))))))  ; single central gable
-      (progn
-        (setq rx (car ridges) d (abs (- x rx)))
-        (foreach r ridges (if (< (abs (- x r)) d) (setq rx r d (abs (- x r)))))
-        (setq hw (/ wid (* 2.0 (length ridges))))
-        (+ H (* rise (max 0.0 (- 1.0 (/ d hw)))))))))
+    (progn
+      (setq htv (if (and ht (> ht 0.0)) ht (* H 0.5))
+            rx  (if (and ridges (> (length ridges) 0)) (car ridges) (/ wid 2.0)))
+      (if ridges (foreach r ridges (if (< (abs (- x r)) (abs (- x rx))) (setq rx r))))
+      (setq midD  (max 300.0 (min 500.0 (- (* htv 0.5) 50.0)))
+            kneeL (vl-catch-all-apply (function (lambda () (car (cigar-taper-lengths wid)))))
+            ry    (if (and (numberp kneeL) (boundp 'cigar-rafter-underside-y))
+                    (vl-catch-all-apply (function (lambda ()
+                      (cigar-rafter-underside-y x 0.0 wid rx H rise htv (if rd rd rise) midD kneeL kneeL))))
+                    nil))
+      (if (numberp ry) ry
+        (progn (setq hw (/ wid (* 2.0 (max 1 (length ridges)))) d (abs (- x rx)))
+               (+ H (* rise (max 0.0 (- 1.0 (/ d hw))))))))))
 
 (defun peb-draw-crane-section (data wid cols H ht clearHt rise rd ridges
                                 / u sc n pre cap cls hookH nC gfW gtW cf ct xL xR midX capStr
@@ -7095,14 +7105,24 @@
             ;; UNDERHUNG: now that the rails (xBL/xBR) are known, hang the LEVEL crane beam from the
             ;; real rafter line — beam top = just below the LOWER of the two rafter points; each rail's
             ;; hanger (drawn in the connection loop) then reaches its own rafter height.
+            (setq rafYL (peb-crane-raf-y xBL H rise wid ridges ht rd)
+                  rafYR (peb-crane-raf-y xBR H rise wid ridges ht rd))
             (if isUH
-              (setq rafYL    (peb-crane-raf-y xBL H rise wid ridges)
-                    rafYR    (peb-crane-raf-y xBR H rise wid ridges)
-                    beamTop  (- (min rafYL rafYR) (* u 0.90))
+              (setq beamTop  (- (min rafYL rafYR) (* u 0.90))
                     beamBot  (- beamTop beamD)
                     railTop  beamBot
                     bridgeTop (- beamBot ft (* u 0.12))
                     bridgeBot (- bridgeTop bd)
+                    hoistTop bridgeBot
+                    hoistBot (- bridgeBot (* u 1.40)))
+              ;; TOP-RUNNING — clamp the bridge below BOTH the clear height AND the TRUE rafter underside
+              ;; at the two rails (owner STANDING RULE: bridge never crosses the rafter; off-centre safe).
+              (setq capY     (min (- clearHt (* u 0.60)) (- (min rafYL rafYR) (* u 0.40)))
+                    bridgeTop capY
+                    bridgeBot (- bridgeTop bd)
+                    railTop  (- bridgeBot etH)
+                    beamTop  (- railTop railNubH)
+                    beamBot  (- beamTop beamD)
                     hoistTop bridgeBot
                     hoistBot (- bridgeBot (* u 1.40))))
             (setq midX (/ (+ xBL xBR) 2.0) capStr (rtos cap 2 0))
@@ -7120,7 +7140,7 @@
               ;;    a BRACE ANGLE; the trolley/end-carriage rides the beam BOTTOM flange; bridge BELOW ──
               (foreach cb (list (list xBL 1.0) (list xBR -1.0))
                 (setq bx (car cb) braceDir (cadr cb)
-                      rafY (peb-crane-raf-y bx H rise wid ridges))                              ; this rail's rafter y
+                      rafY (peb-crane-raf-y bx H rise wid ridges ht rd))                         ; this rail's true rafter y
                 (peb-crane-sec-sbox (- bx (* fw 0.55)) beamTop (+ bx (* fw 0.55)) rafY)         ; hanger stub -> rafter
                 (peb-crane-sec-sline (+ bx (* braceDir u 1.05)) rafY
                                      (+ bx (* braceDir fw 0.55)) (+ beamTop (* u 0.05)))        ; BRACE ANGLE
