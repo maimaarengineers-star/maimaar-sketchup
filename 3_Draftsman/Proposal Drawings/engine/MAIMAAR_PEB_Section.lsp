@@ -6343,7 +6343,7 @@
       (if (and (> (strlen raw) 0) (= (substr raw (strlen raw) 1) "}"))
         (setq raw (substr raw 1 (1- (strlen raw)))))))
   (entmake (list (cons 0 "MTEXT") (cons 100 "AcDbEntity") (cons 8 "0")
-                 (cons 62 col) (cons 370 55) (cons 100 "AcDbMText")
+                 (cons 62 col) (cons 370 50) (cons 100 "AcDbMText")   ; 0.50mm = valid LW enum (55 is invalid -> entmake fails)
                  (list 10 x y 0.0) (cons 40 h) (cons 41 wid)
                  (cons 71 attach) (cons 7 "Standard")
                  (cons 1 (strcat "{\\fromand.shx;" raw "}")) (cons 50 0.0))))
