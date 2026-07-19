@@ -6762,12 +6762,26 @@
       (max (* u 0.30) (/ w 2.0)))
     (max (* u 0.60) ht)))                              ; side/end — full column depth
 
+;; approximate ROOF-UNDERSIDE y at x, so an UNDERHUNG crane beam hangs from the real rafter line
+;; (each rail's hanger is a different length).  Eave/valley = H, rising linearly to H+rise at the
+;; nearest ridge; half-gable width ~ wid/(2*Ngables).  Flat/no-ridge => single central gable.
+(defun peb-crane-raf-y (x H rise wid ridges / rx d hw)
+  (if (or (null rise) (<= rise 0.0))
+    H
+    (if (or (null ridges) (= (length ridges) 0))
+      (+ H (* rise (max 0.0 (- 1.0 (abs (/ (- x (/ wid 2.0)) (/ wid 2.0)))))))  ; single central gable
+      (progn
+        (setq rx (car ridges) d (abs (- x rx)))
+        (foreach r ridges (if (< (abs (- x r)) d) (setq rx r d (abs (- x r)))))
+        (setq hw (/ wid (* 2.0 (length ridges))))
+        (+ H (* rise (max 0.0 (- 1.0 (/ d hw)))))))))
+
 (defun peb-draw-crane-section (data wid cols H ht clearHt rise rd ridges
                                 / u sc n pre cap cls hookH nC gfW gtW cf ct xL xR midX capStr
                                   idxL idxR hwL hwR brkLen fw ft beamD railNubH etH bd
                                   capY bridgeTop bridgeBot railTop beamTop beamBot hoistTop hoistBot
                                   xBL xBR cb cx bx dir hw labeled hkTip modCount modSeen k a total idxInMod hoistX
-                                  brD gpH bxi rW dW wx)
+                                  brD gpH bxi rW dW wx typ isUH braceDir rafYL rafYR rafY)
   (if (= (strcase (MSPL-Get-Str data "CR_TOGGLE")) "YES")
     (progn
       (setq u  (max 250.0 (/ wid 45.0))
@@ -6802,7 +6816,11 @@
                   cls   (MSPL-Get-Str data (strcat pre "CMAA_CLASS"))
                   hookH (MSPL-Get-Num data (strcat pre "HOOK_HEIGHT"))
                   gfW   (strcase (MSPL-Get-Str data (strcat pre "GRID_FROM_W")))
-                  gtW   (strcase (MSPL-Get-Str data (strcat pre "GRID_TO_W"))))
+                  gtW   (strcase (MSPL-Get-Str data (strcat pre "GRID_TO_W")))
+                  ;; UNIVERSAL RULE (type-aware): draw per CRn_TYPE — Top-Running (beam on a column
+                  ;; bracket, DETAIL-1) vs UNDERHUNG (beam HUNG FROM THE RAFTER, DETAIL-2, manual p260).
+                  typ   (strcase (MSPL-Get-Str data (strcat pre "TYPE")))
+                  isUH  (or (wcmatch typ "*UNDER*") (wcmatch typ "*UH*") (wcmatch typ "*HUNG*")))
             (if (or (null cap) (<= cap 0.0)) (setq cap 5.0))
             ;; module column x-range (default = full width; section grid letter A = LEFT col = cols[0])
             (setq xL (nth 0 cols) xR (nth (1- nC) cols) idxL 0 idxR (1- nC))
@@ -6822,15 +6840,26 @@
                   railNubH (* u 0.28)                     ; crane rail on top of the beam
                   etH      (* u 0.55)                     ; end-truck (bridge-to-rail) connection height
                   bd       (* u 0.90)                     ; bridge girder depth
-                  brkLen   (* u 1.00)                     ; bracket cantilever length off the column face
-                  capY     (- clearHt (* u 0.60))         ; ceiling: bridge top kept clear of the rafters
-                  bridgeTop capY
-                  bridgeBot (- bridgeTop bd)
-                  railTop  (- bridgeBot etH)              ; top of rail (bridge end-truck rides on it)
-                  beamTop  (- railTop railNubH)           ; top of the crane I-beam
-                  beamBot  (- beamTop beamD)
-                  hoistTop bridgeBot
-                  hoistBot (- bridgeBot (* u 1.40)))
+                  brkLen   (* u 1.00))                    ; bracket cantilever length off the column face
+            ;; vertical stack — differs by TYPE:
+            ;;   TR: beam ON a column bracket -> rail on top -> end-truck WHEEL on rail -> bridge ABOVE.
+            ;;   UH: beam HUNG from the rafter -> trolley/end-truck rides the beam BOTTOM flange -> bridge BELOW.
+            (if isUH
+              (setq beamTop  (- clearHt (* u 0.95))        ; beam hung just below the rafter (hanger drop)
+                    beamBot  (- beamTop beamD)
+                    railTop  beamBot                       ; underhung running surface = beam BOTTOM flange
+                    bridgeTop (- beamBot ft (* u 0.12))    ; end-truck + bridge UNDER the beam bottom flange
+                    bridgeBot (- bridgeTop bd)
+                    hoistTop bridgeBot
+                    hoistBot (- bridgeBot (* u 1.40)))
+              (setq capY     (- clearHt (* u 0.60))        ; TR ceiling: bridge top kept clear of the rafters
+                    bridgeTop capY
+                    bridgeBot (- bridgeTop bd)
+                    railTop  (- bridgeBot etH)             ; top of rail (bridge end-truck rides on it)
+                    beamTop  (- railTop railNubH)          ; top of the crane I-beam
+                    beamBot  (- beamTop beamD)
+                    hoistTop bridgeBot
+                    hoistBot (- bridgeBot (* u 1.40))))
             (setq idxL (vl-position xL cols) idxR (vl-position xR cols)
                   hwL  (peb-crane-sec-colhw cols idxL ht u)
                   hwR  (peb-crane-sec-colhw cols idxR ht u)
@@ -6841,6 +6870,19 @@
                   xBL  (+ xL hwL fw)                      ; left  beam: OUTER flange edge ON the inner flange
                   xBR  (- xR (+ hwR fw)))                 ; right beam: OUTER flange edge ON the inner flange
             (if (< (- xBR xBL) (* u 2.0)) (setq xBL (+ xL (* u 0.8)) xBR (- xR (* u 0.8))))
+            ;; UNDERHUNG: now that the rails (xBL/xBR) are known, hang the LEVEL crane beam from the
+            ;; real rafter line — beam top = just below the LOWER of the two rafter points; each rail's
+            ;; hanger (drawn in the connection loop) then reaches its own rafter height.
+            (if isUH
+              (setq rafYL    (peb-crane-raf-y xBL H rise wid ridges)
+                    rafYR    (peb-crane-raf-y xBR H rise wid ridges)
+                    beamTop  (- (min rafYL rafYR) (* u 0.90))
+                    beamBot  (- beamTop beamD)
+                    railTop  beamBot
+                    bridgeTop (- beamBot ft (* u 0.12))
+                    bridgeBot (- bridgeTop bd)
+                    hoistTop bridgeBot
+                    hoistBot (- bridgeBot (* u 1.40))))
             (setq midX (/ (+ xBL xBR) 2.0) capStr (rtos cap 2 0))
             ;; hook height (from BS) clamped to sit below the hoist and above the floor
             (if (or (null hookH) (<= hookH 0.0)) (setq hookH (- hoistBot (* u 1.8))))
@@ -6851,7 +6893,23 @@
             ;;    ->  END-CARRIAGE WHEEL  ->  bridge.  Steel members drawn SOLID.
             (setq brD (* fw 2.4)                          ; bracket depth (proportional to the beam)
                   gpH (* fw 1.8))                         ; gusset (GP) height below the bracket
-            (foreach cb (list (list xL xBL 1.0 hwL) (list xR xBR -1.0 hwR))
+            (if isUH
+              ;; ── UNDERHUNG (manual p260 DETAIL-2): beam HUNG from the rafter via a hanger stub +
+              ;;    a BRACE ANGLE; the trolley/end-carriage rides the beam BOTTOM flange; bridge BELOW ──
+              (foreach cb (list (list xBL 1.0) (list xBR -1.0))
+                (setq bx (car cb) braceDir (cadr cb)
+                      rafY (peb-crane-raf-y bx H rise wid ridges))                              ; this rail's rafter y
+                (peb-crane-sec-sbox (- bx (* fw 0.55)) beamTop (+ bx (* fw 0.55)) rafY)         ; hanger stub -> rafter
+                (peb-crane-sec-sline (+ bx (* braceDir u 1.05)) rafY
+                                     (+ bx (* braceDir fw 0.55)) (+ beamTop (* u 0.05)))        ; BRACE ANGLE
+                (peb-crane-sec-sbox (- bx fw) (- beamTop ft) (+ bx fw) beamTop)                 ; beam top flange
+                (peb-crane-sec-sbox (- bx fw) beamBot (+ bx fw) (+ beamBot ft))                 ; beam bottom flange (running surface)
+                (peb-crane-sec-sline bx (- beamTop ft) bx (+ beamBot ft))                       ; beam web
+                (setq rW (* etH 0.28) dW (* fw 0.72))
+                (foreach wx (list (- bx dW) (+ bx dW))
+                  (peb-crane-sec-circ wx (- beamBot ft rW) rW))                                 ; WHEEL under the bottom flange
+                (peb-crane-sec-sbox (- bx (* fw 1.05)) bridgeTop (+ bx (* fw 1.05)) (- beamBot ft (* rW 2.05)))) ; end-truck -> bridge
+              (foreach cb (list (list xL xBL 1.0 hwL) (list xR xBR -1.0 hwR))
               (setq cx  (+ (car cb) (* (caddr cb) (cadddr cb)))   ; column INNER FLANGE
                     bx  (cadr cb) dir (caddr cb)
                     bxi (+ bx (* dir fw)))                        ; beam INNER edge (into the module)
@@ -6884,8 +6942,10 @@
                 (peb-crane-sec-circ wx (+ railTop rW) rW)                         ; wheel on the rail
                 (peb-crane-sec-sline wx (+ railTop rW) wx (+ railTop (* rW 2.05)))) ; axle stub to the frame
               (peb-crane-sec-sline (- bx dW) (+ railTop (* rW 2.05)) (+ bx dW) (+ railTop (* rW 2.05))) ; axle beam
-              (peb-crane-sec-sbox (- bx (* fw 1.05)) (+ railTop (* rW 2.05)) (+ bx (* fw 1.05)) bridgeBot)) ; end-truck frame
-            ;; ── crane BRIDGE girder — spans c/c of rails, on the end trucks — DASHED (by others) ──
+              (peb-crane-sec-sbox (- bx (* fw 1.05)) (+ railTop (* rW 2.05)) (+ bx (* fw 1.05)) bridgeBot))) ; end-truck frame
+            ;; ── crane BRIDGE girder — spans c/c of rails (on the end trucks for TR / under the beams for
+            ;;    UH) — DASHED (by others).  PER-FRAME RULE: this typical section is a frame WITHIN the
+            ;;    crane run, so the crane is shown; per-frame sections outside the run would omit it. ──
             (peb-crane-sec-dbox xBL bridgeBot xBR bridgeTop)
             ;; ── spread SERIES cranes: if >1 crane shares this width-module, offset each hoist
             ;;    across the bridge span so symbols + labels never stack on an identical midX ──
@@ -6924,9 +6984,16 @@
                 ;; HOIST — short leader off the RIGHT of the hoist into open space
                 (peb-crane-sec-line (+ hoistX (* u 0.85)) (- hoistTop (* u 0.55)) (+ hoistX (* u 1.45)) (- hoistTop (* u 0.55)))
                 (txt-rom "ML" (list (+ hoistX (* u 1.55)) (- hoistTop (* u 0.55))) (/ (* u 0.40) sc) 0.0 "HOIST (BY OTHERS)")
-                ;; CRANE BEAM + RAIL — leader from the crane beam down-inward to the label
+                ;; CRANE BEAM — leader from the crane beam down-inward to the label (type-aware name)
                 (peb-crane-sec-line xBL beamBot (+ xBL (* u 1.1)) (- beamBot (* u 0.9)))
-                (txt-rom "ML" (list (+ xBL (* u 1.2)) (- beamBot (* u 0.9))) (/ (* u 0.40) sc) 0.0 "CRANE BEAM + RAIL")
+                (txt-rom "ML" (list (+ xBL (* u 1.2)) (- beamBot (* u 0.9))) (/ (* u 0.40) sc) 0.0
+                          (if isUH "CRANE BEAM (BY OTHERS)" "CRANE BEAM"))
+                ;; CRANE RAIL (BY OTHERS) — TR only (rail sits on the beam TOP; UH runs on the bottom flange)
+                (if (not isUH)
+                  (progn
+                    (peb-crane-sec-line xBL railTop (+ xBL (* u 1.3)) (+ railTop (* u 0.85)))
+                    (txt-rom "ML" (list (+ xBL (* u 1.4)) (+ railTop (* u 0.85))) (/ (* u 0.34) sc) 0.0
+                              "CRANE RAIL (BY OTHERS)")))
                 ;; HEIGHT OF CRANE BEAM — noted once (top of crane beam above FFL)
                 (txt-rom "MC" (list (+ midX (* u 1.6)) (+ bridgeTop (* u 1.35))) (/ (* u 0.36) sc) 0.0
                           (strcat "HEIGHT OF CRANE BEAM : " (rtos railTop 2 0)))
