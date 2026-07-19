@@ -6675,6 +6675,92 @@
   (setvar "CLAYER" prev)
   (princ))
 
+;; ============================================================================
+;;  peb-draw-crane-section — CRANE footprint on the cross-section, migrated from the
+;;  plan drawer peb-draw-crane.  Per toggled crane it draws (all HIDDEN / dotted):
+;;    · runway beams on the two columns of ITS module,
+;;    · the bridge girder spanning between them,
+;;    · the trolley + hoist hung under the bridge, with the hook to the hook height,
+;;  plus a "CAP <n>MT CRANE" label.  RULES mirror the plan: the module comes from
+;;  CRn_GRID_FROM_W / CRn_GRID_TO_W (else full width); the span is between the two
+;;  module columns; the hook height is CRn_HOOK_HEIGHT.  Coords: X = 0..wid across
+;;  the width, Y = 0..H (FFL..eave).  Self-contained (no dependency on the plan file).
+;; ============================================================================
+(defun peb-crane-sec-line (xa ya xb yb)
+  (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-SEC") (cons 6 "HIDDEN") (cons 48 300.0)
+                 (list 10 xa ya 0.0) (list 11 xb yb 0.0))))
+(defun peb-crane-sec-box (xa ya xb yb)
+  (peb-crane-sec-line xa ya xb ya) (peb-crane-sec-line xb ya xb yb)
+  (peb-crane-sec-line xb yb xa yb) (peb-crane-sec-line xa yb xa ya))
+
+(defun peb-draw-crane-section (data wid cols H ht / u sc n pre cap cls hookH nC
+                                gfW gtW cf ct xL xR midX railTop railBot bd capStr)
+  (if (= (strcase (MSPL-Get-Str data "CR_TOGGLE")) "YES")
+    (progn
+      (setq u  (max 250.0 (/ wid 45.0))
+            sc (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0))
+      (if (or (null cols) (< (length cols) 2)) (setq cols (list 0.0 wid)))
+      (setq nC (length cols))
+      (if (boundp 'safe-load-ltype) (vl-catch-all-apply (function (lambda () (safe-load-ltype "HIDDEN")))))
+      (if (not (tblsearch "LAYER" "COMP-CRANE-SEC"))
+        (entmake (list '(0 . "LAYER") '(100 . "AcDbSymbolTableRecord") '(100 . "AcDbLayerTableRecord")
+                       (cons 2 "COMP-CRANE-SEC") (cons 70 0) (cons 62 1) (cons 6 "Continuous"))))
+      (setvar "CLAYER" "COMP-CRANE-SEC")
+      (setq n 1)
+      (while (<= n 3)
+        (setq pre (strcat "CR" (itoa n) "_"))
+        (if (= (strcase (MSPL-Get-Str data (strcat pre "TOGGLE"))) "YES")
+          (vl-catch-all-apply (function (lambda ( / )
+            (setq cap   (MSPL-Get-Num data (strcat pre "CAP"))
+                  cls   (MSPL-Get-Str data (strcat pre "CMAA_CLASS"))
+                  hookH (MSPL-Get-Num data (strcat pre "HOOK_HEIGHT"))
+                  gfW   (strcase (MSPL-Get-Str data (strcat pre "GRID_FROM_W")))
+                  gtW   (strcase (MSPL-Get-Str data (strcat pre "GRID_TO_W"))))
+            (if (or (null cap)   (<= cap 0.0))   (setq cap 5.0))
+            (if (or (null hookH) (<= hookH 0.0)) (setq hookH (* H 0.55)))
+            ;; module column x-range (default = full width; letters A=..=last col, matching the plan)
+            (setq xL (nth 0 cols) xR (nth (1- nC) cols))
+            (if (and (> nC 2) (= (strlen gfW) 1) (= (strlen gtW) 1)
+                     (>= (ascii gfW) 65) (>= (ascii gtW) 65))
+              (progn
+                ;; section grid bubbles label A at the LEFT column (cols[0]) rising to the right,
+                ;; so map the width-grid letter directly to the column index (skip-I aware).
+                (setq cf (- (ascii gfW) 65 (if (> (ascii gfW) 73) 1 0))
+                      ct (- (ascii gtW) 65 (if (> (ascii gtW) 73) 1 0))
+                      cf (max 0 (min (1- nC) cf))
+                      ct (max 0 (min (1- nC) ct)))
+                (if (/= cf ct) (setq xL (nth (min cf ct) cols) xR (nth (max cf ct) cols)))))
+            (if (< (- xR xL) 1.0) (setq xL (nth 0 cols) xR (nth (1- nC) cols)))
+            (setq midX    (/ (+ xL xR) 2.0)
+                  bd      (* u 0.8)                          ; beam / girder depth
+                  railTop (min (- H (* u 1.2)) (+ hookH (* u 3.0)))
+                  railTop (max railTop (* H 0.35))
+                  railBot (- railTop bd)
+                  capStr  (rtos cap 2 0))
+            ;; runway beams — a box at each module column (rail on its bracket)
+            (peb-crane-sec-box (- xL (* u 0.35)) railBot (+ xL (* u 0.35)) railTop)
+            (peb-crane-sec-box (- xR (* u 0.35)) railBot (+ xR (* u 0.35)) railTop)
+            ;; bridge girder — box spanning between the runways, riding on top of them
+            (peb-crane-sec-box xL railTop xR (+ railTop bd))
+            ;; trolley — box hung under the bridge at mid-span + motor block beside it
+            (peb-crane-sec-box (- midX (* u 0.90)) (- railTop (* u 1.30)) (+ midX (* u 0.90)) railTop)
+            (peb-crane-sec-box (+ midX (* u 0.90)) (- railTop (* u 1.10)) (+ midX (* u 1.60)) (- railTop (* u 0.40)))
+            ;; hook — line down to the hook height + a small hook cup
+            (peb-crane-sec-line midX (- railTop (* u 1.30)) midX (+ hookH (* u 0.5)))
+            (entmake (list (cons 0 "ARC") (cons 8 "COMP-CRANE-SEC") (cons 6 "HIDDEN") (cons 48 300.0)
+                           (list 10 midX (+ hookH (* u 0.5)) 0.0)
+                           (cons 40 (* u 0.28)) (cons 50 180.0) (cons 51 360.0)))
+            ;; label — capacity (+ CMAA class if given)
+            (txt-bold "MC" (list midX (- hookH (* u 0.6))) (/ (* u 0.9) sc) 0.0
+                      (strcat "CAP " capStr "MT CRANE"))
+            (if (and cls (/= cls ""))
+              (txt-bold "MC" (list midX (- hookH (* u 1.7))) (/ (* u 0.65) sc) 0.0
+                        (strcat "CMAA CLASS " cls)))
+            (princ)))))
+        (setq n (1+ n)))
+      (setvar "CLAYER" "0")))
+  (princ))
+
 (defun C:PEB-SECTION
   ( / dataFile data
     project client propinput propno fulldate
@@ -7029,6 +7115,9 @@
 
   ;; ── Catwalk (owner 14-Jul): OUTER LINES only, installed at the columns INSIDE or OUTSIDE ──
   (vl-catch-all-apply (function (lambda () (peb-draw-catwalk data wid cols H ht))))
+
+  ;; ── Crane footprint in section (migrated from the plan; runway + bridge + hook per module) ──
+  (vl-catch-all-apply (function (lambda () (peb-draw-crane-section data wid cols H ht))))
 
   ;; ── Roof monitor at the peak (owner 13-Jul) — only for frames with a ridge/peak ──
   (if (and ridges (car ridges)
