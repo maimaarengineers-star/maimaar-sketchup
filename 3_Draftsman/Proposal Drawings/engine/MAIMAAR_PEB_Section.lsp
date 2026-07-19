@@ -7129,6 +7129,11 @@
                 (if (/= cf ct) (setq idxL (min cf ct) idxR (max cf ct)
                                      xL (nth idxL cols) xR (nth idxR cols)))))
             (if (< (- xR xL) 1.0) (setq xL (nth 0 cols) xR (nth (1- nC) cols) idxL 0 idxR (1- nC)))
+            ;; UNIVERSAL RULE (owner): a TR crane runs COLUMN TO COLUMN — within ONE module.  A single
+            ;; bridge can NOT pass THROUGH an interior column, so if the width grid range spans interior
+            ;; columns, clamp the rails to a SINGLE adjacent-column module (each module has its own crane).
+            (if (> idxR (1+ idxL))
+              (setq idxR (1+ idxL) xR (nth idxR cols)))
             ;; ── vertical stack, built DOWN from the rafter ceiling so the bridge never overrides
             ;;    the roof:  rafter/clearHt > bridge > end-truck > rail > I-beam > bracket ; hoist+hook below.
             (setq fw       (max 180.0 (* u 0.32))         ; I-beam flange half-width — READABLE on the frame
@@ -7306,6 +7311,24 @@
                 ;; HEIGHT OF CRANE BEAM — noted once (top of crane beam above FFL)
                 (txt-rom "MC" (list (+ midX (* u 1.6)) (+ bridgeTop (* u 1.35))) (/ (* u 0.36) sc) 0.0
                           (strcat "HEIGHT OF CRANE BEAM : " (rtos railTop 2 0)))
+                ;; ── Mammut Zealcon house-polish (owner 19-Jul) ──
+                ;; CL OF RAFTER — bridge centre = rafter centreline; label offset LEFT (the bridge/height
+                ;; labels sit right of centre) via a short tick + leader so nothing overlaps
+                (peb-crane-sec-line midX (+ bridgeTop (* u 0.15)) midX (+ bridgeTop (* u 0.80)))
+                (peb-crane-sec-line midX (+ bridgeTop (* u 0.80)) (- midX (* u 1.35)) (+ bridgeTop (* u 0.80)))
+                (txt-rom "MR" (list (- midX (* u 1.45)) (+ bridgeTop (* u 0.80))) (/ (* u 0.30) sc) 0.0 "CL OF RAFTER")
+                ;; LEVEL DATUM at the crane beam (metres from FFL) — Mammut-style level tag, left of the rail
+                (entmake (list (cons 0 "SOLID") (cons 8 "COMP-CRANE-SEC")
+                               (list 10 (- xBL (* u 0.55)) railTop 0.0)
+                               (list 11 (- xBL (* u 0.78)) (+ railTop (* u 0.22)) 0.0)
+                               (list 12 (- xBL (* u 0.78)) (- railTop (* u 0.22)) 0.0)
+                               (list 13 (- xBL (* u 0.78)) (- railTop (* u 0.22)) 0.0)))
+                (txt-rom "MR" (list (- xBL (* u 0.90)) railTop) (/ (* u 0.30) sc) 0.0
+                          (strcat "CRANE BEAM +" (rtos (/ railTop 1000.0) 2 3) " M"))
+                ;; AT GRID note — the crane frame applies only at its run grid lines (Mammut convention)
+                (if (/= (MSPL-Get-Str data (strcat pre "GRID_LOC")) "")
+                  (txt-rom "MC" (list hoistX (- hookH (* u 3.45))) (/ (* u 0.30) sc) 0.0
+                            (strcat "CRANE AT " (strcase (MSPL-Get-Str data (strcat pre "GRID_LOC"))) " ONLY")))
                 (setq labeled T)))
             (princ))))
           (setq n 3)))               ; drew one crane -> break the loop (one per section)
