@@ -3064,8 +3064,11 @@
                           "OVER HEAD CRANE")
                 (txt-bold "MC" (list capX (- capY (* u 0.35))) (/ (* u 0.50) sc) 0.0
                           (strcat capInt " TONES"))
+                (if (and cls (/= cls ""))
+                  (txt-bold "MC" (list capX (- capY (* u 1.00))) (/ (* u 0.38) sc) 0.0
+                            (strcat "CMAA CLASS " cls)))
                 (if byoth
-                  (txt-bold "MC" (list capX (- capY (* u 1.05))) (/ (* u 0.42) sc) 0.0
+                  (txt-bold "MC" (list capX (- capY (* u 1.60))) (/ (* u 0.42) sc) 0.0
                             "(BY OTHERS)"))
 
                 ;; ── (3) DASHED CRANE FOOTPRINT — imported from the old reference CLPs ──
