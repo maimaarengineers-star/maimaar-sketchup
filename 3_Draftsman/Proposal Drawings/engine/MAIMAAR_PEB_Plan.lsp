@@ -2321,7 +2321,7 @@
 ;; the monitor is partial.  NO columns.
 ;; ============================================================================
 (defun peb-draw-monitor (data len wid
-                         / u ridge ow rmlen half x0 x1 yTop yBot mcx su lay lyr bayPts gf gt)
+                         / u ridge ow throat rmlen half x0 x1 yTop yBot mcx su lay lyr bayPts gf gt)
   (if (= (strcase (MSPL-Get-Str data "RM_TOGGLE")) "YES")
     (progn
       ;; ---- size unit (same formula the other drawers use) ----------------
@@ -2330,6 +2330,8 @@
       (setq ow    (MSPL-Get-Num data "RM_OVERALL_WIDTH"))   ; total strip width across the ridge
       (setq rmlen (MSPL-Get-Num data "RM_LENGTH"))          ; length along the ridge (0/blank = full)
       (if (or (null ow) (<= ow 0.0)) (setq ow 3000.0))      ; Mammut-ish default 3.0 m
+      (setq throat (MSPL-Get-Num data "RM_THROAT_WIDTH"))   ; vent opening (SAME O.W. the section reads)
+      (if (or (null throat) (<= throat 0.0)) (setq throat (* ow 0.5)))
       ;; ---- geometry ------------------------------------------------------
       ;; ridge station via peb-ridge-y (honours BP_RIDGE_OFFSET) so the plan monitor lands on the
       ;; SAME ridge the SECTION uses (peb-ridge-x) — no section/plan disagreement (owner 19-Jul).
@@ -2364,6 +2366,12 @@
       ;; ---- centre ridge line ---------------------------------------------
       (entmake (list (cons 0 "LINE") (cons 8 lyr)
                      (list 10 x0 ridge 0.0) (list 11 x1 ridge 0.0)))
+      ;; ---- THROAT opening (vent slot) — two lines at ridge ± throat/2, so the PLAN reads the SAME
+      ;;      O.W. opening the SECTION shows between the legs (plan/section agreement, owner 19-Jul).
+      (entmake (list (cons 0 "LINE") (cons 8 lyr)
+                     (list 10 x0 (- ridge (/ throat 2.0)) 0.0) (list 11 x1 (- ridge (/ throat 2.0)) 0.0)))
+      (entmake (list (cons 0 "LINE") (cons 8 lyr)
+                     (list 10 x0 (+ ridge (/ throat 2.0)) 0.0) (list 11 x1 (+ ridge (/ throat 2.0)) 0.0)))
       ;; ---- label suppressed (owner 8-Jul) --------------------------------
       ;; Real Maimaar/Mammut approval drawings show the monitor GEOMETRICALLY only —
       ;; no "ROOF MONITOR" text on either the CLP or the Roof Plan (reference-verified).
@@ -3197,11 +3205,24 @@
                               off0 (+ (if (< yN 1.0)         (* colOff 2.0) colOff) cbIn)
                               off1 (+ (if (> yF (- wid 1.0)) (* colOff 2.0) colOff) cbIn))
                         (if (> (- yF yN) (* (+ off0 off1) 1.3)) (setq yN (+ yN off0) yF (- yF off1)))))))
-                (if (null yN)                            ; fallback: span centred (single span)
-                  (progn
-                    (setq yN (/ (- wid span) 2.0) yF (/ (+ wid span) 2.0))
-                    (if (< yN (* u 0.4))         (setq yN (* u 0.4)))
-                    (if (> yF (- wid (* u 0.4))) (setq yF (- wid (* u 0.4))))))
+                (if (null yN)                            ; no width-grid range given
+                  (if (and wgys (> (length wgys) 2))
+                    ;; MULTI-SPAN / MULTI-GABLE (owner UNIVERSAL RULE): the crane bridge must sit BETWEEN
+                    ;; ADJACENT columns (one module) — it can NOT cross an interior column.  Default to the
+                    ;; FIRST module (matches the section); width grid keys pick a specific module.  Beams on
+                    ;; the inner flanges (cbIn offset), same as the grid-keys path.
+                    (progn
+                      (setq yN (nth 0 wgys) yF (nth 1 wgys)
+                            colOff (/ (if (and (boundp '*PEB-COL-WEB*) *PEB-COL-WEB*) *PEB-COL-WEB* 700.0) 2.0)
+                            cbIn (+ 100.0 100.0)
+                            off0 (+ (if (< yN 1.0)         (* colOff 2.0) colOff) cbIn)
+                            off1 (+ (if (> yF (- wid 1.0)) (* colOff 2.0) colOff) cbIn))
+                      (if (> (- yF yN) (* (+ off0 off1) 1.3)) (setq yN (+ yN off0) yF (- yF off1))))
+                    ;; SINGLE / CLEAR SPAN (no interior columns): span centred across the width
+                    (progn
+                      (setq yN (/ (- wid span) 2.0) yF (/ (+ wid span) 2.0))
+                      (if (< yN (* u 0.4))         (setq yN (* u 0.4)))
+                      (if (> yF (- wid (* u 0.4))) (setq yF (- wid (* u 0.4)))))))
                 (if (boundp 'safe-load-ltype) (vl-catch-all-apply (function (lambda () (safe-load-ltype "HIDDEN")))))
                 (peb-comp-layer "COMP-CRANE-FP" 8)       ; grey dashed footprint layer
                 (setvar "CLAYER" "COMP-CRANE-FP")
