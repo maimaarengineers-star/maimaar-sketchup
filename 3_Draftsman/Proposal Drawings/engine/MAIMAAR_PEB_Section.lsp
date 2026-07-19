@@ -651,7 +651,8 @@
     (if (and (car kv)
              (or (wcmatch (strcase (car kv)) "PL*")
                  (wcmatch (strcase (car kv)) "BR*")
-                 (wcmatch (strcase (car kv)) "RM*")))
+                 (wcmatch (strcase (car kv)) "RM*")     ; RM* roof-monitor block
+                 (wcmatch (strcase (car kv)) "CR*")))   ; CR* crane block (CR_TOGGLE + CRn_*) — was DROPPED
       (setq out (cons kv out))))
   (reverse out))
 
