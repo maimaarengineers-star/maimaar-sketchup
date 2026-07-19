@@ -6759,18 +6759,21 @@
   (txt just (list (if (= just "ML") (+ tx (* 80 *PEB-TEXT-SCALE*)) (- tx (* 80 *PEB-TEXT-SCALE*))) ty)
        160 0 str))
 
-(defun rm-eave-curved (ex ey dir)
-  ;; R~500 curved eave panel (3-pt arc) + drip trim + short stub post.
+(defun rm-eave-curved (ex ey dir sz / c1 c2 c3 dt st)
+  ;; R~500 curved eave panel (3-pt arc) + drip trim + short stub post.  Offsets scale with the
+  ;; monitor size `sz` (leg height) — capped at the manual R500 detail so a short monitor reads clean.
+  (setq c1 (min 280.0 (* sz 0.37)) c2 (min 250.0 (* sz 0.33)) c3 (min 130.0 (* sz 0.17))
+        dt (min 490.0 (* sz 0.65)) st (min 640.0 (* sz 0.85)))
   (setvar "CLAYER" "COMP-MONITOR-SEC")
-  (command "_.ARC" (list ex ey) (list (+ ex (* dir 280.0)) (- ey 250.0)) (list (+ ex (* dir 130.0)) (- ey 490.0)))
+  (command "_.ARC" (list ex ey) (list (+ ex (* dir c1)) (- ey c2)) (list (+ ex (* dir c3)) (- ey dt)))
   (setvar "CLAYER" "GUTTER")
-  (command "_.LINE" (list (+ ex (* dir 130.0)) (- ey 490.0)) (list (+ ex (* dir 130.0)) (- ey 570.0)) "")
-  (rm-member ex ey ex (- ey 640.0) 90.0 (- dir) "FRAME"))
+  (command "_.LINE" (list (+ ex (* dir c3)) (- ey dt)) (list (+ ex (* dir c3)) (- ey dt 80.0)) "")
+  (rm-member ex ey ex (- ey st) 90.0 (- dir) "FRAME"))
 
 ;; ---- the drawer -----------------------------------------------------------
 (defun peb-draw-roof-monitor (data wid H rise ridgeX ht rd cb slopeD /
         prev throat overallW rmh eaveType bird curved
-        roofY halfT halfO legBaseY legTopY monRidgeY eaveY
+        roofY halfT halfO sL sR legBaseYL legBaseYR legTopYL legTopYR monRidgeY eaveYL eaveYR
         xLi xRi eaveLx eaveRx mDep pDep pt hg gW)
   (setq prev (getvar "CLAYER"))
   (if (or (null slopeD) (<= slopeD 0.0)) (setq slopeD 10.0))
@@ -6789,40 +6792,45 @@
         curved   (or (vl-string-search "CURV" eaveType) (vl-string-search "CURVED" eaveType)))
   (setq mDep 180.0 pDep 160.0)
 
-  ;; ---- mini-PEB-frame geometry (apex = ridgeX, H+rise) ----
+  ;; ---- mini-PEB-frame geometry — PER-SIDE rafter slopes so the monitor seats on the TRUE
+  ;;      rafter even at an OFF-CENTRE ridge (BP_RIDGE_OFFSET) or unequal pitches.  sL/sR = rise/run
+  ;;      each side; for a central ridge sL=sR=1/slopeD (identical to before).  Both monitor rafters
+  ;;      meet rmh above the peak.  (universal rule: monitor slope = the frame slope it sits on.)
   (setq roofY (+ H rise)
         halfT (/ throat 2.0) halfO (/ overallW 2.0)
-        legBaseY  (- roofY (/ halfT slopeD))          ; rafter top at the leg (seat)
-        legTopY   (+ legBaseY rmh)                    ; leg (column) top
-        monRidgeY (+ legTopY (/ halfT slopeD))        ; monitor ridge above the peak
-        eaveY     (- monRidgeY (/ halfO slopeD))      ; eave (overhang out to overallW/2)
-        xLi (- ridgeX halfT) xRi (+ ridgeX halfT)     ; leg reference faces
+        sL (if (> ridgeX 1.0) (/ rise ridgeX) (/ 1.0 slopeD))
+        sR (if (> (- wid ridgeX) 1.0) (/ rise (- wid ridgeX)) (/ 1.0 slopeD))
+        legBaseYL (- roofY (* halfT sL))  legBaseYR (- roofY (* halfT sR))   ; leg seats on true rafter
+        legTopYL  (+ legBaseYL rmh)       legTopYR  (+ legBaseYR rmh)
+        monRidgeY (+ roofY rmh)
+        eaveYL    (- monRidgeY (* halfO sL)) eaveYR (- monRidgeY (* halfO sR))
+        xLi (- ridgeX halfT) xRi (+ ridgeX halfT)
         eaveLx (- ridgeX halfO) eaveRx (+ ridgeX halfO))
 
   ;; 1) LEGS on the main rafter, both sides of the peak
-  (rm-member xLi legBaseY xLi legTopY pDep  1 "FRAME")
-  (rm-member xRi legBaseY xRi legTopY pDep -1 "FRAME")
+  (rm-member xLi legBaseYL xLi legTopYL pDep  1 "FRAME")
+  (rm-member xRi legBaseYR xRi legTopYR pDep -1 "FRAME")
   ;; 2) RAFTERS eave -> monitor ridge (mini gable), pass over the leg tops
-  (rm-member eaveLx eaveY ridgeX monRidgeY mDep 1 "FRAME")
-  (rm-member eaveRx eaveY ridgeX monRidgeY mDep 1 "FRAME")
+  (rm-member eaveLx eaveYL ridgeX monRidgeY mDep 1 "FRAME")
+  (rm-member eaveRx eaveYR ridgeX monRidgeY mDep 1 "FRAME")
   ;; 3) RIDGE PANEL cap
   (setvar "CLAYER" "COMP-MONITOR-SEC")
   (command "_.PLINE" (list (- ridgeX 260.0) (+ monRidgeY mDep 40.0)) (list (+ ridgeX 260.0) (+ monRidgeY mDep 40.0))
                      (list (+ ridgeX 200.0) (+ monRidgeY mDep 120.0)) (list (- ridgeX 200.0) (+ monRidgeY mDep 120.0)) "C")
   ;; 4) SHEETING + PURLINS following the rafter
-  (rm-line eaveLx (+ eaveY mDep 30.0) ridgeX (+ monRidgeY mDep 30.0) "COMP-MONITOR-SEC")
-  (rm-line eaveRx (+ eaveY mDep 30.0) ridgeX (+ monRidgeY mDep 30.0) "COMP-MONITOR-SEC")
-  (rm-purlins eaveLx eaveY ridgeX monRidgeY 3 70.0 1 "PURLINS")
-  (rm-purlins eaveRx eaveY ridgeX monRidgeY 3 70.0 1 "PURLINS")
+  (rm-line eaveLx (+ eaveYL mDep 30.0) ridgeX (+ monRidgeY mDep 30.0) "COMP-MONITOR-SEC")
+  (rm-line eaveRx (+ eaveYR mDep 30.0) ridgeX (+ monRidgeY mDep 30.0) "COMP-MONITOR-SEC")
+  (rm-purlins eaveLx eaveYL ridgeX monRidgeY 3 70.0 1 "PURLINS")
+  (rm-purlins eaveRx eaveYR ridgeX monRidgeY 3 70.0 1 "PURLINS")
   ;; 5) BIRD SCREEN — close each outboard throat (leg seat -> eave)
   (if (/= bird "NO")
     (progn (setvar "CLAYER" "GIRTS")
-           (rm-mesh xRi legBaseY eaveRx eaveY)
-           (rm-mesh xLi legBaseY eaveLx eaveY)))
+           (rm-mesh xRi legBaseYR eaveRx eaveYR)
+           (rm-mesh xLi legBaseYL eaveLx eaveYL)))
   ;; 6) EAVE — curved variant adds R500 panel + drip trim + stub post
   (if curved
-    (progn (rm-eave-curved eaveRx eaveY  1)
-           (rm-eave-curved eaveLx eaveY -1)))
+    (progn (rm-eave-curved eaveRx eaveYR  1 rmh)
+           (rm-eave-curved eaveLx eaveYL -1 rmh)))
 
   ;; 7) CONNECTION PLATES — CP/GP rule SCALED to the mini frame (polish 19-Jul):
   ;;    clean filled KNEE haunches (leg->rafter) + leg BASE plates + a two-plate
@@ -6830,16 +6838,16 @@
   ;;    gussets read too chunky on the small monitor members).
   (setq pt *PEB-CP-THK* hg (/ *PEB-CP-GAP* 2.0) gW (max 380.0 (* pDep 2.6)))
   (setvar "CLAYER" "PLATES")
-  ;; KNEE haunches — filled gusset in the leg/rafter corner, laid on the rafter slope
-  (vl-catch-all-apply (function (lambda () (draw-rc-gusset xLi legTopY (- legTopY gW) gW  1 (/  1.0 slopeD)))))
-  (vl-catch-all-apply (function (lambda () (draw-rc-gusset xRi legTopY (- legTopY gW) gW -1 (/ -1.0 slopeD)))))
-  ;; LEG base plates — short solid seat plate under each leg foot on the main rafter
+  ;; KNEE haunches — filled gusset in the leg/rafter corner, laid on the PER-SIDE rafter slope
+  (vl-catch-all-apply (function (lambda () (draw-rc-gusset xLi legTopYL (- legTopYL gW) gW  1 sL))))
+  (vl-catch-all-apply (function (lambda () (draw-rc-gusset xRi legTopYR (- legTopYR gW) gW -1 (- sR)))))
+  ;; LEG base plates — short solid seat plate flush on the rafter TOP FLANGE (per side)
   (vl-catch-all-apply (function (lambda ()
-    (peb-solid-quad (list (- xLi 55.0) (- legBaseY 55.0)) (list (+ xLi pDep 55.0) (- legBaseY 55.0))
-                    (list (- xLi 55.0) legBaseY)          (list (+ xLi pDep 55.0) legBaseY)))))
+    (peb-solid-quad (list (- xLi 55.0) (- legBaseYL 55.0)) (list (+ xLi pDep 55.0) (- legBaseYL 55.0))
+                    (list (- xLi 55.0) legBaseYL)          (list (+ xLi pDep 55.0) legBaseYL)))))
   (vl-catch-all-apply (function (lambda ()
-    (peb-solid-quad (list (- xRi pDep 55.0) (- legBaseY 55.0)) (list (+ xRi 55.0) (- legBaseY 55.0))
-                    (list (- xRi pDep 55.0) legBaseY)          (list (+ xRi 55.0) legBaseY)))))
+    (peb-solid-quad (list (- xRi pDep 55.0) (- legBaseYR 55.0)) (list (+ xRi 55.0) (- legBaseYR 55.0))
+                    (list (- xRi pDep 55.0) legBaseYR)          (list (+ xRi 55.0) legBaseYR)))))
   ;; monitor RIDGE splice — two solid plates + underside gussets
   (vl-catch-all-apply (function (lambda ()
     (peb-solid-quad (list (- ridgeX pt hg) (- monRidgeY mDep)) (list (- ridgeX hg) (- monRidgeY mDep))
@@ -6849,15 +6857,15 @@
     (draw-rc-gusset (- ridgeX pt hg) (- monRidgeY mDep) (- monRidgeY mDep 90.0) 90.0 -1 0.0)
     (draw-rc-gusset (+ ridgeX hg pt) (- monRidgeY mDep) (- monRidgeY mDep 90.0) 90.0  1 0.0))))
 
-  ;; 8) DIMS (open arrows) + LABELS (ROMAND) — full detail in place (polish later)
+  ;; 8) DIMS (open arrows) + LABELS (ROMAND) — full detail in place
   (rm-dim-h eaveLx (+ monRidgeY mDep 200.0) eaveRx (+ monRidgeY mDep 200.0) (+ monRidgeY mDep 520.0) (rtos overallW 2 0))
-  (rm-dim-v legBaseY eaveLx legTopY eaveLx (- eaveLx 520.0) (rtos rmh 2 0))
-  (rm-dim-h xLi legBaseY xRi legBaseY (- legBaseY 550.0) (rtos throat 2 0))
-  (rm-label (* 0.5 (+ eaveRx ridgeX)) (+ (* 0.5 (+ eaveY monRidgeY)) mDep) (+ eaveRx 900.0) (+ monRidgeY mDep 500.0) "ML" "ROOF MONITOR RAFTER")
+  (rm-dim-v legBaseYL eaveLx legTopYL eaveLx (- eaveLx 520.0) (rtos rmh 2 0))
+  (rm-dim-h xLi legBaseYL xRi legBaseYR (- (min legBaseYL legBaseYR) 550.0) (rtos throat 2 0))
+  (rm-label (* 0.5 (+ eaveRx ridgeX)) (+ (* 0.5 (+ eaveYR monRidgeY)) mDep) (+ eaveRx 900.0) (+ monRidgeY mDep 500.0) "ML" "ROOF MONITOR RAFTER")
   (rm-label ridgeX (+ monRidgeY mDep 90.0) (- ridgeX 2400.0) (+ monRidgeY mDep 90.0) "MR" "ROOF MONITOR RIDGE PANEL")
-  (rm-label xRi (* 0.5 (+ legBaseY legTopY)) (+ eaveRx 900.0) (* 0.5 (+ legBaseY legTopY)) "ML" "ROOF MONITOR LEG")
+  (rm-label xRi (* 0.5 (+ legBaseYR legTopYR)) (+ eaveRx 900.0) (* 0.5 (+ legBaseYR legTopYR)) "ML" "ROOF MONITOR LEG")
   (if (/= bird "NO")
-    (rm-label (* 0.5 (+ xRi eaveRx)) (* 0.5 (+ legBaseY eaveY)) (+ eaveRx 900.0) (- (* 0.5 (+ legBaseY eaveY)) 400.0) "ML" "BIRD SCREEN"))
+    (rm-label (* 0.5 (+ xRi eaveRx)) (* 0.5 (+ legBaseYR eaveYR)) (+ eaveRx 900.0) (- (* 0.5 (+ legBaseYR eaveYR)) 400.0) "ML" "BIRD SCREEN"))
 
   (setvar "CLAYER" prev)
   (princ))
