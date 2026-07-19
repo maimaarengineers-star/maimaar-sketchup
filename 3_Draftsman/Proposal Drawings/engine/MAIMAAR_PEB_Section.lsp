@@ -2102,8 +2102,8 @@
         (setq yOut (cigar-rafter-underside-y outerX 0.0 W ridgeX H rise ht rd midD kneeL ridgeL))
         (setq yIn  (cigar-rafter-underside-y innerX 0.0 W ridgeX H rise ht rd midD kneeL ridgeL))
         (setq mSlp (/ (- yIn yOut) (- innerX outerX)))   ; bottom-flange slope across the plate
-        (setq g    2.0)                                   ; owner 14-Jul: 2mm gap between the two plates
-        ;; owner 14-Jul: TWO SOLID 20mm plates, sloped parallel to the rafter BOTTOM FLANGE, 2mm gap, NO
+        (setq g    1.0)                                   ; STANDING RULE: 1mm hairline gap between the two plates
+        ;; owner 14-Jul: TWO SOLID 20mm plates, sloped parallel to the rafter BOTTOM FLANGE, 1mm hairline, NO
         ;; bolts.  The UPPER plate's top edge lies ON the bottom flange line (it REPLACES the flange at the
         ;; connection) and carries NO stiffeners.
         (peb-solid-quad (list outerX (- yOut ep)) (list innerX (- yIn ep))
@@ -2457,7 +2457,7 @@
         x0   (/ W 2.0)
         yTop (+ H rise)                    ; top flange at the ridge
         yBot (- (+ H rise) dp)             ; bottom flange (underside) at the ridge
-        pt   110.0 gp 3.0 ext 100.0        ; plate width / HALF-gap: small seam but VISIBLE as TWO plates (owner 16-Jul)
+        pt   110.0 gp 0.5 ext 100.0        ; plate width / HALF-gap: STANDING RULE 1mm hairline seam (VISIBLE as TWO plates)
         lxo  (- x0 gp) rxo (+ x0 gp))      ; inner faces of the LEFT / RIGHT bolted end-plate
   (setvar "CLAYER" "PLATES")
   (peb-solid-quad (list (- lxo pt) (- yBot ext)) (list lxo (- yBot ext))        ; LEFT plate (SOLID thick)
@@ -2485,7 +2485,7 @@
 (defun draw-rc-splice (x yTop yBot / pt gp ext lxo rxo)
   ;;  One rafter SPLICE connection at x: TWO bolted end-plates with a HAIRLINE 0.25-0.5mm gap (owner 16-Jul),
   ;;  each spanning the web + 100mm beyond both flanges, with FULL-WEB stiffener gussets on the outer edges.
-  (setq pt 90.0 gp 3.0 ext 100.0 lxo (- x gp) rxo (+ x gp))
+  (setq pt 90.0 gp 0.5 ext 100.0 lxo (- x gp) rxo (+ x gp))   ; STANDING RULE: 1mm hairline seam (HALF-gap 0.5)
   (setvar "CLAYER" "PLATES")
   (peb-solid-quad (list (- lxo pt) (- yBot ext)) (list lxo (- yBot ext))
                   (list (- lxo pt) (+ yTop ext)) (list lxo (+ yTop ext)))
@@ -3057,8 +3057,8 @@
   (setq yoC (peb-arc3-y 0.0 H midX peakY W H cutX)
         yiC (- yoC innerH))
   ;; Column TOP drops below the rafter underside by 2 plates + gap so the connection stacks cleanly
-  ;; (owner 16-Jul markup 10): column -> cap plate -> 2mm gap -> rafter plate -> rafter underside.
-  (setq colTop (- yiC 62.0))
+  ;; (markup 10): column -> cap plate -> 1mm hairline gap -> rafter plate -> rafter underside (30+30+1).
+  (setq colTop (- yiC 61.0))
   ;; LEFT column (rectangular pier) — OUTER face AT x=0 (owner 16-Jul): match the CS convention so the
   ;; shared girt/brick/base-plate/knee routines (all anchored to x=0 / x=W) land OUTSIDE the column.
   (command "RECTANG"
@@ -3321,12 +3321,12 @@
 (defun peb-conn-plate-pair (cx topY halfSpan ep nBolt / boltR i bx loBot stH stW xl xr)
   (setvar "CLAYER" "PLATES")
   (setq boltR (* 25 *PEB-TEXT-SCALE*))
-  ;; owner 14-Jul STRICT: TWO SOLID 30mm plates with a 2mm gap, NO bolts (same as the gable knee).
+  ;; STANDING RULE: TWO SOLID 30mm plates with a 1mm hairline gap, NO bolts (same as the gable knee).
   (setq ep 30.0 stH 110.0 stW 100.0)
-  (setq loBot (- topY ep 2.0 ep))
+  (setq loBot (- topY ep 1.0 ep))
   (setq xl (- cx halfSpan) xr (+ cx halfSpan))
   (peb-solid-quad (list xl (- topY ep)) (list xr (- topY ep)) (list xl topY) (list xr topY))          ; rafter plate (SOLID)
-  (peb-solid-quad (list xl loBot) (list xr loBot) (list xl (- topY ep 2.0)) (list xr (- topY ep 2.0))) ; column plate (SOLID)
+  (peb-solid-quad (list xl loBot) (list xr loBot) (list xl (- topY ep 1.0)) (list xr (- topY ep 1.0))) ; column plate (SOLID)
   ;; keep the LOWER (column) plate stiffeners only
   (draw-stiff-bot xl loBot stW stH  1)
   (draw-stiff-bot xr loBot stW stH -1))
@@ -3380,11 +3380,11 @@
   (setq boltR (* 18 *PEB-TEXT-SCALE*))
   (setq ext 100.0)                          ; 100 mm beyond top AND bottom flanges
   (setq pB (- (min yBot yTop) ext) pT (+ (max yBot yTop) ext))
-  ;; owner 14-Jul STRICT: TWO SOLID plates with a 2mm gap at the seam, NO bolts.
-  (peb-solid-quad (list (- cx plateT) pB) (list (- cx 1.0) pB)
-                  (list (- cx plateT) pT) (list (- cx 1.0) pT))   ; plate left of seam (SOLID)
-  (peb-solid-quad (list (+ cx 1.0) pB) (list (+ cx plateT) pB)
-                  (list (+ cx 1.0) pT) (list (+ cx plateT) pT))   ; plate right of seam (SOLID)
+  ;; STANDING RULE: TWO SOLID plates with a 1mm hairline gap at the seam (±0.5), NO bolts.
+  (peb-solid-quad (list (- cx plateT) pB) (list (- cx 0.5) pB)
+                  (list (- cx plateT) pT) (list (- cx 0.5) pT))   ; plate left of seam (SOLID)
+  (peb-solid-quad (list (+ cx 0.5) pB) (list (+ cx plateT) pB)
+                  (list (+ cx 0.5) pT) (list (+ cx plateT) pT))   ; plate right of seam (SOLID)
   (princ))
 
 ;;  draw-knee-hplate — the ROTATED (horizontal) column-rafter KNEE connection (owner 14-Jul, STRICT):
@@ -3419,10 +3419,10 @@
     ;; STEEL: the STANDARD I-shape connection ROTATED to the corner — upper (rafter-bottom) plate +
     ;; lower (column-top) plate, bolts along the seam, and stiffener triangles on the OUTER side.
     (progn
-      ;; owner 14-Jul (item 7): REAL 20mm plates, 2mm gap between them, NO bolts shown.  Two SOLID plates
+      ;; STANDING RULE: REAL 20mm plates, 1mm hairline gap between them, NO bolts shown.  Two SOLID plates
       ;; straddling the seam — upper welded to the rafter bottom (sits AT the column-rafter junction),
       ;; lower on the column top.
-      (setq plateT 30.0 gap 2.0 stW 100.0 stH 110.0)   ; 30mm plates, 2mm gap, stiffener till the 100 ext
+      (setq plateT 30.0 gap 1.0 stW 100.0 stH 110.0)   ; 30mm plates, 1mm hairline gap, stiffener till the 100 ext
       ;; EAVE knee (dirOut ±1): the 2 plates STRADDLE the seam (rafter underside = column top).
       ;; INTERIOR column (dirOut nil): the RAFTER (upper) plate top is FLUSH with the rafter bottom flange
       ;; (= ySeam) and the COLUMN (lower) plate sits below the gap (owner 14-Jul).
@@ -3466,13 +3466,13 @@
 ;;  and one on the BACKSIDE OF THE WING (right of the seam), each extended 100 mm past both flanges, with
 ;;  3 bolts down the seam and stiffener triangles top + bottom.  (Matches draw-valley-col-plates' outline
 ;;  plates + donut bolts, but as the one-sided cantilever pair.)  plateT/nBolt kept for call compatibility.
-(defun draw-cant-vplate (cx yBot yTop plateT nBolt / boltR vPThk gap ext pB pT
-                          xCol1 xCol2 xWing1 xWing2 midY stW stH)
+(defun draw-cant-vplate (cx yBot yTop plateT nBolt / vPThk gap ext pB pT
+                          xCol1 xCol2 xWing1 xWing2 stW stH)
   (setvar "CLAYER" "PLATES")
-  (setq boltR (* 25 *PEB-TEXT-SCALE*))
-  ;; owner 18-Jul: widen the seam GAP so the two solid plates read as clearly separate (the old 50mm gap
-  ;; was ~the bolt diameter, so the bolts bridged it and the pair looked like one block).
-  (setq vPThk 20.0 gap 140.0 ext 100.0)
+  ;; STANDING RULE (owner): connection plates = two SOLID plates with a small HAIRLINE gap, NO bolts
+  ;; drawn on the seam. Matches the house convention (SS knee/splice peb-conn-plate-pair). Applies to ALL
+  ;; sections. gap = 1mm hairline seam so the pair reads as one clamped, solid bolted joint.
+  (setq vPThk 20.0 gap 1.0 ext 100.0)
   (setq pB (- (min yBot yTop) ext) pT (+ (max yBot yTop) ext))
   (setq xCol2  (- cx (/ gap 2.0)) xCol1  (- xCol2 vPThk)    ; COLUMN-side plate (left of seam)
         xWing1 (+ cx (/ gap 2.0)) xWing2 (+ xWing1 vPThk))  ; WING-back plate  (right of seam)
@@ -3480,10 +3480,7 @@
   ;; solid steel at the section scale — matches the Butterfly / Multi-Gable valley plate appearance.
   (peb-solid-quad (list xCol1  pB) (list xCol2  pB) (list xCol1  pT) (list xCol2  pT))   ; plate on the SIDE OF THE COLUMN
   (peb-solid-quad (list xWing1 pB) (list xWing2 pB) (list xWing1 pT) (list xWing2 pT))   ; plate on the BACKSIDE OF THE WING
-  (setq midY (/ (+ pB pT) 2.0))
-  (command "DONUT" 0 (* boltR 2) (list cx (+ pB 100.0)) "")
-  (command "DONUT" 0 (* boltR 2) (list cx midY) "")
-  (command "DONUT" 0 (* boltR 2) (list cx (- pT 100.0)) "")
+  ;; STANDING RULE: no bolt donuts drawn on the seam — the hairline gap alone shows the joint.
   ;; owner 18-Jul: FILLED SOLID gussets (standing gusset rule) within the 100mm plate extension above the
   ;; rafter top flange (yTop).  TOP end only — the bottom sits at the column top (open below), no gusset.
   (setq stW 100.0)
@@ -3544,7 +3541,7 @@
 ;;  is a continuous member spliced to <=12 m shipping pieces).  Splice Y follows the parabolic arch.
 ;;  peb-arch-knee — the arched-frame column-arch connection (owner 16-Jul, markup 10): TWO SOLID plates
 ;;  ONLY — a plate on the RAFTER BOTTOM (top flush with the arch underside) + a COLUMN-CAP plate below a
-;;  2 mm gap — with NO diagonal stiffener/gusset (curved frames drop the knee triangle).  The steel column
+;;  1 mm hairline gap — with NO diagonal stiffener/gusset (curved frames drop the knee triangle).  The steel column
 ;;  tops out at capBot (= rafterBotY - 62), sitting cleanly BELOW the plates (draw-acs/ams-frame match this).
 ;;  peb-arch-knee — arched-frame column/rafter connection (owner 16-Jul markups 10/13/16).  Two SOLID plates
 ;;  (rafter + column-cap) spanning the column with NO overhang into the span (markup 16: DO NOT extend), plus
@@ -3553,7 +3550,7 @@
 ;;  at x0), 0 = CENTRE column (both edges are inner flanges).
 (defun peb-arch-knee (xL xR rafterBotY dirIn / x0 x1 plateT gap gw rafBot rafTop capTop capBot stH px0 px1)
   (setvar "CLAYER" "PLATES")
-  (setq plateT 30.0 gap 2.0 gw 110.0 x0 xL x1 xR)
+  (setq plateT 30.0 gap 1.0 gw 110.0 x0 xL x1 xR)   ; STANDING RULE: 1mm hairline gap
   (setq rafTop rafterBotY rafBot (- rafterBotY plateT))       ; rafter-bottom plate (welded to rafter)
   (setq capTop (- rafBot gap) capBot (- capTop plateT))       ; column-cap plate (welded to column)
   ;; The top plates EXTEND on the inner-flange side by the stiffener width so the stiffener's full top edge
@@ -4122,11 +4119,11 @@
   ;;  The vertical apex plates (RIDGE APEX in draw-rafter-stiffeners) are
   ;;  suppressed for this case so the rafter web runs continuous over the peak.
   (setvar "CLAYER" "PLATES")
-  ;; owner 14-Jul STRICT: TWO SOLID 30mm plates, 2mm gap, NO bolts; stiffener JUST till the plate extension.
+  ;; STANDING RULE: TWO SOLID 30mm plates, 1mm hairline gap, NO bolts; stiffener JUST till the plate extension.
   (setq ep      30.0)
   (setq upTopY  (- (+ H rise) rd))           ; rafter underside at ridge / column top
   (setq upBotY  (- upTopY ep))               ; upper (rafter) plate bottom edge
-  (setq loTopY  (- upBotY 2.0))              ; lower (column) plate top edge (2mm gap)
+  (setq loTopY  (- upBotY 1.0))              ; lower (column) plate top edge (1mm hairline gap)
   (setq loBotY  (- loTopY ep))               ; lower plate bottom edge
   (setq intColW 400.0)                       ; matches draw-mg-multi-frame
   (setq halfCol (/ intColW 2.0))             ; = 200
@@ -6693,16 +6690,25 @@
   (peb-crane-sec-line xa ya xb ya) (peb-crane-sec-line xb ya xb yb)
   (peb-crane-sec-line xb yb xa yb) (peb-crane-sec-line xa yb xa ya))
 
-(defun peb-draw-crane-section (data wid cols H ht / u sc n pre cap cls hookH nC
-                                gfW gtW cf ct xL xR midX capStr
-                                beamD fw ft brkOff railY beamBotY bridgeBot bridgeTop
-                                hoistBot xBL xBR cb cx bx dir labeled)
+(defun peb-crane-sec-colhw (cols idx ht u / w)
+  ;; real column HALF-WIDTH at column idx: interior -> ms-col-web-at/2; end col -> ht/2.
+  (if (and idx (> idx 0) (< idx (1- (length cols))) (boundp 'ms-col-web-at))
+    (setq w (ms-col-web-at cols idx)) (setq w nil))
+  (if (or (null w) (<= w 0.0)) (setq w ht))
+  (max (* u 0.40) (/ w 2.0)))
+
+(defun peb-draw-crane-section (data wid cols H ht clearHt rise rd ridges
+                                / u sc n pre cap cls hookH nC gfW gtW cf ct xL xR midX capStr
+                                  idxL idxR hwL hwR brkLen fw ft beamD railNubH etH bd
+                                  capY bridgeTop bridgeBot railTop beamTop beamBot hoistTop hoistBot
+                                  xBL xBR cb cx bx dir hw labeled)
   (if (= (strcase (MSPL-Get-Str data "CR_TOGGLE")) "YES")
     (progn
       (setq u  (max 250.0 (/ wid 45.0))
             sc (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0))
       (if (or (null cols) (< (length cols) 2)) (setq cols (list 0.0 wid)))
       (setq nC (length cols))
+      (if (or (null clearHt) (<= clearHt 0.0)) (setq clearHt (* H 0.80)))
       (if (boundp 'safe-load-ltype) (vl-catch-all-apply (function (lambda () (safe-load-ltype "HIDDEN")))))
       (if (not (tblsearch "LAYER" "COMP-CRANE-SEC"))
         (entmake (list '(0 . "LAYER") '(100 . "AcDbSymbolTableRecord") '(100 . "AcDbLayerTableRecord")
@@ -6713,87 +6719,88 @@
         (setq pre (strcat "CR" (itoa n) "_"))
         (if (= (strcase (MSPL-Get-Str data (strcat pre "TOGGLE"))) "YES")
           (vl-catch-all-apply (function (lambda ( / )
+            ;; ── inputs from BS (crane_system -> CR* keys) ──
             (setq cap   (MSPL-Get-Num data (strcat pre "CAP"))
                   cls   (MSPL-Get-Str data (strcat pre "CMAA_CLASS"))
                   hookH (MSPL-Get-Num data (strcat pre "HOOK_HEIGHT"))
                   gfW   (strcase (MSPL-Get-Str data (strcat pre "GRID_FROM_W")))
                   gtW   (strcase (MSPL-Get-Str data (strcat pre "GRID_TO_W"))))
-            (if (or (null cap)   (<= cap 0.0))   (setq cap 5.0))
-            (if (or (null hookH) (<= hookH 0.0)) (setq hookH (* H 0.55)))
-            ;; module column x-range (default = full width; letters A=..=last col, matching the plan)
-            (setq xL (nth 0 cols) xR (nth (1- nC) cols))
+            (if (or (null cap) (<= cap 0.0)) (setq cap 5.0))
+            ;; module column x-range (default = full width; section grid letter A = LEFT col = cols[0])
+            (setq xL (nth 0 cols) xR (nth (1- nC) cols) idxL 0 idxR (1- nC))
             (if (and (> nC 2) (= (strlen gfW) 1) (= (strlen gtW) 1)
                      (>= (ascii gfW) 65) (>= (ascii gtW) 65))
               (progn
-                ;; section grid bubbles label A at the LEFT column (cols[0]) rising to the right,
-                ;; so map the width-grid letter directly to the column index (skip-I aware).
-                (setq cf (- (ascii gfW) 65 (if (> (ascii gfW) 73) 1 0))
-                      ct (- (ascii gtW) 65 (if (> (ascii gtW) 73) 1 0))
-                      cf (max 0 (min (1- nC) cf))
-                      ct (max 0 (min (1- nC) ct)))
-                (if (/= cf ct) (setq xL (nth (min cf ct) cols) xR (nth (max cf ct) cols)))))
-            (if (< (- xR xL) 1.0) (setq xL (nth 0 cols) xR (nth (1- nC) cols)))
-            ;; ── TR (Top-Running) crane section — Technical Manual §10.6 p262-264.
-            ;;    Vertical stack (FFL up):  hookH (max hook ht) < hoist < bridge < rail
-            ;;    = top of crane beam.  The crane beam rides on a BEAM BRACKET off the
-            ;;    column (+ angle brace); the bridge spans c/c of rails; the hoist hangs
-            ;;    under the bridge with the hook to the hook height.
-            (setq beamD     (max 500.0 (* u 1.60))       ; crane beam depth
-                  fw        (* u 0.55)                    ; crane beam flange half-width
-                  ft        (max 60.0 (* u 0.14))         ; flange thickness
-                  brkOff    (* u 1.20)                    ; beam inset from column ("VARIES")
-                  railY     (min (- H (* u 1.4)) (+ hookH (* u 3.2))) ; TOP of crane beam / rail
-                  railY     (max railY (* H 0.38))
-                  beamBotY  (- railY beamD)
-                  bridgeBot (+ railY (* u 0.35))          ; bridge sits above the rail
-                  bridgeTop (+ bridgeBot (* u 0.95))
-                  hoistBot  (- bridgeBot (* u 1.55))      ; hoist hangs below the bridge
-                  xBL       (+ xL brkOff fw)              ; left  crane-beam / rail centre
-                  xBR       (- xR (+ brkOff fw))          ; right crane-beam / rail centre
-                  capStr    (rtos cap 2 0))
-            (if (< (- xBR xBL) (* u 2.0))
-              (setq xBL (+ xL (* u 0.6)) xBR (- xR (* u 0.6))))
-            (setq midX (/ (+ xBL xBR) 2.0))
-            ;; per column: beam bracket + angle brace + crane beam (I) + cap channel/rail
-            (foreach cb (list (list xL xBL 1.0) (list xR xBR -1.0))
-              (setq cx (car cb) bx (cadr cb) dir (caddr cb))
-              (peb-crane-sec-line cx beamBotY (+ bx (* dir fw)) beamBotY)                 ; bracket top flange
-              (peb-crane-sec-line cx (- beamBotY (* u 0.5)) (+ bx (* dir fw)) (- beamBotY (* u 0.5))) ; bracket bottom
-              (peb-crane-sec-line (+ bx (* dir fw)) beamBotY (+ bx (* dir fw)) (- beamBotY (* u 0.5))) ; bracket end
-              (peb-crane-sec-line cx (+ beamBotY (* u 1.5)) (+ bx (* dir fw)) beamBotY)   ; ANGLE BRACE (diagonal)
-              (peb-crane-sec-box (- bx fw) (- railY ft) (+ bx fw) railY)                  ; crane-beam top flange
-              (peb-crane-sec-box (- bx fw) beamBotY (+ bx fw) (+ beamBotY ft))            ; crane-beam bottom flange
-              (peb-crane-sec-line bx (- railY ft) bx (+ beamBotY ft))                     ; crane-beam web
-              (peb-crane-sec-box (- bx (* u 0.20)) railY (+ bx (* u 0.20)) (+ railY (* u 0.30)))) ; cap channel + rail
-            ;; crane bridge girder — spans c/c of rails, riding on the rails via end trucks
+                (setq cf (max 0 (min (1- nC) (- (ascii gfW) 65 (if (> (ascii gfW) 73) 1 0))))
+                      ct (max 0 (min (1- nC) (- (ascii gtW) 65 (if (> (ascii gtW) 73) 1 0)))))
+                (if (/= cf ct) (setq idxL (min cf ct) idxR (max cf ct)
+                                     xL (nth idxL cols) xR (nth idxR cols)))))
+            (if (< (- xR xL) 1.0) (setq xL (nth 0 cols) xR (nth (1- nC) cols) idxL 0 idxR (1- nC)))
+            ;; ── vertical stack, built DOWN from the rafter ceiling so the bridge never overrides
+            ;;    the roof:  rafter/clearHt > bridge > end-truck > rail > I-beam > bracket ; hoist+hook below.
+            (setq fw       (* u 0.55)                     ; I-beam flange half-width
+                  ft       (max 60.0 (* u 0.14))          ; flange thickness
+                  beamD    (max 450.0 (* u 1.30))         ; crane beam depth
+                  railNubH (* u 0.28)                     ; crane rail on top of the beam
+                  etH      (* u 0.55)                     ; end-truck (bridge-to-rail) connection height
+                  bd       (* u 0.90)                     ; bridge girder depth
+                  brkLen   (* u 1.00)                     ; bracket cantilever length off the column face
+                  capY     (- clearHt (* u 0.60))         ; ceiling: bridge top kept clear of the rafters
+                  bridgeTop capY
+                  bridgeBot (- bridgeTop bd)
+                  railTop  (- bridgeBot etH)              ; top of rail (bridge end-truck rides on it)
+                  beamTop  (- railTop railNubH)           ; top of the crane I-beam
+                  beamBot  (- beamTop beamD)
+                  hoistTop bridgeBot
+                  hoistBot (- bridgeBot (* u 1.40)))
+            (setq idxL (vl-position xL cols) idxR (vl-position xR cols)
+                  hwL  (peb-crane-sec-colhw cols idxL ht u)
+                  hwR  (peb-crane-sec-colhw cols idxR ht u)
+                  xBL  (+ xL hwL brkLen fw)               ; left  rail / I-beam centre (off the real column face)
+                  xBR  (- xR (+ hwR brkLen fw)))          ; right rail / I-beam centre
+            (if (< (- xBR xBL) (* u 2.0)) (setq xBL (+ xL (* u 0.8)) xBR (- xR (* u 0.8))))
+            (setq midX (/ (+ xBL xBR) 2.0) capStr (rtos cap 2 0))
+            ;; hook height (from BS) clamped to sit below the hoist and above the floor
+            (if (or (null hookH) (<= hookH 0.0)) (setq hookH (- hoistBot (* u 1.8))))
+            (setq hookH (max (* clearHt 0.12) (min hookH (- hoistBot (* u 0.5)))))
+            ;; ── per module column: simple triangular BRACKET (on the real column face) + I-BEAM on top + RAIL ──
+            (foreach cb (list (list xL xBL 1.0 hwL) (list xR xBR -1.0 hwR))
+              (setq cx (+ (car cb) (* (caddr cb) (cadddr cb)))   ; real inner column face
+                    bx (cadr cb) dir (caddr cb))
+              ;; triangular bracket gusset from the column face out to the I-beam, top at beamBot
+              (peb-crane-sec-line cx beamBot (+ bx (* dir fw)) beamBot)                 ; bracket top
+              (peb-crane-sec-line (+ bx (* dir fw)) beamBot cx (- beamBot (* u 0.95)))  ; bracket diagonal
+              (peb-crane-sec-line cx beamBot cx (- beamBot (* u 0.95)))                 ; bracket back (at column face)
+              ;; crane beam I-section (top flange + bottom flange + web) sitting ON the bracket
+              (peb-crane-sec-box (- bx fw) (- beamTop ft) (+ bx fw) beamTop)            ; top flange
+              (peb-crane-sec-box (- bx fw) beamBot (+ bx fw) (+ beamBot ft))            ; bottom flange
+              (peb-crane-sec-line bx (- beamTop ft) bx (+ beamBot ft))                  ; web
+              ;; crane RAIL on top of the beam
+              (peb-crane-sec-box (- bx (* u 0.16)) beamTop (+ bx (* u 0.16)) railTop)
+              ;; bridge-to-rail CONNECTION (end truck) riding on the rail
+              (peb-crane-sec-box (- bx (* fw 0.85)) railTop (+ bx (* fw 0.85)) bridgeBot))
+            ;; ── crane BRIDGE girder — spans c/c of rails, on the end trucks ──
             (peb-crane-sec-box xBL bridgeBot xBR bridgeTop)
-            (peb-crane-sec-box (- xBL fw) (+ railY (* u 0.30)) (+ xBL fw) bridgeBot)
-            (peb-crane-sec-box (- xBR fw) (+ railY (* u 0.30)) (+ xBR fw) bridgeBot)
-            ;; hoist / trolley hung under the bridge at mid-span + motor block beside it
-            (peb-crane-sec-box (- midX (* u 0.85)) hoistBot (+ midX (* u 0.85)) bridgeBot)
-            (peb-crane-sec-box (+ midX (* u 0.85)) (+ hoistBot (* u 0.30)) (+ midX (* u 1.55)) (- bridgeBot (* u 0.30)))
-            ;; hook — line down to the max hook height + a small hook cup
-            (peb-crane-sec-line midX hoistBot midX (+ hookH (* u 0.5)))
-            (entmake (list (cons 0 "ARC") (cons 8 "COMP-CRANE-SEC") (cons 6 "HIDDEN") (cons 48 300.0)
-                           (list 10 midX (+ hookH (* u 0.5)) 0.0)
-                           (cons 40 (* u 0.28)) (cons 50 180.0) (cons 51 360.0)))
-            ;; part labels — drawn ONCE (first crane) with leaders, to avoid clutter on a multi-crane section
+            ;; ── HOIST (by others) hung under the bridge at mid-span ──
+            (peb-crane-sec-box (- midX (* u 0.85)) hoistBot (+ midX (* u 0.85)) hoistTop)
+            ;; hook cable down to the hook height
+            (peb-crane-sec-line midX hoistBot midX hookH)
+            ;; ── HOOK HEIGHT — M-Ladder annotation (arrow at the hook, value from BS) ──
+            (vl-catch-all-apply (function (lambda ()
+              (peb-make-mleader (list (list midX hookH) (list (+ midX (* u 3.0)) hookH))
+                                (strcat "HOOK HEIGHT : " (rtos hookH 2 0))))))
+            ;; ── part labels drawn ONCE (manual convention: BY OTHERS) ──
             (if (not labeled)
               (progn
-                (peb-crane-sec-line xBR (+ bridgeTop (* u 0.15)) xBR (+ bridgeTop (* u 0.55)))
-                (txt-bold "ML" (list (+ xBR (* u 0.2)) (+ bridgeTop (* u 0.55))) (/ (* u 0.42) sc) 0.0 "CRANE BRIDGE (BY OTHERS)")
-                (peb-crane-sec-line (+ xBR fw) (- railY (* u 0.2)) (+ xBR (* u 1.4)) (- railY (* u 0.2)))
-                (txt-bold "ML" (list (+ xBR (* u 1.5)) (- railY (* u 0.2))) (/ (* u 0.42) sc) 0.0 "CRANE BEAM + RAIL")
-                (peb-crane-sec-line (+ xR (* dir fw)) (- beamBotY (* u 0.3)) (+ xR (* u 1.4)) (- beamBotY (* u 0.3)))
-                (txt-bold "ML" (list (+ xR (* u 1.5)) (- beamBotY (* u 0.3))) (/ (* u 0.42) sc) 0.0 "BEAM BRACKET")
-                (txt-bold "ML" (list (+ midX (* u 1.7)) hoistBot) (/ (* u 0.42) sc) 0.0 "HOIST (BY OTHERS)")
+                (txt-bold "MC" (list midX (+ bridgeTop (* u 0.55))) (/ (* u 0.42) sc) 0.0 "CRANE BRIDGE (BY OTHERS)")
+                (txt-bold "ML" (list (+ midX (* u 1.0)) (+ hoistBot (* u 0.55))) (/ (* u 0.42) sc) 0.0 "HOIST (BY OTHERS)")
                 (setq labeled T)))
-            ;; capacity label — under the hook, sized to fit inside the module
-            (txt-bold "MC" (list midX (- hookH (* u 0.85))) (/ (* u 0.50) sc) 0.0
+            ;; ── capacity + class (per crane, fits the module) ──
+            (txt-bold "MC" (list midX (- hookH (* u 0.75))) (/ (* u 0.50) sc) 0.0
                       (strcat "CAP " capStr " MT"))
             (if (and cls (/= cls ""))
-              (txt-bold "MC" (list midX (- hookH (* u 1.55))) (/ (* u 0.38) sc) 0.0
-                        (strcat "CLASS " cls)))
+              (txt-bold "MC" (list midX (- hookH (* u 1.45))) (/ (* u 0.38) sc) 0.0
+                        (strcat "CMAA CLASS " cls)))
             (princ)))))
         (setq n (1+ n)))
       (setvar "CLAYER" "0")))
@@ -7155,7 +7162,7 @@
   (vl-catch-all-apply (function (lambda () (peb-draw-catwalk data wid cols H ht))))
 
   ;; ── Crane footprint in section (migrated from the plan; runway + bridge + hook per module) ──
-  (vl-catch-all-apply (function (lambda () (peb-draw-crane-section data wid cols H ht))))
+  (vl-catch-all-apply (function (lambda () (peb-draw-crane-section data wid cols H ht clearHt rise rd ridges))))
 
   ;; ── Roof monitor at the peak (owner 13-Jul) — only for frames with a ridge/peak ──
   (if (and ridges (car ridges)
@@ -7326,7 +7333,7 @@
       ;; ROTATED knee (owner 14-Jul): HORIZONTAL base plate on the LEFT steel column top, welded to the
       ;; rafter bottom (seam at H-ht), spanning the column depth (ht) inward.
       (draw-knee-hplate 0.0 ht (- H ht) 45.0 4 nil -1)   ; LT left steel column — outer = left
-      ;; ONE rafter SPLICE at mid-span (owner 15-Jul): TWO solid plates (40 thick, 2mm gap, no bolts)
+      ;; ONE rafter SPLICE at mid-span (owner 15-Jul): TWO solid plates (40 thick, 1mm hairline gap, no bolts)
       ;; spanning the web + 100 beyond BOTH flanges, with a stiffener gusset (100x100) on BOTH sides AT the
       ;; TOP and BOTTOM flange (the gussets sit inside the 100 extension, NOT sticking out past the plate).
       (setq ltMidX (/ wid 2.0))
