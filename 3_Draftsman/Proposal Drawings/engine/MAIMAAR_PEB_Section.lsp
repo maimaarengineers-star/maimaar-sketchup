@@ -6655,6 +6655,23 @@
 (defun peb-crane-sec-box (xa ya xb yb)
   (peb-crane-sec-line xa ya xb ya) (peb-crane-sec-line xb ya xb yb)
   (peb-crane-sec-line xb yb xa yb) (peb-crane-sec-line xa yb xa ya))
+;; owner-chosen SHORT-DASH thick line for the crane BRIDGE (150 dash / 120 gap, true mm), matching the
+;; plan's CRANEBRG.  Bridge = "by others" reference member, drawn dashed (the crane BEAM stays solid).
+(defun peb-crane-sec-dash (xa ya xb yb / es)
+  (if (not (tblsearch "LTYPE" "CRANEBRG"))
+    (vl-catch-all-apply (function (lambda ()
+      (entmake (list '(0 . "LTYPE") '(100 . "AcDbSymbolTableRecord")
+                     '(100 . "AcDbLinetypeTableRecord") '(2 . "CRANEBRG") '(70 . 0)
+                     '(3 . "Crane bridge __ __ __") '(72 . 65) '(73 . 2) '(40 . 270.0)
+                     '(49 . 150.0) '(74 . 0) '(49 . -120.0) '(74 . 0)))))))
+  (setq es (if (> (getvar "LTSCALE") 0.0) (/ 1.0 (getvar "LTSCALE")) 1.0))
+  (if (tblsearch "LTYPE" "CRANEBRG")
+    (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-SEC") (cons 6 "CRANEBRG") (cons 48 es) (cons 370 25)
+                   (list 10 xa ya 0.0) (list 11 xb yb 0.0)))
+    (peb-crane-sec-line xa ya xb yb)))
+(defun peb-crane-sec-dbox (xa ya xb yb)
+  (peb-crane-sec-dash xa ya xb ya) (peb-crane-sec-dash xb ya xb yb)
+  (peb-crane-sec-dash xb yb xa yb) (peb-crane-sec-dash xa yb xa ya))
 
 ;; solid (continuous) primitives for the DETAILED HOIST symbol — a small crisp detail
 ;; reads badly in HIDDEN dashes, and both the manual (Tech §10.6 p262-263) and the Maimaar
@@ -6739,7 +6756,7 @@
                                   idxL idxR hwL hwR brkLen fw ft beamD railNubH etH bd
                                   capY bridgeTop bridgeBot railTop beamTop beamBot hoistTop hoistBot
                                   xBL xBR cb cx bx dir hw labeled hkTip modCount modSeen k a total idxInMod hoistX
-                                  brD gpH bxi)
+                                  brD gpH bxi rW dW wx)
   (if (= (strcase (MSPL-Get-Str data "CR_TOGGLE")) "YES")
     (progn
       (setq u  (max 250.0 (/ wid 45.0))
@@ -6843,11 +6860,16 @@
               (peb-crane-sec-sline (- bx (* u 0.10)) railTop (+ bx (* u 0.10)) railTop)                       ; rail head
               (peb-crane-sec-sline bx (+ beamTop (* railNubH 0.35)) bx railTop)                               ; rail web
               (peb-crane-sec-sline (- bx (* u 0.10)) (+ beamTop (* railNubH 0.35)) (+ bx (* u 0.10)) (+ beamTop (* railNubH 0.35))) ; rail base
-              ;; END-CARRIAGE WHEEL on the rail (the bridge end-truck rides on it)
-              (entmake (list (cons 0 "CIRCLE") (cons 8 "COMP-CRANE-SEC")
-                             (list 10 bx (/ (+ railTop bridgeBot) 2.0) 0.0) (cons 40 (/ etH 2.2)))))
-            ;; ── crane BRIDGE girder — spans c/c of rails, on the end trucks ──
-            (peb-crane-sec-box xBL bridgeBot xBR bridgeTop)
+              ;; END CARRIAGE + WHEELS (manual tech_p262/263): the bridge end-truck rides on the rail via
+              ;; TWO flanged wheels; draw both wheels ON the rail + the end-truck frame up to the bridge.
+              (setq rW (* etH 0.30) dW (* fw 0.72))
+              (foreach wx (list (- bx dW) (+ bx dW))
+                (peb-crane-sec-circ wx (+ railTop rW) rW)                         ; wheel on the rail
+                (peb-crane-sec-sline wx (+ railTop rW) wx (+ railTop (* rW 2.05)))) ; axle stub to the frame
+              (peb-crane-sec-sline (- bx dW) (+ railTop (* rW 2.05)) (+ bx dW) (+ railTop (* rW 2.05))) ; axle beam
+              (peb-crane-sec-sbox (- bx (* fw 1.05)) (+ railTop (* rW 2.05)) (+ bx (* fw 1.05)) bridgeBot)) ; end-truck frame
+            ;; ── crane BRIDGE girder — spans c/c of rails, on the end trucks — DASHED (by others) ──
+            (peb-crane-sec-dbox xBL bridgeBot xBR bridgeTop)
             ;; ── spread SERIES cranes: if >1 crane shares this width-module, offset each hoist
             ;;    across the bridge span so symbols + labels never stack on an identical midX ──
             (setq k        (strcat gfW "_" gtW)
