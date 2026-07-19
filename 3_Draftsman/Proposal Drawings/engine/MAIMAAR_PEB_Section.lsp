@@ -6781,7 +6781,7 @@
                                 / u sc n pre cap cls hookH nC gfW gtW cf ct xL xR midX capStr
                                   idxL idxR hwL hwR brkLen fw ft beamD railNubH etH bd
                                   capY bridgeTop bridgeBot railTop beamTop beamBot hoistTop hoistBot
-                                  xBL xBR cb cx bx dir hw labeled hkTip)
+                                  xBL xBR cb cx bx dir hw labeled hkTip modCount modSeen k a total idxInMod hoistX)
   (if (= (strcase (MSPL-Get-Str data "CR_TOGGLE")) "YES")
     (progn
       (setq u  (max 250.0 (/ wid 45.0))
@@ -6794,6 +6794,18 @@
         (entmake (list '(0 . "LAYER") '(100 . "AcDbSymbolTableRecord") '(100 . "AcDbLayerTableRecord")
                        (cons 2 "COMP-CRANE-SEC") (cons 70 0) (cons 62 1) (cons 6 "Continuous"))))
       (setvar "CLAYER" "COMP-CRANE-SEC")
+      ;; pre-count cranes per width-module (by grid letters) so SERIES cranes get spread, not stacked
+      (setq modCount '() modSeen '() n 1)
+      (while (<= n 3)
+        (setq pre (strcat "CR" (itoa n) "_"))
+        (if (= (strcase (MSPL-Get-Str data (strcat pre "TOGGLE"))) "YES")
+          (progn
+            (setq k (strcat (strcase (MSPL-Get-Str data (strcat pre "GRID_FROM_W")))
+                            "_" (strcase (MSPL-Get-Str data (strcat pre "GRID_TO_W"))))
+                  a (assoc k modCount))
+            (if a (setq modCount (subst (cons k (1+ (cdr a))) a modCount))
+                  (setq modCount (cons (cons k 1) modCount)))))
+        (setq n (1+ n)))
       (setq n 1)
       (while (<= n 3)
         (setq pre (strcat "CR" (itoa n) "_"))
@@ -6861,30 +6873,37 @@
               (peb-crane-sec-box (- bx (* fw 0.85)) railTop (+ bx (* fw 0.85)) bridgeBot))
             ;; ── crane BRIDGE girder — spans c/c of rails, on the end trucks ──
             (peb-crane-sec-box xBL bridgeBot xBR bridgeTop)
-            ;; ── DETAILED HOIST symbol (manual §10.6) under the bridge at mid-span, then the
+            ;; ── spread SERIES cranes: if >1 crane shares this width-module, offset each hoist
+            ;;    across the bridge span so symbols + labels never stack on an identical midX ──
+            (setq k        (strcat gfW "_" gtW)
+                  total    (if (assoc k modCount) (cdr (assoc k modCount)) 1)
+                  a        (assoc k modSeen)
+                  idxInMod (if a (cdr a) 0)
+                  hoistX   (+ xBL (* (/ (+ idxInMod 1.0) (+ total 1.0)) (- xBR xBL))))
+            (if a (setq modSeen (subst (cons k (1+ idxInMod)) a modSeen))
+                  (setq modSeen (cons (cons k 1) modSeen)))
+            ;; ── DETAILED HOIST symbol (manual §10.6) at its spread position, then the
             ;;    lifting CABLE dropping from the hook tip to the hook-height marker near the floor ──
-            (setq hkTip (peb-crane-sec-hoist midX bridgeBot u))
-            (peb-crane-sec-line midX hkTip midX hookH)
-            ;; ── HOOK HEIGHT — compact M-Ladder: a SOLID up-arrow pointing at the hook, with
-            ;;    the value (from BS CRn_HOOK_HEIGHT) + capacity + class stacked centred below,
-            ;;    so every crane's info stays inside its own module (no spill / no clutter).
+            (setq hkTip (peb-crane-sec-hoist hoistX bridgeBot u))
+            (peb-crane-sec-line hoistX hkTip hoistX hookH)
+            ;; ── HOOK HEIGHT — compact M-Ladder: a SOLID up-arrow at the hook + value/cap/class stacked ──
             (entmake (list (cons 0 "SOLID") (cons 8 "COMP-CRANE-SEC")            ; up-arrow AT the hook
-                           (list 10 midX hookH 0.0)
-                           (list 11 (- midX (* u 0.16)) (- hookH (* u 0.5)) 0.0)
-                           (list 12 (+ midX (* u 0.16)) (- hookH (* u 0.5)) 0.0)
-                           (list 13 (+ midX (* u 0.16)) (- hookH (* u 0.5)) 0.0)))
-            (txt-bold "MC" (list midX (- hookH (* u 0.95))) (/ (* u 0.40) sc) 0.0
+                           (list 10 hoistX hookH 0.0)
+                           (list 11 (- hoistX (* u 0.16)) (- hookH (* u 0.5)) 0.0)
+                           (list 12 (+ hoistX (* u 0.16)) (- hookH (* u 0.5)) 0.0)
+                           (list 13 (+ hoistX (* u 0.16)) (- hookH (* u 0.5)) 0.0)))
+            (txt-bold "MC" (list hoistX (- hookH (* u 0.95))) (/ (* u 0.40) sc) 0.0
                       (strcat "HOOK HEIGHT : " (rtos hookH 2 0)))
-            (txt-bold "MC" (list midX (- hookH (* u 1.70))) (/ (* u 0.52) sc) 0.0
+            (txt-bold "MC" (list hoistX (- hookH (* u 1.70))) (/ (* u 0.52) sc) 0.0
                       (strcat "CAP " capStr " MT"))
             (if (and cls (/= cls ""))
-              (txt-bold "MC" (list midX (- hookH (* u 2.35))) (/ (* u 0.36) sc) 0.0
+              (txt-bold "MC" (list hoistX (- hookH (* u 2.35))) (/ (* u 0.36) sc) 0.0
                         (strcat "CMAA CLASS " cls)))
             ;; ── part labels drawn ONCE (manual convention: BY OTHERS) ──
             (if (not labeled)
               (progn
                 (txt-bold "MC" (list midX (+ bridgeTop (* u 0.55))) (/ (* u 0.42) sc) 0.0 "CRANE BRIDGE (BY OTHERS)")
-                (txt-bold "MR" (list (- midX (* u 1.15)) (- bridgeBot (* u 0.45))) (/ (* u 0.40) sc) 0.0 "HOIST (BY OTHERS)")
+                (txt-bold "MR" (list (- hoistX (* u 1.90)) (- bridgeBot (* u 0.45))) (/ (* u 0.40) sc) 0.0 "HOIST (BY OTHERS)")
                 (setq labeled T)))
             (princ)))))
         (setq n (1+ n)))
