@@ -6844,11 +6844,11 @@
   ;;    rule: purlins + sheeting FOLLOW the rafter slope, drawn with the engine's real Z-purlin.
   (rm-mon-purlins eaveLx (+ eaveYL mDep) ridgeX (+ monRidgeY mDep) 3 90.0)
   (rm-mon-purlins eaveRx (+ eaveYR mDep) ridgeX (+ monRidgeY mDep) 3 90.0)
-  (setvar "CLAYER" "SHEETING")
+  (setvar "CLAYER" "CLADDING")     ; universal rule: roof sheeting = CLADDING (same as the main roof)
   (command "_.PLINE" (list eaveLx (+ eaveYL mDep 90.0)) (list ridgeX (+ monRidgeY mDep 90.0)) (list eaveRx (+ eaveYR mDep 90.0)) "")
   (command "_.PLINE" (list eaveLx (+ eaveYL mDep 125.0)) (list ridgeX (+ monRidgeY mDep 125.0)) (list eaveRx (+ eaveYR mDep 125.0)) "")
-  ;; ridge cap over the sheeting apex
-  (setvar "CLAYER" "COMP-MONITOR-SEC")
+  ;; ridge cap over the sheeting apex (CLADDING, matching the roof sheeting)
+  (setvar "CLAYER" "CLADDING")
   (command "_.PLINE" (list (- ridgeX 200.0) (+ monRidgeY mDep 125.0)) (list (+ ridgeX 200.0) (+ monRidgeY mDep 125.0))
                      (list (+ ridgeX 150.0) (+ monRidgeY mDep 200.0)) (list (- ridgeX 150.0) (+ monRidgeY mDep 200.0)) "C")
   ;; 5) BIRD SCREEN — close each outboard throat (leg seat -> eave)
