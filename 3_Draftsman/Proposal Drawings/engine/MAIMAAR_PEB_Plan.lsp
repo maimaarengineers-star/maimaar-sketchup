@@ -3768,7 +3768,7 @@
   ;; ── Text styles & layers ─────────────────────────────────────
   (make-text-style "PEB-TITLE" "romand.shx")
   (make-text-style "PEB-BODY"  "romans.shx")
-  (make-text-style "PEB-DIM"   "romans.shx")
+  (make-text-style "PEB-DIM"   "romand.shx")   ; owner 19-Jul STANDING: dimension text = ROMAND (match Section)
 
   (safe-load-ltype "CENTER")
   (safe-load-ltype "HIDDEN")
@@ -5430,10 +5430,11 @@
   (peb-safe-setvar "DIMSCALE" (if *PEB-DIM-SCALE* *PEB-DIM-SCALE* 1.0))
   ;; Proper small CLOSED-FILLED arrowheads at each end (owner), value above line.
   (peb-safe-setvar "DIMTXT"   440.0)        ; owner 5-Jul: smaller, more proportional with the sheet
-  (peb-safe-setvar "DIMTXSTY" "PEB-TITLE")
+  (peb-safe-setvar "DIMTXSTY" "PEB-DIM")    ; owner 19-Jul STANDING: dimension text = ROMAND (PEB-DIM = romand.shx)
   (peb-safe-setvar "DIMTSZ"     0.0)        ; no ticks -> arrowheads
   (peb-safe-setvar "DIMASZ"   320.0)        ; proper small arrowhead
-  (vl-catch-all-apply (function (lambda () (setvar "DIMBLK" "_CLOSEDFILLED"))))
+  ;; owner 19-Jul STANDING RULE: dimension arrowheads = "OPEN" type (open V, NOT filled solid).
+  (vl-catch-all-apply (function (lambda () (setvar "DIMBLK" "_OPEN"))))
   (vl-catch-all-apply (function (lambda () (setvar "DIMSAH" 0))))
   (peb-safe-setvar "DIMEXE"   120.0)
   (peb-safe-setvar "DIMEXO"   120.0)
