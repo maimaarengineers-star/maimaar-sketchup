@@ -85,6 +85,8 @@
     ("COMP-MEZZ-BEAM"      5  "Continuous" 0.50)   ; MAIN BEAM  — heavy (200mm top flange), blue
     ("COMP-MEZZ-JOIST"     8  "Continuous" 0.25)   ; JOIST      — medium (150mm top flange), grey
     ("COMP-MEZZ-JOIST-SEC" 8  "Continuous" 0.13)   ; SEC. JOIST — light (100mm top flange), grey
+    ;; --- roof monitor section detail (owner 19-Jul; standalone MAIMAAR_PEB_Monitor.lsp) ---
+    ("COMP-MONITOR-SEC"    4  "Continuous" 0.13)   ; monitor sheeting / ridge & eave panels — CYAN (matches roof panel)
    ))
 
 ;; ---- SINGLE-SOURCE OVERRIDE  (Rule Book -> engine) -------------------------

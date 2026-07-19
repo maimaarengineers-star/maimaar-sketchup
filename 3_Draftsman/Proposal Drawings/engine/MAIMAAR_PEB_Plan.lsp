@@ -1643,6 +1643,25 @@
                  (cons 62 col) (cons 100 "AcDbMText")
                  (list 10 x y 0.0) (cons 40 h) (cons 41 wid)
                  (cons 71 attach) (cons 7 "Standard") (cons 1 str) (cons 50 0.0))))
+;; owner 19-Jul: title-bar HEADINGS bold but STAY in ROMAND.  romand.shx (SHX stroke font) has no TrueType
+;; bold, so "bold" = a heavier pen (lineweight 0.40mm) on the romand strokes.  Strip any {\fArial..} wrapper,
+;; uppercase a plain heading, and re-wrap in romand.shx with the bold lineweight.
+(defun tb-mtext-bold (x y h wid attach str col / raw)
+  (setq raw str)
+  (if (and raw (vl-string-search "\\f" raw))
+    (progn
+      (setq raw (vl-string-subst "" "{\\fArial|b1;" raw))
+      (setq raw (vl-string-subst "" "{\\fArial|i1;" raw))
+      (setq raw (vl-string-subst "" "{\\fromand.shx;" raw))
+      (if (and (> (strlen raw) 0) (= (substr raw (strlen raw) 1) "}"))
+        (setq raw (substr raw 1 (1- (strlen raw)))))))
+  (if (and raw (not (vl-string-search "{" raw)) (not (vl-string-search "\\" raw)))
+    (setq raw (strcase raw)))
+  (entmake (list (cons 0 "MTEXT") (cons 100 "AcDbEntity") (cons 8 "0")
+                 (cons 62 col) (cons 370 55) (cons 100 "AcDbMText")
+                 (list 10 x y 0.0) (cons 40 h) (cons 41 wid)
+                 (cons 71 attach) (cons 7 "Standard")
+                 (cons 1 (strcat "{\\fromand.shx;" raw "}")) (cons 50 0.0))))
 (defun tb-pline (pts wid col / l)
   (setq l (list (cons 0 "LWPOLYLINE") (cons 100 "AcDbEntity") (cons 8 "0")
                 (cons 62 col) (cons 100 "AcDbPolyline")
@@ -1660,7 +1679,9 @@
 ;; ~0.72 x height (0.64 was optimistic -> long labels/values overflowed their column into the
 ;; next); use 0.74 so autofit actually shrinks overflowing strings.
 (defun tb-fith (s mw mh)
-  (min mh (/ mw (* (max 1.0 (float (strlen s))) 0.74))))
+  ;; owner 19-Jul: char-width ratio raised ->0.95 because the title block is now ROMAND (romand.shx, ~40%
+  ;; wider than Arial) — otherwise long project-name / customer values overflow & overlap their labels.
+  (min mh (/ mw (* (max 1.0 (float (strlen s))) 0.95))))
 
 ;; strip an embedded unit suffix ("0 KN/m2" -> "0", "135 km/h" -> "135").
 (defun peb-num-only (s / p)
@@ -1828,8 +1849,8 @@
   ;; ===================== TOP : GENERAL NOTES =====================
   (setq yCur (+ Y0 H))
   (setq rh (* s 0.026) bt yCur yCur (- yCur rh))
-  (tb-mtext midX (+ yCur (* rh 0.28)) (* s 0.0140) cw 5
-            "{\\fArial|b1;GENERAL NOTES}" white)
+  (tb-mtext-bold midX (+ yCur (* rh 0.28)) (* s 0.0140) cw 5
+            "GENERAL NOTES" white)
   (tb-hdiv yCur)
   (setq rh (* s 0.122) bt yCur yCur (- yCur rh))
   (tb-mtext (+ X0 (* W 0.04)) (- bt (* sm 1.3))
@@ -1846,8 +1867,8 @@
   (setq rh (* s 0.058) bt yCur yCur (- yCur rh))
   (tb-mtext midX (+ yCur (* rh 0.5))
     (tb-fith "MAIMAAR STEEL (PVT) LTD - NOT FOR CONSTRUCTION" cw (* s 0.0105)) cw 5
-    (strcat "{\\fArial|b1;THIS DOCUMENT IS A PROPOSAL DRAWING OF\\P"
-            "MAIMAAR STEEL (PVT) LTD - NOT FOR CONSTRUCTION}") cyan)
+    (strcat "THIS DOCUMENT IS A PROPOSAL DRAWING OF\\P"
+            "MAIMAAR STEEL (PVT) LTD - NOT FOR CONSTRUCTION") cyan)
   (tb-hdiv yCur)
   ;; ----- DESIGN-LOAD table (Mammut format) -----
   (setq lx (+ X0 (* W 0.05)) vx (+ X0 (* W 0.70)) ux (+ X0 (* W 0.865)))   ; owner 7-Jul: value+unit cols pushed right (into the empty right margin) so labels never touch the value and the table fills its width
@@ -1857,8 +1878,8 @@
   ;; total) and give the wrap the full inner width.
   (tb-mtext (+ X0 (* W 0.035)) (- bt (* s 0.0110))
     (tb-fith "THE BUILDING HAS BEEN DESIGNED TO" (* cw 0.80) (* s 0.0086)) (* W 0.93) 1
-    (strcat "{\\fArial|b1;THE BUILDING HAS BEEN DESIGNED TO\\P"
-            "SUPPORT IT'S OWN DEAD LOAD PLUS:}") green)
+    (strcat "THE BUILDING HAS BEEN DESIGNED TO\\P"
+            "SUPPORT IT'S OWN DEAD LOAD PLUS:") green)
   (foreach r (list
        (list "LIVE LOAD ON ROOF"      (tb-get "LL_ROOF")  "KN/SQ.M.")
        (list "LIVE LOAD ON FRAME"     (tb-get "LL_FRAME") "KN/SQ.M.")
@@ -1913,12 +1934,12 @@
   (setq bt yCur rh (* s 0.090) yCur (- yCur rh))
   (tb-mtext (+ X0 (* W 0.04)) (- bt (* lbl 1.3)) lbl cw 1 "PROJECT NAME :" grey)
   (tb-mtext (+ X0 (* W 0.06)) (- bt (* lbl 3.0))
-            (tb-fith (tb-get "PROJECT") (* 3.2 cw) (* bv 0.92)) (* cw 0.92) 1 (tb-get "PROJECT") green)
+            (tb-fith (tb-get "PROJECT") (* cw 0.92) (* bv 0.92)) (* cw 0.92) 1 (tb-get "PROJECT") green)  ; owner 19-Jul TB1: fit to actual box width so ROMAND stays one line
   (tb-hdiv yCur)
   ;; CUSTOMER
   (setq bt yCur rh (* s 0.048) yCur (- yCur rh))
   (tb-mtext (+ X0 (* W 0.04)) (- bt (* lbl 1.3)) lbl cw 1 "CUSTOMER :" grey)
-  (tb-mtext midX (+ yCur (* rh 0.28)) (tb-fith (tb-get "CUSTOMER") (* 1.6 cw) bv) cw 5 (tb-get "CUSTOMER") green)
+  (tb-mtext midX (+ yCur (* rh 0.28)) (tb-fith (tb-get "CUSTOMER") cw bv) cw 5 (tb-get "CUSTOMER") green)  ; owner 19-Jul TB1: fit to actual box width so ROMAND stays one line
   (tb-hdiv yCur)
   ;; STEEL CONTRACTOR : enlarged logo + MAIMAAR wordmark + address (owner 10-Jul: "make Maimaar Steel
   ;; Pvt Ltd prominent in the right side table").  Hierarchy is LOGO > NAME > ADDRESS:
@@ -1937,9 +1958,9 @@
   ;; NOTE for anyone reviewing a PNG preview: ezdxf's matplotlib backend WRAPS an RTF-wrapped MTEXT
   ;; ("{\fArial|b1;...}") even when width=0 — a plain MTEXT with the same width renders on one line.
   ;; That two-line "…(PVT)" / "LTD" you may see in a preview is a RENDERER artifact, not the drawing.
-  (tb-mtext midX (+ yCur (* rh 0.44))
-            (tb-fith "MAIMAAR STEEL (PVT) LTD" (* cw 0.80) bv) 0 5
-            "{\\fArial|b1;MAIMAAR STEEL (PVT) LTD}" white)
+  (tb-mtext-bold midX (+ yCur (* rh 0.44))
+            (tb-fith "MAIMAAR STEEL (PVT) LTD" cw bv) 0 5
+            "MAIMAAR STEEL (PVT) LTD" white)
   (tb-mtext (+ X0 (* W 0.06)) (+ yCur (* rh 0.355)) (* sm 0.52) cw 1 (tb-get "ADDR") grey)
   (tb-hdiv yCur)
   ;; quote / bldg rows
@@ -1956,8 +1977,8 @@
   ;; Drawing Title
   (setq bt yCur rh (* s 0.045) yCur (- yCur rh))
   (tb-mtext (+ X0 (* W 0.04)) (- bt (* lbl 1.2)) lbl cw 1 "Drawing Title :" grey)
-  (tb-mtext midX (+ yCur (* rh 0.20)) (tb-fith (tb-get "DRGTITLE") cw (* bv 0.82)) cw 5   ; owner 5-Jul: lower + smaller so it clears the label
-            (strcat "{\\fArial|b1;" (tb-get "DRGTITLE") "}") green)
+  (tb-mtext-bold midX (+ yCur (* rh 0.20)) (tb-fith (tb-get "DRGTITLE") cw (* bv 0.82)) cw 5   ; owner 5-Jul: lower + smaller so it clears the label
+            (tb-get "DRGTITLE") green)
   (tb-hdiv yCur)
   ;; footer : Scale | Sheet Size | Sheet No.  (fills down to Y0)
   (setq rh (- yCur Y0) c1x (+ X0 (* W 0.40)) c2x (+ X0 (* W 0.70)))
