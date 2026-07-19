@@ -1872,7 +1872,7 @@
   (tb-mtext (+ X0 (* W 0.04)) (+ yCur (* rh 0.74))
     (tb-fith (strcat "AS PER " (tb-get "CODE") " METAL BUILDING SYSTEMS MANUAL")
              (* cw 1.02) (* s 0.0092)) cw 1
-    (strcat "{\\fArial|i1;AS PER " (tb-get "CODE")
+    (strcat "{\\fromand.shx;AS PER " (tb-get "CODE")
             " METAL BUILDING SYSTEMS MANUAL}") green)
   (tb-hdiv yCur)
 
@@ -2967,13 +2967,13 @@
                      '(3 . "Crane bridge __ __ __") '(72 . 65) '(73 . 2) '(40 . 270.0)
                      '(49 . 150.0) '(74 . 0) '(49 . -120.0) '(74 . 0))))))))  ; owner: SHORT DASH
 ;; THICK dotted line/circle for the bridge girder + hoist symbol (owner 19-Jul: show them as THICK
-;; dotted).  Lineweight 0.60mm (cons 370 60) is honoured by the DWG-To-PDF monochrome plot.
+;; dotted).  Lineweight 0.25mm (cons 370 25) is honoured by the DWG-To-PDF monochrome plot.
 (defun peb-crane-dot-line (xa ya xb yb / es)
   (peb-crane-dot-ensure)
   (setq es (if (> (getvar "LTSCALE") 0.0) (/ 1.0 (getvar "LTSCALE")) 1.0))
   (if (tblsearch "LTYPE" "CRANEDOT")
     (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-FP") (cons 6 "CRANEDOT") (cons 48 es)
-                   (cons 370 60)
+                   (cons 370 25)
                    (list 10 xa ya 0.0) (list 11 xb yb 0.0)))
     (peb-crane-fp-line xa ya xb yb (max 0.7 (/ (getvar "LTSCALE") 130.0)))))
 (defun peb-crane-dot-circle (cx cy r / es)
@@ -2981,7 +2981,7 @@
   (setq es (if (> (getvar "LTSCALE") 0.0) (/ 1.0 (getvar "LTSCALE")) 1.0))
   (entmake (list (cons 0 "CIRCLE") (cons 8 "COMP-CRANE-FP")
                  (cons 6 (if (tblsearch "LTYPE" "CRANEDOT") "CRANEDOT" "HIDDEN")) (cons 48 es)
-                 (cons 370 60)
+                 (cons 370 25)
                  (list 10 cx cy 0.0) (cons 40 r))))
 
 (defun peb-draw-crane (data len wid /
