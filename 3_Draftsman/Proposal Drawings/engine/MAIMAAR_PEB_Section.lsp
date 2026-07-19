@@ -6686,7 +6686,7 @@
 (defun peb-draw-roof-monitor (data wid H rise ridgeX ht rd cb slopeD /
         prev throat overallW rmh eaveType bird curved
         roofY halfT halfO sL sR legBaseYL legBaseYR legTopYL legTopYR monRidgeY eaveYL eaveYR
-        xLi xRi eaveLx eaveRx mDep pDep pt hg gW)
+        xLi xRi eaveLx eaveRx mDep pDep pt hg gW rmConstr)
   (setq prev (getvar "CLAYER"))
   (if (or (null slopeD) (<= slopeD 0.0)) (setq slopeD 10.0))
 
@@ -6702,7 +6702,15 @@
   (setq eaveType (strcase (MSPL-Get-Str data "RM_EAVE_TYPE"))
         bird     (strcase (MSPL-Get-Str data "RM_BIRD_MESH"))
         curved   (or (vl-string-search "CURV" eaveType) (vl-string-search "CURVED" eaveType)))
-  (setq mDep 180.0 pDep 160.0)
+  ;; construction type (BS roof_monitor.constructionType -> RM_CONSTR): member depths per type
+  ;; (rafter mDep / leg pDep).  Built-Up = deeper welded I; Cold-Formed = shallow C/Z; Hot-Rolled = IPE (default).
+  (setq rmConstr (strcase (MSPL-Get-Str data "RM_CONSTR")))
+  (cond
+    ((or (vl-string-search "BUILT" rmConstr) (vl-string-search "BU" rmConstr))
+       (setq mDep 240.0 pDep 200.0))                                   ; Hot-Rolled Built-up (BU)
+    ((or (vl-string-search "COLD" rmConstr) (vl-string-search "C20" rmConstr) (vl-string-search "CF" rmConstr))
+       (setq mDep 200.0 pDep 150.0))                                   ; Cold-Formed (C20G)
+    (T (setq mDep 180.0 pDep 160.0)))                                  ; Hot-Rolled (IPEa) — default
 
   ;; ---- mini-PEB-frame geometry — PER-SIDE rafter slopes so the monitor seats on the TRUE
   ;;      rafter even at an OFF-CENTRE ridge (BP_RIDGE_OFFSET) or unequal pitches.  sL/sR = rise/run
@@ -7573,6 +7581,7 @@
   ;; ── Roof monitor at the peak (owner 13-Jul) — only for frames with a ridge/peak ──
   (setq *RM-THROAT-WIN* nil)
   (if (and ridges (car ridges)
+           (member stype '("CS" "MS" "RC" "MG"))    ; owner 19-Jul: monitor only on TRUE-PEAK gable frames — excludes SS/mono, ACS/AMS (arch crown), BF (valley), PP/LT/FR/F2 where a "ridge" is not a straight-gable peak
            (= (strcase (peb-tb-or (MSPL-Get-Str data "RM_TOGGLE") "")) "YES"))
     (progn
       (vl-catch-all-apply (function (lambda () (peb-draw-roof-monitor data wid H rise (car ridges) ht rd cb slopeD))))
