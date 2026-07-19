@@ -6793,6 +6793,19 @@
   (command "_.LINE" (list (+ ex (* dir c3)) (- ey dt)) (list (+ ex (* dir c3)) (- ey dt 80.0)) "")
   (rm-member ex ey ex (- ey st) 90.0 (- dir) "FRAME"))
 
+(defun rm-eave-zoom (ex ey dir / r cx cy)
+  ;; STANDARD (Eave-Trim) eave: drip trim + an OUTSIDE-FOAM-CLOSURE zoom bubble (manual §10.7 detail).
+  ;; Migrated from the retired standalone so the non-curved eave carries the same universal detail.
+  (setq r 260.0 cx (+ ex (* dir 60.0)) cy (- ey 120.0))
+  (setvar "CLAYER" "GUTTER")
+  (command "_.PLINE" (list ex ey) (list (+ ex (* dir 120.0)) ey) (list (+ ex (* dir 120.0)) (- ey 80.0)) "")
+  (setvar "CLAYER" "TEXT")
+  (command "_.CIRCLE" (list cx cy) r)
+  (setvar "CLAYER" "GIRTS")
+  (peb-solid-quad (list (- cx 70.0) (- cy 40.0)) (list (+ cx 70.0) (- cy 40.0))
+                  (list (- cx 55.0) (+ cy 40.0)) (list (+ cx 55.0) (+ cy 40.0)))
+  (rm-label cx (+ cy r) (+ cx 500.0) (+ cy r 250.0) "ML" "OUTSIDE FOAM CLOSURE"))
+
 ;; ---- the drawer -----------------------------------------------------------
 (defun peb-draw-roof-monitor (data wid H rise ridgeX ht rd cb slopeD /
         prev throat overallW rmh eaveType bird curved
@@ -6856,10 +6869,12 @@
     (progn (setvar "CLAYER" "GIRTS")
            (rm-mesh xRi legBaseYR eaveRx eaveYR)
            (rm-mesh xLi legBaseYL eaveLx eaveYL)))
-  ;; 6) EAVE — curved variant adds R500 panel + drip trim + stub post
+  ;; 6) EAVE — curved variant adds R500 panel + drip trim + stub post; STANDARD variant gets the
+  ;;    eave-trim + OUTSIDE-FOAM-CLOSURE zoom bubble (universal §10.7 detail, both eave types now covered).
   (if curved
     (progn (rm-eave-curved eaveRx eaveYR  1 rmh)
-           (rm-eave-curved eaveLx eaveYL -1 rmh)))
+           (rm-eave-curved eaveLx eaveYL -1 rmh))
+    (vl-catch-all-apply (function (lambda () (rm-eave-zoom eaveRx eaveYR 1)))))
 
   ;; 7) CONNECTION PLATES — at the LEG TOPS (leg top ↔ rafter bottom flange) and LEG BASES ONLY.
   ;;    Owner ref: NO plate at the monitor peak/middle — the rafter is one single piece.
@@ -6889,6 +6904,33 @@
     (rm-dim-h eaveLx (+ monRidgeY mDep 300.0) eaveRx (+ monRidgeY mDep 300.0) (+ monRidgeY mDep 520.0) (rtos overallW 2 0)))))
   (vl-catch-all-apply (function (lambda ()
     (rm-dim-h xLi legBaseYL xRi legBaseYR (- (min legBaseYL legBaseYR) 480.0) (rtos throat 2 0)))))
+
+  ;; 9) UNIVERSAL RULE — MEMBER NOMENCLATURE LABELS (every member labelled, manual §10.7), monitor
+  ;;    SLOPE tag, and monitor HEIGHT dim.  Migrated from the retired standalone, adapted to the section
+  ;;    coord frame.  (Text landings are first-cut — nudge on render if any overlap the frame chain.)
+  (vl-catch-all-apply (function (lambda ()
+    (rm-label (* 0.5 (+ eaveRx ridgeX)) (+ (* 0.5 (+ eaveYR monRidgeY)) mDep)
+              (+ eaveRx 950.0) (+ monRidgeY mDep 620.0) "ML" "ROOF MONITOR RAFTER")
+    (rm-label xRi (* 0.5 (+ legBaseYR legTopYR))
+              (+ eaveRx 950.0) (* 0.5 (+ legBaseYR legTopYR)) "ML" "ROOF MONITOR POST")
+    (rm-label (+ eaveRx 40.0) (+ eaveYR mDep 30.0)
+              (+ eaveRx 950.0) (+ eaveYR mDep 300.0) "ML" "ROOF MONITOR PURLIN")
+    (rm-label (- ridgeX 180.0) (+ monRidgeY mDep 160.0)
+              (- ridgeX 2600.0) (+ monRidgeY mDep 160.0) "MR" "ROOF MONITOR RIDGE PANEL"))))
+  (if (/= bird "NO")
+    (vl-catch-all-apply (function (lambda ()
+      (rm-label (* 0.5 (+ xRi eaveRx)) (* 0.5 (+ legBaseYR eaveYR))
+                (+ eaveRx 950.0) (- (* 0.5 (+ legBaseYR eaveYR)) 350.0) "ML" "BIRD SCREEN")))))
+  (if curved
+    (vl-catch-all-apply (function (lambda ()
+      (rm-label (+ eaveRx 180.0) (- eaveYR 240.0) (+ eaveRx 1000.0) (- eaveYR 120.0) "ML" "CURVED PANEL")
+      (rm-label (+ eaveRx 120.0) (- eaveYR 560.0) (+ eaveRx 1000.0) (- eaveYR 560.0) "ML" "DRIP TRIM")))))
+  ;; monitor roof SLOPE tag on the right monitor rafter (universal rule: monitor slope = frame slope)
+  (vl-catch-all-apply (function (lambda ()
+    (draw-slope-tag (* 0.5 (+ eaveRx ridgeX)) (+ (* 0.5 (+ eaveYR monRidgeY)) mDep 150.0) slopeD -1))))
+  ;; monitor HEIGHT dim (leg base -> leg top), left side
+  (vl-catch-all-apply (function (lambda ()
+    (rm-dim-v legBaseYL xLi legTopYL xLi (- eaveLx 520.0) (rtos rmh 2 0)))))
 
   (setvar "CLAYER" prev)
   (princ))
