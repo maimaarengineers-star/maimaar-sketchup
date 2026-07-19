@@ -2956,6 +2956,29 @@
 (defun peb-crane-wheel (cx cy r)
   (entmake (list (cons 0 "CIRCLE") (cons 8 "COMP-CRANE-FP") (cons 6 "Continuous")
                  (list 10 cx cy 0.0) (cons 40 r))))
+;; CRANEDOT — a true DOTTED linetype (dot / 130 gap, TRUE mm via per-entity scale 1/LTSCALE) for the
+;; hoist / trolley symbol, so it reads DOTTED even on its short segments (a plain HIDDEN dash covers a
+;; short segment whole and prints solid).  Owner 19-Jul.  Ensures the linetype once, then draws.
+(defun peb-crane-dot-ensure ( )
+  (if (not (tblsearch "LTYPE" "CRANEDOT"))
+    (vl-catch-all-apply (function (lambda ()
+      (entmake (list '(0 . "LTYPE") '(100 . "AcDbSymbolTableRecord")
+                     '(100 . "AcDbLinetypeTableRecord") '(2 . "CRANEDOT") '(70 . 0)
+                     '(3 . "Crane dot . . . .") '(72 . 65) '(73 . 2) '(40 . 130.0)
+                     '(49 . 0.0) '(74 . 0) '(49 . -130.0) '(74 . 0))))))))
+(defun peb-crane-dot-line (xa ya xb yb / es)
+  (peb-crane-dot-ensure)
+  (setq es (if (> (getvar "LTSCALE") 0.0) (/ 1.0 (getvar "LTSCALE")) 1.0))
+  (if (tblsearch "LTYPE" "CRANEDOT")
+    (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-FP") (cons 6 "CRANEDOT") (cons 48 es)
+                   (list 10 xa ya 0.0) (list 11 xb yb 0.0)))
+    (peb-crane-fp-line xa ya xb yb (max 0.7 (/ (getvar "LTSCALE") 130.0)))))
+(defun peb-crane-dot-circle (cx cy r / es)
+  (peb-crane-dot-ensure)
+  (setq es (if (> (getvar "LTSCALE") 0.0) (/ 1.0 (getvar "LTSCALE")) 1.0))
+  (entmake (list (cons 0 "CIRCLE") (cons 8 "COMP-CRANE-FP")
+                 (cons 6 (if (tblsearch "LTYPE" "CRANEDOT") "CRANEDOT" "HIDDEN")) (cons 48 es)
+                 (list 10 cx cy 0.0) (cons 40 r))))
 
 (defun peb-draw-crane (data len wid /
                         u sc n pre span cap typ cls loc runlen
@@ -3183,11 +3206,8 @@
                      (list (- txc (* gw 0.90)) (- tyc (* gw 1.40)) (- txc (* gw 0.90)) (- tyc (* gw 2.68)))
                      (list (- txc (* gw 0.90)) (- tyc (* gw 2.68)) (+ txc (* gw 0.90)) (- tyc (* gw 2.68)))
                      (list (+ txc (* gw 0.90)) (- tyc (* gw 2.68)) (+ txc (* gw 0.90)) (- tyc (* gw 1.40))))
-                  (peb-crane-fp-line (nth 0 s) (nth 1 s) (nth 2 s) (nth 3 s) flts))
-                (entmake (list (cons 0 "CIRCLE") (cons 8 "COMP-CRANE-FP")   ; hook eye (offset)
-                               (cons 6 "HIDDEN") (cons 48 flts)
-                               (list 10 (- txc (* gw 0.37)) (- tyc (* gw 2.00)) 0.0)
-                               (cons 40 (* gw 0.37))))
+                  (peb-crane-dot-line (nth 0 s) (nth 1 s) (nth 2 s) (nth 3 s)))   ; DOTTED hoist symbol
+                (peb-crane-dot-circle (- txc (* gw 0.37)) (- tyc (* gw 2.00)) (* gw 0.37))  ; hook eye
                 ;; STOPS / BUMPERS — bar across the beam width at each of the 4 runway ends.
                 (foreach pt (list (list x0 yN) (list x1 yN) (list x0 yF) (list x1 yF))
                   (peb-crane-fp-line (car pt) (- (cadr pt) (* rbw 0.9))
