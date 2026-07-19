@@ -896,7 +896,7 @@
   (setvar "DIMCLRD"     0)
   (setvar "DIMCLRE"     0)
   (setvar "DIMCLRT"     0)
-  (setvar "DIMTXSTY"    "PEB-DIM")   ; owner 19-Jul STANDING: dimension text = ROMAND (was txtStyle)
+  (setvar "DIMTXSTY"    "ROMAND")    ; owner 19-Jul STANDING: dimension Text style = ROMAND (romand.shx)
   (setvar "DIMDEC"      0)
   (setvar "DIMLUNIT"    2)
   (setvar "DIMATFIT"    3)
@@ -1535,7 +1535,7 @@
   ;; Alt unit format = Architectural ("[ X'-Y\" ]") — DIMALTU=4 + DIMALTF=0.03937.
   (peb-safe-setvar "DIMSCALE" (if *PEB-DIM-SCALE* *PEB-DIM-SCALE* 1.0))
   (peb-safe-setvar "DIMTXT"   600.0)        ; Phase-2A v4: 600 base
-  (peb-safe-setvar "DIMTXSTY" "PEB-DIM")    ; owner 19-Jul STANDING: dimension text = ROMAND (PEB-DIM = romand.shx)
+  (peb-safe-setvar "DIMTXSTY" "ROMAND")     ; owner 19-Jul STANDING: dimension Text style = ROMAND (romand.shx)
   (peb-safe-setvar "DIMASZ"   600.0)        ; Phase-2A v4: 600 base
   ;; owner 19-Jul STANDING RULE: dimension arrowheads = "OPEN" type (open V, NOT filled solid).
   (peb-safe-setvar "DIMSAH" 0)
@@ -7122,7 +7122,7 @@
   ;; owner 19-Jul STANDING RULE: all dimension text is ROMAND (Roman Duplex).  Set globally now so even
   ;; dims that bypass peb-dim-set-vars (e.g., legacy callers) still pick up the right text style.
   (vl-catch-all-apply
-    (function (lambda () (setvar "DIMTXSTY" "PEB-DIM"))))
+    (function (lambda () (setvar "DIMTXSTY" "ROMAND"))))
 
   ;; ── Working extents ──────────────────────────────────────────
   (setq ext  (* 2500 *PEB-TEXT-SCALE*))   ; horizontal bleed beyond columns
@@ -7163,6 +7163,9 @@
       (make-text-style "PEB-TITLE" "romand.shx")
       (make-text-style "PEB-BODY"  "romans.shx")
       (make-text-style "PEB-DIM"   "romand.shx")))
+  ;; owner 19-Jul STANDING RULE: dedicated dimension text style literally NAMED "ROMAND" (font romand.shx)
+  ;; so the AutoCAD Properties "Text style" field reads ROMAND.  Every dimension's DIMTXSTY points here.
+  (make-text-style "ROMAND" "romand.shx")
   ;; owner 15-Jul: some title-block MTEXT falls back to the default "Standard" style (txt.shx) — repoint
   ;; the EXISTING Standard style at Arial too so the load table / project fields match the rest.
   (vl-catch-all-apply
