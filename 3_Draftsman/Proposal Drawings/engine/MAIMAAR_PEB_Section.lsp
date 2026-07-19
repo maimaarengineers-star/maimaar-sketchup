@@ -145,6 +145,50 @@
               (T (setq out (cons (atof seg) out)))))
       (reverse out))))
 
+;; peb-parse-frame-grid (Tier 0) — parse the canonical FRAME-GRID string
+;;   "1@25000 | 2@25000 | 3@25000"  ( | = valley between gables ; = per-gable overrides )
+;; into a LIST OF GABLES, each a list of its sub-module span widths (mm).  Returns nil for a
+;; blank string or one with no "|" (caller then uses the legacy NUMGABLES/SPANSPERGABLE path).
+(defun peb-parse-frame-grid (gridStr / segs out semi spansPart)
+  (setq gridStr (vl-string-trim " " (if gridStr gridStr "")))
+  (if (or (= gridStr "") (not (vl-string-search "|" gridStr)))
+    nil
+    (progn
+      (setq segs (peb-split-on-char gridStr "|") out '())
+      (foreach seg segs
+        (setq semi (vl-string-search ";" seg))
+        (setq spansPart (if semi (substr seg 1 semi) seg))
+        (setq out (cons (peb-parse-mod-expression (vl-string-trim " " spansPart)) out)))
+      (reverse out))))
+
+;; peb-mg-grid — the multi-gable gable structure as a list of gables (each a list of sub-span
+;; widths): PREFER the canonical BP_FRAME_GRID (Tier 0 — unequal gables, per-gable sub-modules);
+;; else synthesise the legacy equal-gable grid from NUMGABLES x SPANSPERGABLE so existing MGs are
+;; unchanged.  Shared by compute-section-layout (positions/dims) and draw-mg-multi-frame (frame).
+(defun peb-mg-grid (data W / g gw numGab spanPerGab mws i j mgSub)
+  (setq g (peb-parse-frame-grid (MSPL-Get-Str data "BP_FRAME_GRID")))
+  (if g g
+    (progn
+      (setq spanPerGab (MSPL-Get-Int data "SPANSPERGABLE"))
+      (if (or (null spanPerGab) (< spanPerGab 1)) (setq spanPerGab 1))
+      ;; Legacy gable WIDTHS from the width modules (each module = a gable, UNEQUAL) — matches the
+      ;; plan (owner decision T1.2: Section MG follows the modules, not an equal split).  Fall back
+      ;; to an equal NUMGABLES split only when the IF gives no usable module string.
+      (setq mws (peb-parse-mod-expression (MSPL-Get-Str data "MODEXPR")))
+      (if (not (and mws (> (length mws) 1)))
+        (progn
+          (setq numGab (MSPL-Get-Int data "NUMGABLES"))
+          (if (or (null numGab) (< numGab 1)) (setq numGab 2))
+          (setq mws '() i 0)
+          (while (< i numGab) (setq mws (append mws (list (/ W (float numGab)))) i (1+ i)))))
+      ;; each gable width -> spanPerGab equal sub-modules (interior columns per gable)
+      (setq g '())
+      (foreach gw mws
+        (setq mgSub '() j 0)
+        (while (< j spanPerGab) (setq mgSub (append mgSub (list (/ gw (float spanPerGab)))) j (1+ j)))
+        (setq g (append g (list mgSub))))
+      g)))
+
 ;; ----------------------------------------------------------------------------
 ;;  SHEETING / INSULATION build-up composer
 ;; ----------------------------------------------------------------------------
@@ -1770,25 +1814,21 @@
       (list cols (list (peb-ridge-x data W))))   ; owner 9-Jul: ridge honours BP_RIDGE_OFFSET
 
     ((= stype "MG")
-      (setq numGab (MSPL-Get-Int data "NUMGABLES"))
-      (if (or (null numGab) (< numGab 1)) (setq numGab 2))
-      (setq spanPerGab (MSPL-Get-Int data "SPANSPERGABLE"))
-      (if (or (null spanPerGab) (< spanPerGab 1)) (setq spanPerGab 1))
-      (setq gW (/ W numGab))
-      ;; Generate columns at every sub-span boundary (matches plan view).
-      ;; For numGab=2, spanPerGab=1: cols at 0, W/2, W (3 cols)
-      ;; For numGab=2, spanPerGab=2: cols at 0, W/4, W/2, 3W/4, W (5 cols)
-      (setq cols '())
-      (setq i 0)
-      (while (<= i (* numGab spanPerGab))
-        (setq cols (append cols (list (* i (/ gW spanPerGab)))))
-        (setq i (1+ i)))
-      ;; Ridges remain at gable centres (one per gable)
-      (setq ridges '())
-      (setq i 0)
-      (while (< i numGab)
-        (setq ridges (append ridges (list (+ (* i gW) (/ gW 2.0)))))
-        (setq i (1+ i)))
+      ;; Gable structure from the canonical FRAME GRID (Tier 0) — unequal gables + per-gable
+      ;; sub-modules; legacy NUMGABLES x SPANSPERGABLE when no grid.  cols = every column line
+      ;; (exterior + interior + valley); ridges = each gable's centre.  Matches the plan.
+      (setq mgGrid (peb-mg-grid data W))
+      (setq mgAcc 0.0) (foreach mgG mgGrid (setq mgAcc (+ mgAcc (apply '+ mgG))))
+      (setq mgSc (if (> mgAcc 0.0) (/ W mgAcc) 1.0))
+      (setq cols (list 0.0) ridges '() cum 0.0)
+      (foreach mgG mgGrid
+        (setq gW (* (apply '+ mgG) mgSc))
+        (setq ridges (append ridges (list (+ cum (/ gW 2.0)))))
+        (setq modw 0.0)
+        (foreach sp mgG
+          (setq modw (+ modw (* sp mgSc)))
+          (setq cols (append cols (list (+ cum modw)))))
+        (setq cum (+ cum gW)))
       (list cols ridges))
 
     ((= stype "SS")
@@ -2555,59 +2595,45 @@
     (setq i (1+ i)))
 )
 
-(defun draw-mg-multi-frame (W H rise ht rd cb numGab spanPerGab /
-                            gW i j subX subColH midD intColW
-                            mainCols mainRidges ridgeX gxL gxR)
-  ;;  Multi-Gable with sub-spans.  Strategy: draw the BASE multi-gable
-  ;;  outline using the proven draw-frame-outline (with gable-boundary
-  ;;  cols and per-gable ridges).  Then add intermediate sub-span
-  ;;  columns as plain rectangles rising up to the rafter underside.
-  (setq gW      (/ W numGab))
+(defun draw-mg-multi-frame (W H rise ht rd cb mgGrid /
+                            gW subX subColH midD intColW
+                            mainCols mainRidges ridgeX gxL gxR
+                            mgAcc mgSc mgG mgSp base sub nsub k)
+  ;;  Multi-Gable from the canonical FRAME GRID (Tier 0): each gable carries its OWN sub-modules
+  ;;  (unequal gables + unequal sub-modules allowed).  Draw the proven multi-gable outline
+  ;;  (gable-boundary cols + per-gable ridges) via draw-frame-outline, then add each gable's
+  ;;  INTERIOR sub-span columns as rectangles rising to the rafter underside.
   (setq midD    (max 300.0 (min 500.0 (- (* ht 0.5) 50.0))))
   (setq intColW 400.0)
-
-  ;; Build base column list: 0, gW, 2gW, ..., W  (one col per gable boundary)
-  (setq mainCols '())
-  (setq i 0)
-  (while (<= i numGab)
-    (setq mainCols (append mainCols (list (* i gW))))
-    (setq i (1+ i)))
-
-  ;; Build ridge list: gW/2, 3gW/2, 5gW/2, ...  (one ridge per gable)
-  (setq mainRidges '())
-  (setq i 0)
-  (while (< i numGab)
-    (setq mainRidges (append mainRidges (list (+ (* i gW) (/ gW 2.0)))))
-    (setq i (1+ i)))
-
-  ;; Draw the proven multi-span outline (handles cigar rafter, haunches, columns)
+  ;; scale gable widths to close EXACTLY on W
+  (setq mgAcc 0.0) (foreach mgG mgGrid (setq mgAcc (+ mgAcc (apply '+ mgG))))
+  (setq mgSc (if (> mgAcc 0.0) (/ W mgAcc) 1.0))
+  ;; gable-boundary columns (0, g1-end, g2-end, ..., W) + one ridge per gable at its centre
+  (setq mainCols (list 0.0) mainRidges '() base 0.0)
+  (foreach mgG mgGrid
+    (setq gW (* (apply '+ mgG) mgSc))
+    (setq mainRidges (append mainRidges (list (+ base (/ gW 2.0)))))
+    (setq base (+ base gW))
+    (setq mainCols (append mainCols (list base))))
   (draw-frame-outline mainCols mainRidges H rise ht rd cb)
-
-  ;; Intermediate sub-span columns (only when spanPerGab > 1)
-  (if (> spanPerGab 1)
-    (progn
-      (setvar "CLAYER" "FRAME")
-      (setq i 0)
-      (while (< i numGab)
-        (setq gxL    (* i gW))
-        (setq gxR    (+ gxL gW))
-        (setq ridgeX (+ gxL (/ gW 2.0)))
-        (setq j 1)
-        (while (< j spanPerGab)
-          (setq subX (+ gxL (* j (/ gW spanPerGab))))
-          ;; Rafter underside Y at subX
+  ;; interior sub-span columns WITHIN each gable (its OWN sub-module boundaries)
+  (setvar "CLAYER" "FRAME")
+  (setq base 0.0)
+  (foreach mgG mgGrid
+    (setq gW (* (apply '+ mgG) mgSc))
+    (setq gxL base  gxR (+ base gW)  ridgeX (+ base (/ gW 2.0)))
+    (setq sub 0.0  nsub (length mgG)  k 0)
+    (foreach mgSp mgG
+      (setq k (1+ k))
+      (if (< k nsub)                                  ; interior boundary (not the gable end / valley)
+        (progn
+          (setq sub (+ sub (* mgSp mgSc))  subX (+ gxL sub))
           (cond
-            ((equal subX ridgeX 0.001)
-              (setq subColH (+ H rise (- 0 rd))))
-            ((< subX ridgeX)
-              (setq subColH (- (+ H (* rise (/ (- subX gxL) (- ridgeX gxL)))) midD)))
-            (T
-              (setq subColH (- (+ H (* rise (/ (- gxR subX) (- gxR ridgeX)))) midD))))
-          (command "RECTANG"
-            (list (- subX (/ intColW 2.0)) 0.0)
-            (list (+ subX (/ intColW 2.0)) subColH))
-          (setq j (1+ j)))
-        (setq i (1+ i)))))
+            ((equal subX ridgeX 0.001) (setq subColH (+ H rise (- 0 rd))))
+            ((< subX ridgeX) (setq subColH (- (+ H (* rise (/ (- subX gxL) (- ridgeX gxL)))) midD)))
+            (T               (setq subColH (- (+ H (* rise (/ (- gxR subX) (- gxR ridgeX)))) midD))))
+          (command "RECTANG" (list (- subX (/ intColW 2.0)) 0.0) (list (+ subX (/ intColW 2.0)) subColH)))))
+    (setq base (+ base gW)))
 )
 
 (defun draw-ms-frame (cols W H rise ht rd cb /
@@ -6990,9 +7016,7 @@
       ;; spanPerGab=1 and spanPerGab>1 via base outline + sub-span cols).
       ;; NOTE: AutoLISP's `or` returns T/nil (not first non-nil value),
       ;; so we use a simple if-let pattern to default missing values.
-      (setq spanPerGab (MSPL-Get-Int data "SPANSPERGABLE"))
-      (if (or (null spanPerGab) (< spanPerGab 1)) (setq spanPerGab 1))
-      (draw-mg-multi-frame wid H rise ht rd cb numGab spanPerGab))
+      (draw-mg-multi-frame wid H rise ht rd cb (peb-mg-grid data wid)))
     (T
       ;; CS, MG (spanPerGab=1) and other standard gable-type frames
       (draw-frame-outline cols ridges H rise ht rd cb)))
@@ -7032,39 +7056,31 @@
         (draw-cant-vplate (- ppC2 (/ ppCwP 2.0)) (- H ppRtP) H 45.0 3)))
     ((= stype "MG")
       (progn
-        ;; Base plates at every gable-boundary column (0, gW, 2gW, ..., W)
-        (setq haunchCols '())
-        (setq i 0)
-        (setq gWmg (/ wid numGab))
-        (while (<= i numGab)
-          (setq haunchCols (append haunchCols (list (* i gWmg))))
-          (setq i (1+ i)))
+        ;; Gable boundaries (valleys) + per-gable ridge centres from the canonical FRAME GRID
+        ;; (Tier 0) — unequal gables OK.  haunchCols = 0, valley1, valley2, ..., wid.
+        (setq mgGrid (peb-mg-grid data wid))
+        (setq mgAcc 0.0) (foreach mgG mgGrid (setq mgAcc (+ mgAcc (apply '+ mgG))))
+        (setq mgSc (if (> mgAcc 0.0) (/ wid mgAcc) 1.0))
+        (setq haunchCols (list 0.0) mgRidgeXs '() cum 0.0)
+        (foreach mgG mgGrid
+          (setq gWmg (* (apply '+ mgG) mgSc))
+          (setq mgRidgeXs (append mgRidgeXs (list (+ cum (/ gWmg 2.0)))))
+          (setq cum (+ cum gWmg))
+          (setq haunchCols (append haunchCols (list cum))))
         (draw-base-plates-multi haunchCols cb ep 400.0)
-        ;; Standard knee-haunch + valley-seam plates at gable boundaries.
-        ;; (draw-haunch-plates' interior branch now draws TWO half-plates
-        ;;  with a vertical seam at the column flange — matches picture 5.)
-        (draw-haunch-plates haunchCols H ht ep T nil nil)   ; T = MG valleys → 4-vertical-plate detail; ridgeX nil; rcc nil (steel)
-        ;; Ridge-apex plates are SKIPPED when a sub-span column lands at the
-        ;; ridge (spanPerGab even).  In that case the ridge column carries
-        ;; the connection at column-top and the rafter web stays continuous
-        ;; through the apex.
-        (draw-rafter-stiffeners haunchCols ridges H rise ht rd
-          (and spanPerGab (> spanPerGab 1) (zerop (rem spanPerGab 2))))
-        ;; --- Ridge-column connection plates (picture 4) ----------------
-        ;; A sub-span column lands at a ridge ONLY when spanPerGab is EVEN
-        ;; (then j = spanPerGab/2 places subX at gable midpoint = ridge).
-        ;; For each such column, add the ridge-column plate detail at column
-        ;; top elevation (H + rise - rd).  Sub-span cols off-ridge stay plain.
-        (if (and spanPerGab (> spanPerGab 1)
-                 (zerop (rem spanPerGab 2)))
-          (progn
-            (setq i 0)
-            (while (< i numGab)
-              ;; Each gable's ridge column lies at i*gWmg + gWmg/2
-              (draw-mg-ridge-col-plates
-                (+ (* i gWmg) (/ gWmg 2.0))
-                H rise rd ep)
-              (setq i (1+ i)))))))
+        ;; Standard knee-haunch + valley-seam plates at the gable boundaries (4-vertical-plate valley).
+        (draw-haunch-plates haunchCols H ht ep T nil nil)
+        (draw-rafter-stiffeners haunchCols mgRidgeXs H rise ht rd nil)
+        ;; Ridge-column plates only where a gable's centre coincides with an interior sub-span
+        ;; column (its centre is a sub-module boundary — e.g. a 2-sub-module gable).
+        (setq cum 0.0)
+        (foreach mgG mgGrid
+          (setq gWmg (* (apply '+ mgG) mgSc) ridgeX (+ cum (/ gWmg 2.0)) sub 0.0 hit nil)
+          (foreach sp mgG
+            (setq sub (+ sub (* sp mgSc)))
+            (if (equal (+ cum sub) ridgeX 1.0) (setq hit T)))
+          (if hit (draw-mg-ridge-col-plates ridgeX H rise rd ep))
+          (setq cum (+ cum gWmg)))))
     ((= stype "MS")
       (progn
         ;; MS: base plates at every column (end + interior).  Build a
