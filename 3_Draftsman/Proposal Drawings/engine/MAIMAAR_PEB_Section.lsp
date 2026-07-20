@@ -6760,13 +6760,15 @@
        160 0 str))
 
 (defun rm-mon-purlins (x1 y1 x2 y2 n depth / dx dy L ux uy vx vy i tt px py)
-  ;; BYPASS Z-purlins sitting on the monitor rafter TOP FLANGE, following its slope (universal rule);
-  ;; reuses the engine's real Z-section drawer (draw-z-purlin), n purlins evenly along the slope.
+  ;; BYPASS Z-purlins on the monitor rafter TOP FLANGE, following its slope (universal rule 0), drawn
+  ;; with the engine's real Z-drawer (draw-z-purlin).  P1 (rule 9): a purlin AT the EAVE (x1,y1) then
+  ;; interior toward the ridge, stopping clear of the ridge centreline.
   (setq dx (- x2 x1) dy (- y2 y1) L (sqrt (+ (* dx dx) (* dy dy))))
   (if (<= L 1e-6) (setq L 1.0))
-  (setq ux (/ dx L) uy (/ dy L) vx (- uy) vy ux i 1)
-  (while (<= i n)
-    (setq tt (/ (- i 0.5) (float n)) px (+ x1 (* dx tt)) py (+ y1 (* dy tt)))
+  (setq ux (/ dx L) uy (/ dy L) vx (- uy) vy ux i 0)
+  (while (< i n)
+    (setq tt (* (/ i (float n)) 0.85)     ; i=0 -> AT the eave; last stops at 0.85 (clear of ridge)
+          px (+ x1 (* dx tt)) py (+ y1 (* dy tt)))
     (draw-z-purlin px py ux uy vx vy depth 45.0 45.0 8.0 14.0)
     (setq i (1+ i))))
 
@@ -6876,19 +6878,13 @@
            (rm-eave-curved eaveLx eaveYL -1 rmh))
     (vl-catch-all-apply (function (lambda () (rm-eave-zoom eaveRx eaveYR 1)))))
 
-  ;; 7) CONNECTION PLATES — at the LEG TOPS (leg top ↔ rafter bottom flange) and LEG BASES ONLY.
-  ;;    Owner ref: NO plate at the monitor peak/middle — the rafter is one single piece.
+  ;; 7) NO connection plates in the roof monitor (owner): the legs meet the single-piece rafter
+  ;;    directly — no leg-top CP, no peak plate.  ONE base plate only, at the ridge, where the
+  ;;    monitor lands on the main frame ridge.
   (setvar "CLAYER" "PLATES")
-  ;; leg-top connections (leg ↔ single rafter) — plate pair + small gussets down the leg
-  (vl-catch-all-apply (function (lambda () (rm-leg-cap (+ xLi (/ pDep 2.0)) legTopYL (+ (/ pDep 2.0) 45.0)))))
-  (vl-catch-all-apply (function (lambda () (rm-leg-cap (- xRi (/ pDep 2.0)) legTopYR (+ (/ pDep 2.0) 45.0)))))
-  ;; leg BASE plates — short solid seat plate flush on the main-rafter TOP FLANGE (per side)
   (vl-catch-all-apply (function (lambda ()
-    (peb-solid-quad (list (- xLi 55.0) (- legBaseYL 55.0)) (list (+ xLi pDep 55.0) (- legBaseYL 55.0))
-                    (list (- xLi 55.0) legBaseYL)          (list (+ xLi pDep 55.0) legBaseYL)))))
-  (vl-catch-all-apply (function (lambda ()
-    (peb-solid-quad (list (- xRi pDep 55.0) (- legBaseYR 55.0)) (list (+ xRi 55.0) (- legBaseYR 55.0))
-                    (list (- xRi pDep 55.0) legBaseYR)          (list (+ xRi 55.0) legBaseYR)))))
+    (peb-solid-quad (list (- ridgeX 300.0) (- roofY 55.0)) (list (+ ridgeX 300.0) (- roofY 55.0))
+                    (list (- ridgeX 300.0) roofY)          (list (+ ridgeX 300.0) roofY)))))
 
   ;; 8) UNIVERSAL RULES — M-LADDER callout (peb-make-mleader: arrow → leg → bar → text) + open-arrow
   ;;    DIMENSIONS (overall width across the eaves, throat at the base).  Same rules as the roof/wall
