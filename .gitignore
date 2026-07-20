@@ -1,21 +1,40 @@
-# Track only the SketchUp work added this session; ignore the rest of the large tree
-# (Portal has its own repo; proposals/DXF/data are not for this repo).
+# Track only the SketchUp work; ignore the rest of the large tree.
+# (2_Sales CRM and 0_Master Plan have their own repos; proposals/DXF/data are not for this repo.)
+#
+# NOTE: files already tracked stay tracked even when a rule below would ignore them —
+# that is why 3_Draftsman engine files remain in the index. Ignore rules only affect
+# what git would ADD, never what it already has.
 /*
 !.gitignore
-!MAIMAAR_OS_SYSTEM_MAP.md
-!sketchup_study/
-!sketchup_generator/
+!.gitattributes
+
+# The SketchUp work now lives under its owning section folder (moved 2026-07-20 from
+# the repo root). Un-ignoring a nested path requires un-ignoring each parent first.
+!3_Draftsman/
+3_Draftsman/*
+!3_Draftsman/Sketch UP/
 
 # within the tracked modules, skip generated/binary artifacts
-sketchup_generator/out/
-sketchup_study/geom_out/batch.log
+**/sketchup_generator/out/
+**/sketchup_study/geom_out/batch.log
 **/__pycache__/
 *.pyc
 *.skb
 *.skp
-!sketchup_generator/seed_template.skp   # keep the bundled seed for the orchestrator
-!sketchup_generator/parts/*.skp          # real components placed by the generator
-!sketchup_study/components_lib/*.skp     # the extracted real-parts library
+!**/sketchup_generator/seed_template.skp   # keep the bundled seed for the orchestrator
+!**/sketchup_generator/parts/*.skp         # real components placed by the generator
+!**/sketchup_study/components_lib/*.skp    # the extracted real-parts library
 
-# Local cold storage — archived old files, not part of the repo
-_ARCHIVE/
+# Local cold storage — archived old files, not part of the repo.
+# Lowercase to match the actual folder name; the old uppercase _ARCHIVE/ rule matched
+# on Windows by luck only and would have failed on a case-sensitive filesystem.
+_archive/
+_BACKUP/
+_render/
+_render_*/
+_generated_drawings/
+
+# AutoCAD session/plot logs — regenerated on every run, never source
+Drawing1_*.log
+plot.log
+_tunnel.log
