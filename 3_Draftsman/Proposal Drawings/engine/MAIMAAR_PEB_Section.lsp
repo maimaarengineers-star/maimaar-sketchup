@@ -995,25 +995,6 @@
   (setvar "CLAYER" oldLayer)
 )
 
-(defun peb-dim-v-native (x y1 y2 override / oldLayer dimPt)
-  ;;  Native VERTICAL linear dimension via DIMLINEAR.  Picking a dim-line
-  ;;  position to the side of the def points causes DIMLINEAR to choose
-  ;;  vertical orientation automatically.
-  (setq oldLayer (getvar "CLAYER"))
-  (setvar "CLAYER" "DIMENSIONS")
-  (setq dimPt (list x (/ (+ y1 y2) 2.0)))
-  (if override
-    (command "_DIMLINEAR"
-             (list x y1)
-             (list x y2)
-             "_T" override
-             dimPt)
-    (command "_DIMLINEAR"
-             (list x y1)
-             (list x y2)
-             dimPt))
-  (setvar "CLAYER" oldLayer)
-)
 
 ;; Counter for unique group names — incremented each time we make a group.
 (setq *PEB-DIM-GROUP-COUNTER* 0)
@@ -1609,43 +1590,7 @@
   (princ)
 )
 
-(defun peb-vla-make-dim-h (x1 x2 y override / acad doc mspace dimObj)
-  ;;  VLA path for a horizontal dim.  Returns the dim object on success,
-  ;;  errors out otherwise (caller catches via vl-catch-all-apply).
-  (vl-load-com)
-  (setq acad   (vlax-get-acad-object))
-  (setq doc    (vla-get-ActiveDocument acad))
-  (setq mspace (vla-get-ModelSpace doc))
-  (setq dimObj
-    (vla-AddDimRotated
-      mspace
-      (vlax-3d-point (list x1 0.0 0.0))                       ; def 1
-      (vlax-3d-point (list x2 0.0 0.0))                       ; def 2
-      (vlax-3d-point (list (/ (+ x1 x2) 2.0) y 0.0))          ; dim line
-      0.0))                                                    ; rotation
-  (vla-put-Layer dimObj "DIMENSIONS")
-  (if override (vla-put-TextOverride dimObj override))
-  dimObj
-)
 
-(defun peb-vla-make-dim-height (objX dimX y1 y2 override / acad doc mspace dimObj)
-  ;;  VLA path for a vertical/height dim.  Def points at objX so
-  ;;  extension lines are drawn from the object out to the dim line.
-  (vl-load-com)
-  (setq acad   (vlax-get-acad-object))
-  (setq doc    (vla-get-ActiveDocument acad))
-  (setq mspace (vla-get-ModelSpace doc))
-  (setq dimObj
-    (vla-AddDimRotated
-      mspace
-      (vlax-3d-point (list objX y1 0.0))
-      (vlax-3d-point (list objX y2 0.0))
-      (vlax-3d-point (list dimX (/ (+ y1 y2) 2.0) 0.0))
-      (/ pi 2.0)))                                             ; rotation = 90°
-  (vla-put-Layer dimObj "DIMENSIONS")
-  (if override (vla-put-TextOverride dimObj override))
-  dimObj
-)
 
 (defun peb-dim-h-stretch (x1 x2 y override / lastBefore oldLayer newEnts result)
   ;;  Horizontal dim with TWO-TIER strategy:
@@ -1721,26 +1666,6 @@
       (peb-group-entities newEnts "PEBDIMV")))
 )
 
-(defun peb-dim-height-native (objX dimX y1 y2 override / oldLayer dimPt)
-  ;;  Vertical "height" dim — extension lines run horizontally from objX
-  ;;  to the dim-line column at dimX.  Def points are at (objX, y1) and
-  ;;  (objX, y2); dim-line position is (dimX, midY) which forces
-  ;;  vertical orientation.
-  (setq oldLayer (getvar "CLAYER"))
-  (setvar "CLAYER" "DIMENSIONS")
-  (setq dimPt (list dimX (/ (+ y1 y2) 2.0)))
-  (if override
-    (command "_DIMLINEAR"
-             (list objX y1)
-             (list objX y2)
-             "_T" override
-             dimPt)
-    (command "_DIMLINEAR"
-             (list objX y1)
-             (list objX y2)
-             dimPt))
-  (setvar "CLAYER" oldLayer)
-)
 
 (defun dim-mm-ft-overall (mm / ft)
   (setq ft (/ mm 304.8))
@@ -1800,19 +1725,6 @@
   (if (/= ftTxt "") (txt-dim "MC" (list mid (- y (* 360 *PEB-DIM-SCALE*))) 280 0 ftTxt))
 )
 
-(defun dim-line-v (x y1 y2 label / parts mmTxt ftTxt midY textX)
-  (setvar "CLAYER" "DIMENSIONS")
-  (setq parts (split-dim-label label))
-  (setq mmTxt (car parts))
-  (setq ftTxt (cadr parts))
-  (setq midY (/ (+ y1 y2) 2.0))
-  (setq textX (- x (* 500 *PEB-DIM-SCALE*)))
-  (command "LINE" (list x y1) (list x y2) "")
-  (dim-arrow-v x y1 "U")
-  (dim-arrow-v x y2 "D")
-  (txt-dim "MC" (list textX midY) 300 90 mmTxt)
-  (if (/= ftTxt "") (txt-dim "MC" (list (+ textX (* 650 *PEB-DIM-SCALE*)) midY) 280 90 ftTxt))
-)
 
 (defun draw-border (x1 y1 x2 y2 / margin)
   (setq margin (* 800 *PEB-TEXT-SCALE*))
@@ -5484,42 +5396,6 @@
   (setvar "PLINEWID" 0.0)
 )
 
-(defun draw-purlins-OLD (W H rise / purlinSpacing s xL xR yTop slopeAngle)
-  ;;  Small inverted-T tick marks along rafter top representing purlins.
-  ;;  Spacing typically 1500 mm along the slope.
-  (setvar "CLAYER" "PURLINS")
-  (setq purlinSpacing 1500.0)
-  (setq s 100.0)   ; tick height in mm
-  (setq slopeAngle (atan rise (/ W 2.0)))
-  ;; LEFT rafter purlins
-  (setq d 0.0)
-  (while (< d (sqrt (+ (* (/ W 2.0) (/ W 2.0)) (* rise rise))))
-    (setq xL (* d (cos slopeAngle)))
-    (setq yTop (+ H (* d (sin slopeAngle))))
-    ;; Vertical tick going DOWN from rafter top
-    (command "LINE"
-      (list xL yTop)
-      (list xL (- yTop s))
-      "")
-    (setq d (+ d purlinSpacing))
-  )
-  ;; RIGHT rafter purlins
-  (setq d 0.0)
-  (while (< d (sqrt (+ (* (/ W 2.0) (/ W 2.0)) (* rise rise))))
-    (setq xR (- W (* d (cos slopeAngle))))
-    (setq yTop (+ H (* d (sin slopeAngle))))
-    (command "LINE"
-      (list xR yTop)
-      (list xR (- yTop s))
-      "")
-    (setq d (+ d purlinSpacing))
-  )
-  ;; "PURLIN" leader label
-  (setvar "CLAYER" "TEXT")
-  (txt "ML"
-       (list (* W 0.62) (+ H (* rise 0.5) (* 600 *PEB-TEXT-SCALE*)))
-       200 0 "PURLIN")
-)
 
 (defun draw-purlins-mg (W H rise numGab gW /
                          depth wtop wbot lip lipDx lipDy
@@ -6810,7 +6686,7 @@
 (defun peb-draw-roof-monitor (data wid H rise ridgeX ht rd cb slopeD /
         prev throat overallW rmh eaveType bird curved
         roofY halfT halfO sL sR legBaseYL legBaseYR legTopYL legTopYR monRidgeY eaveYL eaveYR
-        xLi xRi eaveLx eaveRx mDep pDep pt hg gW)
+        xLi xRi eaveLx eaveRx mDep pDep pt hg gW rmConstr)
   (setq prev (getvar "CLAYER"))
   (if (or (null slopeD) (<= slopeD 0.0)) (setq slopeD 10.0))
 
@@ -6826,7 +6702,15 @@
   (setq eaveType (strcase (MSPL-Get-Str data "RM_EAVE_TYPE"))
         bird     (strcase (MSPL-Get-Str data "RM_BIRD_MESH"))
         curved   (or (vl-string-search "CURV" eaveType) (vl-string-search "CURVED" eaveType)))
-  (setq mDep 180.0 pDep 160.0)
+  ;; construction type (BS roof_monitor.constructionType -> RM_CONSTR): member depths per type
+  ;; (rafter mDep / leg pDep).  Built-Up = deeper welded I; Cold-Formed = shallow C/Z; Hot-Rolled = IPE (default).
+  (setq rmConstr (strcase (MSPL-Get-Str data "RM_CONSTR")))
+  (cond
+    ((or (vl-string-search "BUILT" rmConstr) (vl-string-search "BU" rmConstr))
+       (setq mDep 240.0 pDep 200.0))                                   ; Hot-Rolled Built-up (BU)
+    ((or (vl-string-search "COLD" rmConstr) (vl-string-search "C20" rmConstr) (vl-string-search "CF" rmConstr))
+       (setq mDep 200.0 pDep 150.0))                                   ; Cold-Formed (C20G)
+    (T (setq mDep 180.0 pDep 160.0)))                                  ; Hot-Rolled (IPEa) — default
 
   ;; ---- mini-PEB-frame geometry — PER-SIDE rafter slopes so the monitor seats on the TRUE
   ;;      rafter even at an OFF-CENTRE ridge (BP_RIDGE_OFFSET) or unequal pitches.  sL/sR = rise/run
@@ -7697,6 +7581,7 @@
   ;; ── Roof monitor at the peak (owner 13-Jul) — only for frames with a ridge/peak ──
   (setq *RM-THROAT-WIN* nil)
   (if (and ridges (car ridges)
+           (member stype '("CS" "MS" "RC" "MG"))    ; owner 19-Jul: monitor only on TRUE-PEAK gable frames — excludes SS/mono, ACS/AMS (arch crown), BF (valley), PP/LT/FR/F2 where a "ridge" is not a straight-gable peak
            (= (strcase (peb-tb-or (MSPL-Get-Str data "RM_TOGGLE") "")) "YES"))
     (progn
       (vl-catch-all-apply (function (lambda () (peb-draw-roof-monitor data wid H rise (car ridges) ht rd cb slopeD))))

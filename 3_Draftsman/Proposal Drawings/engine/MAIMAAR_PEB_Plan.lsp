@@ -519,12 +519,6 @@
   (command "_.TEXT" "_J" "_MC" (list x y) h 0 label)
   (setvar "CLAYER" prev))
 
-(defun col-crosshair (x y / arm)
-  (setq arm 280)
-  (setvar "CLAYER" "COL-CENTER")
-  (command "LINE" (list (- x arm) y) (list (+ x arm) y) "")
-  (command "LINE" (list x (- y arm)) (list x (+ y arm)) "")
-)
 
 ;; RIDGE-LINE callout = Roshan curl/hook "ladder" symbol (owner 3-Jul): a small LOOP sitting ON the
 ;; ridge line + a short leader up to the "RIDGE LINE" text (no arrowhead).  This curl is the SOLE ridge
@@ -4624,8 +4618,6 @@
   (setq borderL (- 0.0 bMarg))
   (setq borderR (max (+ len bMarg) (+ c6 (* 800 *PEB-TEXT-SCALE*))))
   (setq borderT (+ yFrmTop (* 400.0 *PEB-TEXT-SCALE*)))
-  (princ (strcat "\n[BORDER-DEBUG R2] borderL=" (rtos borderL 2 0) " borderR=" (rtos borderR 2 0)
-                 " DIMSCALE=" (rtos *PEB-DIM-SCALE* 2 2) " BUBRAD=" (rtos *PEB-BUBRAD* 2 0)))
 
   ;; Heights — same as Section (175 / 225, halved from earlier).
   (setq tblHeaderH  (* 175 tbScale))
@@ -5007,25 +4999,6 @@
   (setvar "CLAYER" oldLayer)
 )
 
-(defun peb-dim-v-native (x y1 y2 override / oldLayer dimPt)
-  ;;  Native VERTICAL linear dimension via DIMLINEAR.  Picking a dim-line
-  ;;  position to the side of the def points causes DIMLINEAR to choose
-  ;;  vertical orientation automatically.
-  (setq oldLayer (getvar "CLAYER"))
-  (setvar "CLAYER" "DIMENSIONS")
-  (setq dimPt (list x (/ (+ y1 y2) 2.0)))
-  (if override
-    (command "_DIMLINEAR"
-             (list x y1)
-             (list x y2)
-             "_T" override
-             dimPt)
-    (command "_DIMLINEAR"
-             (list x y1)
-             (list x y2)
-             dimPt))
-  (setvar "CLAYER" oldLayer)
-)
 
 ;; Counter for unique group names — incremented each time we make a group.
 (setq *PEB-DIM-GROUP-COUNTER* 0)
@@ -5615,43 +5588,7 @@
   (princ)
 )
 
-(defun peb-vla-make-dim-h (x1 x2 y override / acad doc mspace dimObj)
-  ;;  VLA path for a horizontal dim.  Returns the dim object on success,
-  ;;  errors out otherwise (caller catches via vl-catch-all-apply).
-  (vl-load-com)
-  (setq acad   (vlax-get-acad-object))
-  (setq doc    (vla-get-ActiveDocument acad))
-  (setq mspace (vla-get-ModelSpace doc))
-  (setq dimObj
-    (vla-AddDimRotated
-      mspace
-      (vlax-3d-point (list x1 0.0 0.0))                       ; def 1
-      (vlax-3d-point (list x2 0.0 0.0))                       ; def 2
-      (vlax-3d-point (list (/ (+ x1 x2) 2.0) y 0.0))          ; dim line
-      0.0))                                                    ; rotation
-  (vla-put-Layer dimObj "DIMENSIONS")
-  (if override (vla-put-TextOverride dimObj override))
-  dimObj
-)
 
-(defun peb-vla-make-dim-height (objX dimX y1 y2 override / acad doc mspace dimObj)
-  ;;  VLA path for a vertical/height dim.  Def points at objX so
-  ;;  extension lines are drawn from the object out to the dim line.
-  (vl-load-com)
-  (setq acad   (vlax-get-acad-object))
-  (setq doc    (vla-get-ActiveDocument acad))
-  (setq mspace (vla-get-ModelSpace doc))
-  (setq dimObj
-    (vla-AddDimRotated
-      mspace
-      (vlax-3d-point (list objX y1 0.0))
-      (vlax-3d-point (list objX y2 0.0))
-      (vlax-3d-point (list dimX (/ (+ y1 y2) 2.0) 0.0))
-      (/ pi 2.0)))                                             ; rotation = 90°
-  (vla-put-Layer dimObj "DIMENSIONS")
-  (if override (vla-put-TextOverride dimObj override))
-  dimObj
-)
 
 (defun peb-dim-h-stretch (x1 x2 y override / lastBefore oldLayer newEnts result)
   ;;  Horizontal dim with TWO-TIER strategy:
@@ -5757,26 +5694,6 @@
       (peb-group-entities newEnts "PEBDIMV")))
 )
 
-(defun peb-dim-height-native (objX dimX y1 y2 override / oldLayer dimPt)
-  ;;  Vertical "height" dim — extension lines run horizontally from objX
-  ;;  to the dim-line column at dimX.  Def points are at (objX, y1) and
-  ;;  (objX, y2); dim-line position is (dimX, midY) which forces
-  ;;  vertical orientation.
-  (setq oldLayer (getvar "CLAYER"))
-  (setvar "CLAYER" "DIMENSIONS")
-  (setq dimPt (list dimX (/ (+ y1 y2) 2.0)))
-  (if override
-    (command "_DIMLINEAR"
-             (list objX y1)
-             (list objX y2)
-             "_T" override
-             dimPt)
-    (command "_DIMLINEAR"
-             (list objX y1)
-             (list objX y2)
-             dimPt))
-  (setvar "CLAYER" oldLayer)
-)
 
 ;; ============================================================================
 ;; NON-INTERACTIVE ENTRY  (used by Excel VBA Generate-Drawings auto-launch)
