@@ -523,7 +523,7 @@
 ;; RIDGE-LINE callout = Roshan curl/hook "ladder" symbol (owner 3-Jul): a small LOOP sitting ON the
 ;; ridge line + a short leader up to the "RIDGE LINE" text (no arrowhead).  This curl is the SOLE ridge
 ;; marker; the ridge LINE itself stays a dotted/broken line (RIDGE layer).  Matches the symbol Nasir
-;; inserted from MAMMUT_09_Roshan.  tgtX,tgtY = point on the ridge line.
+;; inserted from REF_09_Roshan.  tgtX,tgtY = point on the ridge line.
 (defun peb-ridge-callout (txtStr tgtX tgtY / s r cx cy prev)
   (setq s (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0) r (* 300.0 s)
         cx tgtX cy tgtY prev (getvar "CLAYER"))
@@ -534,7 +534,7 @@
   (txt "ML" (list (+ cx (* 5.4 r)) (+ cy (* 5.0 r))) (peb-th 'ANNOT) 0 txtStr)   ; "RIDGE LINE" label (engine text)
   (setvar "CLAYER" prev))
 
-;; RIDGE-LINE LADDER — owner rule F5 (3-Jul, from MAMMUT_09_Roshan): the ridge line is marked with a
+;; RIDGE-LINE LADDER — owner rule F5 (3-Jul, from REF_09_Roshan): the ridge line is marked with a
 ;; LADDER — two thin rails a small offset either side of the ridge line + regular rungs between them,
 ;; running the FULL ridge length and centred EXACTLY on the ridge line ("must exactly mark the ridge
 ;; line").  The central ridge LINE stays (the spine); this ladder rides on top of it and the curl
@@ -597,7 +597,7 @@
                    (cons 10 (list x0 y 0.0)) (cons 11 (list x1 y 0.0))))
     (command "_.LINE" (list x0 y) (list x1 y) "")))
 
-;; RIDGE-LINE SYMBOL — reproduced EXACTLY from the Roshan Packages reference (MAMMUT_09 DXF, owner 4-Jul):
+;; RIDGE-LINE SYMBOL — reproduced EXACTLY from the Roshan Packages reference (REF_09 DXF, owner 4-Jul):
 ;; a horizontal shelf that turns down into a small CURL / PIGTAIL landing on the ridge line, with the
 ;; "RIDGE LINE" label above the shelf.  Same 5 vertices as before (they already matched Roshan to the mm,
 ;; relative to the tip (0,0) = the point on the ridge line) BUT drawn as a BULGED LWPOLYLINE — the arc
@@ -1352,7 +1352,7 @@
 ;; the slope ratio SMALL + HORIZONTAL below that.  a = scale (u, autosizes with the building); dir (+/-1)
 ;; points the apex in the fall direction.  Text sized PROPORTIONAL to a (txt re-scales by TS -> pass a/TS).
 ;; owner 10-Jul: "polish the FALL arrow — more beautiful and contrast … refine per typical PEB".
-;; Reference-first (MAMMUT_07_Zealcon, glyph beside each REW 'FALL' text): the real symbol is an APEX with
+;; Reference-first (REF_07_Zealcon, glyph beside each REW 'FALL' text): the real symbol is an APEX with
 ;; two mirrored legs wrapping a small CIRCLE.  Mammut faked boldness by stacking several zero-width offset
 ;; outlines; we have real lineweights + fills, so we draw it properly:
 ;;   * a SOLID filled arrowhead (the apex) — the contrast that was missing when everything was hollow
@@ -1362,7 +1362,7 @@
 ;;   * "FALL" vertical below, unchanged.
 ;; Drawn with peb-* entmake primitives (project rule: sheet engines never draw raw), BYLAYER on FALL.
 ;; owner 10-Jul: "render the FALL symbol 100% the same as Mammut Roshan Packages."
-;; MEASURED from reference/03_proposal_drawings/DXF/MAMMUT_09_Roshan_MultiSpan_JackBeams.dxf
+;; MEASURED from reference/03_proposal_drawings/DXF/REF_09_Roshan_MultiSpan_JackBeams.dxf
 ;; (glyph beside each CLP "FALL" text).  The real symbol is a HOUSE/ARROW OUTLINE — apex, two barbs,
 ;; a straight body — with a CIRCLE centred on the shoulder line so it pokes up into the head.  Mammut
 ;; drew four near-identical offset copies to fake a bold stroke; we have real lineweights (FALL lw 0.35).
@@ -1373,7 +1373,7 @@
 ;;     body          (+/- 736.25, 3093.1) body  half-width = 0.3983 H
 ;;     tail          (+/- 736.25, 2373.5) shoulder = 0.3893 H above the tail
 ;;     CIRCLE        centre (0, 3067.6) r 645.9  ->  centre 0.3756 H above tail, r = 0.3494 H
-;;   "FALL" is TEXT colour 7 (WHITE) in Roshan — and also in MAMMUT_07_Zealcon.  The 7-Jul note that
+;;   "FALL" is TEXT colour 7 (WHITE) in Roshan — and also in REF_07_Zealcon.  The 7-Jul note that
 ;;   it should be red was mistaken; both references say white.  Ratio text sits below "FALL"
 ;;   (Roshan prints "ONE:15"); we keep the IF's own ratio format.
 ;;

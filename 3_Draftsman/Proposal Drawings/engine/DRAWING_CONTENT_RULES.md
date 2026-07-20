@@ -31,7 +31,7 @@ Axes convention (shared, from `MAIMAAR_PEB_Roof.lsp` header):
 a clear-span shed — its own `LIST OF DRAWINGS`):
 `PRO-00 List of Drawings (Cover) · PRO-01 Column Layout Plan · PRO-02/03 Cross Section(s)
 · PRO-04 Roof Sheeting Plan · PRO-05 End Wall Elevation · PRO-06 Side Wall Elevation`.
-Mammut's equivalent 8-sheet set (`MAMMUT_08_PearlKhas` poultry): Cover · Roof Plan ·
+Mammut's equivalent 8-sheet set (`REF_08_PearlKhas` poultry): Cover · Roof Plan ·
 Elevation (NSW/FSW) · Side Wall Elevation · Cross-Section · per-grid cross-sections ·
 Anchor-Bolt Setting Plan. See OPEN QUESTIONS on set membership.
 

@@ -2,7 +2,7 @@
 ### The strict, picture-backed rulebook for the dynamic IF → AutoCAD drawing system
 
 **Source of truth:** the real Mammut parent drawing
-`reference/03_proposal_drawings/DXF/MAMMUT_07_Zealcon_MultiArea_Crane.dxf`
+`reference/03_proposal_drawings/DXF/REF_07_Zealcon_MultiArea_Crane.dxf`
 (Zealcon Engineering — "Proposed Workshop for Mehar Gas", quote PK-12-082).
 Master render: `00_MASTER_real_zealcon_plan.png`. Element close-ups: `pics/`.
 
