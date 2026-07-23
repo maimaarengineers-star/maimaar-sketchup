@@ -233,6 +233,10 @@
   (setq out (cons (cons "STYPE" stype) out))
   (setq heightVal (peb-alist-get v3 "BP_EAVE_HEIGHT"))
   (setq out (cons (cons "CLEARHEIGHT" heightVal) out))
+  ;; G+1 (F2) double-storey: SEPARATE ground- & first-floor clear heights (owner 15-Jul).  Optional; when
+  ;; absent the F2 branch falls back to an equal split of the eave height.
+  (setq out (cons (cons "GROUNDCH" (peb-alist-get v3 "BP_GROUND_CH")) out))
+  (setq out (cons (cons "FIRSTCH"  (peb-alist-get v3 "BP_FIRST_CH")) out))
   (setq brick (peb-alist-get v3 "BP_BRICK_HT"))
   (if (= brick "") (setq brick "0"))
   (setq out (cons (cons "BRICKHEIGHT" brick) out))
@@ -1254,7 +1258,7 @@
     ((wcmatch u "*BASE*")
        (list (- gridVal (* 2.0 fw)) fw (- fw) (* 2.0 dc) (* -2.0 dc)))      ; witness on drawn inner face
     ((wcmatch u "*SHEET*,*BRICK*,*MASON*,*GIRT*")
-       (list (+ gridVal (* 2.0 brick)) (- brick) brick 0.0 0.0))           ; witness on drawn outer face
+       (list (+ gridVal (* 2.0 brick)) (- brick) brick (- brick) brick))   ; owner 23-Jul: EXTEND the drawn witness/arrows OUT to the sheeting/brick face (was 0,0 = steel-column plane, so the arrows contradicted the "O/O SH. LINE" label + the +2·brick value)
     (T (list gridVal 0.0 0.0 0.0 0.0))))                                    ; O/O steel = grid / outer face
 
 ;; Shift a chain's END grid points to the IF basis plane (owner 4-Jul): first point += loOff,
@@ -1626,36 +1630,46 @@
 (defun tb-rect (x1 y1 x2 y2 col)
   (tb-line x1 y1 x2 y1 col) (tb-line x2 y1 x2 y2 col)
   (tb-line x2 y2 x1 y2 col) (tb-line x1 y2 x1 y1 col))
-(defun tb-mtext (x y h wid attach str col)
+(defun tb-mtext (x y h wid attach str col / lwl)
   ;; UPPERCASE plain strings (labels + IF values); skip RTF blocks ("{\f...}") so
   ;; MText control words (\fArial, \b1, \P) are not corrupted by strcase.
   (if (and str (not (vl-string-search "{" str))) (setq str (strcase str)))
-  ;; owner 19-Jul UNIVERSAL: title-block body = ROMAND — wrap any string WITHOUT an explicit {\f..} font in
-  ;; \fromand.shx (bold \fArial|b1 strings carry their own font and stay bold Arial).
-  (if (and str (not (vl-string-search "\\f" str))) (setq str (strcat "{\\fromand.shx;" str "}")))
-  (entmake (list (cons 0 "MTEXT") (cons 100 "AcDbEntity") (cons 8 "0")
-                 (cons 62 col) (cons 100 "AcDbMText")
-                 (list 10 x y 0.0) (cons 40 h) (cons 41 wid)
-                 (cons 71 attach) (cons 7 "Standard") (cons 1 str) (cons 50 0.0))))
-;; owner 19-Jul: title-bar HEADINGS bold but STAY in ROMAND.  romand.shx (SHX stroke font) has no TrueType
-;; bold, so "bold" = a heavier pen (lineweight 0.40mm) on the romand strokes.  Strip any {\fArial..} wrapper,
-;; uppercase a plain heading, and re-wrap in romand.shx with the bold lineweight.
-(defun tb-mtext-bold (x y h wid attach str col / raw)
+  ;; owner UNIVERSAL RULE 22-Jul: ALL title-block/body text = ROMAND.  Style = ROMAND; wrap fontless strings in
+  ;; \Fromand.shx (CAPITAL \F = SHX font code; lowercase \f is TrueType and mis-parses an SHX name).  No Arial.
+  (if (and str (not (vl-string-search "\\F" str))) (setq str (strcat "{\\Fromand.shx;" str "}")))
+  ;; owner 22-Jul STANDING RULE (weight hierarchy, ALL sheets): fixed field LABELS are drawn GREY (col 8) ->
+  ;; give them a light-medium 0.25mm pen (370=25) so they read as structure above the thin dynamic values
+  ;; (monochrome plot: only lineweight differentiates).  Non-grey text stays BYLAYER thin.
+  (setq lwl (if (= col 8) (list (cons 370 25)) '()))
+  (entmake (append
+    (list (cons 0 "MTEXT") (cons 100 "AcDbEntity") (cons 8 "0") (cons 62 col))
+    lwl
+    (list (cons 100 "AcDbMText")
+          (list 10 x y 0.0) (cons 40 h) (cons 41 wid)
+          (cons 71 attach) (cons 7 "ROMAND") (cons 1 str) (cons 50 0.0)))))
+;; owner UNIVERSAL RULE: MAIN HEADINGS bold but STILL ROMAND = heavier PEN (0.50mm) on romand strokes; strip
+;; any incoming {\F..;TEXT} font wrapper, uppercase a plain heading, re-wrap in \Fromand.shx.
+(defun tb-mtext-bold (x y h wid attach str col / raw lw)
   (setq raw str)
-  (if (and raw (vl-string-search "\\f" raw))
+  (if (and raw (vl-string-search "\\F" raw))
     (progn
-      (setq raw (vl-string-subst "" "{\\fArial|b1;" raw))
-      (setq raw (vl-string-subst "" "{\\fArial|i1;" raw))
-      (setq raw (vl-string-subst "" "{\\fromand.shx;" raw))
+      (setq raw (vl-string-subst "" "{\\Fromand.shx;" raw))
       (if (and (> (strlen raw) 0) (= (substr raw (strlen raw) 1) "}"))
         (setq raw (substr raw 1 (1- (strlen raw)))))))
   (if (and raw (not (vl-string-search "{" raw)) (not (vl-string-search "\\" raw)))
     (setq raw (strcase raw)))
+  ;; owner 22-Jul: BOLD PEN SCALES WITH TEXT HEIGHT (romand.shx has no TTF bold, so bold = heavier pen).  A
+  ;; fixed 0.50mm looked bold on small text but thin on the big hero.  pen(0.01mm) = h*0.12 snapped to a valid
+  ;; AutoCAD lineweight enum via peb-lw370 (mm=h*0.0012), floored at 50 (never thinner than the old fixed bold),
+  ;; capped at 211 by the enum.  hero h~1161 -> 200 (2.0mm, fills the duplex), company h~1010 -> 158, small
+  ;; heading h~416 -> 70.  (0.0016 rather than 0.0012 so the giant hero fills solid instead of looking outlined.)
+  (setq lw (if (member 'peb-lw370 (atoms-family 1)) (peb-lw370 (* h 0.0016)) 50))
+  (if (< lw 50) (setq lw 50))
   (entmake (list (cons 0 "MTEXT") (cons 100 "AcDbEntity") (cons 8 "0")
-                 (cons 62 col) (cons 370 50) (cons 100 "AcDbMText")   ; 0.50mm = valid LW enum (55 is invalid -> entmake fails)
+                 (cons 62 col) (cons 370 lw) (cons 100 "AcDbMText")   ; bold pen ∝ text height (valid LW enum)
                  (list 10 x y 0.0) (cons 40 h) (cons 41 wid)
-                 (cons 71 attach) (cons 7 "Standard")
-                 (cons 1 (strcat "{\\fromand.shx;" raw "}")) (cons 50 0.0))))
+                 (cons 71 attach) (cons 7 "ROMAND")
+                 (cons 1 (strcat "{\\Fromand.shx;" raw "}")) (cons 50 0.0))))
 (defun tb-pline (pts wid col / l)
   (setq l (list (cons 0 "LWPOLYLINE") (cons 100 "AcDbEntity") (cons 8 "0")
                 (cons 62 col) (cons 100 "AcDbPolyline")
@@ -1673,9 +1687,9 @@
 ;; ~0.72 x height (0.64 was optimistic -> long labels/values overflowed their column into the
 ;; next); use 0.74 so autofit actually shrinks overflowing strings.
 (defun tb-fith (s mw mh)
-  ;; owner 19-Jul: char-width ratio raised ->0.95 because the title block is now ROMAND (romand.shx, ~40%
-  ;; wider than Arial) — otherwise long project-name / customer values overflow & overlap their labels.
-  (min mh (/ mw (* (max 1.0 (float (strlen s))) 0.95))))
+  ;; AUTOFIT (owner STANDING RULE 22-Jul: dynamic text FILLS its field).  Char-width ratio = romand ALL-CAPS
+  ;; true advance ~0.86; the "too small" was the \f-vs-\F font bug (narrow Arial fallback), fixed separately.
+  (min mh (/ mw (* (max 1.0 (float (strlen s))) 0.86))))
 
 ;; strip an embedded unit suffix ("0 KN/m2" -> "0", "135 km/h" -> "135").
 (defun peb-num-only (s / p)
@@ -1710,8 +1724,8 @@
   (tb-solid-tri ax apexY rgt (+ baseY (* w 0.015)) ax (- apexY (* w 0.045)) red)
   (tb-pline (list lft baseY ax apexY rgt (+ baseY (* w 0.015))) (* w 0.016) red)
   (setq th (* w 0.150))
-  (tb-mtext cx (+ cyBase (* w 0.135)) th (* w 1.04) 5 "{\\fArial|b1;MAIMAAR}" blue)
-  (tb-mtext cx cyBase (* w 0.058) (* w 1.30) 5 "{\\fArial|b1;BUILDING SYSTEMS}" blue))
+  (tb-mtext cx (+ cyBase (* w 0.135)) th (* w 1.04) 5 "{\\Fromand.shx;MAIMAAR}" blue)
+  (tb-mtext cx cyBase (* w 0.058) (* w 1.30) 5 "{\\Fromand.shx;BUILDING SYSTEMS}" blue))
 
 ;; Path to the real Maimaar logo DWG (normalised: geometry min-corner at 0,0,
 ;; native size 237 x 72.1).  -INSERTed natively by the LISP so the saved .dwg
@@ -1830,7 +1844,7 @@
 ;; anchored at the TOP, PROJECT-INFORMATION block anchored at the BOTTOM (exact
 ;; mirror of the Mammut proposal-drawing title block).  Every value links to the IF.
 (defun peb-titleblock-mammut (X0 Y0 W H data
-                              / white grey green cyan midX cw val lbl bv sm
+                              / white grey green cyan midX cw val lbl bv sm tbBlind
                               yCur bt rh bottomH lx vx ux c1x c2x tb-get tb-hdiv s)
   (setq white 7 grey 8 green 3 cyan 4)
   (setq s (if (and *PEB-TB-SIZEH* (> *PEB-TB-SIZEH* 0.0)) *PEB-TB-SIZEH* H))   ; F2 flush-strip content cap (owner 16-Jul)
@@ -1898,7 +1912,7 @@
   (tb-mtext (+ X0 (* W 0.04)) (+ yCur (* rh 0.74))
     (tb-fith (strcat "AS PER " (tb-get "CODE") " METAL BUILDING SYSTEMS MANUAL")
              (* cw 1.02) (* s 0.0092)) cw 1
-    (strcat "{\\fromand.shx;AS PER " (tb-get "CODE")
+    (strcat "{\\Fromand.shx;AS PER " (tb-get "CODE")
             " METAL BUILDING SYSTEMS MANUAL}") green)
   (tb-hdiv yCur)
 
@@ -1927,13 +1941,15 @@
   ;; PROJECT NAME — label on its own line, value left-aligned BELOW it (no overlap)
   (setq bt yCur rh (* s 0.090) yCur (- yCur rh))
   (tb-mtext (+ X0 (* W 0.04)) (- bt (* lbl 1.3)) lbl cw 1 "PROJECT NAME :" grey)
+  ;; owner 23-Jul: BLIND (for-estimate) version leaves PROJECT + CUSTOMER blank so the client isn't revealed.
+  (setq tbBlind (peb-blind-p data))
   (tb-mtext (+ X0 (* W 0.06)) (- bt (* lbl 3.0))
-            (tb-fith (tb-get "PROJECT") (* cw 0.92) (* bv 0.92)) (* cw 0.92) 1 (tb-get "PROJECT") green)  ; owner 19-Jul TB1: fit to actual box width so ROMAND stays one line
+            (tb-fith (if tbBlind "" (tb-get "PROJECT")) (* cw 0.92) (* bv 0.92)) (* cw 0.92) 1 (if tbBlind "" (tb-get "PROJECT")) green)
   (tb-hdiv yCur)
   ;; CUSTOMER
   (setq bt yCur rh (* s 0.048) yCur (- yCur rh))
   (tb-mtext (+ X0 (* W 0.04)) (- bt (* lbl 1.3)) lbl cw 1 "CUSTOMER :" grey)
-  (tb-mtext midX (+ yCur (* rh 0.28)) (tb-fith (tb-get "CUSTOMER") cw bv) cw 5 (tb-get "CUSTOMER") green)  ; owner 19-Jul TB1: fit to actual box width so ROMAND stays one line
+  (tb-mtext midX (+ yCur (* rh 0.28)) (tb-fith (if tbBlind "" (tb-get "CUSTOMER")) cw bv) cw 5 (if tbBlind "" (tb-get "CUSTOMER")) green)
   (tb-hdiv yCur)
   ;; STEEL CONTRACTOR : enlarged logo + MAIMAAR wordmark + address (owner 10-Jul: "make Maimaar Steel
   ;; Pvt Ltd prominent in the right side table").  Hierarchy is LOGO > NAME > ADDRESS:
@@ -1950,7 +1966,7 @@
   ;; wordmark — ONE line: MTEXT width 0 = no wrap.  tb-fith assumes a 0.74 advance while bold caps run
   ;; ~0.82, so fit to 0.80*cw to keep the bold string inside the strip.
   ;; NOTE for anyone reviewing a PNG preview: ezdxf's matplotlib backend WRAPS an RTF-wrapped MTEXT
-  ;; ("{\fArial|b1;...}") even when width=0 — a plain MTEXT with the same width renders on one line.
+  ;; ("{\Fromand.shx;...}") even when width=0 — a plain MTEXT with the same width renders on one line.
   ;; That two-line "…(PVT)" / "LTD" you may see in a preview is a RENDERER artifact, not the drawing.
   (tb-mtext-bold midX (+ yCur (* rh 0.44))
             (tb-fith "MAIMAAR STEEL (PVT) LTD" cw bv) 0 5
@@ -1963,10 +1979,19 @@
                     (list "Bldg. Name." (tb-get "BLDGNAME"))
                     (list "No. Of Identical Bldg." (tb-get "IDENTICAL")))
     (setq rh (* s 0.0240) yCur (- yCur rh))
-    (tb-mtext (+ X0 (* W 0.05)) (+ yCur (* rh 0.50)) (tb-fith (car pr) (* W 0.44) lbl) 0 4 (car pr) grey)   ; owner 5-Jul: fit long labels (No. Of Identical Bldg.) so the value doesn't overlap
-    (tb-mtext (+ X0 (* W 0.55)) (+ yCur (* rh 0.50))
+    ;; owner 23-Jul: PROPOSAL (QUOTE) NO. row is PROMINENT — bold LABEL + bold value (heavier pen, same height
+    ;; so it can't overrun the row); the tracking ref for ALL communication, never blanked (even blind).
+    (if (= (car pr) "QUOTE NO.")
+      (progn
+        (tb-mtext-bold (+ X0 (* W 0.05)) (+ yCur (* rh 0.50)) (tb-fith (car pr) (* W 0.44) lbl) 0 4 (car pr) grey)
+        (tb-mtext-bold (+ X0 (* W 0.55)) (+ yCur (* rh 0.50))
+              (tb-fith (strcat ": " (cadr pr)) (* W 0.42) (* s 0.009)) (* W 0.43) 4
+              (strcat ": " (cadr pr)) green))
+      (progn
+        (tb-mtext (+ X0 (* W 0.05)) (+ yCur (* rh 0.50)) (tb-fith (car pr) (* W 0.44) lbl) 0 4 (car pr) grey)   ; owner 5-Jul: fit long labels so the value doesn't overlap
+        (tb-mtext (+ X0 (* W 0.55)) (+ yCur (* rh 0.50))
               (tb-fith (strcat ": " (cadr pr)) (* W 0.42) val) (* W 0.43) 4
-              (strcat ": " (cadr pr)) green)
+              (strcat ": " (cadr pr)) green)))
     (tb-hdiv yCur))
   ;; Drawing Title
   (setq bt yCur rh (* s 0.045) yCur (- yCur rh))
@@ -2087,7 +2112,9 @@
   (vl-catch-all-apply (function (lambda () (peb-draw-stairs data len wid))))
   (vl-catch-all-apply (function (lambda () (peb-draw-roof-ext data len wid))))
   (vl-catch-all-apply (function (lambda () (peb-draw-fascia data len wid))))
-  (vl-catch-all-apply (function (lambda () (peb-draw-monitor data len wid))))
+  ;; owner 21-Jul: the ROOF MONITOR is NOT shown on the Column Layout Plan — it belongs on the ROOF PLAN
+  ;; (to be built later), like the other roof accessories.  Disabled here (drawer kept for the Roof Plan).
+  ;; (vl-catch-all-apply (function (lambda () (peb-draw-monitor data len wid))))
   (vl-catch-all-apply (function (lambda () (peb-draw-partition data len wid))))
   (vl-catch-all-apply (function (lambda () (peb-draw-crane data len wid))))
   ;; future drawers appended here: mezzanine / crane / roof-ext / fascia / monitor / platform / catwalk / partition ...
@@ -3638,13 +3665,16 @@
   (setq roofSlope (format-slope (MSPL-Get-Str data "SLOPE")))
   (setq *PEB-ROOF-SLOPE* roofSlope)
 
-  ;; Phase-2A v6: 3-mode dim display.
-  ;; Excel BP_DIM_DISPLAY = "mm" / "mm & Ft" / "Only Ft" (default "mm").
+  ;; UNIVERSAL RULE (owner 21-Jul): the Column Layout Plan shows BOTH mm & ft-inches on EVERY
+  ;; dimension, exactly as the Section does (Section is always dual via dim-mm-ft / DIMALT).
+  ;; So MMFT is the DEFAULT here. Both labelled dims (peb-fmt-value) and bay/module chains
+  ;; (peb-fmt-group) read *PEB-DIM-DISPLAY*, so this one global drives every plan dimension.
+  ;; Explicit BP_DIM_DISPLAY = "Only Ft" still forces ft-only; "mm"/"mm & Ft"/blank all = BOTH
+  ;; (the mm-only mode is retired on the plan per the universal rule).
   (setq *PEB-DIM-DISPLAY*
     (cond
-      ((= (strcase (MSPL-Get-Str data "DIM_DISPLAY")) "MM & FT") "MMFT")
       ((= (strcase (MSPL-Get-Str data "DIM_DISPLAY")) "ONLY FT") "FT")
-      (T                                                          "MM")))
+      (T                                                          "MMFT")))
   (setq stype     (strcase (MSPL-Get-Str data "STYPE")))
   ;; owner 5-Jul: the ARCH shows only in the SECTION — the column-layout PLAN of an arched building is the
   ;; same as its straight equivalent.  So map ACS->CS and AMS->MS for geometry, but flag it so the label
@@ -4677,7 +4707,7 @@
       "DESIGN BASIS TO BE CONFIRMED."))
   (setq maimaarText
     (strcat
-      "{\\fArial|b1;MAIMAAR STEEL Pvt. Ltd.}\\P"
+      "{\\Fromand.shx;MAIMAAR STEEL Pvt. Ltd.}\\P"
       "238, First Floor, Lalazar Commercial\\P"
       "Area, Raiwind Road, Lahore, Pakistan\\P"
       "Web: www.maimaargroup.com\\P"
@@ -4693,7 +4723,7 @@
       (strcat "CLIENT: " client)
       (strcat "REV: " revno "    DRN: M.H    CHK: YEA")
       (strcat "DATE: " fulldate "    BLDG NO.: " bldgno)
-      "{\\fArial|b1;COLUMN LAYOUT & ANCHOR BOLT PLAN}"
+      "{\\Fromand.shx;COLUMN LAYOUT & ANCHOR BOLT PLAN}"
       "SHEET NO.  PRO-01"))
   ;; Body matrix: 7 rows × 6 cols.  Row 1 (the first body row) has
   ;; the merged-column content; subsequent rows for non-project cols
@@ -4815,7 +4845,10 @@
   ;; owner 5-Jul: AUTO-FIT the title-block strip to the SHEET HEIGHT at a constant aspect (0.30) so it fits
   ;; ANY building size without distortion (was 0.24*length — absurdly wide for long buildings).  Matches the
   ;; approved 195 look (its 36573 strip = 0.305 * 119818 sheet height).
-  (setq tbStripW (* (- borderT borderB) 0.30))
+  ;; owner 22-Jul: FLOOR the strip width (like the Section, Section.lsp:9068) so the title-block notes/values
+  ;; never wrap/overlap on a short-but-wide plan (this 40x20 gave 0.30*height ~ 7800 -> notes wrapped into the
+  ;; disclaimer, date overran the rev cell).  max(10000, 0.26*width, 0.30*height) keeps tall buildings unchanged.
+  (setq tbStripW (max 10000.0 (* wid 0.26) (* (- borderT borderB) 0.30)))
   (setq tbStripX (+ (car exmax) (* 3500.0 *PEB-DIM-SCALE*))   ; gap right of the building content
         borderR  (+ tbStripX tbStripW))                       ; right border = panel right edge (no gap)
   ;; owner 5-Jul (multi-area): publish this area's drawn size, frame params and attach info so the
@@ -4831,7 +4864,13 @@
         *PEB-AR-GAP* (MSPL-Get-Num data "AR_GAP"))
   (if (not *PEB-SUPPRESS-TB*)
     (progn
+      ;; owner 22-Jul: CAP the title-block CONTENT height (like the Section) so the text is sized to the strip
+      ;; WIDTH, not the full (tall) sheet height — otherwise on a short-wide plan the text grows too big and the
+      ;; notes wrap / date & sheet values overrun their cells.  Content fills ~2x the width; the rest is the
+      ;; Mammut middle gap.  Reset to nil after so other sheets are unaffected.
+      (setq *PEB-TB-SIZEH* (min (- borderT borderB) (* tbStripW 2.0)))
       (peb-titleblock-mammut tbStripX borderB tbStripW (- borderT borderB) tbData)  ; fills full height
+      (setq *PEB-TB-SIZEH* nil)
       (draw-border borderL borderB borderR borderT)))
 
   (command "UNDO" "END")
@@ -4900,13 +4939,13 @@
             '(50 . 0.0)              ; oblique angle
             '(71 . 0)                ; generation flags
             '(42 . 2.5)              ; last height used
-            (cons 3 "arialbd.ttf")   ; primary font: Arial Bold
+            (cons 3 "romand.shx")    ; primary font: ROMAND (universal rule — dims must be romand)
             (cons 4 "")              ; big-font name (none)
           ))))))
-  ;; Pick the first available style — PEB-Body preferred (Arial Bold),
-  ;; then user's reference TNROMAN, then other fallbacks.
+  ;; Dimension text style: forced to ROMAND below; PEB-Body is now also romand (universal rule).
   (setq txtStyle
     (cond
+      ((tblsearch "STYLE" "PEB-DIM")   "PEB-DIM")
       ((tblsearch "STYLE" "PEB-Body")  "PEB-Body")
       ((tblsearch "STYLE" "TNROMAN")   "TNROMAN")
       ((tblsearch "STYLE" "tnroman")   "tnroman")
@@ -4939,7 +4978,7 @@
   (setvar "DIMCLRD"     0)
   (setvar "DIMCLRE"     0)
   (setvar "DIMCLRT"     0)
-  (setvar "DIMTXSTY"    txtStyle)
+  (setvar "DIMTXSTY"    "ROMAND")  ; owner UNIVERSAL RULE: dimension text = ROMAND (was txtStyle=Arial-bold — Plan dim drift)
   (setvar "DIMDEC"      0)
   (setvar "DIMLUNIT"    2)
   (setvar "DIMATFIT"    0)        ; keep BOTH text+arrows together (don't split them out)
@@ -5134,7 +5173,7 @@
   (vl-catch-all-apply
     (function (lambda () (vla-put-TextHeight mleader (* 600.0 scl)))))   ; Phase-2A v4: 600 base
   ;; Use Standard text style by default.  Callers wanting bold/Arial
-  ;; should embed MText format codes (e.g. "{\\fArial|b1;…}") in the
+  ;; should embed MText format codes (e.g. "{\\Fromand.shx;…}") in the
   ;; text string — this leaves regular weight as the surrounding default.
   (vl-catch-all-apply
     (function (lambda () (vla-put-TextStyleName mleader "Standard"))))
