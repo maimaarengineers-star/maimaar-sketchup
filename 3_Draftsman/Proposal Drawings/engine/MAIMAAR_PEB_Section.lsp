@@ -8973,7 +8973,10 @@
   (setq borderR (max (+ wid (* 6000 *PEB-DIM-SCALE*))
                      (+ c6 (* 800 *PEB-TEXT-SCALE*))))
   (setq borderB (- tbBot (* 1200 *PEB-TEXT-SCALE*)))
-  (setq borderT (+ H rise (* 6500 *PEB-TEXT-SCALE*)))
+  ;; owner 23-Jul: this is the operative top-border Y for the section sheet. The title was lifted (hdBase
+  ;; 5100->6200) so its info bar clears the sheeting labels; the border top is raised 6500->10500·TS to keep
+  ;; "CLEAR SPAN GABLE" (top at hdBase+1900·TS = H+rise+8100·TS) a clear ~3 ROWS below the inner border line.
+  (setq borderT (+ H rise (* 10500 *PEB-TEXT-SCALE*)))
   ;; Table dimensions:
   ;;   horizontal: borderL → borderR (full drawing width)
   ;;   vertical:   header height + 7 × body row height (autofit)
