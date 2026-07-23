@@ -128,23 +128,33 @@
 (defun peb-frame-display-to-code (s / up pair)
   (setq up (strcase (vl-string-trim " " s)))
   (cond ((member up '("CS" "SS" "MS" "LT" "MG" "FR" "F2" "RC" "ACS" "AMS" "BF" "CC" "PP")) up)
-        ((assoc up *PEB-FRAME-CODE-MAP*) (cdr (assoc up *PEB-FRAME-CODE-MAP*)))
-        ;; fuzzy fallbacks for verbose IF strings
-        ((wcmatch up "*ROOF*SYSTEM*,*RCC*,*ON RCC*,*RC COLUMN*") "RC")
-        ((wcmatch up "*PETROL*,*CNG*,*FUEL*") "PP")
-        ((wcmatch up "*FLAT*") "FR")
-        ((wcmatch up "*BUTTERFLY*,*FALCON*") "BF")     ; Falcon = 2-wing centre PEAK; no "butterfly" in its label
-        ((wcmatch up "*ARCH*MULTI*") "AMS")
-        ((wcmatch up "*ARCH*") "ACS")
-        ((wcmatch up "*MULTI*GABLE*") "MG")
-        ;; CANTILEVER BEFORE SINGLE-SLOPE: "Single-Sided Cantilever - Slope Towards Columns" contains
-        ;; SINGLE ... SLOPE in order, so "*SINGLE*SLOPE*" used to swallow it. Mirrors Plan.lsp.
+        ((setq pair (assoc up *PEB-FRAME-CODE-MAP*)) (cdr pair))
+        ;; G+1 / double-storey flat roof — MUST be tested BEFORE the "*FLAT*" fallback below.
+        ((wcmatch up "*G+1*,*G + 1*,*DOUBLE*STOREY*,*DOUBLE*STORY*,*TWO*STOREY*,*TWO*STORY*") "F2")
+        ;; fuzzy fallbacks (owner 8-Jul) — the IF sends VERBOSE option strings that don't match the
+        ;; exact alist keys (e.g. "Roof System without steel columns (rafter is fixed on RCC columns)",
+        ;; "Multi-Gable (CS & MS)", "Arch Clear Span (ACS)"), which previously all defaulted to CS.
+        ;; Order: most specific first (ARCH-MULTI before ARCH; MULTI-GABLE before MULTI-SPAN).
+        ((wcmatch up "*ROOF*SYSTEM*,*RCC*,*ON RCC*,*OVER RCC*,*RC COLUMN*") "RC")
+        ((wcmatch up "*PETROL*,*CNG*,*FUEL*")                 "PP")
+        ((wcmatch up "*FLAT*")                                "FR")
+        ;; FALCON is a 2-wing canopy like the butterfly (centre PEAK vs valley) — it carries no
+        ;; "butterfly" in its label, so without this it fell through to the CS default.
+        ((wcmatch up "*BUTTERFLY*,*FALCON*")                  "BF")
+        ((wcmatch up "*ARCH*MULTI*")                          "AMS")
+        ((wcmatch up "*ARCH*")                                "ACS")
+        ((wcmatch up "*MULTI*GABLE*")                         "MG")
+        ;; CANTILEVER MUST BE TESTED BEFORE SINGLE-SLOPE.  The canopy label
+        ;; "Single-Sided Cantilever - Slope Towards Columns" contains SINGLE ... SLOPE in order, so
+        ;; "*SINGLE*SLOPE*" swallowed it and drew a mono-slope box building instead of a canopy.
+        ;; drawingData.ts normalises canopies to "Cantilever Canopy" before writing BP_FRAME_TYPE, so
+        ;; this is latent on the live path — but a hand-edited PEB_Data would hit it silently.
         ((wcmatch up "*CANTILEVER*,*SINGLE*SIDED*,*ONE*SIDED*") "CC")
-        ((wcmatch up "*SINGLE*SLOPE*,*MONO*") "SS")
-        ((wcmatch up "*LEAN*") "LT")
-        ((wcmatch up "*MULTI*SPAN*") "MS")             ; the exact alist already catches "Multi-Span"; this covers verbose variants (Plan.lsp had it, Section did not)
-        ((wcmatch up "*CLEAR*SPAN*") "CS")             ; explicit, not by fall-through
-        (T "CS")))
+        ((wcmatch up "*SINGLE*SLOPE*,*MONO*")                 "SS")
+        ((wcmatch up "*LEAN*")                                "LT")
+        ((wcmatch up "*MULTI*SPAN*")                          "MS")
+        ((wcmatch up "*CLEAR*SPAN*")                          "CS")   ; explicit, not by fall-through
+        (T                                                    "CS")))
 
 (defun peb-slope-to-denom (slopeStr customStr / s pos)
   (setq s (vl-string-trim " " slopeStr))
@@ -375,8 +385,28 @@
 ;;  Two spaces (no colon) before the spec so split-at-first-digit yields a
 ;;  clean "ROOF SHEETING" / "WALL SHEETING" heading (the label routine adds
 ;;  the ":") and a spec that begins with the outer-skin thickness digit.
-(defun peb-build-sheeting-string (data prefix)
-  (strcat prefix " SHEETING  " (peb-panel-label data prefix)))
+(defun peb-build-sheeting-string (data prefix / typ outProf outMat pirThk lbl)
+  ;; owner 6-Jul: FULL sheeting+insulation build-up label (shared with the Plan). Single-source canonical
+  ;; (Plan == Section, enforced by check_pd_sync C5): peb-panel-label lives in the Section engine; call it
+  ;; ONLY when it is a real function AND returns a non-empty string, else fall back to a digit-bearing
+  ;; label (the section's split-at-first-digit needs a digit). Wrapped so a bad label can NEVER abort the
+  ;; data load / plan drawing.
+  (setq typ    (peb-alist-get data (strcat "PN_" prefix "_TYPE")))
+  (setq outMat (peb-alist-get data (strcat "PN_" prefix "_OUTER_MAT")))
+  (setq outProf (peb-alist-get data (strcat "PN_" prefix "_OUTER_PROFILE")))
+  (setq pirThk (peb-alist-get data (strcat "PN_" prefix "_PIR_THK")))
+  (setq lbl (vl-catch-all-apply
+              (function (lambda () (if (boundp 'peb-panel-label) (peb-panel-label data prefix) nil)))))
+  (if (and lbl (not (vl-catch-all-error-p lbl)) (= (type lbl) 'STR) (/= lbl ""))
+    (strcat prefix " SHEETING  " lbl)
+    ;; fallback = the original simple label (always has a digit)
+    (cond
+      ((or (= (strcase typ) "SANDWICH PANEL") (= (strcase typ) "SANDWICH"))
+        (strcat prefix " SHEETING  " (if (= pirThk "") "50" pirThk) "MM PIR SANDWICH PANEL"))
+      ((or (= (strcase typ) "SINGLE SKIN") (= typ ""))
+        (strcat prefix " SHEETING:  " (if (= outMat "") "0.50mm AZ 150" outMat)
+                (if (/= outProf "") (strcat " - " outProf) "")))
+      (T (strcat prefix " SHEETING:  " (if (= outMat "") "0.50mm AZ 150" outMat))))))
 
 ;;  peb-arch-sheeting-labels — ROOF + WALL SHEETING callouts for sections that draw their own
 ;;  cladding and so bypass draw-cladding's built-in labels (currently the ARCHED types ACS/AMS).
@@ -388,8 +418,8 @@
   (setvar "CLAYER" "TEXT")
   (setq rspec (peb-split-2-lines (peb-panel-label data "ROOF")))
   (setq wspec (peb-split-2-lines (peb-panel-label data "WALL")))
-  (setq rc (strcat "{\\C7;\\H0.42x;{\\fArial|b1;ROOFING SYSTEM:}\\P" rspec "}"))
-  (setq wc (strcat "{\\C7;\\H0.42x;{\\fArial|b1;WALL SHEETING:}\\P" wspec "}"))
+  (setq rc (strcat "{\\C7;\\H0.42x;{\\Fromand.shx;ROOFING SYSTEM:}\\P" rspec "}"))
+  (setq wc (strcat "{\\C7;\\H0.42x;{\\Fromand.shx;WALL SHEETING:}\\P" wspec "}"))
   (setq topY (+ H rise (* 3800 *PEB-TEXT-SCALE*)))      ; common top band (same level for both), like CS
   ;; ROOF: arrow tip on the roof at ~68% span, leg up to the top band, then a 300 bar to the text.
   (setq rx (* W 0.68) ry (+ H (* rise 0.82) 235.0))
@@ -518,7 +548,7 @@
 (defun peb-canopy-roof-label (data ax ay topY / spec rc)
   (setvar "CLAYER" "TEXT")
   (setq spec (peb-split-2-lines (peb-panel-label data "ROOF")))
-  (setq rc (strcat "{\\C7;\\H0.42x;{\\fArial|b1;ROOFING SYSTEM:}\\P" spec "}"))
+  (setq rc (strcat "{\\C7;\\H0.42x;{\\Fromand.shx;ROOFING SYSTEM:}\\P" spec "}"))
   ;; the M-Ladder arrow is drawn by peb-make-mleader itself now (explicit solid arrowhead, owner 18-Jul).
   (vl-catch-all-apply 'peb-make-mleader
     (list (list (list ax ay) (list ax topY) (list (+ ax 300.0) topY)) rc)))
@@ -618,7 +648,15 @@
   (setq wallSheet (peb-build-sheeting-string v3 "WALL"))
   (setq out (cons (cons "ROOFSHEETING" roofSheet) out))
   (setq out (cons (cons "WALLSHEETING" wallSheet) out))
-  ;; per-dimension measurement BASIS (IF) + raw grouped spacing + wall conditions
+  ;; Phase-2A v6: dim display mode (mm / mm & Ft / Only Ft)
+  (setq out (cons (cons "DIM_DISPLAY"
+                        (peb-alist-get v3 "BP_DIM_DISPLAY")) out))
+  ;; Phase-2A v12: end-wall frame type for Plan MLEADER labels
+  (setq out (cons (cons "EW_LEFT_FRAME"
+                        (peb-alist-get v3 "BP_EW_LEFT_FRAME")) out))
+  (setq out (cons (cons "EW_RIGHT_FRAME"
+                        (peb-alist-get v3 "BP_EW_RIGHT_FRAME")) out))
+  ;; per-dimension measurement BASIS (IF) for basis-aware plan dimensions
   (setq out (cons (cons "LENGTH_REF"    (peb-alist-get v3 "BP_LENGTH_REF"))    out))
   (setq out (cons (cons "WIDTH_REF"     (peb-alist-get v3 "BP_WIDTH_REF"))     out))
   (setq out (cons (cons "WIDTH_MOD_REF" (peb-alist-get v3 "BP_WIDTH_MOD_REF")) out))
@@ -626,35 +664,31 @@
   (setq out (cons (cons "EW_LEFT_REF"   (peb-alist-get v3 "BP_EW_LEFT_REF"))   out))
   (setq out (cons (cons "EW_RIGHT_REF"  (peb-alist-get v3 "BP_EW_RIGHT_REF"))  out))
   (setq out (cons (cons "HEIGHT_REF"    (peb-alist-get v3 "BP_HEIGHT_REF"))    out))
+  ;; raw grouped spacing expressions (mm) — printed verbatim on the plan
   (setq out (cons (cons "BAYEXPR" (peb-alist-get v3 "BP_BAY_SPACING"))      out))
   (setq out (cons (cons "MODEXPR" (peb-alist-get v3 "BP_WIDTH_MOD"))        out))
   (setq out (cons (cons "EWLEXPR" (peb-alist-get v3 "BP_EW_LEFT_SPACING"))  out))
   (setq out (cons (cons "EWREXPR" (peb-alist-get v3 "BP_EW_RIGHT_SPACING")) out))
+  ;; end-wall girts (gate end-wall posts) + wall conditions (for sections/elevations)
   (setq out (cons (cons "EW_LEFT_GIRTS"  (peb-alist-get v3 "BP_EW_LEFT_GIRTS"))  out))
   (setq out (cons (cons "EW_RIGHT_GIRTS" (peb-alist-get v3 "BP_EW_RIGHT_GIRTS")) out))
   (setq out (cons (cons "OW_NSW" (peb-alist-get v3 "OW_NSW")) out))
   (setq out (cons (cons "OW_FSW" (peb-alist-get v3 "OW_FSW")) out))
   (setq out (cons (cons "OW_LEW" (peb-alist-get v3 "OW_LEW")) out))
   (setq out (cons (cons "OW_REW" (peb-alist-get v3 "OW_REW")) out))
-  ;; SYNC WITH PLAN (one-truth-from-IF): the Section reader must map the SAME IF
-  ;; keys as the Plan's peb-v3-to-legacy so any value filled in the IF reaches
-  ;; EVERY sheet identically, regardless of engine load order.  Previously missing
-  ;; here: dim-display mode, end-wall frame types, and the placement (PL*) +
-  ;; bracing (BR*) passthrough (doors/windows + braced bays for sections).
-  (setq out (cons (cons "DIM_DISPLAY"    (peb-alist-get v3 "BP_DIM_DISPLAY"))    out))
-  (setq out (cons (cons "EW_LEFT_FRAME"  (peb-alist-get v3 "BP_EW_LEFT_FRAME"))  out))
-  (setq out (cons (cons "EW_RIGHT_FRAME" (peb-alist-get v3 "BP_EW_RIGHT_FRAME")) out))
-  ;; SYNC WITH BS: carry the component blocks through verbatim so the section's
-  ;; feature drawers see the SAME BSF/IF values as the Plan — RM* (roof monitor)
-  ;; added 19-Jul so peb-draw-roof-monitor gets RM_TOGGLE/RM_THROAT_WIDTH/…
+  ;; Pass every placement (PL*) and bracing (BR*) key through verbatim so the
+  ;; plan can draw doors/windows + the braced-bay clash flag. (wcmatch "PL*" is
+  ;; safe — letters are literal; no '@'/'#' specials in these key names.)
   (foreach kv v3
     (if (and (car kv)
              (or (wcmatch (strcase (car kv)) "PL*")
-                 (wcmatch (strcase (car kv)) "BR*")
-                 (wcmatch (strcase (car kv)) "RM*")     ; RM* roof-monitor block
-                 (wcmatch (strcase (car kv)) "CR*")))   ; CR* crane block (CR_TOGGLE + CRn_*) — was DROPPED
+                 (wcmatch (strcase (car kv)) "BR*")))
       (setq out (cons kv out))))
-  (reverse out))
+  ;; AR0 enabler: append EVERY raw IF key AFTER the mapped legacy keys (assoc finds the mapped
+  ;; ones first, so nothing changes for them) — makes AREA_NUM, AR_*, and future component blocks
+  ;; (MZ_/CR_/PT_/ST_/RX_/CN_/FA_/RM_/LN_) readable by EVERY sheet via MSPL-Get-*.  This single
+  ;; append subsumes the section's old explicit RM*/CR* passthrough (they arrive in the raw tail).
+  (append (reverse out) v3))
 
 ;; ============================================================================
 ;; FILE READER (v3-aware)
@@ -898,13 +932,13 @@
             '(50 . 0.0)              ; oblique angle
             '(71 . 0)                ; generation flags
             '(42 . 2.5)              ; last height used
-            (cons 3 "arialbd.ttf")   ; primary font: Arial Bold
+            (cons 3 "romand.shx")    ; primary font: ROMAND (universal rule — dims must be romand)
             (cons 4 "")              ; big-font name (none)
           ))))))
-  ;; Pick the first available style — PEB-Body preferred (Arial Bold),
-  ;; then user's reference TNROMAN, then other fallbacks.
+  ;; Dimension text style: ROMAND is forced by DIMTXSTY below; PEB-Body is now also romand (universal rule).
   (setq txtStyle
     (cond
+      ((tblsearch "STYLE" "PEB-DIM")   "PEB-DIM")
       ((tblsearch "STYLE" "PEB-Body")  "PEB-Body")
       ((tblsearch "STYLE" "TNROMAN")   "TNROMAN")
       ((tblsearch "STYLE" "tnroman")   "tnroman")
@@ -1133,7 +1167,7 @@
   (vl-catch-all-apply
     (function (lambda () (vla-put-TextHeight mleader (* 600.0 scl)))))   ; Phase-2A v4: 600 base
   ;; Use Standard text style by default.  Callers wanting bold/Arial
-  ;; should embed MText format codes (e.g. "{\\fArial|b1;…}") in the
+  ;; should embed MText format codes (e.g. "{\\Fromand.shx;…}") in the
   ;; text string — this leaves regular weight as the surrounding default.
   (vl-catch-all-apply
     (function (lambda () (vla-put-TextStyleName mleader "Standard"))))
@@ -1700,6 +1734,21 @@
   (command "HATCH" "SOLID" "L" "")
 )
 
+;; OPEN dimension arrowheads (standing rule: dim arrows = OPEN type, NOT filled) for the monitor's
+;; custom dims (rm-dim-*).  Two barbs meeting at the tip, no fill — the DIMBLK _OPEN look, on DIMENSIONS.
+(defun rm-arrow-h (x y dir / a b)
+  (setvar "PLINEWID" 0.0)
+  (setq a (* 240 *PEB-DIM-SCALE*) b (* 85 *PEB-DIM-SCALE*))
+  (if (= dir "R")
+    (command "_.PLINE" (list (+ x a) (+ y b)) (list x y) (list (+ x a) (- y b)) "")
+    (command "_.PLINE" (list (- x a) (+ y b)) (list x y) (list (- x a) (- y b)) "")))
+(defun rm-arrow-v (x y dir / a b)
+  (setvar "PLINEWID" 0.0)
+  (setq a (* 240 *PEB-DIM-SCALE*) b (* 85 *PEB-DIM-SCALE*))
+  (if (= dir "U")
+    (command "_.PLINE" (list (- x b) (+ y a)) (list x y) (list (+ x b) (+ y a)) "")
+    (command "_.PLINE" (list (- x b) (- y a)) (list x y) (list (+ x b) (- y a)) "")))
+
 (defun dim-line-h (x1 x2 y label / parts mmTxt ftTxt mid extLen)
   ;;  ACTIVE — hand-rolled horizontal dim with witness/extension lines.
   ;;  Builds the dim from primitives (LINE + LINE + LINE + 2× arrow
@@ -1858,132 +1907,98 @@
 )
 
 (defun rafter-underside-points (xL xR ridgeX H rise ht rd midD kneeL ridgeL /
-                                 sl slLen sa ca kneeXp kneeYp ridgeXp ridgeYp pts)
-  ;;  Returns the 4 inner-edge points along ONE rafter going from
-  ;;  the LEFT haunch (xL+ht, H) up over the ridge (ridgeX) and back
-  ;;  down to the RIGHT haunch (xR-ht, H).
+                                 slL slLenL saL caL slR slLenR saR caR
+                                 kLL rLL kLR rLR kXpL kYpL rXpL rYpL kXpR kYpR rXpR rYpR)
+  ;;  Returns the inner-edge points along ONE rafter going from the LEFT haunch up over the ridge and back
+  ;;  down to the RIGHT haunch.  Three zones each side: knee taper (ht->midD), middle (midD), ridge taper
+  ;;  (midD->rd).  Returns (left-knee-end  left-ridge-start  ridge-bottom  right-ridge-start  right-knee-end).
   ;;
-  ;;  The rafter has three zones, matching MAIMAAR PEB practice:
-  ;;    knee taper  (kneeL mm along slope) - depth drops ht -> midD
-  ;;    middle      (constant depth midD)
-  ;;    ridge taper (ridgeL mm along slope) - depth rises midD -> rd
-  ;;
-  ;;  Returns (going LEFT-to-RIGHT-to-LEFT under the rafter):
-  ;;    (left-knee-end  ridge-left-taper-start  ridge-bottom
-  ;;     ridge-right-taper-start  right-knee-end)
-  (setq sl    (- ridgeX xL))                    ; horizontal half-span
-  (setq slLen (sqrt (+ (* sl sl) (* rise rise)))) ; full slope length
-  (setq sa    (/ rise slLen))                    ; sin(slope angle)
-  (setq ca    (/ sl   slLen))                    ; cos(slope angle)
-  ;; If half-rafter is too short for both tapers, shrink them.
-  (if (> (+ kneeL ridgeL) (* slLen 0.85))
-    (progn
-      (setq kneeL  (* slLen 0.40))
-      (setq ridgeL (* slLen 0.40))
-    )
-  )
-  ;; LEFT knee-taper END point
-  (setq kneeXp (* kneeL ca))
-  (setq kneeYp (* kneeL sa))
-  ;; LEFT ridge-taper START point
-  (setq ridgeXp (* ridgeL ca))
-  (setq ridgeYp (* ridgeL sa))
+  ;;  owner 22-Jul: PER-HALF slopes so an OFF-CENTRE ridge (ridgeX != W/2) doesn't deshape the rafter.  The
+  ;;  LEFT half run is (ridgeX-xL) and the RIGHT half run is (xR-ridgeX); each half projects the taper lengths
+  ;;  with its OWN slope angle (was: the LEFT slope reused/mirrored for BOTH halves, so the right underside no
+  ;;  longer tracked the right top flange).  Mirrors the per-side-slope pattern in peb-draw-roof-monitor.
+  ;;  Taper shrink (short half) is also decided per half.
+  (setq slL (- ridgeX xL) slLenL (sqrt (+ (* slL slL) (* rise rise)))
+        saL (/ rise slLenL) caL (/ slL slLenL) kLL kneeL rLL ridgeL)
+  (if (> (+ kLL rLL) (* slLenL 0.85)) (setq kLL (* slLenL 0.40) rLL (* slLenL 0.40)))
+  (setq kXpL (* kLL caL) kYpL (* kLL saL) rXpL (* rLL caL) rYpL (* rLL saL))
+  (setq slR (- xR ridgeX) slLenR (sqrt (+ (* slR slR) (* rise rise)))
+        saR (/ rise slLenR) caR (/ slR slLenR) kLR kneeL rLR ridgeL)
+  (if (> (+ kLR rLR) (* slLenR 0.85)) (setq kLR (* slLenR 0.40) rLR (* slLenR 0.40)))
+  (setq kXpR (* kLR caR) kYpR (* kLR saR) rXpR (* rLR caR) rYpR (* rLR saR))
   (list
-    ;; left side knee-end (depth = midD), measured down from rafter top
-    (list (+ xL kneeXp)              (- (+ H kneeYp)            midD))
-    ;; left side ridge-start (depth = midD)
-    (list (- ridgeX ridgeXp)         (- (+ H rise (- 0 ridgeYp)) midD))
-    ;; ridge bottom (depth = rd)
-    (list ridgeX                     (+ H rise (- 0 rd)))                ; ridge bottom (depth = rd)
-    (list (+ ridgeX ridgeXp)         (- (+ H rise (- 0 ridgeYp)) midD))
-    ;; right side knee-end (depth = midD), mirror of left knee-end
-    (list (- xR kneeXp)              (- (+ H kneeYp)            midD))
+    ;; left knee-end (depth midD) — LEFT projections
+    (list (+ xL kXpL)         (- (+ H kYpL)              midD))
+    ;; left ridge-start (depth midD) — LEFT projections
+    (list (- ridgeX rXpL)     (- (+ H rise (- 0 rYpL))   midD))
+    ;; ridge bottom (depth rd)
+    (list ridgeX              (+ H rise (- 0 rd)))
+    ;; right ridge-start (depth midD) — RIGHT projections
+    (list (+ ridgeX rXpR)     (- (+ H rise (- 0 rYpR))   midD))
+    ;; right knee-end (depth midD) — RIGHT projections
+    (list (- xR kXpR)         (- (+ H kYpR)              midD))
   )
 )
 
 (defun cigar-rafter-underside-y (x xL xR ridgeX H rise ht rd midD kneeL ridgeL /
-                                   sl slLen sa ca kneeXp kneeYp ridgeXp ridgeYp
+                                   slL slLenL saL caL kLL rLL kXpL kYpL rXpL rYpL
+                                   slR slLenR saR caR kLR rLR kXpR kYpR rXpR rYpR
                                    xa xb ya yb f)
-  ;;  Returns the Y coordinate of the rafter UNDERSIDE at horizontal x for
-  ;;  a gable spanning xL..xR with apex at ridgeX.  The rafter has three
-  ;;  zones per half (matching the polygon built by build-frame-polygon
-  ;;  via rafter-underside-points):
-  ;;
-  ;;    haunch corner -> knee-end : straight line  (knee taper zone)
-  ;;    knee-end      -> ridge-start : straight line on slope - midD  (constant middle)
-  ;;    ridge-start   -> ridge-bottom : straight line  (ridge taper zone)
-  ;;
-  ;;  If x falls inside the column body (i.e. between xL and xL+ht on the
-  ;;  left, or xR-ht and xR on the right) the helper returns the haunch
-  ;;  corner Y (= H-ht) since that is the column-top reference there.
-  ;;
-  ;;  Used by draw-ms-frame so that interior column rectangles land
-  ;;  exactly on the polygon rafter underside even when they fall in the
-  ;;  knee or ridge taper zones - no punch-through, no gaps.
-  (setq sl    (- ridgeX xL))
-  (setq slLen (sqrt (+ (* sl sl) (* rise rise))))
-  (setq sa    (/ rise slLen))
-  (setq ca    (/ sl   slLen))
-  ;; Mirror the auto-shrink rule from rafter-underside-points so the
-  ;; helper's segments line up with the polygon for narrow gables.
-  (if (> (+ kneeL ridgeL) (* slLen 0.85))
-    (progn
-      (setq kneeL  (* slLen 0.40))
-      (setq ridgeL (* slLen 0.40))))
-  (setq kneeXp  (* kneeL  ca))
-  (setq kneeYp  (* kneeL  sa))
-  (setq ridgeXp (* ridgeL ca))
-  (setq ridgeYp (* ridgeL sa))
+  ;;  Returns the Y of the rafter UNDERSIDE at horizontal x for a gable xL..xR, apex ridgeX.  Three zones per
+  ;;  half (matching the polygon from rafter-underside-points): knee taper, constant middle, ridge taper.
+  ;;  Inside a column body returns the haunch-corner Y (= H-ht).  Used by draw-ms-frame to land interior columns
+  ;;  exactly on the rafter underside.
+  ;;  owner 22-Jul: PER-HALF slopes (like rafter-underside-points) so an OFF-CENTRE ridge doesn't distort the
+  ;;  right-half sampling — each half uses its OWN run/slope/projection and its own taper-shrink.
+  (setq slL (- ridgeX xL) slLenL (sqrt (+ (* slL slL) (* rise rise)))
+        saL (/ rise slLenL) caL (/ slL slLenL) kLL kneeL rLL ridgeL)
+  (if (> (+ kLL rLL) (* slLenL 0.85)) (setq kLL (* slLenL 0.40) rLL (* slLenL 0.40)))
+  (setq kXpL (* kLL caL) kYpL (* kLL saL) rXpL (* rLL caL) rYpL (* rLL saL))
+  (setq slR (- xR ridgeX) slLenR (sqrt (+ (* slR slR) (* rise rise)))
+        saR (/ rise slLenR) caR (/ slR slLenR) kLR kneeL rLR ridgeL)
+  (if (> (+ kLR rLR) (* slLenR 0.85)) (setq kLR (* slLenR 0.40) rLR (* slLenR 0.40)))
+  (setq kXpR (* kLR caR) kYpR (* kLR saR) rXpR (* rLR caR) rYpR (* rLR saR))
   (cond
-    ;; ── LEFT half: x ∈ [xL, ridgeX] ──────────────────────────────────
+    ;; ── LEFT half: x ∈ [xL, ridgeX] ── LEFT slope/projections
     ((<= x ridgeX)
       (cond
-        ;; Column body region: return the haunch-corner Y (rafter "begins"
-        ;; at xL+ht on the inside).
         ((<= x (+ xL ht))
           (- H ht))
-        ;; Knee taper zone: straight line from haunch corner to knee-end.
-        ((<= x (+ xL kneeXp))
+        ((<= x (+ xL kXpL))
           (setq xa (+ xL ht))
-          (setq xb (+ xL kneeXp))
+          (setq xb (+ xL kXpL))
           (setq ya (- H ht))
-          (setq yb (- (+ H kneeYp) midD))
+          (setq yb (- (+ H kYpL) midD))
           (setq f  (/ (- x xa) (- xb xa)))
           (+ ya (* f (- yb ya))))
-        ;; Constant-middle zone: rafter top follows slope, depth = midD.
-        ((<= x (- ridgeX ridgeXp))
-          (- (+ H (* rise (/ (- x xL) sl))) midD))
-        ;; Left ridge-taper zone: straight line up to ridge bottom.
+        ((<= x (- ridgeX rXpL))
+          (- (+ H (* rise (/ (- x xL) slL))) midD))
         (T
-          (setq xa (- ridgeX ridgeXp))
+          (setq xa (- ridgeX rXpL))
           (setq xb ridgeX)
-          (setq ya (- (+ H rise (- 0 ridgeYp)) midD))
+          (setq ya (- (+ H rise (- 0 rYpL)) midD))
           (setq yb (+ H rise (- 0 rd)))
           (setq f  (/ (- x xa) (- xb xa)))
           (+ ya (* f (- yb ya))))))
-    ;; ── RIGHT half: x ∈ (ridgeX, xR] ─────────────────────────────────
+    ;; ── RIGHT half: x ∈ (ridgeX, xR] ── RIGHT slope/projections
     (T
       (cond
-        ;; Column body region (right end column): haunch-corner Y.
         ((>= x (- xR ht))
           (- H ht))
-        ;; Right knee taper zone (mirror of left).
-        ((>= x (- xR kneeXp))
-          (setq xa (- xR kneeXp))
+        ((>= x (- xR kXpR))
+          (setq xa (- xR kXpR))
           (setq xb (- xR ht))
-          (setq ya (- (+ H kneeYp) midD))
+          (setq ya (- (+ H kYpR) midD))
           (setq yb (- H ht))
           (setq f  (/ (- x xa) (- xb xa)))
           (+ ya (* f (- yb ya))))
-        ;; Right constant-middle zone.
-        ((>= x (+ ridgeX ridgeXp))
-          (- (+ H (* rise (/ (- xR x) sl))) midD))
-        ;; Right ridge-taper zone (mirror of left).
+        ((>= x (+ ridgeX rXpR))
+          (- (+ H (* rise (/ (- xR x) slR))) midD))
         (T
           (setq xa ridgeX)
-          (setq xb (+ ridgeX ridgeXp))
+          (setq xb (+ ridgeX rXpR))
           (setq ya (+ H rise (- 0 rd)))
-          (setq yb (- (+ H rise (- 0 ridgeYp)) midD))
+          (setq yb (- (+ H rise (- 0 rYpR)) midD))
           (setq f  (/ (- x xa) (- xb xa)))
           (+ ya (* f (- yb ya)))))))
 )
@@ -3128,12 +3143,15 @@
   (setq v (MSPL-Get-Num data "BP_CANT_SPAN"))
   (if (and v (> v (* W 0.02)) (< v (* W 0.98))) v (/ W 2.0)))
 
-(defun draw-bf-frame (W H rise ht cb intColW valleyX / cx de dp halfCol slope leftRise rightRise)
+(defun draw-bf-frame (W H rise ht cb intColW valleyX valleyH / cx de dp halfCol slope leftRise rightRise vy)
   ;;  Butterfly: CENTER column only, NO side columns.  Two rafters slope UP-OUTWARD from the valley to the
   ;;  high side eaves.  Owner 18-Jul markup 15: the valley (and column) can be OFF-CENTRE (valleyX) — both
   ;;  wings keep the SAME fall, so the LONGER wing's tip sits HIGHER (leftRise / rightRise differ).
   ;;  Wings are TAPERED (owner 13-Jul): DEEP at the mast (dp) and THIN at the free tips (de).
   (setq cx (if valleyX valleyX (/ W 2.0)))
+  ;; BP_VALLEY_HEIGHT (owner 21-Jul): explicit valley (low centre) height in mm; blank/0 ⇒ vy = H (today's
+  ;; behaviour — valley at eave level). All roof/haunch/eave levels below are measured from vy.
+  (setq vy (if (and valleyH (> valleyH 0.0)) valleyH H))
   (setq intColW (max intColW 400.0))
   (setq halfCol (/ intColW 2.0))
   (setq slope     (/ rise (/ W 2.0)))          ; fall slope (rise per run) — identical on both wings
@@ -3149,17 +3167,18 @@
   (setvar "CLAYER" "FRAME")
   (command "RECTANG"
     (list (- cx halfCol) 0.0)
-    (list (+ cx halfCol) (- H dp 62.0)))
+    (list (+ cx halfCol) (- vy dp 62.0)))
 
   ;; Frame outline: butterfly (V top), underside tapers de (tip) -> dp (mast); tips at their own rises.
+  ;; All levels measured from vy (valley Y = BP_VALLEY_HEIGHT, or H when unset).
   (command "PLINE"
-    (list 0.0       (+ H leftRise))             ; LEFT high eave outside (tip top)
-    (list cx        H)                          ; VALLEY (lowest roof point, under the column)
-    (list W         (+ H rightRise))            ; RIGHT high eave outside (tip top)
-    (list W         (+ H rightRise (- 0 de)))   ; right tip UNDERSIDE (thin)
-    (list (+ cx halfCol) (- H dp))              ; mast right haunch (column top, deep)
-    (list (- cx halfCol) (- H dp))              ; mast left haunch (column top, deep)
-    (list 0.0       (+ H leftRise (- 0 de)))    ; left tip UNDERSIDE (thin)
+    (list 0.0       (+ vy leftRise))            ; LEFT high eave outside (tip top)
+    (list cx        vy)                          ; VALLEY (lowest roof point, under the column)
+    (list W         (+ vy rightRise))           ; RIGHT high eave outside (tip top)
+    (list W         (+ vy rightRise (- 0 de)))  ; right tip UNDERSIDE (thin)
+    (list (+ cx halfCol) (- vy dp))             ; mast right haunch (column top, deep)
+    (list (- cx halfCol) (- vy dp))             ; mast left haunch (column top, deep)
+    (list 0.0       (+ vy leftRise (- 0 de)))   ; left tip UNDERSIDE (thin)
     "C")
 )
 
@@ -3255,11 +3274,14 @@
     (list (- xLeft 100.0) plateBot)
     (list (+ xRight 100.0) plateTop))
   (command "HATCH" "SOLID" "L" "")
-  ;; Anchor bolts: 2 donuts through plate, ~25% and ~75% across column
-  (setq bolt1X (+ xLeft (* (- xRight xLeft) 0.25)))
-  (setq bolt2X (+ xLeft (* (- xRight xLeft) 0.75)))
-  (command "DONUT" 0 (* 2 boltR) (list bolt1X boltY) "")
-  (command "DONUT" 0 (* 2 boltR) (list bolt2X boltY) "")
+  ;; Anchor bolts: PINNED (default) = 2 donuts at 25%/75%; FIXED = 4 donuts (moment base) at 14/38/62/86%.
+  ;; Count comes from *BASE-BOLTS* (set per column-group by the callers from BP_EXT/INT_BASE_COND); nil ⇒ 2.
+  (if (and *BASE-BOLTS* (>= *BASE-BOLTS* 4))
+    (foreach f '(0.14 0.38 0.62 0.86)
+      (command "DONUT" 0 (* 2 boltR) (list (+ xLeft (* (- xRight xLeft) f)) boltY) ""))
+    (progn
+      (command "DONUT" 0 (* 2 boltR) (list (+ xLeft (* (- xRight xLeft) 0.25)) boltY) "")
+      (command "DONUT" 0 (* 2 boltR) (list (+ xLeft (* (- xRight xLeft) 0.75)) boltY) "")))
 )
 
 (defun draw-base-plates (W cb ep / boltR)
@@ -3267,6 +3289,7 @@
   ;;  Each plate is RAISED above FFL on a small concrete pedestal,
   ;;  with anchor bolts visible through the plate.
   (setq boltR (* 25 *PEB-TEXT-SCALE*))
+  (setq *BASE-BOLTS* (if *BASE-BOLTS-EXT* *BASE-BOLTS-EXT* 2))   ; both are exterior main columns
   (draw-base-plate-at 0.0     cb        ep boltR)   ; LEFT
   (draw-base-plate-at (- W cb) W        ep boltR)   ; RIGHT
 )
@@ -3584,11 +3607,14 @@
   (setq i 0)
   (foreach x cols
     (cond
-      ((= i 0)              ; LEFT end column
+      ((= i 0)              ; LEFT end column (exterior)
+        (setq *BASE-BOLTS* (if *BASE-BOLTS-EXT* *BASE-BOLTS-EXT* 2))
         (draw-base-plate-at x (+ x cb) ep boltR))
-      ((= i (1- n))         ; RIGHT end column
+      ((= i (1- n))         ; RIGHT end column (exterior)
+        (setq *BASE-BOLTS* (if *BASE-BOLTS-EXT* *BASE-BOLTS-EXT* 2))
         (draw-base-plate-at (- x cb) x ep boltR))
       (T                    ; interior column (rectangular)
+        (setq *BASE-BOLTS* (if *BASE-BOLTS-INT* *BASE-BOLTS-INT* 2))
         (setq thisW (if (listp intColW) (nth i intColW) intColW))
         (draw-base-plate-at (- x (/ thisW 2.0))
                             (+ x (/ thisW 2.0)) ep boltR)))
@@ -3703,8 +3729,9 @@
 
 (defun draw-rafter-stiffeners (cols ridges H rise ht rd apexHasCol /
                                  midD kneeL ridgeL stiffSize plateExt plateThk boltR
-                                 slL slLnL tanA slopeL slopeR
-                                 midSecLen splDist splCa splSa nSpl spcLen splI
+                                 slL slLnL slR slLnR slopeL slopeR splCaL splSaL splCaR splSaR
+                                 midSecLen splDist nSpl spcLen splI
+                                 half hEave hSa hCa hSlLn hSlope hDir
                                  i nR rxC xL xR rPts kxL kyTop kyBot)
   ;;  apexHasCol = T to SKIP the ridge-apex plate-pair (used for MG when a
   ;;  sub-span column lands directly under the ridge — the column
@@ -3746,11 +3773,12 @@
     (setq rPts (rafter-underside-points xL xR rxC H rise ht rd midD kneeL ridgeL))
     ;; rPts = ( left-knee-end  left-ridge-start  ridge-bottom  right-ridge-start  right-knee-end )
     ;; Compute rafter slope info (for sloping the lower stiffener top legs)
-    (setq slL    (- rxC xL))
-    (setq slLnL  (sqrt (+ (* slL slL) (* rise rise))))
-    (setq tanA   (/ rise slL))                     ; tan(alpha) for LEFT half (positive slope going +x)
-    (setq slopeL  tanA)                              ; LEFT half slope (going +x toward ridge increases y)
-    (setq slopeR  (- 0 tanA))                        ; RIGHT half slope (going +x toward eave decreases y)
+    ;; owner 22-Jul: PER-HALF slope so plates + mid-splices seat on the TRUE rafter even at an OFF-CENTRE ridge
+    ;; (was slopeR = -slopeL, and the mid-splice used the LEFT slope-length/projection for BOTH halves).
+    (setq slL   (- rxC xL) slLnL (sqrt (+ (* slL slL) (* rise rise)))
+          splCaL (/ slL slLnL) splSaL (/ rise slLnL) slopeL (/ rise slL))
+    (setq slR   (- xR rxC) slLnR (sqrt (+ (* slR slR) (* rise rise)))
+          splCaR (/ slR slLnR) splSaR (/ rise slLnR) slopeR (- 0 (/ rise slR)))
 
     ;; Helper: draw connection plate + 2 stiffener triangles at one transition
     ;; (kxL, kyBot) = rafter inner-flange position; kyTop = outer-flange y (= kyBot + midD)
@@ -3821,47 +3849,29 @@
     (draw-rafter-plate-pair kxL kyBot kyTop plateThk plateExt slopeR slopeR 0.0)
       ))   ; end (if (not peb-plate-already-drawn) … RIGHT KNEE END)
 
-    ;; ===== MID-SPAN SPLICE PLATES (12 m max piece rule) =====
-    ;; The constant-middle section runs along the slope from knee-end
-    ;; (kneeL) to ridge-start (slLnL - ridgeL).  Any rafter piece must
-    ;; not exceed 12 m for shipping/splice reasons - so we divide the
-    ;; middle section into N+1 equal pieces (each <= 12 m) by inserting
-    ;; N splice plates at evenly spaced points.
-    (setq midSecLen (- slLnL ridgeL kneeL))
-    (setq nSpl (fix (/ (- midSecLen 0.001) 12000.0)))
-    (if (> nSpl 0)
-      (progn
-        (setq splCa (/ slL slLnL))
-        (setq splSa (/ rise slLnL))
-        (setq spcLen (/ midSecLen (+ nSpl 1.0)))
-        (setq splI 1)
-        (while (<= splI nSpl)
-          (setq splDist (+ kneeL (* splI spcLen)))
-
-          ;; --- LEFT half splice ---
-          (setq kxL   (+ xL (* splDist splCa)))
-          (setq kyBot (- (+ H (* splDist splSa)) midD))
-          (setq kyTop (+ kyBot midD))
-          (if (not (peb-plate-already-drawn kxL kyBot))
-            (progn
-              (peb-record-plate-drawn kxL kyBot)
-          (draw-rafter-plate-pair kxL kyBot kyTop plateThk plateExt slopeL slopeL 0.0)
-            ))   ; end (if (not peb-plate-already-drawn) … LEFT mid-splice)
-
-          ;; --- RIGHT half splice (RIGHT half rafter slope = -tanA = slopeR) ---
-          (setq kxL   (- xR (* splDist splCa)))
-          (setq kyBot (- (+ H (* splDist splSa)) midD))
-          (setq kyTop (+ kyBot midD))
-          (if (not (peb-plate-already-drawn kxL kyBot))
-            (progn
-              (peb-record-plate-drawn kxL kyBot)
-          (draw-rafter-plate-pair kxL kyBot kyTop plateThk plateExt slopeR slopeR 0.0)
-            ))   ; end (if (not peb-plate-already-drawn) … RIGHT mid-splice)
-
-          (setq splI (1+ splI))
-        )
-      )
-    )
+    ;; ===== MID-SPAN SPLICE PLATES (12 m max piece rule) — PER HALF =====
+    ;; owner 22-Jul: each half has its OWN mid-section length/slope (off-centre ridge), so splice each half
+    ;; independently — its own slope-length, projection, piece count and plate angle.  hDir = +1 left (xL +dist
+    ;; toward ridge), -1 right (xR -dist toward ridge).  (Was: one length/slope from the LEFT half for both.)
+    (foreach half (list (list xL splSaL splCaL slLnL slopeL  1.0)
+                        (list xR splSaR splCaR slLnR slopeR -1.0))
+      (setq hEave (nth 0 half) hSa (nth 1 half) hCa (nth 2 half) hSlLn (nth 3 half)
+            hSlope (nth 4 half) hDir (nth 5 half))
+      (setq midSecLen (- hSlLn ridgeL kneeL))
+      (setq nSpl (fix (/ (- midSecLen 0.001) 12000.0)))
+      (if (> nSpl 0)
+        (progn
+          (setq spcLen (/ midSecLen (+ nSpl 1.0)) splI 1)
+          (while (<= splI nSpl)
+            (setq splDist (+ kneeL (* splI spcLen)))
+            (setq kxL   (+ hEave (* hDir (* splDist hCa))))
+            (setq kyBot (- (+ H (* splDist hSa)) midD))
+            (setq kyTop (+ kyBot midD))
+            (if (not (peb-plate-already-drawn kxL kyBot))
+              (progn
+                (peb-record-plate-drawn kxL kyBot)
+                (draw-rafter-plate-pair kxL kyBot kyTop plateThk plateExt hSlope hSlope 0.0)))
+            (setq splI (1+ splI))))))
 
     (setq i (1+ i))
   )
@@ -4610,7 +4620,7 @@
       ;; TextLeftAttachmentType = 5 (BottomOfTopLine) anchors v2 at
       ;; the bottom of the heading line — heading floats above bar Y,
       ;; spec lines drop below bar Y.  Heading bold via inline MText
-      ;; format code "{\\fArial|b1; … }".
+      ;; format code "{\\Fromand.shx; … }".
       (setvar "CLAYER" "TEXT")
       ;; Pre-split spec into max 2 lines (same as wall sheeting).
       (setq rLine2_2L (peb-split-2-lines rLine2))
@@ -4620,7 +4630,7 @@
       ;; to 0.72x the MLEADER body height so the full sandwich fits inside
       ;; the section as a compact leader.
       (setq rCombined
-        (strcat "{\\C7;\\H0.42x;{\\fArial|b1;" rLine1 "}\\P" rLine2_2L "}"))
+        (strcat "{\\C7;\\H0.42x;{\\Fromand.shx;" rLine1 "}\\P" rLine2_2L "}"))
       ;; --- Try 3-vertex MLEADER with combined text -----------------
       (setq mlResult
         (vl-catch-all-apply 'peb-make-mleader
@@ -4640,7 +4650,7 @@
             (vl-catch-all-apply 'peb-make-mtext-line
               (list (list labRX rHeadY)
                     (* 220.0 *PEB-TEXT-SCALE*) 0 "ML"
-                    (strcat "{\\fArial|b1;" rLine1 "}"))))
+                    (strcat "{\\Fromand.shx;" rLine1 "}"))))
           (if (vl-catch-all-error-p mtResult)
             (txt "ML" (list labRX rHeadY) 220 0 rLine1))
           ;; Spec regular below bar
@@ -4763,7 +4773,7 @@
       ;; \\P) drop BELOW the bar.
       ;;
       ;; Heading is rendered bold via inline MText format code
-      ;; "{\\fArial|b1; … }" so the surrounding spec text stays in
+      ;; "{\\Fromand.shx; … }" so the surrounding spec text stays in
       ;; regular weight at the same 220·TS body size.
       (setvar "CLAYER" "TEXT")
       ;; Force the spec text to AT MOST 2 lines via explicit paragraph
@@ -4787,7 +4797,7 @@
       ;; to 0.72x the MLEADER body height — compact leader that fits inside
       ;; the section.
       (setq wCombined
-        (strcat "{\\C7;\\H0.42x;{\\fArial|b1;" wLine1 "}\\P" wLine2_2L "}"))
+        (strcat "{\\C7;\\H0.42x;{\\Fromand.shx;" wLine1 "}\\P" wLine2_2L "}"))
       ;; --- Try 4-vertex MLEADER with combined text -----------------
       ;; Bar (v2-v3) is exactly 300 mm long: v2 at wExtX, v3 at
       ;; wExtX + 300.  Text starts at v3 going RIGHT, landing right
@@ -4811,7 +4821,7 @@
             (vl-catch-all-apply 'peb-make-mtext-line
               (list (list labWX wHeadY)
                     (* 220.0 *PEB-TEXT-SCALE*) 0 "ML"
-                    (strcat "{\\fArial|b1;" wLine1 "}"))))
+                    (strcat "{\\Fromand.shx;" wLine1 "}"))))
           (if (vl-catch-all-error-p mtResult)
             (txt "ML" (list labWX wHeadY) 220 0 wLine1))
           ;; Spec regular below bar
@@ -5049,7 +5059,7 @@
       ;; to 0.72x the MLEADER body height so the full sandwich fits inside
       ;; the section as a compact leader.
       (setq rCombined
-        (strcat "{\\C7;\\H0.42x;{\\fArial|b1;" rLine1 "}\\P" rLine2_2L "}"))
+        (strcat "{\\C7;\\H0.42x;{\\Fromand.shx;" rLine1 "}\\P" rLine2_2L "}"))
       (setq mlResult
         (vl-catch-all-apply 'peb-make-mleader
           (list
@@ -5064,7 +5074,7 @@
             (vl-catch-all-apply 'peb-make-mtext-line
               (list (list labRX (+ rBarY (* 220 *PEB-TEXT-SCALE*)))
                     (* 220.0 *PEB-TEXT-SCALE*) 0 "ML"
-                    (strcat "{\\fArial|b1;" rLine1 "}"))))
+                    (strcat "{\\Fromand.shx;" rLine1 "}"))))
           (if (vl-catch-all-error-p mtResult)
             (txt "ML" (list labRX (+ rBarY (* 220 *PEB-TEXT-SCALE*))) 220 0 rLine1))
           (setq mtResult
@@ -5128,7 +5138,7 @@
       ;; to 0.72x the MLEADER body height — compact leader that fits inside
       ;; the section.
       (setq wCombined
-        (strcat "{\\C7;\\H0.42x;{\\fArial|b1;" wLine1 "}\\P" wLine2_2L "}"))
+        (strcat "{\\C7;\\H0.42x;{\\Fromand.shx;" wLine1 "}\\P" wLine2_2L "}"))
       (setq mlResult
         (vl-catch-all-apply 'peb-make-mleader
           (list
@@ -5146,7 +5156,7 @@
             (vl-catch-all-apply 'peb-make-mtext-line
               (list (list labWX wHeadY)
                     (* 220.0 *PEB-TEXT-SCALE*) 0 "ML"
-                    (strcat "{\\fArial|b1;" wLine1 "}"))))
+                    (strcat "{\\Fromand.shx;" wLine1 "}"))))
           (if (vl-catch-all-error-p mtResult)
             (txt "ML" (list labWX wHeadY) 220 0 wLine1))
           (setq mtResult
@@ -6196,33 +6206,42 @@
 (defun tb-rect (x1 y1 x2 y2 col)
   (tb-line x1 y1 x2 y1 col) (tb-line x2 y1 x2 y2 col)
   (tb-line x2 y2 x1 y2 col) (tb-line x1 y2 x1 y1 col))
-(defun tb-mtext (x y h wid attach str col)
-  ;; owner 19-Jul UNIVERSAL: title-block body = ROMAND — wrap any string WITHOUT an explicit {\f..} font in
-  ;; \fromand.shx so notes / load table / project fields render romand.shx.  Bold \fArial|b1 strings already
-  ;; carry their own font, so they are skipped and stay bold Arial.
-  (if (and str (not (vl-string-search "\\f" str))) (setq str (strcat "{\\fromand.shx;" str "}")))
-  (entmake (list (cons 0 "MTEXT") (cons 100 "AcDbEntity") (cons 8 "0")
-                 (cons 62 col) (cons 100 "AcDbMText")
-                 (list 10 x y 0.0) (cons 40 h) (cons 41 wid)
-                 (cons 71 attach) (cons 7 "Standard") (cons 1 str) (cons 50 0.0))))
-;; owner 19-Jul: title-bar HEADINGS must be BOLD but STAY in ROMAND.  romand.shx is a stroke (SHX) font
-;; with no TrueType bold, so "bold" = a heavier pen (lineweight 0.40mm) on the romand strokes.  Same as
-;; tb-mtext otherwise, but forces romand.shx + a bold lineweight; strip any incoming {\fArial..} wrapper.
-(defun tb-mtext-bold (x y h wid attach str col / raw)
+(defun tb-mtext (x y h wid attach str col / lwl)
+  ;; owner UNIVERSAL RULE 22-Jul: ALL title-block / body text = ROMAND.  Entity style = ROMAND (romand.shx),
+  ;; and any string WITHOUT an explicit {\F..} font code is wrapped in \Fromand.shx.  NB: the SHX font code
+  ;; is CAPITAL \F; lowercase \f is the TrueType form and mis-parses an SHX name (that was the drift).  No Arial.
+  (if (and str (not (vl-string-search "\\F" str))) (setq str (strcat "{\\Fromand.shx;" str "}")))
+  ;; owner 22-Jul STANDING RULE (weight hierarchy, ALL sheets): fixed field LABELS are drawn GREY (col 8) ->
+  ;; give them a light-medium 0.25mm pen (370=25) so they read as structure above the thin dynamic values
+  ;; (monochrome plot: only lineweight differentiates).  Non-grey text stays BYLAYER thin.
+  (setq lwl (if (= col 8) (list (cons 370 25)) '()))
+  (entmake (append
+    (list (cons 0 "MTEXT") (cons 100 "AcDbEntity") (cons 8 "0") (cons 62 col))
+    lwl
+    (list (cons 100 "AcDbMText")
+          (list 10 x y 0.0) (cons 40 h) (cons 41 wid)
+          (cons 71 attach) (cons 7 "ROMAND") (cons 1 str) (cons 50 0.0)))))
+;; owner UNIVERSAL RULE: MAIN HEADINGS are BOLD but STILL ROMAND.  romand.shx has no TrueType bold, so
+;; "bold" = a HEAVIER PEN (0.50mm) on the romand strokes; strip any incoming {\F..;TEXT} font wrapper.
+(defun tb-mtext-bold (x y h wid attach str col / raw lw)
   (setq raw str)
-  ;; unwrap an explicit {\f...;TEXT} so we re-wrap in romand
-  (if (and raw (vl-string-search "\\f" raw))
+  (if (and raw (vl-string-search "\\F" raw))
     (progn
-      (setq raw (vl-string-subst "" "{\\fArial|b1;" raw))
-      (setq raw (vl-string-subst "" "{\\fArial|i1;" raw))
-      (setq raw (vl-string-subst "" "{\\fromand.shx;" raw))
+      (setq raw (vl-string-subst "" "{\\Fromand.shx;" raw))
       (if (and (> (strlen raw) 0) (= (substr raw (strlen raw) 1) "}"))
         (setq raw (substr raw 1 (1- (strlen raw)))))))
+  ;; owner 22-Jul: BOLD PEN SCALES WITH TEXT HEIGHT (romand.shx has no TTF bold, so bold = heavier pen).  A
+  ;; fixed 0.50mm looked bold on small text but thin on the big hero.  pen(0.01mm) = h*0.12 snapped to a valid
+  ;; AutoCAD lineweight enum via peb-lw370 (mm=h*0.0012), floored at 50 (never thinner than the old fixed bold),
+  ;; capped at 211 by the enum.  hero h~1161 -> 200 (2.0mm, fills the duplex), company h~1010 -> 158, small
+  ;; heading h~416 -> 70.  (0.0016 rather than 0.0012 so the giant hero fills solid instead of looking outlined.)
+  (setq lw (if (member 'peb-lw370 (atoms-family 1)) (peb-lw370 (* h 0.0016)) 50))
+  (if (< lw 50) (setq lw 50))
   (entmake (list (cons 0 "MTEXT") (cons 100 "AcDbEntity") (cons 8 "0")
-                 (cons 62 col) (cons 370 50) (cons 100 "AcDbMText")   ; 0.50mm = valid LW enum (55 is invalid -> entmake fails)
+                 (cons 62 col) (cons 370 lw) (cons 100 "AcDbMText")   ; bold pen ∝ text height (valid LW enum)
                  (list 10 x y 0.0) (cons 40 h) (cons 41 wid)
-                 (cons 71 attach) (cons 7 "Standard")
-                 (cons 1 (strcat "{\\fromand.shx;" raw "}")) (cons 50 0.0))))
+                 (cons 71 attach) (cons 7 "ROMAND")
+                 (cons 1 (strcat "{\\Fromand.shx;" raw "}")) (cons 50 0.0))))
 (defun tb-pline (pts wid col / l)
   (setq l (list (cons 0 "LWPOLYLINE") (cons 100 "AcDbEntity") (cons 8 "0")
                 (cons 62 col) (cons 100 "AcDbPolyline")
@@ -6238,9 +6257,11 @@
 ;; AUTOFIT: return a text height so a string of N chars fits within width mw on
 ;; ONE line, capped at the desired height mh (Arial char width ~ 0.60 x height).
 (defun tb-fith (s mw mh)
-  ;; owner 19-Jul: char-width ratio raised 0.64->0.95 because the title block is now ROMAND (romand.shx),
-  ;; which is ~40% WIDER than Arial — otherwise long values (project name / customer) overflow & overlap.
-  (min mh (/ mw (* (max 1.0 (float (strlen s))) 0.95))))
+  ;; AUTOFIT (owner STANDING RULE 22-Jul: dynamic text FILLS its field — grows large, only shrinks a LONG
+  ;; value to fit).  Char-width ratio = romand ALL-CAPS true advance ~0.86 (uppercase romand is wide).  The
+  ;; "too small" complaint was really the \f-vs-\F font bug (text rendered the NARROW Arial fallback, so it
+  ;; looked tiny) — fixed separately; here 0.86 sizes to fill without overflow.  min(field-height, width/(n*0.86)).
+  (min mh (/ mw (* (max 1.0 (float (strlen s))) 0.86))))
 
 ;; strip an embedded unit suffix ("0 KN/m2" -> "0", "135 km/h" -> "135")
 (defun peb-num-only (s / p)
@@ -6275,8 +6296,8 @@
   (tb-solid-tri ax apexY rgt (+ baseY (* w 0.015)) ax (- apexY (* w 0.045)) red)
   (tb-pline (list lft baseY ax apexY rgt (+ baseY (* w 0.015))) (* w 0.016) red)
   (setq th (* w 0.150))
-  (tb-mtext cx (+ cyBase (* w 0.135)) th (* w 1.04) 5 "{\\fArial|b1;MAIMAAR}" blue)
-  (tb-mtext cx cyBase (* w 0.058) (* w 1.30) 5 "{\\fArial|b1;BUILDING SYSTEMS}" blue))
+  (tb-mtext cx (+ cyBase (* w 0.135)) th (* w 1.04) 5 "{\\Fromand.shx;MAIMAAR}" blue)
+  (tb-mtext cx cyBase (* w 0.058) (* w 1.30) 5 "{\\Fromand.shx;BUILDING SYSTEMS}" blue))
 
 ;; Path to the real Maimaar logo DWG (normalised: geometry min-corner at 0,0,
 ;; native size 237 x 72.1).  -INSERTed natively by the LISP so the saved .dwg
@@ -6304,7 +6325,7 @@
 ;; anchored at the TOP, PROJECT-INFORMATION block anchored at the BOTTOM (exact
 ;; mirror of the Mammut proposal-drawing title block).  Every value links to the IF.
 (defun peb-titleblock-mammut (X0 Y0 W H data
-                              / white grey green cyan midX cw val lbl bv sm s
+                              / white grey green cyan midX cw val lbl bv sm s tbBlind
                               yCur bt rh bottomH lx vx ux c1x c2x tb-get tb-hdiv)
   (setq white 7 grey 8 green 3 cyan 4)
   ;; content SIZE height: global *PEB-TB-SIZEH* caps it for a very tall (F2) flush strip so text stays
@@ -6367,7 +6388,7 @@
   (tb-mtext (+ X0 (* W 0.04)) (+ yCur (* rh 0.4))
     (tb-fith (strcat "AS PER " (tb-get "CODE") " METAL BUILDING SYSTEMS MANUAL")
              cw (* s 0.0100)) cw 1
-    (strcat "{\\fromand.shx;AS PER " (tb-get "CODE")
+    (strcat "{\\Fromand.shx;AS PER " (tb-get "CODE")
             " METAL BUILDING SYSTEMS MANUAL}") green)
   (tb-hdiv yCur)
 
@@ -6396,12 +6417,15 @@
   ;; PROJECT
   (setq bt yCur rh (* s 0.058) yCur (- yCur rh))
   (tb-mtext (+ X0 (* W 0.04)) (- bt (* lbl 1.3)) lbl cw 1 "PROJECT :" grey)
-  (tb-mtext midX (+ yCur (* rh 0.30)) (tb-fith (tb-get "PROJECT") cw bv) cw 5 (tb-get "PROJECT") green)  ; owner 19-Jul: size to the cw box (ROMAND wider) so it fits on one line
+  ;; owner 23-Jul: BLIND (for-estimate) version leaves PROJECT blank so the client isn't revealed.
+  (setq tbBlind (peb-blind-p data))
+  (tb-mtext midX (+ yCur (* rh 0.30)) (tb-fith (if tbBlind "" (tb-get "PROJECT")) cw bv) cw 5 (if tbBlind "" (tb-get "PROJECT")) green)
   (tb-hdiv yCur)
   ;; CUSTOMER
   (setq bt yCur rh (* s 0.048) yCur (- yCur rh))
   (tb-mtext (+ X0 (* W 0.04)) (- bt (* lbl 1.3)) lbl cw 1 "CUSTOMER :" grey)
-  (tb-mtext midX (+ yCur (* rh 0.28)) (tb-fith (tb-get "CUSTOMER") cw bv) cw 5 (tb-get "CUSTOMER") green)  ; owner 19-Jul TB1: size to the cw box (ROMAND wider) so it fits on one line, never overlaps the label
+  ;; owner 23-Jul: CUSTOMER shown in the full version, blank in the BLIND (for-estimate) version.
+  (tb-mtext midX (+ yCur (* rh 0.28)) (tb-fith (if tbBlind "" (tb-get "CUSTOMER")) cw bv) cw 5 (if tbBlind "" (tb-get "CUSTOMER")) green)
   (tb-hdiv yCur)
   ;; STEEL CONTRACTOR : enlarged logo + MAIMAAR wordmark + address (owner 10-Jul; mirrors Plan.lsp).
   ;; Hierarchy LOGO > NAME > ADDRESS.  The address used to sit inside the logo box and print white;
@@ -6424,10 +6448,19 @@
                     (list "Bldg. Name." (tb-get "BLDGNAME"))
                     (list "No. Of Identical Bldg." (tb-get "IDENTICAL")))
     (setq rh (* s 0.024) yCur (- yCur rh))
-    (tb-mtext (+ X0 (* W 0.05)) (+ yCur (* rh 0.50)) lbl 0 4 (car pr) grey)
-    (tb-mtext (+ X0 (* W 0.52)) (+ yCur (* rh 0.50))
+    ;; owner 23-Jul: PROPOSAL (QUOTE) NO. row is PROMINENT — bold LABEL + bold value (heavier pen, same height
+    ;; so it can't overrun the row); the tracking ref for ALL communication, never blanked (even blind).
+    (if (= (car pr) "QUOTE NO.")
+      (progn
+        (tb-mtext-bold (+ X0 (* W 0.05)) (+ yCur (* rh 0.50)) lbl 0 4 (car pr) grey)
+        (tb-mtext-bold (+ X0 (* W 0.52)) (+ yCur (* rh 0.50))
+              (tb-fith (strcat ": " (cadr pr)) (* W 0.44) (* s 0.009)) (* W 0.45) 4
+              (strcat ": " (cadr pr)) green))
+      (progn
+        (tb-mtext (+ X0 (* W 0.05)) (+ yCur (* rh 0.50)) lbl 0 4 (car pr) grey)
+        (tb-mtext (+ X0 (* W 0.52)) (+ yCur (* rh 0.50))
               (tb-fith (strcat ": " (cadr pr)) (* W 0.44) val) (* W 0.45) 4
-              (strcat ": " (cadr pr)) green)
+              (strcat ": " (cadr pr)) green)))
     (tb-hdiv yCur))
   ;; Drawing Title
   (setq bt yCur rh (* s 0.045) yCur (- yCur rh))
@@ -6572,6 +6605,23 @@
 ;;  joint (leg base / knee / ridge); ALL text ROMAND (txt); OPEN dim arrows; BYLAYER.
 ;;  Coordinate frame (section): FFL y=0, eave rafter-top y=H, ridge apex (ridgeX,H+rise).
 ;; ============================================================================
+;;
+;; ############################################################################
+;; #  ROOF MONITOR — STANDING RULES  (owner 21-Jul — KEEP AT TOP, FOLLOW EXACTLY) #
+;; ############################################################################
+;;  R1  HEIGHT = throat / 2  (governing proportion)                    -> rmh (/ throat 2.0)
+;;  R2  PURLINS + SHEETING FOLLOW the rafter profile on BOTH sides; a purlin on BOTH eave
+;;      EDGES + the ridge, interior purlins EQUALLY spaced, drawn ABOVE the rafter flange.
+;;  R3  CP (connection plates): TWO solid 30mm plates, 1.5mm seam, NO bolts, 100mm PAST the
+;;      flanges, and the plates FOLLOW THE RAFTER FLANGE SLOPE (tilted, not horizontal).
+;;  R4  GP (gusset): filled solid, ON THE RAFTER SLOPE, within the 100mm CP zone.
+;;  R5  CP/GP centred EXACTLY on the legs (leg body extends OUTWARD from xLi/xRi).
+;;  R6  SLOPE notation on BOTH rafters, exactly 50mm ABOVE the sheeting line, following slope.
+;;  R7  DIMENSIONS: colour = WHITE (ACI 7 -> plots BLACK); arrowheads = OPEN (not filled);
+;;      text = ROMAND; dual mm & ft; SMALL (scoped scale); throat dim BELOW the rafter.
+;;  R8  NO ridge cap on the monitor apex.
+;;  R9  ALL text ROMAND; layers per the Rule Book (PLATES/FRAME/CLADDING/PURLINS/GIRTS/DIMENSIONS).
+;; ############################################################################
 
 ;; ---- monitor geometry helpers (rm-*) --------------------------------------
 (defun rm-unit (dx dy / len)
@@ -6611,23 +6661,40 @@
                       (list (+ px (* nx 70.0)) (+ py (* ny 70.0))) "")
     (setq i (1+ i))))
 
-(defun rm-dim-h (x1 yo1 x2 yo2 ydim str / mid)
-  (setvar "CLAYER" "DIMENSIONS")
+;; STANDING/UNIVERSAL RULE (owner 21-Jul): the dim TEXT AUTOSIZES to fit BETWEEN the two arrows.  Return the
+;; largest text height <= baseH whose rendered string width fits the run (minus the two arrows + a margin);
+;; ROMAND char width ~0.62*height, and txt-dim renders at height*(*PEB-TEXT-SCALE*), so factor TS in here.
+(defun rm-dim-fit-h (str span baseH / ts availw w)
+  (setq ts (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)
+        availw (- (abs span) (* 2.0 (* 260.0 *PEB-DIM-SCALE*)) 150.0)
+        w (max 1.0 (* (strlen str) 0.62 ts)))
+  (if (< availw 220.0) (setq availw 220.0))
+  (max 110.0 (min baseH (/ availw w))))
+
+(defun rm-dim-h (x1 yo1 x2 yo2 ydim str / mid oc h)
+  ;; STANDING RULE (universal): monitor dims WHITE (ACI 7 -> plots black), OPEN arrows, ROMAND text on the
+  ;; DIMENSIONS layer, AUTOSIZED to fit BETWEEN the two arrows (base 300, shrunk when the run is narrow).
+  (setq oc (getvar "CECOLOR") h (rm-dim-fit-h str (- x2 x1) 300.0))
+  (setvar "CLAYER" "DIMENSIONS") (setvar "CECOLOR" "7")
   (command "_.LINE" (list x1 yo1) (list x1 ydim) "")
   (command "_.LINE" (list x2 yo2) (list x2 ydim) "")
   (command "_.LINE" (list x1 ydim) (list x2 ydim) "")
-  (dim-arrow-h x1 ydim "R") (dim-arrow-h x2 ydim "L")
+  (rm-arrow-h x1 ydim "R") (rm-arrow-h x2 ydim "L")
   (setq mid (/ (+ x1 x2) 2.0))
-  (txt-dim "MC" (list mid (+ ydim (* 300 *PEB-DIM-SCALE*))) 240 0 str))
+  (txt-dim "MC" (list mid (+ ydim (* 360 *PEB-DIM-SCALE*))) h 0 str)
+  (setvar "CECOLOR" oc))
 
-(defun rm-dim-v (yo1 xo1 yo2 xo2 xdim str / midY)
-  (setvar "CLAYER" "DIMENSIONS")
+(defun rm-dim-v (yo1 xo1 yo2 xo2 xdim str / midY oc h)
+  ;; STANDING RULE (universal): WHITE, OPEN arrows, ROMAND, AUTOSIZED to fit between the two arrows.
+  (setq oc (getvar "CECOLOR") h (rm-dim-fit-h str (- yo1 yo2) 300.0))
+  (setvar "CLAYER" "DIMENSIONS") (setvar "CECOLOR" "7")
   (command "_.LINE" (list xo1 yo1) (list xdim yo1) "")
   (command "_.LINE" (list xo2 yo2) (list xdim yo2) "")
   (command "_.LINE" (list xdim yo1) (list xdim yo2) "")
-  (dim-arrow-v xdim yo1 "U") (dim-arrow-v xdim yo2 "D")
+  (rm-arrow-v xdim yo1 "U") (rm-arrow-v xdim yo2 "D")
   (setq midY (/ (+ yo1 yo2) 2.0))
-  (txt-dim "MC" (list (- xdim (* 380 *PEB-DIM-SCALE*)) midY) 240 90 str))
+  (txt-dim "MC" (list (- xdim (* 460 *PEB-DIM-SCALE*)) midY) h 90 str)
+  (setvar "CECOLOR" oc))
 
 (defun rm-label (ptx pty tx ty just str)
   (setvar "CLAYER" "TEXT")
@@ -6635,58 +6702,110 @@
   (txt just (list (if (= just "ML") (+ tx (* 80 *PEB-TEXT-SCALE*)) (- tx (* 80 *PEB-TEXT-SCALE*))) ty)
        160 0 str))
 
-(defun rm-mon-purlins (x1 y1 x2 y2 n depth / dx dy L ux uy vx vy i tt px py)
-  ;; BYPASS Z-purlins sitting on the monitor rafter TOP FLANGE, following its slope (universal rule);
-  ;; reuses the engine's real Z-section drawer (draw-z-purlin), n purlins evenly along the slope.
+;; M-LADDER member callout (owner 21-Jul): OPEN arrow at the member tip, riser UP to level `lvl`, then a
+;; horizontal bar to `landx`, ROMAND text at the bar end.  Drawn on the (white) TEXT layer -> plots black.
+;; Callers STAGGER `lvl` so no two bars/labels collide; to avoid a riser cutting another bar, give the
+;; INNER member (nearer the ridge) the HIGHER level and land ladders on their own side.
+(defun rm-mladder (tipx tipy lvl landx txt / a b right)
+  (setq right (> landx tipx) a (* 210 *PEB-TEXT-SCALE*) b (* 75 *PEB-TEXT-SCALE*))
+  (setvar "CLAYER" "TEXT") (setvar "PLINEWID" 0.0)
+  ;; (M-ladder arrow)
+  (command "_.PLINE" (list (- tipx b) (+ tipy a)) (list tipx tipy) (list (+ tipx b) (+ tipy a)) "")  ; open arrow (down at member)
+  (command "_.LINE" (list tipx tipy) (list tipx lvl) "")                                             ; riser UP
+  (command "_.LINE" (list tipx lvl) (list landx lvl) "")                                             ; horizontal bar
+  (txt-rom (if right "ML" "MR")
+           (list (if right (+ landx (* 90 *PEB-TEXT-SCALE*)) (- landx (* 90 *PEB-TEXT-SCALE*))) lvl) 150 0 txt))
+
+(defun rm-mon-purlins (x1 y1 x2 y2 n depth skipLast / dx dy L ux uy vx vy i iEnd tt px py)
+  ;; Z-purlins on the monitor rafter TOP FLANGE — ABOVE it and FOLLOWING its slope (universal rule).
+  ;; n purlins placed edge-to-edge INCLUSIVE (tt = i/(n-1)) so a purlin lands on BOTH ends of the run
+  ;; and the interior ones are EQUALLY spaced (owner 21-Jul).  The offset normal is forced to point UP
+  ;; (vy>0) so purlins sit ABOVE the rafter on BOTH sides — the right rafter runs the other way, which
+  ;; used to push them BELOW.  skipLast=T omits the tt=1 purlin so the shared RIDGE purlin isn't doubled.
   (setq dx (- x2 x1) dy (- y2 y1) L (sqrt (+ (* dx dx) (* dy dy))))
   (if (<= L 1e-6) (setq L 1.0))
-  (setq ux (/ dx L) uy (/ dy L) vx (- uy) vy ux i 1)
-  (while (<= i n)
-    (setq tt (/ (- i 0.5) (float n)) px (+ x1 (* dx tt)) py (+ y1 (* dy tt)))
+  (if (< n 2) (setq n 2))
+  (setq ux (/ dx L) uy (/ dy L) vx (- uy) vy ux)
+  (if (< vy 0.0) (setq vx (- vx) vy (- vy)))          ; normal points UP -> purlins ABOVE the rafter
+  (setq iEnd (if skipLast (1- n) n) i 0)
+  (while (< i iEnd)
+    (setq tt (/ (float i) (float (1- n))) px (+ x1 (* dx tt)) py (+ y1 (* dy tt)))
     (draw-z-purlin px py ux uy vx vy depth 45.0 45.0 8.0 14.0)
     (setq i (1+ i))))
 
-(defun rm-leg-cap (cx cy w / pt hg)
-  ;; LEG-TOP connection (owner ref): two SOLID plates at the seam between the LEG TOP and the
-  ;; RAFTER BOTTOM FLANGE (hairline gap), + small GP gussets down the leg.  NO plate at the peak.
-  (setq pt *PEB-CP-THK* hg (/ *PEB-CP-GAP* 2.0))
+(defun rm-leg-cap (cx cy w gdir gslope / pt hg)
+  ;; LEG-TOP connection: two SOLID plates at the seam (rafter bottom <-> leg top), 1.5mm hairline gap,
+  ;; NO bolts, NO plate at the peak.  Plus ONE GP gusset on the THROAT side whose flange leg lies ON the
+  ;; RAFTER SLOPE (standing CP/GP rule, owner 21-Jul): gdir = throat/ridge direction (+1 = ridge to the
+  ;; RIGHT of the leg, -1 = to the LEFT); gslope is fed to draw-rc-gusset so the flange rises toward the ridge.
+  ;; owner 21-Jul: the CP plates FOLLOW the rafter flange slope (`gslope`), not horizontal — tilt each
+  ;; plate so its edges are parallel to the rafter (tl/tr = the y-rise at the left/right plate edge).
+  (setq pt *PEB-CP-THK* hg (/ *PEB-CP-GAP* 2.0) tl (* (- w) gslope) tr (* w gslope))
   (setvar "CLAYER" "PLATES")
-  (peb-solid-quad (list (- cx w) (+ cy hg)) (list (+ cx w) (+ cy hg))
-                  (list (- cx w) (+ cy hg pt)) (list (+ cx w) (+ cy hg pt)))          ; rafter-bottom plate
-  (peb-solid-quad (list (- cx w) (- cy hg pt)) (list (+ cx w) (- cy hg pt))
-                  (list (- cx w) (- cy hg)) (list (+ cx w) (- cy hg)))                ; leg-top plate
-  (draw-rc-gusset (- cx w) (- cy hg pt) (- cy hg pt 170.0) 120.0 -1 0.0)
-  (draw-rc-gusset (+ cx w) (- cy hg pt) (- cy hg pt 170.0) 120.0  1 0.0))
+  (peb-solid-quad (list (- cx w) (+ cy hg tl)) (list (+ cx w) (+ cy hg tr))
+                  (list (- cx w) (+ cy hg pt tl)) (list (+ cx w) (+ cy hg pt tr)))          ; rafter-bottom plate (on the slope)
+  (peb-solid-quad (list (- cx w) (+ (- cy hg pt) tl)) (list (+ cx w) (+ (- cy hg pt) tr))
+                  (list (- cx w) (+ (- cy hg) tl)) (list (+ cx w) (+ (- cy hg) tr)))        ; leg-top plate (on the slope)
+  ;; GP filled-solid on the rafter slope, within the 100mm CP zone, throat side.
+  (draw-rc-gusset (+ cx (* gdir w)) (+ cy hg (* gdir w gslope)) (- cy hg pt 100.0) 100.0 gdir gslope))
 
-(defun rm-eave-curved (ex ey dir sz / c1 c2 c3 dt st)
-  ;; R~500 curved eave panel (3-pt arc) + drip trim + short stub post.  Offsets scale with the
-  ;; monitor size `sz` (leg height) — capped at the manual R500 detail so a short monitor reads clean.
-  (setq c1 (min 280.0 (* sz 0.37)) c2 (min 250.0 (* sz 0.33)) c3 (min 130.0 (* sz 0.17))
-        dt (min 490.0 (* sz 0.65)) st (min 640.0 (* sz 0.85)))
-  (setvar "CLAYER" "COMP-MONITOR-SEC")
-  (command "_.ARC" (list ex ey) (list (+ ex (* dir c1)) (- ey c2)) (list (+ ex (* dir c3)) (- ey dt)))
+(defun rm-eave-curved (ex ey dir sz rtop rslope / st si R ySof sofL stubLen gx)
+  ;; CURVED EAVE — mirrors manual §10.7 "Roof Monitor with Curved Panel" (deep study 22-Jul).  The ROOF
+  ;; SHEETING (TWO SKINS) rolls from the roof plane in ONE big ~180° R~500 arc bulging OUTBOARD, curling DOWN
+  ;; and UNDER to a HORIZONTAL SOFFIT (the "SHEETING ANGLE") that runs INBOARD.  A SHORT STUB POST sits at the
+  ;; rafter END (connection plate to the rafter bottom flange); a Z-GIRT supports the soffit.  Purlins are on
+  ;; the STRAIGHT rafter only (rm-mon-purlins) — the curve carries only clips (none here).  2 skins = concentric
+  ;; arcs R / R-35 (true 35mm offset).  ex,ey = rafter END; dir = outboard; rtop = rafter depth; rslope = slope.
+  (setq st      (+ ey rtop 125.0)                ; OUTER roof-sheet skin at the eave = TOP of the curve
+        si      (- st 35.0)                      ; INNER skin (35mm inside)
+        R       (min 460.0 (* sz 0.32))          ; curve radius (proportional to R500) — TUNE vs manual overlay
+        ySof    (- st (* 2.0 R))                 ; curve FOOT = horizontal soffit level (180deg -> 2R below top)
+        sofL    (min 700.0 (* sz 0.42))          ; soffit run INBOARD (~ the O.W./2 reach)
+        stubLen (+ rtop 130.0)                   ; SHORT stub post
+        gx      (- ex (* dir (* sofL 0.5))))     ; Z-girt position on the soffit
+  ;; 1) SHORT STUB POST at the rafter end (rafter bottom flange -> a short way down).  FRAME.
+  (rm-member ex ey ex (- ey stubLen) 90.0 (- dir) "FRAME")
+  ;; 2) CONNECTION PLATE: stub post <-> rafter BOTTOM FLANGE (standing CP rule, tilted to the rafter slope).
+  (vl-catch-all-apply (function (lambda () (rm-leg-cap ex ey 130.0 (- dir) rslope))))
+  ;; 3) CURVE PANEL — TWO SKINS: one big ~180deg arc bulging OUTBOARD, roof (top) -> soffit (foot).  CLADDING.
+  (setvar "CLAYER" "CLADDING")
+  (command "_.ARC" (list ex st) (list (+ ex (* dir R)) (- st R)) (list ex ySof))                    ; outer skin
+  (command "_.ARC" (list ex si) (list (+ ex (* dir (- R 35.0))) (- st R)) (list ex (+ ySof 35.0)))  ; inner skin (concentric)
+  ;; 4) BOTTOM SOFFIT — TWO SKINS, horizontal, from the curve foot running INBOARD (the "sheeting angle").  CLADDING.
+  (command "_.LINE" (list ex ySof)          (list (- ex (* dir sofL)) ySof) "")
+  (command "_.LINE" (list ex (+ ySof 35.0)) (list (- ex (* dir sofL)) (+ ySof 35.0)) "")
+  ;; 5) Z-GIRT on the soffit inner face (web UP into the interior, flanges along the soffit) — magenta.
+  (vl-catch-all-apply (function (lambda ()
+    (draw-z-purlin gx (+ ySof 35.0) (- dir) 0.0 0.0 1.0 80.0 40.0 40.0 8.0 12.0))))
+  ;; 6) DRIP TRIM at the curve foot / soffit outboard edge — GUTTER layer.
   (setvar "CLAYER" "GUTTER")
-  (command "_.LINE" (list (+ ex (* dir c3)) (- ey dt)) (list (+ ex (* dir c3)) (- ey dt 80.0)) "")
-  (rm-member ex ey ex (- ey st) 90.0 (- dir) "FRAME"))
+  (command "_.LINE" (list ex ySof) (list (+ ex (* dir 100.0)) (- ySof 55.0)) ""))
 
-(defun rm-eave-zoom (ex ey dir / r cx cy)
-  ;; STANDARD (Eave-Trim) eave: drip trim + an OUTSIDE-FOAM-CLOSURE zoom bubble (manual §10.7 detail).
-  ;; Migrated from the retired standalone so the non-curved eave carries the same universal detail.
-  (setq r 260.0 cx (+ ex (* dir 60.0)) cy (- ey 120.0))
+(defun rm-eave-zoom (ex ey dir)
+  ;; STANDARD (Eave-Trim) eave: DRIP TRIM only.  The OUTSIDE-FOAM-CLOSURE zoom bubble (a circle + solid
+  ;; dot + leader + label) was REMOVED 21-Jul — on the monitor section it floated off the eave as a
+  ;; LOOSE PARTICLE, and it was drawn on the RIGHT eave only (asymmetric).  The eave-trim edge is the
+  ;; real element on the overview section; the foam-closure construction detail belongs on a dedicated
+  ;; zoom-detail sheet, not clutter on the monitor.  Now called on BOTH eaves for symmetry.
   (setvar "CLAYER" "GUTTER")
-  (command "_.PLINE" (list ex ey) (list (+ ex (* dir 120.0)) ey) (list (+ ex (* dir 120.0)) (- ey 80.0)) "")
-  (setvar "CLAYER" "TEXT")
-  (command "_.CIRCLE" (list cx cy) r)
-  (setvar "CLAYER" "GIRTS")
-  (peb-solid-quad (list (- cx 70.0) (- cy 40.0)) (list (+ cx 70.0) (- cy 40.0))
-                  (list (- cx 55.0) (+ cy 40.0)) (list (+ cx 55.0) (+ cy 40.0)))
-  (rm-label cx (+ cy r) (+ cx 500.0) (+ cy r 250.0) "ML" "OUTSIDE FOAM CLOSURE"))
+  (command "_.PLINE" (list ex ey) (list (+ ex (* dir 120.0)) ey) (list (+ ex (* dir 120.0)) (- ey 80.0)) ""))
 
 ;; ---- the drawer -----------------------------------------------------------
+;; rm-type-name — the ROOF MONITOR's single display name (owner 22-Jul: one M-Ladder shows the monitor NAME,
+;; no per-part labels).  The BSF/PEB manual §10.7 defines ONE monitor shape (raised gable/ridge monitor) with
+;; TWO eave variants — "STANDARD ROOF MONITOR" (Eave Trim) and "ROOF MONITOR WITH CURVED PANEL" (Curved Eave
+;; Panel) — which is exactly the BSF `eaveCondition` field.  Name follows that variant (RM_TYPE reserved for a
+;; future explicit type field, if ever added).
+(defun rm-type-name (data / ev ty)
+  (setq ev (strcase (peb-tb-or (MSPL-Get-Str data "RM_EAVE_TYPE") ""))
+        ty (strcase (peb-tb-or (MSPL-Get-Str data "RM_TYPE") "")))
+  (cond ((or (vl-string-search "CURV" ev) (wcmatch ty "*CURV*")) "ROOF MONITOR WITH CURVED PANEL")
+        (T "ROOF MONITOR")))
+
 (defun peb-draw-roof-monitor (data wid H rise ridgeX ht rd cb slopeD /
         prev throat overallW rmh eaveType bird curved
         roofY halfT halfO sL sR legBaseYL legBaseYR legTopYL legTopYR monRidgeY eaveYL eaveYR
-        xLi xRi eaveLx eaveRx mDep pDep pt hg gW rmConstr)
+        xLi xRi eaveLx eaveRx mDep pDep pt hg gW rmConstr monPL monPR)
   (setq prev (getvar "CLAYER"))
   (if (or (null slopeD) (<= slopeD 0.0)) (setq slopeD 10.0))
 
@@ -6696,9 +6815,8 @@
   (if (or (null throat) (<= throat 0.0)) (setq throat (min 3500.0 (* wid 0.20))))
   (setq overallW (MSPL-Get-Num data "RM_OVERALL_WIDTH"))
   (if (or (null overallW) (<= overallW throat)) (setq overallW (+ throat 1800.0)))
-  (setq rmh (MSPL-Get-Num data "RM_HEIGHT"))
-  (if (or (null rmh) (<= rmh 0.0)) (setq rmh (MSPL-Get-Num data "RM_OPEN_WALL_HT")))
-  (if (or (null rmh) (<= rmh 0.0)) (setq rmh (max 1500.0 (* throat 0.9))))
+  ;; owner 21-Jul: monitor HEIGHT = HALF the throat width (governing proportion rule for the monitor).
+  (setq rmh (/ throat 2.0))
   (setq eaveType (strcase (MSPL-Get-Str data "RM_EAVE_TYPE"))
         bird     (strcase (MSPL-Get-Str data "RM_BIRD_MESH"))
         curved   (or (vl-string-search "CURV" eaveType) (vl-string-search "CURVED" eaveType)))
@@ -6739,83 +6857,76 @@
     "C")
   ;; 3) BYPASS Z-PURLINS on the rafter top flange, then SHEETING (2 skins) OVER them — universal
   ;;    rule: purlins + sheeting FOLLOW the rafter slope, drawn with the engine's real Z-purlin.
-  (rm-mon-purlins eaveLx (+ eaveYL mDep) ridgeX (+ monRidgeY mDep) 3 90.0)
-  (rm-mon-purlins eaveRx (+ eaveYR mDep) ridgeX (+ monRidgeY mDep) 3 90.0)
+  (setq monPL (max 2 (fix (+ 1.5 (/ (distance (list eaveLx (+ eaveYL mDep)) (list ridgeX (+ monRidgeY mDep))) 600.0))))
+        monPR (max 2 (fix (+ 1.5 (/ (distance (list eaveRx (+ eaveYR mDep)) (list ridgeX (+ monRidgeY mDep))) 600.0)))))
+  (rm-mon-purlins eaveLx (+ eaveYL mDep) ridgeX (+ monRidgeY mDep) monPL 90.0 nil)   ; left half: eave..ridge (incl the shared ridge)
+  (rm-mon-purlins eaveRx (+ eaveYR mDep) ridgeX (+ monRidgeY mDep) monPR 90.0 T)     ; right half: eave.. (skip the shared ridge)
   (setvar "CLAYER" "CLADDING")     ; universal rule: roof sheeting = CLADDING (same as the main roof)
   (command "_.PLINE" (list eaveLx (+ eaveYL mDep 90.0)) (list ridgeX (+ monRidgeY mDep 90.0)) (list eaveRx (+ eaveYR mDep 90.0)) "")
   (command "_.PLINE" (list eaveLx (+ eaveYL mDep 125.0)) (list ridgeX (+ monRidgeY mDep 125.0)) (list eaveRx (+ eaveYR mDep 125.0)) "")
-  ;; ridge cap over the sheeting apex (CLADDING, matching the roof sheeting)
-  (setvar "CLAYER" "CLADDING")
-  (command "_.PLINE" (list (- ridgeX 200.0) (+ monRidgeY mDep 125.0)) (list (+ ridgeX 200.0) (+ monRidgeY mDep 125.0))
-                     (list (+ ridgeX 150.0) (+ monRidgeY mDep 200.0)) (list (- ridgeX 150.0) (+ monRidgeY mDep 200.0)) "C")
-  ;; 5) BIRD SCREEN — close each outboard throat (leg seat -> eave)
-  (if (/= bird "NO")
-    (progn (setvar "CLAYER" "GIRTS")
-           (rm-mesh xRi legBaseYR eaveRx eaveYR)
-           (rm-mesh xLi legBaseYL eaveLx eaveYL)))
+  ;; ridge cap over the sheeting apex — REMOVED 21-Jul (owner: the small cap on the monitor apex is not wanted).
+  ;; 5) BIRD SCREEN mesh — DROPPED from the section (owner 22-Jul "clean geometry + width only"): the diagonal
+  ;;    mesh hatch was visual noise at section scale.  It belongs on the enlarged monitor DETAIL, not here.
   ;; 6) EAVE — curved variant adds R500 panel + drip trim + stub post; STANDARD variant gets the
   ;;    eave-trim + OUTSIDE-FOAM-CLOSURE zoom bubble (universal §10.7 detail, both eave types now covered).
   (if curved
-    (progn (rm-eave-curved eaveRx eaveYR  1 rmh)
-           (rm-eave-curved eaveLx eaveYL -1 rmh))
-    (vl-catch-all-apply (function (lambda () (rm-eave-zoom eaveRx eaveYR 1)))))
+    (vl-catch-all-apply (function (lambda () (rm-eave-curved eaveRx eaveYR  1 rmh mDep (- sR))
+                                            (rm-eave-curved eaveLx eaveYL -1 rmh mDep sL))))
+    (vl-catch-all-apply (function (lambda () (rm-eave-zoom eaveRx eaveYR 1) (rm-eave-zoom eaveLx eaveYL -1)))))
 
   ;; 7) CONNECTION PLATES — at the LEG TOPS (leg top ↔ rafter bottom flange) and LEG BASES ONLY.
   ;;    Owner ref: NO plate at the monitor peak/middle — the rafter is one single piece.
   (setvar "CLAYER" "PLATES")
   ;; leg-top connections (leg ↔ single rafter) — plate pair + small gussets down the leg
-  (vl-catch-all-apply (function (lambda () (rm-leg-cap (+ xLi (/ pDep 2.0)) legTopYL (+ (/ pDep 2.0) 45.0)))))
-  (vl-catch-all-apply (function (lambda () (rm-leg-cap (- xRi (/ pDep 2.0)) legTopYR (+ (/ pDep 2.0) 45.0)))))
+  ;; owner 21-Jul: plate pair centred EXACTLY ON the leg (leg body extends OUTWARD — left to -x, right
+  ;; to +x — so the cap sits on the leg centre, not offset into the throat).  GP follows the rafter slope.
+  (vl-catch-all-apply (function (lambda () (rm-leg-cap (- xLi (/ pDep 2.0)) legTopYL (+ (/ pDep 2.0) 100.0)  1 sL))))
+  (vl-catch-all-apply (function (lambda () (rm-leg-cap (+ xRi (/ pDep 2.0)) legTopYR (+ (/ pDep 2.0) 100.0) -1 (- sR)))))
   ;; leg BASE plates — short solid seat plate flush on the main-rafter TOP FLANGE (per side)
   (vl-catch-all-apply (function (lambda ()
-    (peb-solid-quad (list (- xLi 55.0) (- legBaseYL 55.0)) (list (+ xLi pDep 55.0) (- legBaseYL 55.0))
-                    (list (- xLi 55.0) legBaseYL)          (list (+ xLi pDep 55.0) legBaseYL)))))
+    (peb-solid-quad (list (- xLi pDep 55.0) (- legBaseYL 55.0)) (list (+ xLi 55.0) (- legBaseYL 55.0))
+                    (list (- xLi pDep 55.0) legBaseYL)          (list (+ xLi 55.0) legBaseYL)))))
   (vl-catch-all-apply (function (lambda ()
-    (peb-solid-quad (list (- xRi pDep 55.0) (- legBaseYR 55.0)) (list (+ xRi 55.0) (- legBaseYR 55.0))
-                    (list (- xRi pDep 55.0) legBaseYR)          (list (+ xRi 55.0) legBaseYR)))))
+    (peb-solid-quad (list (- xRi 55.0) (- legBaseYR 55.0)) (list (+ xRi pDep 55.0) (- legBaseYR 55.0))
+                    (list (- xRi 55.0) legBaseYR)          (list (+ xRi pDep 55.0) legBaseYR)))))
 
   ;; 8) UNIVERSAL RULES — M-LADDER callout (peb-make-mleader: arrow → leg → bar → text) + open-arrow
   ;;    DIMENSIONS (overall width across the eaves, throat at the base).  Same rules as the roof/wall
   ;;    sheeting M-Ladders and the frame dim chain (owner: rules developed today).
+  ;; (standalone "ROOF MONITOR" callout removed 21-Jul — redundant; every member label already reads "ROOF MONITOR …")
+  ;; open-arrow dims (universal): OVERALL WIDTH (top, across the eaves) + THROAT WIDTH (owner 22-Jul: throat is
+  ;; IMPORTANT — kept).  Now that the bird-screen mesh + slope tags are gone there is clean space for the throat
+  ;; dim below the legs; dropped to -1550 (was -1100) so it clears the main-rafter purlin markers.
+  ;; owner 22-Jul: OVERALL WIDTH (above the roof) + THROAT WIDTH (below the legs).  Both kept — throat is
+  ;; important.  Now that the bird-screen mesh + slope tags are gone, the throat dim at -1050 below the leg
+  ;; base reads cleanly (this is the position that rendered well originally).
   (vl-catch-all-apply (function (lambda ()
-    (peb-make-mleader
-      (list (list (list (* 0.5 (+ eaveRx ridgeX)) (+ (* 0.5 (+ eaveYR monRidgeY)) mDep 125.0))   ; v0 arrow tip on the monitor roof
-                  (list (+ ridgeX (* 0.62 halfO)) (+ monRidgeY mDep 780.0))                       ; v1 leg top
-                  (list (+ eaveRx 700.0) (+ monRidgeY mDep 780.0)))                               ; v2 bar end / text landing
-            "ROOF MONITOR")))))
-  ;; open-arrow dims (universal dim style): OVERALL WIDTH (top) + THROAT (base)
+    (rm-dim-h eaveLx (+ monRidgeY mDep 300.0) eaveRx (+ monRidgeY mDep 300.0) (+ monRidgeY mDep 520.0) (peb-dim-mmft overallW)))))
+  ;; owner 22-Jul: throat-width dim just BELOW the main rafter in the clear interior (the throat opening itself
+  ;; is covered by the rafter peak + purlins, which hid the dim there).  Witness lines rise from the leg seats;
+  ;; kept as short as the rafter allows so it reads directly under the throat.
   (vl-catch-all-apply (function (lambda ()
-    (rm-dim-h eaveLx (+ monRidgeY mDep 300.0) eaveRx (+ monRidgeY mDep 300.0) (+ monRidgeY mDep 520.0) (rtos overallW 2 0)))))
-  (vl-catch-all-apply (function (lambda ()
-    (rm-dim-h xLi legBaseYL xRi legBaseYR (- (min legBaseYL legBaseYR) 480.0) (rtos throat 2 0)))))
+    (rm-dim-h xLi legBaseYL xRi legBaseYR (- H 300.0) (peb-dim-mmft throat)))))
 
   ;; 9) UNIVERSAL RULE — MEMBER NOMENCLATURE LABELS (every member labelled, manual §10.7), monitor
   ;;    SLOPE tag, and monitor HEIGHT dim.  Migrated from the retired standalone, adapted to the section
   ;;    coord frame.  (Text landings are first-cut — nudge on render if any overlap the frame chain.)
-  (vl-catch-all-apply (function (lambda ()
-    (rm-label (* 0.5 (+ eaveRx ridgeX)) (+ (* 0.5 (+ eaveYR monRidgeY)) mDep)
-              (+ eaveRx 950.0) (+ monRidgeY mDep 620.0) "ML" "ROOF MONITOR RAFTER")
-    (rm-label xRi (* 0.5 (+ legBaseYR legTopYR))
-              (+ eaveRx 950.0) (* 0.5 (+ legBaseYR legTopYR)) "ML" "ROOF MONITOR POST")
-    (rm-label (+ eaveRx 40.0) (+ eaveYR mDep 30.0)
-              (+ eaveRx 950.0) (+ eaveYR mDep 300.0) "ML" "ROOF MONITOR PURLIN")
-    (rm-label (- ridgeX 180.0) (+ monRidgeY mDep 160.0)
-              (- ridgeX 2600.0) (+ monRidgeY mDep 160.0) "MR" "ROOF MONITOR RIDGE PANEL"))))
-  (if (/= bird "NO")
+  ;; M-LADDERS at STAGGERED LEVELS so the labels never collide (owner 21-Jul, per marked reference).
+  ;; Each leader tips on its member, rises straight up to ITS OWN level, then a horizontal bar to a side
+  ;; landing; RIGHT-side ladders (purlin/rafter/bird-screen) and LEFT-side ladders (post/ridge-panel) sit
+  ;; at different heights on each side so no two risers/bars/labels overlap.
+  ;; SINGLE M-LADDER (owner 22-Jul): ONE callout showing the ROOF MONITOR NAME (its BSF type).  ALL per-part
+  ;; member labels removed (RAFTER / PURLIN / RIDGE PANEL / POST / BIRD SCREEN / CURVED PANEL / DRIP TRIM).
+  ;; Tip on the rafter apex, riser up to a clear level, bar out to a right landing.  Off on the clean detail.
+  (if (not *RM-CLEAN*)
     (vl-catch-all-apply (function (lambda ()
-      (rm-label (* 0.5 (+ xRi eaveRx)) (* 0.5 (+ legBaseYR eaveYR))
-                (+ eaveRx 950.0) (- (* 0.5 (+ legBaseYR eaveYR)) 350.0) "ML" "BIRD SCREEN")))))
-  (if curved
-    (vl-catch-all-apply (function (lambda ()
-      (rm-label (+ eaveRx 180.0) (- eaveYR 240.0) (+ eaveRx 1000.0) (- eaveYR 120.0) "ML" "CURVED PANEL")
-      (rm-label (+ eaveRx 120.0) (- eaveYR 560.0) (+ eaveRx 1000.0) (- eaveYR 560.0) "ML" "DRIP TRIM")))))
-  ;; monitor roof SLOPE tag on the right monitor rafter (universal rule: monitor slope = frame slope)
-  (vl-catch-all-apply (function (lambda ()
-    (draw-slope-tag (* 0.5 (+ eaveRx ridgeX)) (+ (* 0.5 (+ eaveYR monRidgeY)) mDep 150.0) slopeD -1))))
-  ;; monitor HEIGHT dim (leg base -> leg top), left side
-  (vl-catch-all-apply (function (lambda ()
-    (rm-dim-v legBaseYL xLi legTopYL xLi (- eaveLx 520.0) (rtos rmh 2 0)))))
-
+      (rm-mladder ridgeX (+ monRidgeY mDep) (+ monRidgeY mDep 950.0) (+ eaveRx 900.0) (rm-type-name data))))))
+  ;; monitor roof SLOPE tags REMOVED from the section (owner 22-Jul "clean the monitor"): at section scale the
+  ;; per-side 1/sL, 1/sR tags collided with the overall-width dim and the peak, and only duplicated the main
+  ;; rafter slope already shown on the frame.  The monitor's own per-side pitch belongs on the enlarged
+  ;; monitor DETAIL, not on the small section.
+  ;; monitor HEIGHT (throat) dim DROPPED from the section (owner 22-Jul "clean geometry + width only") — it was
+  ;; cramped on the left of the short legs.  Overall-width dim + ROOF MONITOR label are the section's monitor set.
   (setvar "CLAYER" prev)
   (princ))
 
@@ -7378,6 +7489,16 @@
   (setq ep      20.0)                                         ; end plate thickness (typical 20-24mm)
   (setq purlinD 200.0)                                        ; Z-purlin standard
 
+  ;; ── BSF-DRIVEN FIDELITY (owner 21-Jul) — all CONDITIONAL: blank/default reproduces today's drawing ──
+  ;; BP_COL_WEB_STYLE "Straight" ⇒ constant-depth end columns: set the base web = haunch web so the inner
+  ;; face is vertical (build-frame-polygon slopes cb→ht; cb=ht ⇒ no taper). Blank/"Tapered Web" ⇒ unchanged.
+  (if (= (strcase (peb-tb-or (MSPL-Get-Str data "BP_COL_WEB_STYLE") "")) "STRAIGHT") (setq cb ht))
+  ;; BP_EXT/INT_BASE_COND "Fixed" ⇒ 4-bolt moment base plate; "Pinned" (default) ⇒ 2 bolts. Read by
+  ;; draw-base-plate-at via *BASE-BOLTS*, set per-column-group by draw-base-plates / -multi below.
+  (setq *BASE-BOLTS-EXT* (if (= (strcase (peb-tb-or (MSPL-Get-Str data "BP_EXT_BASE_COND") "")) "FIXED") 4 2))
+  (setq *BASE-BOLTS-INT* (if (= (strcase (peb-tb-or (MSPL-Get-Str data "BP_INT_BASE_COND") "")) "FIXED") 4 2))
+  (setq *BASE-BOLTS* *BASE-BOLTS-EXT*)
+
   ;; Eave height = top of rafter at the haunch.
   ;; Rafter UNDERSIDE at the haunch sits exactly at clearHt (user input).
   ;; Purlins and sheeting sit ABOVE H (H + purlinD, H + purlinD + cladThk).
@@ -7546,7 +7667,8 @@
       ;; when CC_FALCON_PEAK=Yes (owner 8-Jul).
       (if (= (strcase (peb-tb-or (MSPL-Get-Str data "CC_FALCON_PEAK") "")) "YES")
         (draw-falcon2-frame wid H rise ht cb 400.0)
-        (draw-bf-frame wid H rise ht cb 400.0 (peb-bf-valley-x data wid))))
+        (draw-bf-frame wid H rise ht cb 400.0 (peb-bf-valley-x data wid)
+                       (MSPL-Get-Num data "BP_VALLEY_HEIGHT"))))
     ((= stype "ACS")
       ;; Arched Clear Span — single curved roof arc, 2 R.F. columns
       (draw-acs-frame wid H rise ht cb))
@@ -8376,7 +8498,7 @@
           (command "LINE" (list (+ wid 235.0) brickH) (list (+ wid 235.0) H) "")))
       ;; WALL SHEETING callout — 4-leg raised M-Ladder, SAME as the other sections.
       (setvar "CLAYER" "TEXT")
-      (setq frWc (strcat "{\\C7;\\H0.42x;{\\fArial|b1;WALL SHEETING:}\\P"
+      (setq frWc (strcat "{\\C7;\\H0.42x;{\\Fromand.shx;WALL SHEETING:}\\P"
                          (peb-split-2-lines (peb-panel-label data "WALL")) "}"))
       ;; Raise is MODEST here (H+1500·TS, not Clear Span's H+3800·TS): the flat roof has NO eave gutter and
       ;; only a 1-line wall spec below the label, so it sits just above the eave and leaves the upper-left
@@ -8452,7 +8574,7 @@
                              (list (+ ht 50.0) (- f2rbot 900.0)) "H" 220)
       ;; WALL SHEETING callout — 4-leg raised M-Ladder, SAME construction as Clear Span (anchored at the roof eave)
       (setvar "CLAYER" "TEXT")
-      (setq frWc (strcat "{\\C7;\\H0.42x;{\\fArial|b1;WALL SHEETING:}\\P"
+      (setq frWc (strcat "{\\C7;\\H0.42x;{\\Fromand.shx;WALL SHEETING:}\\P"
                          (peb-split-2-lines (peb-panel-label data "WALL")) "}"))
       ;; Minimal raise (f2rbot+300·TS) so the label sits just above the roof eave, BELOW the detail band.
       (setq frWtY (- f2rbot 300.0)
@@ -8748,9 +8870,11 @@
   ;; matter — this keeps the raised sheeting M-Ladders + a long sandwich spec clear of the title.
   ;; Heading base Y: F2 (G+1) LIFTS the whole heading so it sits 10 rows above the two details
   ;; (*PEB-F2-HEAD-SUB*, computed in the F2 branch); all other frames keep H+rise+5100·TS.
+  ;; owner 23-Jul: lift the title block a further ~3 rows so the SPAN|C.H|RIDGE|SLOPE info bar clears the
+  ;; ROOF/WALL SHEETING M-Ladder headings below it (they were overlapping). 5100 -> 6200 (+1100·TS).
   (setq hdBase (if (and (= stype "F2") *PEB-F2-HEAD-SUB*)
                  *PEB-F2-HEAD-SUB*
-                 (+ H rise (* 5100 *PEB-TEXT-SCALE*))))
+                 (+ H rise (* 6200 *PEB-TEXT-SCALE*))))
   ;; Top line: frame type (e.g. CLEAR SPAN GABLE / MULTI-GABLE / SINGLE SLOPE)
   (txt-bold "MC"
             (list (/ wid 2.0) (+ hdBase (* 1900 *PEB-TEXT-SCALE*)))
