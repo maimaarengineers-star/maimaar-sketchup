@@ -4583,19 +4583,26 @@
       (setvar "CECOLOR" "5")   ; owner 7-Jul (Mammut mirror): the main title is BLUE
       (txt-bold "MC" (list (/ len 2.0) yTtl) 870 0 "COLUMN LAY-OUT PLAN")
       (setvar "CECOLOR" "BYLAYER")
-      (txt "MC" (list (/ len 2.0) ySub) 560 0
-        (strcat (rtos (/ len 1000.0) 2 0) "×"
-                (rtos (/ wid 1000.0) 2 0) " m"
-                "  |  " (peb-comma (rtos areaM2 2 0)) " m\U+00B2"   ; owner 5-Jul: comma-grouped (6,967)
-                "  |  " (itoa bays) " BAYS"
-                "  |  SLOPE " roofSlope
-                (if (and clearH (> clearH 0))
-                  (strcat "  |  C.H = " (peb-comma (rtos clearH 2 0)))   ; owner 5-Jul: comma-grouped (10,670)
-                  "")
-                "  |  " (peb-structure-label stype)
-                (if (= stype "MG")
-                  (strcat "  |  " (itoa mgGables) " GABLES — " mgSpanDesc)
-                  "")))
+      ;; Subtitle drawn directly (not via txt) so the multiplication stays a SMALL "x": uppercase the whole
+      ;; line per the owner rule, then restore the spaced "×" to a lowercase x. romand.shx has no × or ²
+      ;; glyph (they render "?"), so we use "x" and "m2". (owner 23-Jul)
+      (progn
+        (setvar "TEXTSTYLE" "PEB-BODY")
+        (command "TEXT" "J" "MC" (list (/ len 2.0) ySub) (* 560 (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0
+          (vl-string-subst " x " " X "
+            (strcase
+              (strcat (rtos (/ len 1000.0) 2 0) " x "
+                      (rtos (/ wid 1000.0) 2 0) " m"
+                      "  |  " (peb-comma (rtos areaM2 2 0)) " m2"
+                      "  |  " (itoa bays) " BAYS"
+                      "  |  SLOPE " roofSlope
+                      (if (and clearH (> clearH 0))
+                        (strcat "  |  C.H = " (peb-comma (rtos clearH 2 0)))   ; owner 5-Jul: comma-grouped (10,670)
+                        "")
+                      "  |  " (peb-structure-label stype)
+                      (if (= stype "MG")
+                        (strcat "  |  " (itoa mgGables) " GABLES — " mgSpanDesc)
+                        ""))))))
       (draw-north-arrow (+ len (* 3000 *PEB-DIM-SCALE*)) (+ wid (* 4200 *PEB-DIM-SCALE*)))))
 
   ;; CLEAR HEIGHT moved to the subtitle banner above (Phase-2A v7).
