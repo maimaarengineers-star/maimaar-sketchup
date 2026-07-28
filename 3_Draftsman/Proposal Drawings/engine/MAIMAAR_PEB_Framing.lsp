@@ -455,6 +455,26 @@
           (setq p0 (last pts) p1 (nth (- (length pts) 2) pts))       ; right knee
           (command "_.LINE" (list (car p0) (cadr p0))
                             (list (+ (car p0) (* (- (car p1) (car p0)) 0.14)) (- (cadr p0) 1000.0)) "")))
+      ;; HAUNCH at each knee — a tapered soffit from the corner-column inner face up to the rafter underside
+      ;; ~2.6 m inboard, deepening the rafter-column junction (ref: the tapered knee). Segments taken
+      ;; left->right (as pts is sorted) so the perpendicular underside offset always drops BELOW the rafter.
+      (setvar "CLAYER" "STRUCTURE")
+      (if (>= (length pts) 3)
+        (progn
+          (setq p0 (nth 0 pts) p1 (nth 1 pts)
+                sdx (- (car p1) (car p0)) sdy (- (cadr p1) (cadr p0)) slen (sqrt (+ (* sdx sdx) (* sdy sdy))))
+          (if (> slen 2600.0)
+            (progn
+              (setq tt (/ 2600.0 slen) px (+ (car p0) (* tt sdx)) py (+ (cadr p0) (* tt sdy)))
+              (command "_.LINE" (list (+ (car p0) colhw) (- (cadr p0) (* 780.0 *PEB-TEXT-SCALE*)))
+                                (list (+ px (* (/ sdy slen) rdep)) (- py (* (/ sdx slen) rdep))) "")))
+          (setq p1 (nth (1- (length pts)) pts) p0 (nth (- (length pts) 2) pts)
+                sdx (- (car p1) (car p0)) sdy (- (cadr p1) (cadr p0)) slen (sqrt (+ (* sdx sdx) (* sdy sdy))))
+          (if (> slen 2600.0)
+            (progn
+              (setq tt (/ (- slen 2600.0) slen) px (+ (car p0) (* tt sdx)) py (+ (cadr p0) (* tt sdy)))
+              (command "_.LINE" (list (- (car p1) colhw) (- (cadr p1) (* 780.0 *PEB-TEXT-SCALE*)))
+                                (list (+ px (* (/ sdy slen) rdep)) (- py (* (/ sdx slen) rdep))) "")))))
       ;; ridge tick (gable) at the peak
       (if (= rtype "G")
         (progn (setvar "CLAYER" "RIDGE")
