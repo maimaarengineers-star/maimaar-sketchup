@@ -775,6 +775,10 @@
   ;; HANGING COLUMN (owner 28-Jul): a hanging endwall column has NO foundation, so it carries NO base plate /
   ;; anchor bolts in the Column Layout & Anchor Bolt Plan. *PEB-COL-NO-BOLT* (set by the endwall-post loop for
   ;; a "Main Frame with Hanging Columns" endwall) suppresses the bolts; the column outline still shows.
+  ;; A circular BUBBLE around the I-section flags it as a hanging column ("show the I symbol with a circular
+  ;; bubble"). Radius ~0.72·D bubbles the section with margin. Only drawn for the hanging (no-bolt) columns.
+  (if *PEB-COL-NO-BOLT*
+    (progn (setvar "CLAYER" "COLUMNS") (command "_.CIRCLE" (list x y) (* D 0.72))))
   (if (not *PEB-COL-NO-BOLT*)
     (progn
       (setvar "CLAYER" "BOLTS")      ; 4 bolts = circle + cross
@@ -4462,14 +4466,14 @@
   (setq rewFrameRaw (strcase (MSPL-Get-Str data "EW_RIGHT_FRAME")))
   ;; Normalise — accept "MAIN FRAME" or "RIGID" as MAIN; everything
   ;; else (incl. blank, "BEARING", "BEARING FRAME") = BEARING FRAME.
-  ;; "Main Frame with Hanging Columns" is labelled MLADDER (owner 28-Jul) so the plan names the hanging-
-  ;; column endwall distinctly; "Main Frame"/"Rigid" stay MAIN FRAME; everything else BEARING FRAME.
+  ;; "Main Frame with Hanging Columns" is labelled with the WORD "MLADDER" (owner 28-Jul) so the plan names
+  ;; the hanging-column endwall distinctly; "Main Frame"/"Rigid" stay MAIN FRAME; everything else BEARING FRAME.
   (setq lewFrameLabel
-    (cond ((wcmatch lewFrameRaw "*HANGING*") "MLADDER (MAIN FRAME - HANGING COLUMNS)")
+    (cond ((wcmatch lewFrameRaw "*HANGING*") "MLADDER")
           ((or (= lewFrameRaw "MAIN FRAME") (= lewFrameRaw "RIGID")) "MAIN FRAME")
           (T "BEARING FRAME")))
   (setq rewFrameLabel
-    (cond ((wcmatch rewFrameRaw "*HANGING*") "MLADDER (MAIN FRAME - HANGING COLUMNS)")
+    (cond ((wcmatch rewFrameRaw "*HANGING*") "MLADDER")
           ((or (= rewFrameRaw "MAIN FRAME") (= rewFrameRaw "RIGID")) "MAIN FRAME")
           (T "BEARING FRAME")))
   ;; Clear BEARING/MAIN FRAME word on BOTH end walls (owner requirement) — placed
