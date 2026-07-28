@@ -806,8 +806,10 @@
   (setvar "CLAYER" prev)
   (princ))
 
-;; Stack the four framing elevations one above another (NSW, FSW, LEW, REW).
-(defun peb-draw-all-framing (data / wid slopeD eaveH ts step)
+;; Draw a SET of elevations (framing or sheeting) for the given walls, stacked, with a title block.
+;; kind = "F" (framing) | "S" (sheeting). Shared by the all / side / end variants — the pipeline splits
+;; side vs end onto their OWN sheets for BIG buildings so each elevation prints large + legible (owner 28-Jul).
+(defun peb-draw-elev-set (data walls kind title / wid slopeD eaveH ts step i surf)
   (setq wid    (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
         slopeD (slope-denom (peb-tb-or (MSPL-Get-Str data "SLOPE") "10"))
         eaveH  (atof (peb-tb-or (MSPL-Get-Str data "CLEARHEIGHT")
@@ -816,97 +818,58 @@
   (if (<= slopeD 0.0) (setq slopeD 10.0))
   (if (<= eaveH 0.0)  (setq eaveH 6000.0))
   (setq ts   (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)
-        step (+ eaveH (/ wid slopeD) (* 9000 ts)))     ; tall enough for full mono rise + titles/dims
-  ;; FRAMING ELEVATIONS ONLY — the SHEETING elevations are their OWN sheet (peb-draw-all-sheeting), owner 28-Jul.
-  (peb-draw-framing-elev "NSW" 0.0 0.0          data)
-  (peb-draw-framing-elev "FSW" 0.0 step         data)
-  (peb-draw-framing-elev "LEW" 0.0 (* 2.0 step) data)
-  (peb-draw-framing-elev "REW" 0.0 (* 3.0 step) data)
-  (vl-catch-all-apply (function (lambda () (peb-frame-and-titleblock data "FRAMING ELEVATIONS"))))
+        step (+ eaveH (/ wid slopeD) (* 9000 ts)) i 0)   ; tall enough for full mono rise + titles/dims
+  (foreach surf walls
+    (if (= kind "F") (peb-draw-framing-elev  surf 0.0 (* i step) data)
+                     (peb-draw-sheeting-elev surf 0.0 (* i step) data))
+    (setq i (1+ i)))
+  (vl-catch-all-apply (function (lambda () (peb-frame-and-titleblock data title))))
   (princ))
 
-;; SHEETING ELEVATIONS sheet — the four clad-face elevations stacked (own sheet, own title block).
-(defun peb-draw-all-sheeting (data / wid slopeD eaveH ts step)
-  (setq wid    (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
-        slopeD (slope-denom (peb-tb-or (MSPL-Get-Str data "SLOPE") "10"))
-        eaveH  (atof (peb-tb-or (MSPL-Get-Str data "CLEARHEIGHT")
-                       (peb-tb-or (MSPL-Get-Str data "EAVE_HEIGHT")
-                         (peb-tb-or (MSPL-Get-Str data "BP_EAVE_HEIGHT") "6000")))))
-  (if (<= slopeD 0.0) (setq slopeD 10.0))
-  (if (<= eaveH 0.0)  (setq eaveH 6000.0))
-  (setq ts   (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)
-        step (+ eaveH (/ wid slopeD) (* 9000 ts)))
-  (peb-draw-sheeting-elev "NSW" 0.0 0.0          data)
-  (peb-draw-sheeting-elev "FSW" 0.0 step         data)
-  (peb-draw-sheeting-elev "LEW" 0.0 (* 2.0 step) data)
-  (peb-draw-sheeting-elev "REW" 0.0 (* 3.0 step) data)
-  (vl-catch-all-apply (function (lambda () (peb-frame-and-titleblock data "SHEETING ELEVATIONS"))))
-  (princ))
+(defun peb-draw-all-framing   (data) (peb-draw-elev-set data '("NSW" "FSW" "LEW" "REW") "F" "FRAMING ELEVATIONS"))
+(defun peb-draw-side-framing  (data) (peb-draw-elev-set data '("NSW" "FSW")             "F" "SIDE WALL FRAMING ELEVATIONS"))
+(defun peb-draw-end-framing   (data) (peb-draw-elev-set data '("LEW" "REW")             "F" "END WALL FRAMING ELEVATIONS"))
+(defun peb-draw-all-sheeting  (data) (peb-draw-elev-set data '("NSW" "FSW" "LEW" "REW") "S" "SHEETING ELEVATIONS"))
+(defun peb-draw-side-sheeting (data) (peb-draw-elev-set data '("NSW" "FSW")             "S" "SIDE WALL SHEETING ELEVATIONS"))
+(defun peb-draw-end-sheeting  (data) (peb-draw-elev-set data '("LEW" "REW")             "S" "END WALL SHEETING ELEVATIONS"))
 
-(defun C:PEB-FRAMING ( / data ms)
-  (vl-load-com) (setvar "CMDECHO" 0) (setvar "OSMODE" 0)
-  (if (boundp 'peb-std-setup) (vl-catch-all-apply (function (lambda () (peb-std-setup)))))
-  (if (and (boundp '*PEB-DATA-FILE*) *PEB-DATA-FILE*)
-    (progn
-      (setq data (MSPL-Read-Data *PEB-DATA-FILE*))
-      (if data
-        (progn
-          (setq ms (max (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
-                        (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))))
-          ;; same continuous scale rule as the Plan (0.80 floor, 4.00 cap)
-          (setq *PEB-TEXT-SCALE* (max 0.80 (min 4.00 (/ ms 45000.0))))
-          (setq *PEB-DIM-SCALE* *PEB-TEXT-SCALE*)
-          (peb-draw-all-framing data)))))
-  (princ))
-
-;; tiled like peb-plan-from-file so it sits beside the other sheets.
-(defun peb-framing-from-file (path / prev-last prev-max-x)
+;; Generic elevation-sheet loader: scale from building size, draw via drawFn(data), tile beside other sheets.
+(defun peb-elev-from-file (path drawFn / prev-last prev-max-x data ms)
   (if (not *PEB-TEXT-SCALE*) (setq *PEB-TEXT-SCALE* 1.0))
   (if (not *PEB-DIM-SCALE*)  (setq *PEB-DIM-SCALE* 1.0))
+  (vl-load-com) (setvar "CMDECHO" 0) (setvar "OSMODE" 0)
+  (if (boundp 'peb-std-setup) (vl-catch-all-apply (function (lambda () (peb-std-setup)))))
   (setq prev-last (entlast))
   (if prev-last
     (progn (command "_.REGEN") (setq prev-max-x (car (getvar "EXTMAX")))
            (if (or (null prev-max-x) (< prev-max-x -1e10)) (setq prev-max-x nil)))
     (setq prev-max-x nil))
-  (setq *PEB-DATA-FILE* path)
-  (princ (strcat "\nPEB-FRAMING using data file: " path))
-  (C:PEB-FRAMING)
-  (setq *PEB-DATA-FILE* nil)
-  (if (boundp 'peb-tile-place)
-    (vl-catch-all-apply (function (lambda () (peb-tile-place prev-last prev-max-x)))))
-  (princ))
-
-;; SHEETING ELEVATIONS — its OWN sheet (own title block), mirroring the framing entry points (owner 28-Jul).
-(defun C:PEB-SHEETING ( / data ms)
-  (vl-load-com) (setvar "CMDECHO" 0) (setvar "OSMODE" 0)
-  (if (boundp 'peb-std-setup) (vl-catch-all-apply (function (lambda () (peb-std-setup)))))
-  (if (and (boundp '*PEB-DATA-FILE*) *PEB-DATA-FILE*)
+  (setq *PEB-DATA-FILE* path
+        data (MSPL-Read-Data path))
+  (if data
     (progn
-      (setq data (MSPL-Read-Data *PEB-DATA-FILE*))
-      (if data
-        (progn
-          (setq ms (max (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
-                        (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))))
-          (setq *PEB-TEXT-SCALE* (max 0.80 (min 4.00 (/ ms 45000.0))))
-          (setq *PEB-DIM-SCALE* *PEB-TEXT-SCALE*)
-          (peb-draw-all-sheeting data)))))
-  (princ))
-
-(defun peb-sheeting-from-file (path / prev-last prev-max-x)
-  (if (not *PEB-TEXT-SCALE*) (setq *PEB-TEXT-SCALE* 1.0))
-  (if (not *PEB-DIM-SCALE*)  (setq *PEB-DIM-SCALE* 1.0))
-  (setq prev-last (entlast))
-  (if prev-last
-    (progn (command "_.REGEN") (setq prev-max-x (car (getvar "EXTMAX")))
-           (if (or (null prev-max-x) (< prev-max-x -1e10)) (setq prev-max-x nil)))
-    (setq prev-max-x nil))
-  (setq *PEB-DATA-FILE* path)
-  (princ (strcat "\nPEB-SHEETING using data file: " path))
-  (C:PEB-SHEETING)
+      (setq ms (max (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
+                    (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))))
+      ;; same continuous scale rule as the Plan (0.80 floor, 4.00 cap)
+      (setq *PEB-TEXT-SCALE* (max 0.80 (min 4.00 (/ ms 45000.0))) *PEB-DIM-SCALE* *PEB-TEXT-SCALE*)
+      (apply drawFn (list data))))
   (setq *PEB-DATA-FILE* nil)
   (if (boundp 'peb-tile-place)
     (vl-catch-all-apply (function (lambda () (peb-tile-place prev-last prev-max-x)))))
   (princ))
+
+;; FROM-FILE entry points — one per (type, wall-set). The render pipeline picks all-4 (small buildings) or
+;; the side/end split (big buildings) so each printed elevation stays large + legible.
+(defun peb-framing-from-file        (path) (peb-elev-from-file path 'peb-draw-all-framing))
+(defun peb-framing-sides-from-file  (path) (peb-elev-from-file path 'peb-draw-side-framing))
+(defun peb-framing-ends-from-file   (path) (peb-elev-from-file path 'peb-draw-end-framing))
+(defun peb-sheeting-from-file       (path) (peb-elev-from-file path 'peb-draw-all-sheeting))
+(defun peb-sheeting-sides-from-file (path) (peb-elev-from-file path 'peb-draw-side-sheeting))
+(defun peb-sheeting-ends-from-file  (path) (peb-elev-from-file path 'peb-draw-end-sheeting))
+
+;; interactive commands (read *PEB-DATA-FILE*)
+(defun C:PEB-FRAMING ( / )  (if (and (boundp '*PEB-DATA-FILE*) *PEB-DATA-FILE*) (peb-framing-from-file  *PEB-DATA-FILE*)) (princ))
+(defun C:PEB-SHEETING ( / ) (if (and (boundp '*PEB-DATA-FILE*) *PEB-DATA-FILE*) (peb-sheeting-from-file *PEB-DATA-FILE*)) (princ))
 
 ;; Backward-compatible aliases (older orchestrators called the wall-framing names).
 (defun C:PEB-WALL-FRAMING ( / ) (C:PEB-FRAMING))
