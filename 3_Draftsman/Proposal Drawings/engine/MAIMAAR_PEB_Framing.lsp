@@ -432,6 +432,7 @@
       ;; PURLINS (owner 28-Jul, ref: END WALL FRAMING shows the Z-purlins as short ticks sitting ON the
       ;; rafter). Walk each rafter segment at ~1.5 m and drop a short perpendicular stub on the OUTBOARD side.
       (setvar "CLAYER" "PURLINS")
+      (vl-catch-all-apply (function (lambda () (setvar "CECOLOR" "RGB:135,135,135"))))  ; purlins/sag rods GREY (DWG)
       ;; visible purlin depth in the FRAMING view = the 60 mm lip (owner 28-Jul: Z200 web is edge-on; the
       ;; lip/flange is what shows). Real 60 mm (NOT text-scaled) so it stays true across building sizes.
       (setq pdep 60.0 i 0)
@@ -468,6 +469,7 @@
                                 (list (+ (car p0) (* tt sdx)) (+ (cadr p0) (* tt sdy))) "")
               (setq jj (1+ jj)))))
         (setq i (1+ i)))
+      (setvar "CECOLOR" "BYLAYER")
       ;; FLANGE BRACES — a short dashed diagonal at each KNEE (rafter end at a corner column). Proposal Drawing:
       ;; brace LINES shown, no "FB" mark.
       (setvar "CLAYER" "CROSS")
@@ -536,15 +538,20 @@
       (if (not (and ewHang (> hangHt 0.0)))
         (progn (setvar "CLAYER" "GIRTS")
           (command "_.LINE" (list ox (+ base gbase)) (list (+ ox faceLen) (+ base gbase)) "")))
-      ;; MASONRY / CONCRETE hatch by the wall condition (owner 28-Jul: real brick pattern + RCC where needed):
-      ;;   Brickwork / Blockwall -> AR-B816 (running-bond brick, predefined pattern via -HATCH);
-      ;;   Pre-Cast Panels / RCC / Concrete -> 45-deg CROSS-hatch drawn MANUALLY (the concrete-in-section look;
-      ;;     AR-CONC is unreliable headless: it aborts "hatch too dense"). Access / Glazing / Open -> no fill.
+      ;; MASONRY / CONCRETE hatch by the wall condition (owner 28-Jul: real brick pattern + RCC concrete, on
+      ;; their SEMANTIC colour layers so the DWG is colour-coded and the mono plot keeps the tuned weights):
+      ;;   Brickwork / Blockwall  -> AR-B816 running-bond BRICK on layer BRICK-WALL (brown);
+      ;;   Pre-Cast / RCC / Concrete -> AR-CONC aggregate on layer HATCHR (orange concrete poche), MaxHatch
+      ;;     raised so it doesn't abort; entity-check fallback to a manual 45-deg cross-hatch if it makes nothing.
+      ;;   Access / Glazing / Open -> no fill.
       (setq owU (strcase owText)
             isRcc (wcmatch owU "*PRE-CAST*,*PRECAST*,*RCC*,*CONCRETE*,*R.C.C*"))
       (if (and (> gbase 500.0) (not (wcmatch owU "*ACCESS*")) (not (wcmatch owU "*GLAZ*")))
         (progn
-          (setvar "CLAYER" "GIRTS")
+          (setvar "CLAYER" (if isRcc "HATCHR" "BRICK-WALL"))
+          ;; material-resembling COLOUR for the DWG view (mono plots black either way): light brick / concrete grey
+          (vl-catch-all-apply (function (lambda ()
+            (setvar "CECOLOR" (if isRcc "RGB:150,150,150" "RGB:200,132,96")))))
           (command "_.RECTANG" (list (+ ox colhw 40.0) (+ base 40.0))
                                (list (- (+ ox faceLen) colhw 40.0) (+ base gbase -40.0)))
           (setq hEnt (entlast))
@@ -569,7 +576,8 @@
                 (setq bx0 (if (<= bc faceLen) bc faceLen) by0 (if (<= bc faceLen) 0.0 (- bc faceLen))
                       bx1 (if (>= (- bc gbase) 0.0) (- bc gbase) 0.0) by1 (if (>= (- bc gbase) 0.0) gbase bc))
                 (command "_.LINE" (list (+ ox bx0) (+ base by0)) (list (+ ox bx1) (+ base by1)) "")
-                (setq bc (+ bc 750.0)))))))
+                (setq bc (+ bc 750.0)))))
+          (setvar "CECOLOR" "BYLAYER")))
       (setvar "CLAYER" "TEXT")
       (txt "MC" (list (+ ox (/ faceLen 2.0)) (+ base (* gbase 0.42))) (* 300 *PEB-TEXT-SCALE*) 0
            (strcat (cond ((wcmatch owU "*ACCESS*")               "OPEN FOR ACCESS (BY OTHERS)")
