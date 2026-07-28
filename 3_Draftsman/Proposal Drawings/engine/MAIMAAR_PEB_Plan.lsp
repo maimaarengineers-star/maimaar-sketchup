@@ -4466,14 +4466,14 @@
   (setq rewFrameRaw (strcase (MSPL-Get-Str data "EW_RIGHT_FRAME")))
   ;; Normalise — accept "MAIN FRAME" or "RIGID" as MAIN; everything
   ;; else (incl. blank, "BEARING", "BEARING FRAME") = BEARING FRAME.
-  ;; "Main Frame with Hanging Columns" is labelled with the WORD "MLADDER" (owner 28-Jul) so the plan names
-  ;; the hanging-column endwall distinctly; "Main Frame"/"Rigid" stay MAIN FRAME; everything else BEARING FRAME.
+  ;; "Main Frame with Hanging Columns" is labelled "MAIN FRAME - HANGING COLUMNS" (owner 28-Jul: NO "MLADDER"
+  ;; word — show the plain HANGING COLUMNS text). "Main Frame"/"Rigid" stay MAIN FRAME; else BEARING FRAME.
   (setq lewFrameLabel
-    (cond ((wcmatch lewFrameRaw "*HANGING*") "MLADDER")
+    (cond ((wcmatch lewFrameRaw "*HANGING*") "MAIN FRAME - HANGING COLUMNS")
           ((or (= lewFrameRaw "MAIN FRAME") (= lewFrameRaw "RIGID")) "MAIN FRAME")
           (T "BEARING FRAME")))
   (setq rewFrameLabel
-    (cond ((wcmatch rewFrameRaw "*HANGING*") "MLADDER")
+    (cond ((wcmatch rewFrameRaw "*HANGING*") "MAIN FRAME - HANGING COLUMNS")
           ((or (= rewFrameRaw "MAIN FRAME") (= rewFrameRaw "RIGID")) "MAIN FRAME")
           (T "BEARING FRAME")))
   ;; Clear BEARING/MAIN FRAME word on BOTH end walls (owner requirement) — placed
