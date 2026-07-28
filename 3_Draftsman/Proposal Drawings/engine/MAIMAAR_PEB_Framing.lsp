@@ -281,7 +281,8 @@
                               faceLen stations isEnd base colhw rise ridgeRise
                               i x g yTop pts cx prev braced b x0 x1 y0 y1 lbl bubGap
                               gsp gy cnt pre psurf pat pw mark expr ov noteY
-                              ewHang hangHt cnt2 gbase)
+                              ewHang hangHt cnt2 gbase
+                              p0 p1 sdx sdy slen ux uy nx ny pdep npl jj tt px py)
   (setq len    (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
         wid    (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
         slopeD (slope-denom (peb-tb-or (MSPL-Get-Str data "SLOPE") "10"))
@@ -360,7 +361,13 @@
       (progn
         (setvar "CLAYER" "PLATES")
         (command "_.RECTANG" (list (- x (* colhw 1.7)) (- base (* colhw 0.28)))
-                             (list (+ x (* colhw 1.7)) (+ base (* colhw 0.28))))))
+                             (list (+ x (* colhw 1.7)) (+ base (* colhw 0.28))))
+        ;; anchor bolts under the base plate (ref: the "III" ticks) — two short stubs
+        (setvar "CLAYER" "BOLTS")
+        (command "_.LINE" (list (- x (* colhw 0.75)) (- base (* colhw 0.28)))
+                          (list (- x (* colhw 0.75)) (- base (* colhw 1.05))) "")
+        (command "_.LINE" (list (+ x (* colhw 0.75)) (- base (* colhw 0.28)))
+                          (list (+ x (* colhw 0.75)) (- base (* colhw 1.05))) "")))
     (setq i (1+ i)))
   ;; carrying beam the hanging columns land on (at the open-wall line, corner->corner) + a label
   (if (and ewHang (> hangHt 0.0) (>= cnt2 2))
@@ -392,6 +399,24 @@
       (while (< (1+ i) (length pts))
         (command "_.LINE" (nth i pts) (nth (1+ i) pts) "")
         (setq i (1+ i)))
+      ;; PURLINS (owner 28-Jul, ref: END WALL FRAMING shows the Z-purlins as short ticks sitting ON the
+      ;; rafter). Walk each rafter segment at ~1.5 m and drop a short perpendicular stub on the OUTBOARD side.
+      (setvar "CLAYER" "PURLINS")
+      (setq pdep (* 220.0 *PEB-TEXT-SCALE*) i 0)
+      (while (< (1+ i) (length pts))
+        (setq p0 (nth i pts) p1 (nth (1+ i) pts)
+              sdx (- (car p1) (car p0)) sdy (- (cadr p1) (cadr p0))
+              slen (sqrt (+ (* sdx sdx) (* sdy sdy))))
+        (if (> slen 1.0)
+          (progn
+            (setq ux (/ sdx slen) uy (/ sdy slen) nx (- uy) ny ux   ; nx,ny = outboard/up normal
+                  npl (fix (/ slen 1500.0)) jj 1)
+            (while (<= jj npl)
+              (setq tt (/ (* jj 1500.0) slen)
+                    px (+ (car p0) (* tt sdx)) py (+ (cadr p0) (* tt sdy)))
+              (command "_.LINE" (list px py) (list (+ px (* nx pdep)) (+ py (* ny pdep))) "")
+              (setq jj (1+ jj)))))
+        (setq i (1+ i)))
       ;; ridge tick (gable) at the peak
       (if (= rtype "G")
         (progn (setvar "CLAYER" "RIDGE")
@@ -419,8 +444,10 @@
   (txt "ML" (list (+ ox faceLen (* 350 *PEB-TEXT-SCALE*)) (+ base (* eaveH 0.5)))
        (* 240 *PEB-TEXT-SCALE*) 0 (strcat "GIRTS @ " (rtos gsp 2 0)))
 
-  ;; 5. wall X cross-bracing (side = braced bays; end = the two end bays)
-  (setq braced (if isEnd (list 0 (- (length stations) 2))
+  ;; 5. wall X cross-bracing — SIDE walls only (braced bays). The reference END WALL FRAMING carries NO
+  ;; X cross-bracing (it uses girts + purlins + flange braces instead), and X-braces looked wrong crossing
+  ;; the open bay below the hanging columns — so end walls skip it (owner 28-Jul, per old reference drawings).
+  (setq braced (if isEnd nil
                           (vl-catch-all-apply (function (lambda () (peb-braced-bays stations))))))
   (if (vl-catch-all-error-p braced) (setq braced nil))
   (setvar "CLAYER" "CROSS")
