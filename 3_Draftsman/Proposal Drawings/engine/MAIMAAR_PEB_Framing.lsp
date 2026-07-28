@@ -301,7 +301,7 @@
                               gsp gy cnt pre psurf pat pw mark expr ov noteY
                               ewHang hangHt cnt2 gbase
                               p0 p1 sdx sdy slen ux uy nx ny pdep npl jj tt px py rdep owText
-                              bc bx0 by0 bx1 by1)
+                              bc bx0 by0 bx1 by1 owU isRcc)
   (setq len    (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
         wid    (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
         slopeD (slope-denom (peb-tb-or (MSPL-Get-Str data "SLOPE") "10"))
@@ -536,23 +536,45 @@
       (if (not (and ewHang (> hangHt 0.0)))
         (progn (setvar "CLAYER" "GIRTS")
           (command "_.LINE" (list ox (+ base gbase)) (list (+ ox faceLen) (+ base gbase)) "")))
-      ;; light 45-deg masonry hatch in a BRICK zone (skip access/open) so it reads as brick, not empty. Manual
-      ;; clipped diagonals (no HATCH prompt) on the thin GIRTS layer; the label sits over it.
-      (if (and (> gbase 500.0) (not (wcmatch (strcase owText) "*ACCESS*")))
+      ;; MASONRY / CONCRETE hatch by the wall condition (owner 28-Jul: real brick pattern + RCC where needed):
+      ;;   Brickwork / Blockwall -> AR-B816 (running-bond brick, predefined pattern via -HATCH);
+      ;;   Pre-Cast Panels / RCC / Concrete -> 45-deg CROSS-hatch drawn MANUALLY (the concrete-in-section look;
+      ;;     AR-CONC is unreliable headless: it aborts "hatch too dense"). Access / Glazing / Open -> no fill.
+      (setq owU (strcase owText)
+            isRcc (wcmatch owU "*PRE-CAST*,*PRECAST*,*RCC*,*CONCRETE*,*R.C.C*"))
+      (if (and (> gbase 500.0) (not (wcmatch owU "*ACCESS*")) (not (wcmatch owU "*GLAZ*")))
         (progn
           (setvar "CLAYER" "GIRTS")
-          (setq bc (- 0.0 gbase))
-          (while (< bc faceLen)
-            (setq bx0 (if (>= bc 0.0) bc 0.0)
-                  by0 (if (>= bc 0.0) 0.0 (- 0.0 bc))
-                  bx1 (if (<= (+ bc gbase) faceLen) (+ bc gbase) faceLen)
-                  by1 (if (<= (+ bc gbase) faceLen) gbase (- faceLen bc)))
-            (command "_.LINE" (list (+ ox bx0) (+ base by0)) (list (+ ox bx1) (+ base by1)) "")
-            (setq bc (+ bc 1500.0)))))
+          (if isRcc
+            (progn
+              ;; "/" diagonals (y = x - c), clipped to the zone box [0,faceLen] x [0,gbase]
+              (setq bc (- 0.0 gbase))
+              (while (< bc faceLen)
+                (setq bx0 (if (>= bc 0.0) bc 0.0) by0 (if (>= bc 0.0) 0.0 (- 0.0 bc))
+                      bx1 (if (<= (+ bc gbase) faceLen) (+ bc gbase) faceLen)
+                      by1 (if (<= (+ bc gbase) faceLen) gbase (- faceLen bc)))
+                (command "_.LINE" (list (+ ox bx0) (+ base by0)) (list (+ ox bx1) (+ base by1)) "")
+                (setq bc (+ bc 750.0)))
+              ;; "\" diagonals (y = c - x)
+              (setq bc 0.0)
+              (while (< bc (+ faceLen gbase))
+                (setq bx0 (if (<= bc faceLen) bc faceLen) by0 (if (<= bc faceLen) 0.0 (- bc faceLen))
+                      bx1 (if (>= (- bc gbase) 0.0) (- bc gbase) 0.0) by1 (if (>= (- bc gbase) 0.0) gbase bc))
+                (command "_.LINE" (list (+ ox bx0) (+ base by0)) (list (+ ox bx1) (+ base by1)) "")
+                (setq bc (+ bc 750.0))))
+            (progn
+              (command "_.RECTANG" (list (+ ox colhw 40.0) (+ base 40.0))
+                                   (list (- (+ ox faceLen) colhw 40.0) (+ base gbase -40.0)))
+              (vl-catch-all-apply (function (lambda ()
+                (command "_.-HATCH" "_P" "AR-B816" (* 20.0 *PEB-TEXT-SCALE*) 0.0 "_S" (entlast) "" ""))))))))
       (setvar "CLAYER" "TEXT")
       (txt "MC" (list (+ ox (/ faceLen 2.0)) (+ base (* gbase 0.42))) (* 300 *PEB-TEXT-SCALE*) 0
-           (strcat (if (wcmatch (strcase owText) "*ACCESS*") "OPEN FOR ACCESS (BY OTHERS)"
-                                                             "BRICK WALL (BY OTHERS)")
+           (strcat (cond ((wcmatch owU "*ACCESS*")               "OPEN FOR ACCESS (BY OTHERS)")
+                         ((wcmatch owU "*PRE-CAST*,*PRECAST*")   "PRE-CAST RCC PANELS (BY OTHERS)")
+                         ((wcmatch owU "*RCC*,*R.C.C*,*CONCRETE*") "RCC WALL (BY OTHERS)")
+                         ((wcmatch owU "*BLOCK*")                "BLOCKWALL (BY OTHERS)")
+                         ((wcmatch owU "*GLAZ*")                 "GLAZING (BY OTHERS)")
+                         (T                                      "BRICK WALL (BY OTHERS)"))
                    " - H=" (rtos (/ gbase 1000.0) 2 2) " M"))))
   ;; (Proposal Drawing: girt/purlin SIZE + SPACING call-outs omitted — set by design at approval stage.)
 
