@@ -1698,7 +1698,10 @@
 (defun tb-fith (s mw mh)
   ;; AUTOFIT (owner STANDING RULE 22-Jul: dynamic text FILLS its field).  Char-width ratio = romand ALL-CAPS
   ;; true advance ~0.86; the "too small" was the \f-vs-\F font bug (narrow Arial fallback), fixed separately.
-  (min mh (/ mw (* (max 1.0 (float (strlen s))) 0.86))))
+  ;; 28-Jul (A4 paperspace title block): at the narrow A4 strip 0.86 UNDER-estimated the real ROMAND advance,
+  ;; so long fitted strings (GENERAL NOTES, DRAWING TITLE, CUSTOMER) wrapped an extra line and overflowed into
+  ;; the box below.  0.94 sizes them to their real width so each stays on the intended line count.
+  (min mh (/ mw (* (max 1.0 (float (strlen s))) 0.94))))
 
 ;; strip an embedded unit suffix ("0 KN/m2" -> "0", "135 km/h" -> "135").
 (defun peb-num-only (s / p)
@@ -2012,13 +2015,81 @@
   (setq rh (- yCur Y0) c1x (+ X0 (* W 0.40)) c2x (+ X0 (* W 0.70)))
   (tb-line c1x Y0 c1x yCur white) (tb-line c2x Y0 c2x yCur white)
   ;; owner 5-Jul: labels pinned to the TOP of the footer, values to the BOTTOM + smaller — no overlap.
-  (tb-mtext (+ X0 (* W 0.04)) (- yCur (* lbl 1.0)) lbl 0 1 "Scale" grey)
+  (tb-mtext (+ X0 (* W 0.04)) (- yCur (* lbl 1.0)) (tb-fith "Scale" (* W 0.34) lbl) 0 1 "Scale" grey)
   (tb-mtext (+ X0 (* W 0.20)) (+ Y0 (* val 0.95)) (* val 0.85) 0 5 (tb-get "SCALE") green)
-  (tb-mtext (+ c1x (* W 0.03)) (- yCur (* lbl 1.0)) lbl 0 1 "Sheet Size" grey)
+  (tb-mtext (+ c1x (* W 0.03)) (- yCur (* lbl 1.0)) (tb-fith "Sheet Size" (* W 0.26) lbl) 0 1 "Sheet Size" grey)
   (tb-mtext (* 0.5 (+ c1x c2x)) (+ Y0 (* val 0.95)) (* val 0.85) 0 5 (tb-get "SHEETSIZE") green)
-  (tb-mtext (+ c2x (* W 0.03)) (- yCur (* lbl 1.0)) lbl 0 1 "Sheet No." grey)
+  (tb-mtext (+ c2x (* W 0.03)) (- yCur (* lbl 1.0)) (tb-fith "Sheet No." (* W 0.26) lbl) 0 1 "Sheet No." grey)
   (tb-mtext (* 0.5 (+ c2x (+ X0 W))) (+ Y0 (* val 0.95)) (* val 0.85) 0 5 (tb-get "SHEETNO") green)
   (princ))
+
+;; ============================================================================
+;; A4 PAPERSPACE LAYOUT (owner 28-Jul) — the professional "draftsman draws in the Model, frames each
+;; drawing in a printable Layout" workflow.  The Model holds the geometry (title block SUPPRESSED via
+;; *PEB-SUPPRESS-TB*); each sheet is wrapped in an A4 landscape LAYOUT: a right-hand Mammut title strip
+;; (paperspace, fixed) + a border + ONE viewport showing the model at a REAL standard scale (1:S).  Plots
+;; one-to-one to A4 and merges into the proposal PDF.  Reuses peb-titleblock-mammut at fixed paper coords.
+;; ============================================================================
+
+;; round a model-per-paper ratio UP to a standard architectural scale denominator (1:S)
+(defun peb-std-scale (r / scales)
+  (setq scales '(20 25 50 75 100 125 150 200 250 300 400 500 750 1000 1500 2000 2500 3000 4000 5000))
+  (while (and (cdr scales) (< (car scales) r)) (setq scales (cdr scales)))
+  (car scales))
+
+;; patch (or add) a key in the title-block alist
+(defun peb-tb-set (al key val / p)
+  (if (setq p (assoc key al)) (subst (cons key val) p al) (cons (cons key val) al)))
+
+;; Create an A4 layout `lname` viewing the model region bmin..bmax at a real standard scale.
+;; `tbData` = peb-build-tbdata alist; `sheetNo` overrides the SHEET NO. cell (nil = keep).  Returns 1:S.
+(defun peb-add-layout (lname bmin bmax tbData sheetNo / paperW paperH margin tbW gap
+                       dawX0 dawX1 dawY0 dawY1 mw mh sc lay)
+  (setq paperW 297.0 paperH 210.0 margin 6.0 gap 3.0)   ; A4 landscape (owner: proposals always print on A4)
+  (setq tbW    (* (- paperH (* 2.0 margin)) 0.32)
+        dawX0  margin
+        dawX1  (- paperW margin tbW gap)
+        dawY0  margin
+        dawY1  (- paperH margin))
+  ;; real scale (compute BEFORE the title block so SCALE can read it)
+  (setq mw (- (car bmax) (car bmin)) mh (- (cadr bmax) (cadr bmin)))
+  (if (<= mw 0.0) (setq mw 1.0)) (if (<= mh 0.0) (setq mh 1.0))
+  (setq sc (peb-std-scale (max (/ mw (- dawX1 dawX0)) (/ mh (- dawY1 dawY0)))))
+  ;; patch title-block fields for a paperspace A4 sheet
+  (setq tbData (peb-tb-set tbData "SCALE"     (strcat "1:" (rtos sc 2 0))))
+  (setq tbData (peb-tb-set tbData "SHEETSIZE" "A4"))
+  (if sheetNo (setq tbData (peb-tb-set tbData "SHEETNO" sheetNo)))
+  ;; new layout + make current
+  (command "_.-LAYOUT" "_N" lname)
+  (command "_.-LAYOUT" "_S" lname)
+  (setvar "CTAB" lname)
+  (setq lay (vla-get-ActiveLayout (vla-get-ActiveDocument (vlax-get-acad-object))))
+  (vl-catch-all-apply (function (lambda () (vla-put-ConfigName lay "DWG To PDF.pc3"))))
+  (vl-catch-all-apply (function (lambda () (vla-put-CanonicalMediaName lay "ISO_full_bleed_A4_(297.00_x_210.00_MM)"))))
+  (vl-catch-all-apply (function (lambda () (vla-put-StyleSheet lay "monochrome.ctb"))))
+  (vl-catch-all-apply (function (lambda () (vla-put-PlotWithPlotStyles lay :vlax-true))))
+  (vl-catch-all-apply (function (lambda () (vla-put-PlotRotation lay 0))))
+  ;; work in paperspace; clear the auto-created viewport
+  (setvar "TILEMODE" 0)
+  (command "_.PSPACE")
+  (command "_.ERASE" "_ALL" "")
+  ;; title block (fixed A4 coords)
+  (vl-catch-all-apply (function (lambda ()
+    (peb-titleblock-mammut (+ dawX1 gap) margin tbW (- paperH (* 2.0 margin)) tbData))))
+  ;; plain paperspace A4 border (NOT draw-border — that insets by 800*PEB-TEXT-SCALE, the MODEL text
+  ;; scale ~15000 mm, which would blow up the plot extents and shrink the sheet to a dot).
+  (vl-catch-all-apply (function (lambda ()
+    (setvar "CLAYER" "0")
+    (command "_.RECTANG" (list 3.0 3.0) (list (- paperW 3.0) (- paperH 3.0)))
+    (command "_.RECTANG" (list margin margin) (list (- paperW margin) (- paperH margin))))))
+  ;; drawing viewport + real scale inside it
+  (setvar "CLAYER" "0")
+  (command "_.MVIEW" (list dawX0 dawY0) (list dawX1 dawY1))
+  (command "_.MSPACE")
+  (command "_.ZOOM" "_W" bmin bmax)
+  (command "_.ZOOM" (strcat (rtos (/ 1.0 (float sc)) 2 8) "xp"))
+  (command "_.PSPACE")
+  sc)
 
 ;; ============================================================================
 ;; COMPONENT OVERLAY PASS (owner 6-Jul) — draws the IF components onto the Column
