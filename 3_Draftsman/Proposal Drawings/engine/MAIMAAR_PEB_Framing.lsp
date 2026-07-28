@@ -282,7 +282,7 @@
                               i x g yTop pts cx prev braced b x0 x1 y0 y1 lbl bubGap
                               gsp gy cnt pre psurf pat pw mark expr ov noteY
                               ewHang hangHt cnt2 gbase
-                              p0 p1 sdx sdy slen ux uy nx ny pdep npl jj tt px py)
+                              p0 p1 sdx sdy slen ux uy nx ny pdep npl jj tt px py rdep)
   (setq len    (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
         wid    (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
         slopeD (slope-denom (peb-tb-or (MSPL-Get-Str data "SLOPE") "10"))
@@ -394,10 +394,19 @@
             (setq pts (append pts (list (list (+ ox cx)
                         (peb-fr-topy cx faceLen base eaveH eaveHi eaveLo rise rtype hiSide))))))))
       (setq pts (vl-sort pts '(lambda (a b) (< (car a) (car b)))))
+      ;; rafter as a DOUBLE-line member (top = roof line through the column tops; bottom = underside offset
+      ;; perpendicular into the roof by the member depth), so it reads as a beam, not a hairline (ref).
       (setvar "CLAYER" "STRUCTURE")
-      (setq i 0)
+      (setq rdep (* 380.0 *PEB-TEXT-SCALE*) i 0)
       (while (< (1+ i) (length pts))
-        (command "_.LINE" (nth i pts) (nth (1+ i) pts) "")
+        (setq p0 (nth i pts) p1 (nth (1+ i) pts)
+              sdx (- (car p1) (car p0)) sdy (- (cadr p1) (cadr p0))
+              slen (sqrt (+ (* sdx sdx) (* sdy sdy))))
+        (command "_.LINE" p0 p1 "")
+        (if (> slen 1.0)
+          (command "_.LINE"
+            (list (+ (car p0) (* (/ sdy slen) rdep)) (- (cadr p0) (* (/ sdx slen) rdep)))
+            (list (+ (car p1) (* (/ sdy slen) rdep)) (- (cadr p1) (* (/ sdx slen) rdep))) ""))
         (setq i (1+ i)))
       ;; PURLINS (owner 28-Jul, ref: END WALL FRAMING shows the Z-purlins as short ticks sitting ON the
       ;; rafter). Walk each rafter segment at ~1.5 m and drop a short perpendicular stub on the OUTBOARD side.
@@ -417,6 +426,35 @@
               (command "_.LINE" (list px py) (list (+ px (* nx pdep)) (+ py (* ny pdep))) "")
               (setq jj (1+ jj)))))
         (setq i (1+ i)))
+      ;; SAG RODS — a zig-zag between the purlin tops down each rafter segment (ref: the yellow diagonals).
+      (setvar "CLAYER" "PURLINS")
+      (setq i 0)
+      (while (< (1+ i) (length pts))
+        (setq p0 (nth i pts) p1 (nth (1+ i) pts)
+              sdx (- (car p1) (car p0)) sdy (- (cadr p1) (cadr p0))
+              slen (sqrt (+ (* sdx sdx) (* sdy sdy))))
+        (if (> slen 3000.0)
+          (progn
+            (setq ux (/ sdx slen) uy (/ sdy slen) nx (- uy) ny ux
+                  npl (fix (/ slen 1500.0)) jj 1)
+            (while (< jj npl)
+              (setq tt (/ (* jj 1500.0) slen)
+                    px (+ (car p0) (* tt sdx)) py (+ (cadr p0) (* tt sdy))
+                    tt (/ (* (1+ jj) 1500.0) slen))
+              (command "_.LINE" (list (+ px (* nx pdep)) (+ py (* ny pdep)))
+                                (list (+ (car p0) (* tt sdx)) (+ (cadr p0) (* tt sdy))) "")
+              (setq jj (1+ jj)))))
+        (setq i (1+ i)))
+      ;; FLANGE BRACES — a short dashed diagonal at each KNEE (rafter end at a corner column), ref: cyan FB.
+      (setvar "CLAYER" "CROSS")
+      (if (>= (length pts) 2)
+        (progn
+          (setq p0 (car pts) p1 (nth 1 pts))                         ; left knee
+          (command "_.LINE" (list (car p0) (cadr p0))
+                            (list (+ (car p0) (* (- (car p1) (car p0)) 0.14)) (- (cadr p0) 1000.0)) "")
+          (setq p0 (last pts) p1 (nth (- (length pts) 2) pts))       ; right knee
+          (command "_.LINE" (list (car p0) (cadr p0))
+                            (list (+ (car p0) (* (- (car p1) (car p0)) 0.14)) (- (cadr p0) 1000.0)) "")))
       ;; ridge tick (gable) at the peak
       (if (= rtype "G")
         (progn (setvar "CLAYER" "RIDGE")
@@ -435,14 +473,20 @@
   ;; or — on a hanging-column end wall — at the per-side open-wall line (so no girts hang in the open bay).
   (setvar "CLAYER" "GIRTS")
   (setq gbase (if (and ewHang (> hangHt 0.0)) hangHt (max brickH 0.0)))
-  (setq gsp 1800.0 i 1)
+  ;; girts drawn as a DOUBLE line (the Z-girt's two flanges, ~180 mm apart) so they read as members, not
+  ;; hairlines — matching the reference. They run column-face to column-face across the wall.
+  (setq gsp 1800.0 pdep (* 180.0 *PEB-TEXT-SCALE*) i 1)
   (while (< (+ base gbase (* i gsp)) (+ base eaveH))
     (setq gy (+ base gbase (* i gsp)))
     (command "_.LINE" (list ox gy) (list (+ ox faceLen) gy) "")
+    (command "_.LINE" (list ox (+ gy pdep)) (list (+ ox faceLen) (+ gy pdep)) "")
     (setq i (1+ i)))
   (setvar "CLAYER" "TEXT")
-  (txt "ML" (list (+ ox faceLen (* 350 *PEB-TEXT-SCALE*)) (+ base (* eaveH 0.5)))
-       (* 240 *PEB-TEXT-SCALE*) 0 (strcat "GIRTS @ " (rtos gsp 2 0)))
+  (txt "ML" (list (+ ox faceLen (* 350 *PEB-TEXT-SCALE*)) (+ base (* eaveH 0.42)))
+       (* 260 *PEB-TEXT-SCALE*) 0 "GIRT Z200x2.0mm @ 1800 C/C")
+  (if isEnd
+    (txt "ML" (list (+ ox faceLen (* 350 *PEB-TEXT-SCALE*)) (+ base (* eaveH 0.62)))
+         (* 260 *PEB-TEXT-SCALE*) 0 "PURLIN Z200x2.0mm @ 1500 C/C"))
 
   ;; 5. wall X cross-bracing — SIDE walls only (braced bays). The reference END WALL FRAMING carries NO
   ;; X cross-bracing (it uses girts + purlins + flange braces instead), and X-braces looked wrong crossing
