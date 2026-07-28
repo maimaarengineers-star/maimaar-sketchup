@@ -388,10 +388,6 @@
                           (list (- x (* colhw 0.75)) (- base (* colhw 1.05))) "")
         (command "_.LINE" (list (+ x (* colhw 0.75)) (- base (* colhw 0.28)))
                           (list (+ x (* colhw 0.75)) (- base (* colhw 1.05))) "")))
-    ;; member mark COL-n — small, vertical, just right of the column at its mid-height (ref labels each column)
-    (setvar "CLAYER" "TEXT")
-    (txt "MC" (list (+ x colhw (* 230 *PEB-TEXT-SCALE*)) (* 0.5 (+ y0 yTop)))
-         (* 200 *PEB-TEXT-SCALE*) 90 (strcat "COL-" (itoa (1+ i))))
     (setq i (1+ i)))
   ;; carrying beam the hanging columns land on (at the open-wall line, corner->corner) + a label
   (if (and ewHang (> hangHt 0.0) (>= cnt2 2))
@@ -432,15 +428,7 @@
             (list (+ (car p0) (* (/ sdy slen) rdep)) (- (cadr p0) (* (/ sdx slen) rdep)))
             (list (+ (car p1) (* (/ sdy slen) rdep)) (- (cadr p1) (* (/ sdx slen) rdep))) ""))
         (setq i (1+ i)))
-      ;; member mark RAF-n on each rafter segment, numbered continuing from the columns, BELOW the rafter.
-      (setvar "CLAYER" "TEXT")
-      (setq i 0)
-      (while (< (1+ i) (length pts))
-        (setq p0 (nth i pts) p1 (nth (1+ i) pts))
-        (txt "MC" (list (/ (+ (car p0) (car p1)) 2.0)
-                        (- (/ (+ (cadr p0) (cadr p1)) 2.0) (* 560 *PEB-TEXT-SCALE*)))
-             (* 200 *PEB-TEXT-SCALE*) 0 (strcat "RAF-" (itoa (+ cnt2 i 1))))
-        (setq i (1+ i)))
+      ;; (Proposal Drawing: member marks + sizes/spacings omitted — those are set by design at approval stage.)
       ;; PURLINS (owner 28-Jul, ref: END WALL FRAMING shows the Z-purlins as short ticks sitting ON the
       ;; rafter). Walk each rafter segment at ~1.5 m and drop a short perpendicular stub on the OUTBOARD side.
       (setvar "CLAYER" "PURLINS")
@@ -480,33 +468,17 @@
                                 (list (+ (car p0) (* tt sdx)) (+ (cadr p0) (* tt sdy))) "")
               (setq jj (1+ jj)))))
         (setq i (1+ i)))
-      ;; member mark SP-n on the sag rods — one per rafter segment, just above the rafter mid-segment.
-      (setvar "CLAYER" "TEXT")
-      (setq i 0)
-      (while (< (1+ i) (length pts))
-        (setq p0 (nth i pts) p1 (nth (1+ i) pts) slen (- (car p1) (car p0)))
-        (if (> (abs slen) 3000.0)
-          (txt "MC" (list (/ (+ (car p0) (car p1)) 2.0)
-                          (+ (/ (+ (cadr p0) (cadr p1)) 2.0) (* 430 *PEB-TEXT-SCALE*)))
-               (* 180 *PEB-TEXT-SCALE*) 0 (strcat "SP-" (itoa (1+ i)))))
-        (setq i (1+ i)))
-      ;; FLANGE BRACES — a short dashed diagonal at each KNEE (rafter end at a corner column), ref: cyan FB.
+      ;; FLANGE BRACES — a short dashed diagonal at each KNEE (rafter end at a corner column). Proposal Drawing:
+      ;; brace LINES shown, no "FB" mark.
       (setvar "CLAYER" "CROSS")
       (if (>= (length pts) 2)
         (progn
           (setq p0 (car pts) p1 (nth 1 pts))                         ; left knee
           (command "_.LINE" (list (car p0) (cadr p0))
                             (list (+ (car p0) (* (- (car p1) (car p0)) 0.14)) (- (cadr p0) 1000.0)) "")
-          (setvar "CLAYER" "TEXT")
-          (txt "MC" (list (+ (car p0) (* (- (car p1) (car p0)) 0.22)) (- (cadr p0) 620.0))
-               (* 180 *PEB-TEXT-SCALE*) 0 "FB")
-          (setvar "CLAYER" "CROSS")
           (setq p0 (last pts) p1 (nth (- (length pts) 2) pts))       ; right knee
           (command "_.LINE" (list (car p0) (cadr p0))
-                            (list (+ (car p0) (* (- (car p1) (car p0)) 0.14)) (- (cadr p0) 1000.0)) "")
-          (setvar "CLAYER" "TEXT")
-          (txt "MC" (list (+ (car p0) (* (- (car p1) (car p0)) 0.22)) (- (cadr p0) 620.0))
-               (* 180 *PEB-TEXT-SCALE*) 0 "FB")))
+                            (list (+ (car p0) (* (- (car p1) (car p0)) 0.14)) (- (cadr p0) 1000.0)) "")))
       ;; HAUNCH at each knee — a tapered soffit from the corner-column inner face up to the rafter underside
       ;; ~2.6 m inboard, deepening the rafter-column junction (ref: the tapered knee). Segments taken
       ;; left->right (as pts is sorted) so the perpendicular underside offset always drops BELOW the rafter.
@@ -582,12 +554,7 @@
            (strcat (if (wcmatch (strcase owText) "*ACCESS*") "OPEN FOR ACCESS (BY OTHERS)"
                                                              "BRICK WALL (BY OTHERS)")
                    " - H=" (rtos (/ gbase 1000.0) 2 2) " M"))))
-  (setvar "CLAYER" "TEXT")
-  (txt "ML" (list (+ ox faceLen (* 350 *PEB-TEXT-SCALE*)) (+ base (* eaveH 0.42)))
-       (* 300 *PEB-TEXT-SCALE*) 0 "GIRT Z200x60x1.5mm @ 1400 C/C")
-  (if isEnd
-    (txt "ML" (list (+ ox faceLen (* 350 *PEB-TEXT-SCALE*)) (+ base (* eaveH 0.62)))
-         (* 300 *PEB-TEXT-SCALE*) 0 "PURLIN Z200x60x1.5mm @ 1500 C/C"))
+  ;; (Proposal Drawing: girt/purlin SIZE + SPACING call-outs omitted — set by design at approval stage.)
 
   ;; 5. wall X cross-bracing — SIDE walls only (braced bays). The reference END WALL FRAMING carries NO
   ;; X cross-bracing (it uses girts + purlins + flange braces instead), and X-braces looked wrong crossing
