@@ -656,9 +656,160 @@
   (setvar "CLAYER" prev)
   (princ))
 
+;; Brick / RCC material fill for a wall zone (0..faceLen x 0..gbase from base), synced to the wall condition.
+;; Brick/Block -> AR-B816 (light-brick colour); Pre-Cast/RCC/Concrete -> AR-CONC aggregate (grey) w/ manual
+;; cross-hatch fallback; Access/Glazing/Open -> nothing. Shared by the framing + sheeting elevations. colhw
+;; insets the fill from the columns (0 for sheeting = full width).
+(defun peb-fr-material-fill (ox base faceLen gbase colhw owText / owU isRcc hEnt bc bx0 by0 bx1 by1)
+  (setq owU (strcase owText)
+        isRcc (wcmatch owU "*PRE-CAST*,*PRECAST*,*RCC*,*CONCRETE*,*R.C.C*"))
+  (if (and (> gbase 500.0) (not (wcmatch owU "*ACCESS*")) (not (wcmatch owU "*GLAZ*")))
+    (progn
+      (setvar "CLAYER" (if isRcc "HATCHR" "BRICK-WALL"))
+      (vl-catch-all-apply (function (lambda () (setvar "CECOLOR" (if isRcc "RGB:150,150,150" "RGB:200,132,96")))))
+      (command "_.RECTANG" (list (+ ox colhw 40.0) (+ base 40.0))
+                           (list (- (+ ox faceLen) colhw 40.0) (+ base gbase -40.0)))
+      (setq hEnt (entlast))
+      (vl-catch-all-apply (function (lambda () (setenv "MaxHatch" "50000000"))))
+      (vl-catch-all-apply (function (lambda ()
+        (command "_.-HATCH" "_P" (if isRcc "AR-CONC" "AR-B816")
+                 (if isRcc (* 120.0 *PEB-TEXT-SCALE*) (* 20.0 *PEB-TEXT-SCALE*)) 0.0 "_S" (entlast) "" ""))))
+      (if (and isRcc (eq (entlast) hEnt))
+        (progn
+          (setq bc (- 0.0 gbase))
+          (while (< bc faceLen)
+            (setq bx0 (if (>= bc 0.0) bc 0.0) by0 (if (>= bc 0.0) 0.0 (- 0.0 bc))
+                  bx1 (if (<= (+ bc gbase) faceLen) (+ bc gbase) faceLen)
+                  by1 (if (<= (+ bc gbase) faceLen) gbase (- faceLen bc)))
+            (command "_.LINE" (list (+ ox bx0) (+ base by0)) (list (+ ox bx1) (+ base by1)) "")
+            (setq bc (+ bc 750.0)))
+          (setq bc 0.0)
+          (while (< bc (+ faceLen gbase))
+            (setq bx0 (if (<= bc faceLen) bc faceLen) by0 (if (<= bc faceLen) 0.0 (- bc faceLen))
+                  bx1 (if (>= (- bc gbase) 0.0) (- bc gbase) 0.0) by1 (if (>= (- bc gbase) 0.0) gbase bc))
+            (command "_.LINE" (list (+ ox bx0) (+ base by0)) (list (+ ox bx1) (+ base by1)) "")
+            (setq bc (+ bc 750.0)))))
+      (setvar "CECOLOR" "BYLAYER")))
+  (princ))
+
+;; SHEETING ELEVATION — the CLAD face of a wall: profiled vertical sheeting over the sheeted zone, brick/RCC
+;; by others below (synced to the wall condition), the gable/eave outline, openings, grid bubbles + dim chain.
+(defun peb-draw-sheeting-elev (surf ox oy data / len wid slopeD stype rtype eaveH eaveHi eaveLo hiName hiSide
+                              wallEave faceLen stations isEnd base rise ridgeRise i g x yTop pts cx prev lbl
+                              bubGap ov gbase owText sp sx cnt pre psurf pat pw noteY owU)
+  (setq len (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
+        wid (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
+        slopeD (slope-denom (peb-tb-or (MSPL-Get-Str data "SLOPE") "10"))
+        stype (strcase (peb-tb-or (MSPL-Get-Str data "STYPE") "CS")))
+  (setq eaveH (atof (peb-tb-or (MSPL-Get-Str data "CLEARHEIGHT")
+                     (peb-tb-or (MSPL-Get-Str data "EAVE_HEIGHT")
+                       (peb-tb-or (MSPL-Get-Str data "BP_EAVE_HEIGHT") "6000")))))
+  (if (<= slopeD 0.0) (setq slopeD 10.0))
+  (if (<= eaveH 0.0) (setq eaveH 6000.0))
+  (if (= stype "ACS") (setq stype "CS"))
+  (if (= stype "AMS") (setq stype "MS"))
+  (setq rtype (peb-fr-rooftype stype)
+        isEnd (and (member surf '("LEW" "REW")) T)
+        hiName (strcase (peb-tb-or (MSPL-Get-Str data "RA_MONO_HIGH") ""))
+        eaveLo eaveH eaveHi (+ eaveH (/ wid slopeD))
+        ridgeRise (/ (/ wid 2.0) slopeD) rise ridgeRise
+        prev (getvar "CLAYER") base oy)
+  (setq hiSide (if (vl-string-search "FSW" hiName) T nil))
+  (cond ((/= rtype "M") (setq wallEave eaveH))
+        ((= surf "NSW") (setq wallEave (if (vl-string-search "NSW" hiName) eaveHi eaveLo)))
+        ((= surf "FSW") (setq wallEave (if (vl-string-search "FSW" hiName) eaveHi eaveLo)))
+        (T (setq wallEave eaveH)))
+  (if isEnd
+    (setq faceLen wid
+          stations (peb-fr-scaled-stations
+                     (peb-tb-or (if (= surf "LEW") (MSPL-Get-Str data "EWLEXPR") (MSPL-Get-Str data "EWREXPR"))
+                                (peb-tb-or (MSPL-Get-Str data "MODEXPR") "")) wid))
+    (setq faceLen len
+          stations (peb-fr-scaled-stations (peb-tb-or (MSPL-Get-Str data "BAYEXPR") "") len)))
+  (setq owText (peb-tb-or (MSPL-Get-Str data (strcat "OW_" surf)) "")
+        gbase (peb-fr-openwall-ht owText))
+  ;; ground line
+  (setvar "CLAYER" "GROUND")
+  (command "_.LINE" (list (- ox (* 0.03 faceLen)) base) (list (+ ox faceLen (* 0.03 faceLen)) base) "")
+  ;; roof / eave OUTLINE
+  (setvar "CLAYER" "STRUCTURE")
+  (if isEnd
+    (progn
+      (setq pts '())
+      (foreach g stations
+        (setq pts (append pts (list (list (+ ox g) (peb-fr-topy g faceLen base eaveH eaveHi eaveLo rise rtype hiSide))))))
+      (if (member rtype '("G" "B"))
+        (progn (setq cx (/ faceLen 2.0))
+          (if (not (vl-some '(lambda (p) (< (abs (- (- (car p) ox) cx)) 1.0)) pts))
+            (setq pts (append pts (list (list (+ ox cx) (peb-fr-topy cx faceLen base eaveH eaveHi eaveLo rise rtype hiSide))))))))
+      (setq pts (vl-sort pts '(lambda (a b) (< (car a) (car b)))) i 0)
+      (while (< (1+ i) (length pts)) (command "_.LINE" (nth i pts) (nth (1+ i) pts) "") (setq i (1+ i))))
+    (command "_.LINE" (list ox (+ base wallEave)) (list (+ ox faceLen) (+ base wallEave)) ""))
+  ;; two vertical end edges (base -> roof)
+  (command "_.LINE" (list ox base)
+                    (list ox (if isEnd (peb-fr-topy 0.0 faceLen base eaveH eaveHi eaveLo rise rtype hiSide) (+ base wallEave))) "")
+  (command "_.LINE" (list (+ ox faceLen) base)
+                    (list (+ ox faceLen) (if isEnd (peb-fr-topy faceLen faceLen base eaveH eaveHi eaveLo rise rtype hiSide) (+ base wallEave))) "")
+  ;; brick / RCC by others below the sheeting line (full width) + label
+  (peb-fr-material-fill ox base faceLen gbase 0.0 owText)
+  (if (> gbase 100.0)
+    (progn (setvar "CLAYER" "STRUCTURE")
+      (command "_.LINE" (list ox (+ base gbase)) (list (+ ox faceLen) (+ base gbase)) "")))
+  ;; PROFILED SHEETING — vertical lines from the sheeting base up to the roof/eave, ~333 mm apart
+  (setvar "CLAYER" "CLADDING")
+  (setq sp 333.0 sx sp)
+  (while (< sx faceLen)
+    (setq yTop (if isEnd (peb-fr-topy sx faceLen base eaveH eaveHi eaveLo rise rtype hiSide) (+ base wallEave)))
+    (if (> yTop (+ base gbase 100.0))
+      (command "_.LINE" (list (+ ox sx) (+ base gbase)) (list (+ ox sx) yTop) ""))
+    (setq sx (+ sx sp)))
+  ;; condition label under the brick line
+  (if (> gbase 200.0)
+    (progn (setvar "CLAYER" "TEXT")
+      (setq owU (strcase owText))
+      (txt "MC" (list (+ ox (/ faceLen 2.0)) (+ base (* gbase 0.42))) (* 300 *PEB-TEXT-SCALE*) 0
+           (strcat (cond ((wcmatch owU "*ACCESS*") "OPEN FOR ACCESS (BY OTHERS)")
+                         ((wcmatch owU "*PRE-CAST*,*PRECAST*") "PRE-CAST RCC PANELS (BY OTHERS)")
+                         ((wcmatch owU "*RCC*,*CONCRETE*") "RCC WALL (BY OTHERS)")
+                         ((wcmatch owU "*BLOCK*") "BLOCKWALL (BY OTHERS)")
+                         (T "BRICK WALL (BY OTHERS)"))
+                   " - H=" (rtos (/ gbase 1000.0) 2 2) " M"))))
+  ;; openings (doors / windows) — a clear rectangle cut in the sheeting
+  (setq cnt (atoi (peb-tb-or (MSPL-Get-Str data "PL_COUNT") "0")) i 1)
+  (while (<= i cnt)
+    (setq pre (strcat "PL" (itoa i) "_")
+          psurf (strcase (peb-tb-or (MSPL-Get-Str data (strcat pre "SURFACE")) ""))
+          pat (atof (peb-tb-or (MSPL-Get-Str data (strcat pre "AT")) "0"))
+          pw (atof (peb-tb-or (MSPL-Get-Str data (strcat pre "WIDTH")) "0")))
+    (if (and (= psurf surf) (> pw 0.0))
+      (progn (setvar "CLAYER" "OPEN")
+        (command "_.RECTANG" (list (+ ox pat (- (/ pw 2.0))) base) (list (+ ox pat (/ pw 2.0)) (+ base (* eaveH 0.72))))))
+    (setq i (1+ i)))
+  ;; grid bubbles + title + dim chain (mirror the framing)
+  (setq bubGap (* 2100 *PEB-TEXT-SCALE*) i 0 ov *PEB-BUBRAD* *PEB-BUBRAD* (* 900 *PEB-TEXT-SCALE*))
+  (foreach g stations
+    (setq lbl (if isEnd (peb-fr-letter i) (itoa (1+ i))))
+    (setvar "CLAYER" "GRID-LINES")
+    (command "_.LINE" (list (+ ox g) base) (list (+ ox g) (- base (* bubGap 0.45))) "")
+    (vl-catch-all-apply (function (lambda () (grid-bubble (+ ox g) (- base bubGap) lbl "U"))))
+    (setq i (1+ i)))
+  (setq *PEB-BUBRAD* ov)
+  (setvar "CLAYER" "TEXT") (setvar "CECOLOR" "5")
+  (txt-bold "MC" (list (+ ox (/ faceLen 2.0)) (+ base eaveH rise (* 2600 *PEB-TEXT-SCALE*))) (* 500 *PEB-TEXT-SCALE*) 0
+            (strcat surf " - "
+                    (cond ((= surf "NSW") "NEAR SIDE WALL") ((= surf "FSW") "FAR SIDE WALL")
+                          ((= surf "LEW") "LEFT END WALL") ((= surf "REW") "RIGHT END WALL") (T "WALL"))
+                    " SHEETING"))
+  (setvar "CECOLOR" "BYLAYER")
+  (setq noteY (- base bubGap (* 1500 *PEB-DIM-SCALE*)))
+  (vl-catch-all-apply (function (lambda () (peb-fr-dimchain ox noteY stations))))
+  (setvar "CLAYER" prev)
+  (princ))
+
 ;; Stack the four framing elevations one above another (NSW, FSW, LEW, REW).
-(defun peb-draw-all-framing (data / wid slopeD eaveH ts step)
+(defun peb-draw-all-framing (data / wid len slopeD eaveH ts step colX)
   (setq wid    (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
+        len    (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
         slopeD (slope-denom (peb-tb-or (MSPL-Get-Str data "SLOPE") "10"))
         eaveH  (atof (peb-tb-or (MSPL-Get-Str data "CLEARHEIGHT")
                        (peb-tb-or (MSPL-Get-Str data "EAVE_HEIGHT")
@@ -666,13 +817,15 @@
   (if (<= slopeD 0.0) (setq slopeD 10.0))
   (if (<= eaveH 0.0)  (setq eaveH 6000.0))
   (setq ts   (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)
-        step (+ eaveH (/ wid slopeD) (* 9000 ts)))    ; tall enough for full mono rise + titles/dims
-  (peb-draw-framing-elev "NSW" 0.0 0.0          data)
-  (peb-draw-framing-elev "FSW" 0.0 step         data)
-  (peb-draw-framing-elev "LEW" 0.0 (* 2.0 step) data)
-  (peb-draw-framing-elev "REW" 0.0 (* 3.0 step) data)
+        step (+ eaveH (/ wid slopeD) (* 9000 ts))      ; tall enough for full mono rise + titles/dims
+        colX (* (max len wid 1.0) 1.45))               ; SHEETING column to the RIGHT of the FRAMING column
+  ;; left column = FRAMING, right column = SHEETING, one row per wall (owner 28-Jul, KMFoods pairs).
+  (peb-draw-framing-elev  "NSW" 0.0 0.0          data) (peb-draw-sheeting-elev "NSW" colX 0.0          data)
+  (peb-draw-framing-elev  "FSW" 0.0 step         data) (peb-draw-sheeting-elev "FSW" colX step         data)
+  (peb-draw-framing-elev  "LEW" 0.0 (* 2.0 step) data) (peb-draw-sheeting-elev "LEW" colX (* 2.0 step) data)
+  (peb-draw-framing-elev  "REW" 0.0 (* 3.0 step) data) (peb-draw-sheeting-elev "REW" colX (* 3.0 step) data)
   ;; owner 7-Jul: shared title block + border (portrait stack -> bottom-right corner block).
-  (vl-catch-all-apply (function (lambda () (peb-frame-and-titleblock data "FRAMING ELEVATIONS"))))
+  (vl-catch-all-apply (function (lambda () (peb-frame-and-titleblock data "FRAMING & SHEETING ELEVATIONS"))))
   (princ))
 
 (defun C:PEB-FRAMING ( / data ms)
