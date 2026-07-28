@@ -300,7 +300,8 @@
                               i x g yTop pts cx prev braced b x0 x1 y0 y1 lbl bubGap
                               gsp gy cnt pre psurf pat pw mark expr ov noteY
                               ewHang hangHt cnt2 gbase
-                              p0 p1 sdx sdy slen ux uy nx ny pdep npl jj tt px py rdep owText)
+                              p0 p1 sdx sdy slen ux uy nx ny pdep npl jj tt px py rdep owText
+                              bc bx0 by0 bx1 by1)
   (setq len    (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
         wid    (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
         slopeD (slope-denom (peb-tb-or (MSPL-Get-Str data "SLOPE") "10"))
@@ -563,6 +564,19 @@
       (if (not (and ewHang (> hangHt 0.0)))
         (progn (setvar "CLAYER" "GIRTS")
           (command "_.LINE" (list ox (+ base gbase)) (list (+ ox faceLen) (+ base gbase)) "")))
+      ;; light 45-deg masonry hatch in a BRICK zone (skip access/open) so it reads as brick, not empty. Manual
+      ;; clipped diagonals (no HATCH prompt) on the thin GIRTS layer; the label sits over it.
+      (if (and (> gbase 500.0) (not (wcmatch (strcase owText) "*ACCESS*")))
+        (progn
+          (setvar "CLAYER" "GIRTS")
+          (setq bc (- 0.0 gbase))
+          (while (< bc faceLen)
+            (setq bx0 (if (>= bc 0.0) bc 0.0)
+                  by0 (if (>= bc 0.0) 0.0 (- 0.0 bc))
+                  bx1 (if (<= (+ bc gbase) faceLen) (+ bc gbase) faceLen)
+                  by1 (if (<= (+ bc gbase) faceLen) gbase (- faceLen bc)))
+            (command "_.LINE" (list (+ ox bx0) (+ base by0)) (list (+ ox bx1) (+ base by1)) "")
+            (setq bc (+ bc 1500.0)))))
       (setvar "CLAYER" "TEXT")
       (txt "MC" (list (+ ox (/ faceLen 2.0)) (+ base (* gbase 0.42))) (* 300 *PEB-TEXT-SCALE*) 0
            (strcat (if (wcmatch (strcase owText) "*ACCESS*") "OPEN FOR ACCESS (BY OTHERS)"
