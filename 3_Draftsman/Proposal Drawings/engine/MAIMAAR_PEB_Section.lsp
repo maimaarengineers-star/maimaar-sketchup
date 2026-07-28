@@ -5958,6 +5958,225 @@
   (setvar "PLINEWID" 0.0)
 )
 
+;; ============================================================================
+;; VERTICAL FASCIA — cross-section detail   (Ref. Manual Ch.10 §10.4, p.238-244)
+;; ----------------------------------------------------------------------------
+;;  Owner 25-Jul: "develop the single one — the Vertical one.  Capture the IDEA
+;;  from the manual, but get the MATERIAL from our best reference drawings."
+;;
+;;  IDEA (manual p.240 "VERTICAL FASCIA WITH EAVE GUTTER AND SOFFIT"):
+;;    - projection  = 600 mm from the wall STEEL LINE (standard; up to 1500)
+;;    - a 200 mm deep frame cage sits behind the fascia panel
+;;    - height is VARIABLE, set by the roof slope = peak - eave (do NOT invent it)
+;;    - cap flashing on top, soffit + soffit edge trim + sill trim at the bottom,
+;;      optional back-up panel, gutter tucked BEHIND the fascia projection.
+;;
+;;  MATERIAL / vocabulary — our own archive, collected in
+;;  reference/Folder_C/14_Fascia-Parapet/ :
+;;    MSPL-21-062 "FASCIA COLUMN" · MSPL-23-154 "FASCIA PURLIN"
+;;    MSPL-23-147 "FASCIA TUBE"   · MSPL-23-056 "FASCIA WITH 50mm PU SANDWICH"
+;;    MSPL-22-029 "FASCIA LAYOUT PLAN" (0.5mm PPGI wall cladding house standard)
+;;
+;;  WHY the cage is 400..600 out: our eave gutter occupies x = 200..390 outboard
+;;  of the steel line (draw-eave-features), so the manual's 200 mm cage lands
+;;  exactly in the clear zone outboard of it — the gutter ends up concealed
+;;  behind the fascia, which is precisely the manual's arrangement.
+;;
+;;  Section axes: x=0 is NSW, x=W is FSW (same mapping peb-ridge-x uses); y=0 FFL.
+;;  Only the STANDARD VERTICAL type draws here — curved/parapet keep the plan band.
+;;  Everything is DERIVED from the BSF keys FA_<W>_*; nothing is recomputed.
+;; ============================================================================
+(defun draw-fascia-vertical (data W H rise / nsw)
+  (if (= (strcase (peb-tb-or (MSPL-Get-Str data "FA_TOGGLE") "")) "YES")
+    (progn
+      ;; Callouts go on the LEFT (NSW) eave when it carries a fascia, else on the right —
+      ;; one set only (see peb-fascia-side).  The right eave has the title block/notes
+      ;; beside it, so long material text must never start there.
+      (setq nsw (= (strcase (peb-tb-or (MSPL-Get-Str data "FA_NSW_TOGGLE") "")) "YES"))
+      ;; Annotate ONE eave only (a cross-section is symmetric and our own reference
+      ;; drawings call the fascia out once): the left/NSW eave when it has a fascia,
+      ;; otherwise the right.  The other eave draws geometry only.
+      (vl-catch-all-apply
+        (function (lambda () (peb-fascia-side data "NSW" -1.0 0.0 H rise nsw))))
+      (vl-catch-all-apply
+        (function (lambda () (peb-fascia-side data "FSW"  1.0 W   H rise (not nsw)))))))
+  (setvar "CLAYER" "0")
+  (setvar "PLINEWID" 0.0)
+  (princ))
+
+;; one sidewall fascia.  w = wall key, sgn = outboard direction (-1 NSW / +1 FSW),
+;; xs = that wall's steel line X, H = eave height, rise = ridge rise above eave.
+;; one C-section fascia girt — our "FASCIA PURLIN", the manual's TOP / BOTTOM GIRT.
+;; OPEN C (never solid): web against the fascia panel, flanges running back into the cage,
+;; short lips returning at the inboard mouth.  xWeb = panel inner face, xBack = cage back.
+;; Width 12.0 is the engine's own cold-formed-C weight (see draw-purlins, which draws a
+;; 200-deep C with 60 flanges + 20 lips the same way).  At 1.0/1.5 the girt plotted as a
+;; grey hairline while every other member on the sheet was bold.
+(defun peb-fascia-girt (xWeb xBack yTop yBot / lip)
+  (setq lip (min 40.0 (* (abs (- yTop yBot)) 0.30)))
+  (command "PLINE" (list xBack (- yTop lip)) "W" 12.0 12.0
+                   (list xBack yTop)
+                   (list xWeb  yTop)
+                   (list xWeb  yBot)
+                   (list xBack yBot)
+                   (list xBack (+ yBot lip)) "")
+  (setvar "PLINEWID" 0.0)
+  (princ))
+
+(defun peb-fascia-side (data w sgn xs H rise lab / typ proj fh dep pt sof bak mat
+                             xO xPi xCo xCi yB yT gh gc tx ty)
+  (setq typ (strcase (peb-tb-or (MSPL-Get-Str data (strcat "FA_" w "_TYPE")) "")))
+  (cond
+    ;; wall not toggled -> nothing
+    ((/= (strcase (peb-tb-or (MSPL-Get-Str data (strcat "FA_" w "_TOGGLE")) "")) "YES") nil)
+    ;; not the vertical one -> plan band only (curved / parapet still to come)
+    ((and (/= typ "") (not (wcmatch typ "*VERTICAL*"))) nil)
+    (T
+      ;; ---- read the BSF, defaults ONLY where the manual states one ----------
+      (setq proj (MSPL-Get-Num data (strcat "FA_" w "_PROJ")))
+      (if (or (null proj) (<= proj 0.0)) (setq proj 600.0))     ; manual standard
+      ;; HEIGHT — owner 25-Jul: the auto height must actually HIDE THE PEAK.  The manual
+      ;; says the height is set by the roof slope (peak - eave), but the visible peak is
+      ;; the ridge SHEETING top, which sits purlin (200) + cladding (35) ABOVE the rafter
+      ;; rise.  So auto = rise + 235 and the fascia top lands exactly on the ridge sheet.
+      ;; A typed FA_<W>_HT still wins outright — BSF is the single truth.
+      (setq fh (MSPL-Get-Num data (strcat "FA_" w "_HT")))
+      (if (or (null fh) (<= fh 0.0)) (setq fh (+ rise 235.0)))
+      (if (<= fh 0.0) (setq fh 1200.0))                         ; flat roof: no rise to follow
+      (setq sof (= (strcase (peb-tb-or (MSPL-Get-Str data (strcat "FA_" w "_SOFFIT")) "YES")) "YES"))
+      (setq bak (= (strcase (peb-tb-or (MSPL-Get-Str data (strcat "FA_" w "_BACKUP")) "NO")) "YES"))
+      ;; panel material: "Same as Building Wall" is the BSF default and carries no extra
+      ;; information on the drawing, so the callout stays the plain "FASCIA PANEL".
+      (setq mat (strcase (peb-tb-or (MSPL-Get-Str data (strcat "FA_" w "_PANEL")) "")))
+      (if (wcmatch mat "*SAME AS*") (setq mat ""))
+      ;; ---- geometry — a 1:1 MIRROR of the manual's p.240 sidewall detail -----
+      ;; Every element is OPEN LINEWORK (PLINE outlines, no SOLID/HATCH anywhere), which
+      ;; is how the manual draws it and what reads correctly at proposal scale.
+      ;;   manual dim 600 = wall STEEL LINE -> fascia panel OUTER face
+      ;;   manual dim 200 = fascia panel    -> back of the girt cage
+      ;; Stack, outer to inner: fascia panel | girt cage (top + bottom girt, fascia
+      ;; bracket/column between them) | back-up panel (optional) | eave gutter | wall.
+      (setq pt  35.0)                                           ; panel thickness
+      (setq dep (max 120.0 (min 200.0 (- proj 400.0))))         ; cage depth, <=200 (manual)
+      (setq xO  (+ xs (* sgn proj)))                            ; panel OUTER face
+      (setq xPi (+ xs (* sgn (- proj pt))))                     ; panel INNER face
+      (setq xCi (+ xs (* sgn (- proj dep))))                    ; cage BACK — 400 out, so it
+                                                                ; clears our gutter at 200..390
+      (setq xCo (+ xO (* sgn 15.0)))                            ; trims wrap 15 proud of the panel
+      (setq yB  H)                                              ; fascia bottom / soffit = eave
+      (setq yT  (+ H fh))                                       ; top — hides the ridge sheet
+      ;; girt depth + edge clearance, shrunk on a short fascia so the two girts never meet
+      (setq gh (max 60.0 (min 150.0 (* fh 0.16))))
+      (setq gc (max 30.0 (min  70.0 (* fh 0.07))))
+
+      ;; ---- FASCIA PANEL (cut) ----------------------------------------------
+      (setvar "CLAYER" "CLADDING")
+      (command "PLINE" (list xO yB) "W" 1.5 1.5 (list xO yT)
+                       (list xPi yT) (list xPi yB) "C")
+      ;; ---- CAP FLASHING — folded trim wrapping OVER the top of the cage -----
+      ;; outer leg down the face, over the top falling slightly inboard, inner leg down.
+      (command "PLINE" (list xCo (- yT 140.0)) "W" 1.0 1.0
+                       (list xCo (+ yT 30.0))
+                       (list xCi (+ yT 75.0))
+                       (list xCi (- yT 70.0)) "")
+      ;; ---- TOP + BOTTOM GIRT (our "FASCIA PURLIN") — C-section, opening inboard
+      (setvar "CLAYER" "GIRTS")
+      (peb-fascia-girt xPi xCi (- yT gc) (- yT gc gh))          ; top girt, under the cap
+      (peb-fascia-girt xPi xCi (+ yB gc gh) (+ yB gc))          ; bottom girt, over the sill
+      ;; ---- FASCIA BRACKET / COLUMN — the member between the two girts -------
+      ;; structural member -> the same 12.0 weight the girts and purlins carry
+      (setvar "CLAYER" "FRAME")
+      (command "PLINE" (list xPi (- yT gc gh)) "W" 12.0 12.0
+                       (list xCi (- yT gc gh))
+                       (list xCi (+ yB gc gh))
+                       (list xPi (+ yB gc gh)) "C")
+      (setvar "PLINEWID" 0.0)
+      ;; ---- BACK-UP PANEL (optional — manual p.240 lower detail) -------------
+      (if bak
+        (progn (setvar "CLAYER" "CLADDING")
+               (command "PLINE" (list xCi yB) "W" 1.0 1.0 (list xCi yT) "")))
+      ;; ---- SILL TRIM at the bottom outer corner (always, manual) ------------
+      (setvar "CLAYER" "CLADDING")
+      (command "PLINE" (list xCo (+ yB 140.0)) "W" 1.0 1.0
+                       (list xCo (- yB 15.0))
+                       (list xPi (- yB 15.0)) "")
+      ;; ---- SOFFIT PANEL + SOFFIT EDGE TRIM ---------------------------------
+      (if sof
+        (progn
+          (command "PLINE" (list xO yB) "W" 1.5 1.5 (list xs yB)
+                           (list xs (- yB pt)) (list xO (- yB pt)) "C")
+          ;; edge trim: short return wrapping the soffit's outer end
+          (command "PLINE" (list xCo (- yB pt 60.0)) "W" 1.0 1.0
+                           (list xCo (- yB pt))
+                           (list (+ xO (* sgn -60.0)) (- yB pt)) "")))
+      ;; ---- LABELS + DIMS — only on the SIDE THE CALLER NOMINATED -----------
+      ;; A cross-section is symmetric: our own reference drawings (MSPL-20-057,
+      ;; MSPL-23-056) call the fascia out ONCE, not on both eaves.  Labelling both
+      ;; sides also pushed the long material text into the notes panel on the right.
+      ;; Leaders are STRAIGHT ("S") fanning to a text column — the manual's own style
+      ;; — because four callouts cannot share a fascia only `fh` (~1 m) tall.
+      (if lab
+        (progn
+          (setvar "CLAYER" "TEXT")
+          ;; peb-label-pline-leader (not the native MLEADER) — the MLEADER re-anchors its
+          ;; text near the arrow, which squashed all four callouts into the ~1 m fascia.
+          ;; This helper puts the text exactly at labelPos, so the fan below is honoured.
+          ;; Offsets are absolute mm (TS is ~1.0 for a normal section) and are chosen to
+          ;; clear the engine's own EAVE GUTTER label, which sits at about eave + 1430.
+          (setq tx (+ xO (* sgn (* 2500.0 *PEB-TEXT-SCALE*))))
+          ;; CAP FLASHING must stay BELOW the wall-sheeting note, which the engine parks
+          ;; at about (H + rise + 3800·TS) — hence +1800, not higher.
+          ;; The manual's six callouts, in OUR archive's vocabulary:
+          ;;   manual TOP/BOTTOM GIRT -> FASCIA PURLIN (MSPL-23-154)
+          ;;   manual FASCIA BRACKET  -> FASCIA COLUMN (MSPL-21-062)
+          (peb-label-pline-leader "CAP FLASHING"
+            (list tx (+ yT 1800.0))
+            (list (/ (+ xO xCi) 2.0) (+ yT 60.0)) "H" 220)
+          (peb-label-pline-leader
+            (if (= mat "") "FASCIA PANEL" (strcat "FASCIA PANEL - " mat))
+            (list tx (+ yT 900.0))
+            (list xO (+ yB (* fh 0.72))) "H" 220)
+          (peb-label-pline-leader "FASCIA PURLIN"
+            (list tx (+ yT 100.0))
+            (list (/ (+ xPi xCi) 2.0) (- yT gc (* gh 0.5))) "H" 220)
+          (peb-label-pline-leader "FASCIA COLUMN"
+            (list tx (+ yB (* fh 0.45)))
+            (list (/ (+ xPi xCi) 2.0) (+ yB (* fh 0.45))) "H" 220)
+          ;; SILL/SOFFIT lifted (was -900/-1800): the soffit text used to sit on top of the
+          ;; manual's 200 cage dim, which lands at -2100.
+          (peb-label-pline-leader "SILL TRIM"
+            (list tx (- yB 300.0))
+            (list xCo (+ yB 60.0)) "H" 220)
+          (if sof
+            (peb-label-pline-leader "SOFFIT PANEL"
+              (list tx (- yB 1100.0))
+              (list (+ xs (* sgn (* proj 0.55))) (- yB pt)) "H" 220))
+          ;; BOTH dims ride with the callouts, on this one eave.  The HEIGHT dim goes
+          ;; OUTBOARD of the text column (4200 > the 2500 text offset) so no leader ever
+          ;; crosses its witness line; the other eave then stays completely clean.  On the
+          ;; dim-only eave these collided with the engine's EAVE GUTTER label and the
+          ;; vertical CLEAR HEIGHT text, which spans the whole wall.
+          (vl-catch-all-apply
+            (function (lambda ()
+              (peb-dim-height-stretch xO (+ xO (* sgn (* 4200.0 *PEB-TEXT-SCALE*)))
+                                      yB yT (rtos fh 2 0)))))
+          (vl-catch-all-apply
+            (function (lambda ()
+              (peb-dim-h-stretch xs xO (- yB (* 3400.0 *PEB-TEXT-SCALE*))
+                                 (rtos proj 2 0)))))
+          ;; the manual dims the cage depth too (its "200"), stacked above the projection
+          (vl-catch-all-apply
+            (function (lambda ()
+              (peb-dim-h-stretch xCi xO (- yB (* 2100.0 *PEB-TEXT-SCALE*))
+                                 (rtos dep 2 0)))))))
+      ;; ---- DIMS go on the OPPOSITE eave from the callouts ---------------------
+      ;; The two dims the manual itself calls out (fascia height + projection).  Putting
+      ;; them on the labelled side forced every leader to cross the height witness line;
+      ;; the unlabelled eave is empty, so the pair reads cleanly there.  When only ONE
+      ;; wall carries a fascia it takes both, and the dim sits inboard of the text column.
+      (setvar "PLINEWID" 0.0)))
+  (princ))
+
 (defun draw-rafter-label (W H rise ht / slopeLen sa ca dMid topX topY
                                        midD innerX innerY rLabX rLabY)
   ;;  "RAFTER" MLEADER label — single MLEADER like PURLIN but reversed
@@ -7499,8 +7718,21 @@
   (setq *BASE-BOLTS-INT* (if (= (strcase (peb-tb-or (MSPL-Get-Str data "BP_INT_BASE_COND") "")) "FIXED") 4 2))
   (setq *BASE-BOLTS* *BASE-BOLTS-EXT*)
 
+  ;; ── HEIGHT BASIS (owner 25-Jul) ─────────────────────────────
+  ;; Honor the BSF "Height — Measured At" basis (HEIGHT_REF), the SAME way the plan's height tag
+  ;; (peb-height-tag-label) and the length/width dims already read their own basis. The section works
+  ;; INTERNALLY in CLEAR height (rafter underside at the haunch; H = clearHt + ht). When the height was
+  ;; measured at the EAVE, the entered number IS the eave (top of steel / purlin line), so derive the
+  ;; internal clear height by dropping the haunch (clearHt = eave - ht) -> H then lands EXACTLY on the
+  ;; entered eave height and the height dim (below) reads it to the purlin, not the haunch.
+  ;; CLEAR is tested FIRST — "Clear Height at Eave" also contains "EAVE" (same trap as peb-height-tag-label);
+  ;; blank -> clear (the BSF heightBasis list defaults to "Clear Height at Eave").
+  (setq heightRef (strcase (peb-tb-or (MSPL-Get-Str data "HEIGHT_REF") "")))
+  (setq eaveBasis (and (not (wcmatch heightRef "*CLEAR*")) (wcmatch heightRef "*EAVE*")))
+  (if (and eaveBasis (> clearHt (+ ht 1.0))) (setq clearHt (- clearHt ht)))
+
   ;; Eave height = top of rafter at the haunch.
-  ;; Rafter UNDERSIDE at the haunch sits exactly at clearHt (user input).
+  ;; Rafter UNDERSIDE at the haunch sits exactly at clearHt (user input, or eave-ht when eave-basis).
   ;; Purlins and sheeting sit ABOVE H (H + purlinD, H + purlinD + cladThk).
   (setq H (+ clearHt ht))   ; roof concrete-slab top (F2/G+1 too: roof comes from the tall eave height)
 
@@ -8650,6 +8882,13 @@
         (draw-eave-features wid H nil (/ rise (/ wid 2.0))))   ; gable eave, lip anchored to the sheet (owner G3)
       (draw-rafter-label  wid H rise ht)))
 
+  ;; ── VERTICAL FASCIA (FA_*) on the sidewalls of a normal PEB frame ──
+  ;; The RC frame type has its OWN concrete parapet/fascia (draw-rc-fascia), so it is
+  ;; excluded here; every other frame type gets the manual's vertical fascia detail.
+  (if (/= stype "RC")
+    (vl-catch-all-apply
+      (function (lambda () (draw-fascia-vertical data wid H rise)))))
+
   ;; ── Slope tags placed 25% in from the RIDGE on each rafter half ──
   ;; sheeting top sits at H + rise + purlinH(200) + cladThk(35) above rafter.
   ;; Tag X at 75% of half-span from each eave (= 25% from ridge) so it sits
@@ -8798,7 +9037,12 @@
       (setq *PEB-DIM-TXT* nil)
       (peb-recolor-last-dim 0)))                  ; ByBlock
   (setq *PEB-DIM-TXT* 320.0)
-  (peb-dim-height-stretch hObjX dimX2 0.0 (- H ht) "<>\\PCLEAR HEIGHT")
+  ;; owner 25-Jul: when the height was measured at the EAVE, dimension the EAVE HEIGHT up to the eave /
+  ;; purlin line (0 -> H, H being the top of the rafter at the haunch = the entered eave value after the
+  ;; basis conversion above), NOT the CLEAR HEIGHT to the haunch (0 -> H-ht). Clear-basis is unchanged.
+  (if eaveBasis
+    (peb-dim-height-stretch hObjX dimX2 0.0 H       "<>\\PEAVE HEIGHT")
+    (peb-dim-height-stretch hObjX dimX2 0.0 (- H ht) "<>\\PCLEAR HEIGHT"))
   (setq *PEB-DIM-TXT* nil)
   (peb-recolor-last-dim 0)                        ; ByBlock
   ;; owner 16-Jul markup 14: arched frames — extend the CLEAR HEIGHT witness line UP to the eave gutter (H)
