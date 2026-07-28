@@ -301,7 +301,7 @@
                               gsp gy cnt pre psurf pat pw mark expr ov noteY
                               ewHang hangHt cnt2 gbase
                               p0 p1 sdx sdy slen ux uy nx ny pdep npl jj tt px py rdep owText
-                              bc bx0 by0 bx1 by1 owU isRcc)
+                              bc bx0 by0 bx1 by1 owU isRcc hEnt)
   (setq len    (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
         wid    (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
         slopeD (slope-denom (peb-tb-or (MSPL-Get-Str data "SLOPE") "10"))
@@ -545,9 +545,18 @@
       (if (and (> gbase 500.0) (not (wcmatch owU "*ACCESS*")) (not (wcmatch owU "*GLAZ*")))
         (progn
           (setvar "CLAYER" "GIRTS")
-          (if isRcc
+          (command "_.RECTANG" (list (+ ox colhw 40.0) (+ base 40.0))
+                               (list (- (+ ox faceLen) colhw 40.0) (+ base gbase -40.0)))
+          (setq hEnt (entlast))
+          ;; raise MaxHatch so a fine pattern over a big panel doesn't abort ("hatch too dense")
+          (vl-catch-all-apply (function (lambda () (setenv "MaxHatch" "50000000"))))
+          (vl-catch-all-apply (function (lambda ()
+            (command "_.-HATCH" "_P" (if isRcc "AR-CONC" "AR-B816")
+                     (if isRcc (* 120.0 *PEB-TEXT-SCALE*) (* 20.0 *PEB-TEXT-SCALE*)) 0.0
+                     "_S" (entlast) "" ""))))
+          ;; FALLBACK for RCC only: if AR-CONC made no hatch entity, draw a manual 45-deg cross-hatch.
+          (if (and isRcc (eq (entlast) hEnt))
             (progn
-              ;; "/" diagonals (y = x - c), clipped to the zone box [0,faceLen] x [0,gbase]
               (setq bc (- 0.0 gbase))
               (while (< bc faceLen)
                 (setq bx0 (if (>= bc 0.0) bc 0.0) by0 (if (>= bc 0.0) 0.0 (- 0.0 bc))
@@ -555,18 +564,12 @@
                       by1 (if (<= (+ bc gbase) faceLen) gbase (- faceLen bc)))
                 (command "_.LINE" (list (+ ox bx0) (+ base by0)) (list (+ ox bx1) (+ base by1)) "")
                 (setq bc (+ bc 750.0)))
-              ;; "\" diagonals (y = c - x)
               (setq bc 0.0)
               (while (< bc (+ faceLen gbase))
                 (setq bx0 (if (<= bc faceLen) bc faceLen) by0 (if (<= bc faceLen) 0.0 (- bc faceLen))
                       bx1 (if (>= (- bc gbase) 0.0) (- bc gbase) 0.0) by1 (if (>= (- bc gbase) 0.0) gbase bc))
                 (command "_.LINE" (list (+ ox bx0) (+ base by0)) (list (+ ox bx1) (+ base by1)) "")
-                (setq bc (+ bc 750.0))))
-            (progn
-              (command "_.RECTANG" (list (+ ox colhw 40.0) (+ base 40.0))
-                                   (list (- (+ ox faceLen) colhw 40.0) (+ base gbase -40.0)))
-              (vl-catch-all-apply (function (lambda ()
-                (command "_.-HATCH" "_P" "AR-B816" (* 20.0 *PEB-TEXT-SCALE*) 0.0 "_S" (entlast) "" ""))))))))
+                (setq bc (+ bc 750.0)))))))
       (setvar "CLAYER" "TEXT")
       (txt "MC" (list (+ ox (/ faceLen 2.0)) (+ base (* gbase 0.42))) (* 300 *PEB-TEXT-SCALE*) 0
            (strcat (cond ((wcmatch owU "*ACCESS*")               "OPEN FOR ACCESS (BY OTHERS)")
