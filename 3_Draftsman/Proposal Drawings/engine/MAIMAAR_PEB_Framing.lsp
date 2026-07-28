@@ -321,10 +321,11 @@
     (setq faceLen len
           stations (peb-fr-scaled-stations (peb-tb-or (MSPL-Get-Str data "BAYEXPR") "") len)))
   ;; column half-width in elevation (slender I) from the plan's web-depth rule
+  ;; column half-width — heavier than before (owner 28-Jul, KMFoods ref: columns read as solid members)
   (setq colhw (* 0.5 (if (boundp 'peb-col-web-depth)
-                       (vl-catch-all-apply (function (lambda () (* 0.32 (peb-col-web-depth wid)))))
-                       220.0)))
-  (if (or (not (numberp colhw)) (< colhw 70.0)) (setq colhw 110.0))
+                       (vl-catch-all-apply (function (lambda () (* 0.46 (peb-col-web-depth wid)))))
+                       300.0)))
+  (if (or (not (numberp colhw)) (< colhw 100.0)) (setq colhw 150.0))
 
   ;; 1. base / foundation line
   (setvar "CLAYER" "GROUND")
@@ -371,7 +372,7 @@
     ;; member mark COL-n — small, vertical, just right of the column at its mid-height (ref labels each column)
     (setvar "CLAYER" "TEXT")
     (txt "MC" (list (+ x colhw (* 230 *PEB-TEXT-SCALE*)) (* 0.5 (+ y0 yTop)))
-         (* 150 *PEB-TEXT-SCALE*) 90 (strcat "COL-" (itoa (1+ i))))
+         (* 200 *PEB-TEXT-SCALE*) 90 (strcat "COL-" (itoa (1+ i))))
     (setq i (1+ i)))
   ;; carrying beam the hanging columns land on (at the open-wall line, corner->corner) + a label
   (if (and ewHang (> hangHt 0.0) (>= cnt2 2))
@@ -419,7 +420,7 @@
         (setq p0 (nth i pts) p1 (nth (1+ i) pts))
         (txt "MC" (list (/ (+ (car p0) (car p1)) 2.0)
                         (- (/ (+ (cadr p0) (cadr p1)) 2.0) (* 560 *PEB-TEXT-SCALE*)))
-             (* 150 *PEB-TEXT-SCALE*) 0 (strcat "RAF-" (itoa (+ cnt2 i 1))))
+             (* 200 *PEB-TEXT-SCALE*) 0 (strcat "RAF-" (itoa (+ cnt2 i 1))))
         (setq i (1+ i)))
       ;; PURLINS (owner 28-Jul, ref: END WALL FRAMING shows the Z-purlins as short ticks sitting ON the
       ;; rafter). Walk each rafter segment at ~1.5 m and drop a short perpendicular stub on the OUTBOARD side.
@@ -468,7 +469,7 @@
         (if (> (abs slen) 3000.0)
           (txt "MC" (list (/ (+ (car p0) (car p1)) 2.0)
                           (+ (/ (+ (cadr p0) (cadr p1)) 2.0) (* 430 *PEB-TEXT-SCALE*)))
-               (* 130 *PEB-TEXT-SCALE*) 0 (strcat "SP-" (itoa (1+ i)))))
+               (* 180 *PEB-TEXT-SCALE*) 0 (strcat "SP-" (itoa (1+ i)))))
         (setq i (1+ i)))
       ;; FLANGE BRACES — a short dashed diagonal at each KNEE (rafter end at a corner column), ref: cyan FB.
       (setvar "CLAYER" "CROSS")
@@ -479,14 +480,14 @@
                             (list (+ (car p0) (* (- (car p1) (car p0)) 0.14)) (- (cadr p0) 1000.0)) "")
           (setvar "CLAYER" "TEXT")
           (txt "MC" (list (+ (car p0) (* (- (car p1) (car p0)) 0.22)) (- (cadr p0) 620.0))
-               (* 130 *PEB-TEXT-SCALE*) 0 "FB")
+               (* 180 *PEB-TEXT-SCALE*) 0 "FB")
           (setvar "CLAYER" "CROSS")
           (setq p0 (last pts) p1 (nth (- (length pts) 2) pts))       ; right knee
           (command "_.LINE" (list (car p0) (cadr p0))
                             (list (+ (car p0) (* (- (car p1) (car p0)) 0.14)) (- (cadr p0) 1000.0)) "")
           (setvar "CLAYER" "TEXT")
           (txt "MC" (list (+ (car p0) (* (- (car p1) (car p0)) 0.22)) (- (cadr p0) 620.0))
-               (* 130 *PEB-TEXT-SCALE*) 0 "FB")))
+               (* 180 *PEB-TEXT-SCALE*) 0 "FB")))
       ;; HAUNCH at each knee — a tapered soffit from the corner-column inner face up to the rafter underside
       ;; ~2.6 m inboard, deepening the rafter-column junction (ref: the tapered knee). Segments taken
       ;; left->right (as pts is sorted) so the perpendicular underside offset always drops BELOW the rafter.
@@ -524,21 +525,25 @@
   ;; 4. girts (secondary) from the sheeting base up to eave + a note. Sheeting starts at brick height,
   ;; or — on a hanging-column end wall — at the per-side open-wall line (so no girts hang in the open bay).
   (setvar "CLAYER" "GIRTS")
-  (setq gbase (if (and ewHang (> hangHt 0.0)) hangHt (max brickH 0.0)))
+  ;; The FRAMING elevation is the STEEL SKELETON, so girts run the FULL column height (owner 28-Jul, KMFoods
+  ;; ref: dense girts top-to-bottom) — the brick-vs-sheeting split is shown in the Sheeting elevation (Phase 2).
+  ;; EXCEPTION: a hanging-column end wall is genuinely open below the hang line, so girts start there.
+  (setq gbase (if (and ewHang (> hangHt 0.0)) hangHt 0.0))
   ;; girts drawn as a DOUBLE line = the Z-girt's 60 mm visible lip in the framing view (owner 28-Jul), so
   ;; they read as members not hairlines. Real 60 mm. They run column-face to column-face across the wall.
-  (setq gsp 1800.0 pdep 60.0 i 1)
-  (while (< (+ base gbase (* i gsp)) (+ base eaveH))
+  ;; denser girts (owner 28-Jul, KMFoods ref: girts closely spaced up the wall). 1400 C/C from the sheeting base.
+  (setq gsp 1400.0 pdep 60.0 i 1)
+  (while (< (+ base gbase (* i gsp)) (- (+ base eaveH) 200.0))
     (setq gy (+ base gbase (* i gsp)))
     (command "_.LINE" (list ox gy) (list (+ ox faceLen) gy) "")
     (command "_.LINE" (list ox (+ gy pdep)) (list (+ ox faceLen) (+ gy pdep)) "")
     (setq i (1+ i)))
   (setvar "CLAYER" "TEXT")
   (txt "ML" (list (+ ox faceLen (* 350 *PEB-TEXT-SCALE*)) (+ base (* eaveH 0.42)))
-       (* 260 *PEB-TEXT-SCALE*) 0 "GIRT Z200x60x1.5mm @ 1800 C/C")
+       (* 300 *PEB-TEXT-SCALE*) 0 "GIRT Z200x60x1.5mm @ 1400 C/C")
   (if isEnd
     (txt "ML" (list (+ ox faceLen (* 350 *PEB-TEXT-SCALE*)) (+ base (* eaveH 0.62)))
-         (* 260 *PEB-TEXT-SCALE*) 0 "PURLIN Z200x60x1.5mm @ 1500 C/C"))
+         (* 300 *PEB-TEXT-SCALE*) 0 "PURLIN Z200x60x1.5mm @ 1500 C/C"))
 
   ;; 5. wall X cross-bracing — SIDE walls only (braced bays). The reference END WALL FRAMING carries NO
   ;; X cross-bracing (it uses girts + purlins + flange braces instead), and X-braces looked wrong crossing
@@ -576,20 +581,22 @@
         (txt "MC" (list (+ ox pat) (+ base (* eaveH 0.80))) (* 230 *PEB-TEXT-SCALE*) 0 mark)))
     (setq i (1+ i)))
 
-  ;; 7. grid bubbles below the base (side = numbers, end = letters) + stalk
-  (setq bubGap (* 1700 *PEB-TEXT-SCALE*) i 0)
+  ;; 7. grid bubbles below the base (side = numbers, end = letters) + stalk. Bigger bubble (owner 28-Jul,
+  ;; KMFoods ref) via a local *PEB-BUBRAD* bump, restored after so other sheets are unaffected.
+  (setq bubGap (* 2100 *PEB-TEXT-SCALE*) i 0 ov *PEB-BUBRAD* *PEB-BUBRAD* (* 900 *PEB-TEXT-SCALE*))
   (foreach g stations
     (setq lbl (if isEnd (peb-fr-letter i) (itoa (1+ i))))
     (setvar "CLAYER" "GRID-LINES")
     (command "_.LINE" (list (+ ox g) base) (list (+ ox g) (- base (* bubGap 0.45))) "")
     (vl-catch-all-apply (function (lambda () (grid-bubble (+ ox g) (- base bubGap) lbl "U"))))
     (setq i (1+ i)))
+  (setq *PEB-BUBRAD* ov)
 
   ;; 8. title — blue + full wall name (owner 7-Jul, consistent with the Wall Elevations sheet)
   (setvar "CLAYER" "TEXT")
   (setvar "CECOLOR" "5")
   (txt-bold "MC" (list (+ ox (/ faceLen 2.0)) (+ base eaveH rise (* 2600 *PEB-TEXT-SCALE*)))
-            (* 420 *PEB-TEXT-SCALE*) 0
+            (* 500 *PEB-TEXT-SCALE*) 0
             (strcat surf " - "
                     (cond ((= surf "NSW") "NEAR SIDE WALL") ((= surf "FSW") "FAR SIDE WALL")
                           ((= surf "LEW") "LEFT END WALL")  ((= surf "REW") "RIGHT END WALL") (T "WALL"))
