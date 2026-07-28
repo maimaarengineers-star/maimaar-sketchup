@@ -772,12 +772,17 @@
   (command "_.RECTANG" (list xl (- y hf)) (list (+ xl tf) (+ y hf)))              ; left flange
   (command "_.RECTANG" (list (- xr tf) (- y hf)) (list xr (+ y hf)))              ; right flange
   (command "_.RECTANG" (list (+ xl tf) (- y (/ tw 2.0))) (list (- xr tf) (+ y (/ tw 2.0))))  ; web (between flanges)
-  (setvar "CLAYER" "BOLTS")      ; 4 bolts = circle + cross
-  (foreach p (list (list (- x bx) (- y by)) (list (+ x bx) (- y by))
-                   (list (- x bx) (+ y by)) (list (+ x bx) (+ y by)))
-    (command "_.CIRCLE" p br)
-    (command "_.LINE" (list (- (car p) br) (cadr p)) (list (+ (car p) br) (cadr p)) "")
-    (command "_.LINE" (list (car p) (- (cadr p) br)) (list (car p) (+ (cadr p) br)) ""))
+  ;; HANGING COLUMN (owner 28-Jul): a hanging endwall column has NO foundation, so it carries NO base plate /
+  ;; anchor bolts in the Column Layout & Anchor Bolt Plan. *PEB-COL-NO-BOLT* (set by the endwall-post loop for
+  ;; a "Main Frame with Hanging Columns" endwall) suppresses the bolts; the column outline still shows.
+  (if (not *PEB-COL-NO-BOLT*)
+    (progn
+      (setvar "CLAYER" "BOLTS")      ; 4 bolts = circle + cross
+      (foreach p (list (list (- x bx) (- y by)) (list (+ x bx) (- y by))
+                       (list (- x bx) (+ y by)) (list (+ x bx) (+ y by)))
+        (command "_.CIRCLE" p br)
+        (command "_.LINE" (list (- (car p) br) (cadr p)) (list (+ (car p) br) (cadr p)) "")
+        (command "_.LINE" (list (car p) (- (cadr p) br)) (list (car p) (+ (cadr p) br)) ""))))
   (setvar "CLAYER" prevLayer)
 )
 
@@ -4246,8 +4251,14 @@
   ;; columns like the interior (full-size, lengthwise); a BEARING end wall uses the half-size posts.
   (setq lewFrameRaw (strcase (MSPL-Get-Str data "EW_LEFT_FRAME"))
         rewFrameRaw (strcase (MSPL-Get-Str data "EW_RIGHT_FRAME"))
-        lewFrameLabel (if (or (= lewFrameRaw "MAIN FRAME") (= lewFrameRaw "RIGID")) "MAIN FRAME" "BEARING FRAME")
-        rewFrameLabel (if (or (= rewFrameRaw "MAIN FRAME") (= rewFrameRaw "RIGID")) "MAIN FRAME" "BEARING FRAME"))
+        ;; "MAIN FRAME", "MAIN FRAME WITH HANGING COLUMNS" (owner 28-Jul) and legacy "RIGID" are MAIN frames
+        ;; (their corners draw as full-size lengthwise legs). MF 1/2 stays as it was.
+        lewFrameLabel (if (or (= lewFrameRaw "MAIN FRAME") (wcmatch lewFrameRaw "MAIN FRAME WITH HANGING*") (= lewFrameRaw "RIGID")) "MAIN FRAME" "BEARING FRAME")
+        rewFrameLabel (if (or (= rewFrameRaw "MAIN FRAME") (wcmatch rewFrameRaw "MAIN FRAME WITH HANGING*") (= rewFrameRaw "RIGID")) "MAIN FRAME" "BEARING FRAME")
+        ;; HANGING COLUMNS (owner 28-Jul, NLC Workshop): the endwall's INTERMEDIATE columns hang from the
+        ;; rafter and have NO foundation → NO base plate / anchor bolts in the Column Layout & Anchor Bolt Plan.
+        lewHang (wcmatch lewFrameRaw "*HANGING*")
+        rewHang (wcmatch rewFrameRaw "*HANGING*"))
 
   ;; (*PEB-OMIT-WALL* is now set up-front, right after the data read — see the top of C:PEB-PLAN.)
 
@@ -4357,9 +4368,12 @@
         ;; owner 5-Jul (multi-area): drop the posts on an end wall shared with a side-by-side area.
         (foreach y ewStations
           (if (and (> y 0.5) (< y (- wid 0.5)))
-            (progn (if (not (peb-omit-wall-p "LEW")) (draw-I-column-widthwise leftX y))
-                   (if (not (peb-omit-wall-p "REW")) (draw-I-column-widthwise rightX y))))
+            ;; owner 28-Jul: a "Main Frame with Hanging Columns" endwall → its INTERMEDIATE columns hang, so
+            ;; suppress their base plate / bolts (lewHang/rewHang drive *PEB-COL-NO-BOLT* per side).
+            (progn (if (not (peb-omit-wall-p "LEW")) (progn (setq *PEB-COL-NO-BOLT* lewHang) (draw-I-column-widthwise leftX y)))
+                   (if (not (peb-omit-wall-p "REW")) (progn (setq *PEB-COL-NO-BOLT* rewHang) (draw-I-column-widthwise rightX y)))))
         )
+        (setq *PEB-COL-NO-BOLT* nil)   ; reset — corner + interior module-line columns keep their base plates
         ;; Interior columns on every interior width-module line.  MS/MG always; SS (single slope) and FR
         ;; (flat roof) too now (owner 10-Jul: a multi-span single slope / modular flat roof has interior
         ;; columns and must not draw as a clear span).  Safe to add: their widthPts is only modularized
@@ -4448,14 +4462,16 @@
   (setq rewFrameRaw (strcase (MSPL-Get-Str data "EW_RIGHT_FRAME")))
   ;; Normalise — accept "MAIN FRAME" or "RIGID" as MAIN; everything
   ;; else (incl. blank, "BEARING", "BEARING FRAME") = BEARING FRAME.
+  ;; "Main Frame with Hanging Columns" is labelled MLADDER (owner 28-Jul) so the plan names the hanging-
+  ;; column endwall distinctly; "Main Frame"/"Rigid" stay MAIN FRAME; everything else BEARING FRAME.
   (setq lewFrameLabel
-    (if (or (= lewFrameRaw "MAIN FRAME") (= lewFrameRaw "RIGID"))
-      "MAIN FRAME"
-      "BEARING FRAME"))
+    (cond ((wcmatch lewFrameRaw "*HANGING*") "MLADDER (MAIN FRAME - HANGING COLUMNS)")
+          ((or (= lewFrameRaw "MAIN FRAME") (= lewFrameRaw "RIGID")) "MAIN FRAME")
+          (T "BEARING FRAME")))
   (setq rewFrameLabel
-    (if (or (= rewFrameRaw "MAIN FRAME") (= rewFrameRaw "RIGID"))
-      "MAIN FRAME"
-      "BEARING FRAME"))
+    (cond ((wcmatch rewFrameRaw "*HANGING*") "MLADDER (MAIN FRAME - HANGING COLUMNS)")
+          ((or (= rewFrameRaw "MAIN FRAME") (= rewFrameRaw "RIGID")) "MAIN FRAME")
+          (T "BEARING FRAME")))
   ;; Clear BEARING/MAIN FRAME word on BOTH end walls (owner requirement) — placed
   ;; beside the LEW/REW wall labels.  (If an end is a Main Frame, its corner
   ;; columns are already drawn lengthwise = interior main-frame size/direction.)
@@ -4464,8 +4480,8 @@
   ;; repeat per stacked area and overprint the width dims.  (Single-area draws them normally.)
   ;; owner 9-Jul: an OPEN CANOPY has no end WALLS, so it has no end FRAMES to name either -- the
   ;; "(BEARING FRAME)" words and the "BEARING FRAME / BOTH ENDS" leader are suppressed for BF/CC/PP.
-  (if (and (not *PEB-MULTI-MODE*) (not *PEB-OPEN-CANOPY*) (not (peb-hide-wall-label-p "LEW"))) (txt-bold "MC" (list (- gridX1 (* 4400.0 *PEB-DIM-SCALE*)) (/ wid 2.0)) 430 90 (strcat "(" lewFrameLabel ")")))
-  (if (and (not *PEB-MULTI-MODE*) (not *PEB-OPEN-CANOPY*) (not (peb-hide-wall-label-p "REW"))) (txt-bold "MC" (list (+ len (* 4500 *PEB-DIM-SCALE*)) (/ wid 2.0)) 430 90 (strcat "(" rewFrameLabel ")")))
+  (if (and (not *PEB-MULTI-MODE*) (not *PEB-OPEN-CANOPY*) (not (peb-hide-wall-label-p "LEW"))) (txt-bold "MC" (list (- gridX1 (* 4400.0 *PEB-DIM-SCALE*)) (/ wid 2.0)) 430 90 (if (wcmatch lewFrameLabel "*(*") lewFrameLabel (strcat "(" lewFrameLabel ")"))))
+  (if (and (not *PEB-MULTI-MODE*) (not *PEB-OPEN-CANOPY*) (not (peb-hide-wall-label-p "REW"))) (txt-bold "MC" (list (+ len (* 4500 *PEB-DIM-SCALE*)) (/ wid 2.0)) 430 90 (if (wcmatch rewFrameLabel "*(*") rewFrameLabel (strcat "(" rewFrameLabel ")"))))
   (if (and (not *PEB-MULTI-MODE*) (not *PEB-OPEN-CANOPY*))
   (cond
     ;; Both ends same → ONE MLEADER, "BEARING FRAME / BOTH ENDS"
@@ -5932,9 +5948,12 @@
 ;; one border + title block around the whole placed set.  owner 5-Jul: size the margin + title-block strip
 ;; from the COMBINED extents (not the last/smallest area's params — that made the strip too narrow and the
 ;; title-block text squish).  Same proportions a single sheet would use for a building this size.
-(defun peb-draw-combined-frame ( / exmin exmax cw ch cds bGap sh tbW bL bB bT bR tbX g0x g0y g1x g1y gcx gcy gof lh)
+;; bbmin/bbmax (each (x y)) = the PLAN-SET extents, supplied by the orchestrator so the frame wraps the
+;; plan ONLY (a cover / sections may share this DXF).  nil nil => fall back to the whole-modelspace EXTMIN/
+;; EXTMAX (keeps any interactive/standalone caller working).
+(defun peb-draw-combined-frame (bbmin bbmax / exmin exmax cw ch cds bGap sh tbW bL bB bT bR tbX g0x g0y g1x g1y gcx gcy gof lh)
   (vl-catch-all-apply (function (lambda () (command "_.ZOOM" "_E"))))
-  (setq exmin (getvar "EXTMIN") exmax (getvar "EXTMAX")
+  (setq exmin (if bbmin bbmin (getvar "EXTMIN")) exmax (if bbmax bbmax (getvar "EXTMAX"))
         cw (- (car exmax) (car exmin)) ch (- (cadr exmax) (cadr exmin))
         cds  (max 0.8 (/ (max cw ch) 45000.0))   ; combined "dim scale" (single-sheet formula)
         bGap (* 3000.0 cds))                       ; uniform border margin for the whole sheet
@@ -5972,9 +5991,12 @@
 ;;   (progn (peb-plan-multi-from-files (list ...)) (command "_.ZOOM" "_E") (command "_.DXFOUT" f "16"))
 (defun peb-plan-multi-from-files (paths / placed prev-last off aNum pos ref gap w l refbnds i
                                         wgrids lgrids adata apos aref rw rl shared refLet refNum
-                                        d2 p2 r2 w2 aNo)
+                                        d2 p2 r2 w2 aNo
+                                        first-ent pmin pmax minx miny maxx maxy bbe bbobj bblo bbhi
+                                        pr pb bx0 by0 bx1 by1)
   (setq *PEB-SUPPRESS-TB* T *PEB-MULTI-MODE* T placed nil wgrids nil lgrids nil i 0
         *PEB-GRID-LET-OFS* nil *PEB-GRID-NUM-OFS* nil *PEB-REF-SHARED* nil)
+  (setq first-ent (entlast))   ; everything drawn AFTER this = the plan set (bounds the combined frame)
   ;; PRE-PASS (owner 10-Jul): the reference area is drawn FIRST and never learns that something attached
   ;; to it, so it kept cladding its own shared wall (two lines at the join).  Scan every file up front and
   ;; record, per REFERENCE area number, which of ITS walls an area sits against.
@@ -6046,7 +6068,34 @@
           i (1+ i)))
   (setq *PEB-SUPPRESS-TB* nil *PEB-OMIT-WALL* nil *PEB-MULTI-MODE* nil
         *PEB-GRID-LET-OFS* nil *PEB-GRID-NUM-OFS* nil *PEB-REF-SHARED* nil)   ; globals: never leak into the next drawing
-  (peb-draw-combined-frame)
+  ;; PLAN-SET EXTENTS — the combined frame must wrap the plan ONLY (a cover / sections may share this DXF).
+  ;; Walk every entity drawn since first-ent and union its bounding box (mirrors peb-tile-place).
+  (vl-load-com)
+  (setq minx nil miny nil maxx nil maxy nil
+        bbe (if first-ent (entnext first-ent) (entnext)))
+  (while bbe
+    (setq bbobj (vlax-ename->vla-object bbe))
+    (if (not (vl-catch-all-error-p (vl-catch-all-apply 'vla-getboundingbox (list bbobj 'bblo 'bbhi))))
+      (progn
+        (setq bblo (vlax-safearray->list bblo) bbhi (vlax-safearray->list bbhi))
+        (if (or (null minx) (< (car bblo) minx)) (setq minx (car bblo)))
+        (if (or (null miny) (< (cadr bblo) miny)) (setq miny (cadr bblo)))
+        (if (or (null maxx) (> (car bbhi) maxx)) (setq maxx (car bbhi)))
+        (if (or (null maxy) (> (cadr bbhi) maxy)) (setq maxy (cadr bbhi)))))
+    (setq bbe (entnext bbe)))
+  (if minx (setq pmin (list minx miny) pmax (list maxx maxy)))
+  ;; RAW building rectangle (no dims/margins) from the placed areas — positions the 4 outer wall labels.
+  ;; placed entry = (aNum lew rew nsw fsw).
+  (setq bx0 nil by0 nil bx1 nil by1 nil)
+  (foreach pr placed
+    (setq pb (cdr pr))
+    (if (or (null bx0) (< (nth 0 pb) bx0)) (setq bx0 (nth 0 pb)))
+    (if (or (null bx1) (> (nth 1 pb) bx1)) (setq bx1 (nth 1 pb)))
+    (if (or (null by0) (< (nth 2 pb) by0)) (setq by0 (nth 2 pb)))
+    (if (or (null by1) (> (nth 3 pb) by1)) (setq by1 (nth 3 pb))))
+  (setq *PEB-MA-BLDG-BBOX* (if bx0 (list bx0 by0 bx1 by1)))
+  (peb-draw-combined-frame pmin pmax)
+  (setq *PEB-MA-BLDG-BBOX* nil)   ; consumed — clear so it never leaks into the next drawing
   (princ))
 
 ;; ============================================================================
