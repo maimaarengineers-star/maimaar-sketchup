@@ -229,6 +229,24 @@
     (progn (setq hi (- (/ i 26) 1))
       (strcat (chr (+ 65 hi)) (chr (+ 65 (- i (* 26 (1+ hi)))))))))
 
+;; Parse a wall's open-wall condition ("Open up to 3.950 M for Brickwork (By Others), Rest Height Sheeted")
+;; -> the brick/open height in mm. "Fully Sheeted" / blank / no "up to" -> 0 (sheeted to floor).
+(defun peb-fr-openwall-ht (s / u p q ch c num)
+  (setq u (strcase (if s s "")))
+  (if (not (wcmatch u "*UP TO*")) 0.0
+    (progn
+      (setq p (vl-string-search "UP TO " u) num "")
+      (if p
+        (progn
+          (setq q (substr u (+ p 7)) ch 1)
+          (while (<= ch (strlen q))
+            (setq c (substr q ch 1))
+            (cond ((or (wcmatch c "#") (= c ".")) (setq num (strcat num c) ch (1+ ch)))
+                  ((and (= c " ") (= num "")) (setq ch (1+ ch)))     ; skip leading spaces
+                  (T (setq ch (1+ (strlen q))))))                    ; stop once the number ends
+          (* (atof num) 1000.0))
+        0.0))))
+
 ;; spans from an IF expression, scaled to close EXACTLY on `total` (parity with
 ;; the Plan's ewStations handling); always returns (0.0 ... total).
 (defun peb-fr-scaled-stations (expr total / lst sum sc acc out)
@@ -282,7 +300,7 @@
                               i x g yTop pts cx prev braced b x0 x1 y0 y1 lbl bubGap
                               gsp gy cnt pre psurf pat pw mark expr ov noteY
                               ewHang hangHt cnt2 gbase
-                              p0 p1 sdx sdy slen ux uy nx ny pdep npl jj tt px py rdep)
+                              p0 p1 sdx sdy slen ux uy nx ny pdep npl jj tt px py rdep owText)
   (setq len    (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
         wid    (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
         slopeD (slope-denom (peb-tb-or (MSPL-Get-Str data "SLOPE") "10"))
@@ -525,19 +543,31 @@
   ;; 4. girts (secondary) from the sheeting base up to eave + a note. Sheeting starts at brick height,
   ;; or — on a hanging-column end wall — at the per-side open-wall line (so no girts hang in the open bay).
   (setvar "CLAYER" "GIRTS")
-  ;; The FRAMING elevation is the STEEL SKELETON, so girts run the FULL column height (owner 28-Jul, KMFoods
-  ;; ref: dense girts top-to-bottom) — the brick-vs-sheeting split is shown in the Sheeting elevation (Phase 2).
-  ;; EXCEPTION: a hanging-column end wall is genuinely open below the hang line, so girts start there.
-  (setq gbase (if (and ewHang (> hangHt 0.0)) hangHt 0.0))
-  ;; girts drawn as a DOUBLE line = the Z-girt's 60 mm visible lip in the framing view (owner 28-Jul), so
-  ;; they read as members not hairlines. Real 60 mm. They run column-face to column-face across the wall.
-  ;; denser girts (owner 28-Jul, KMFoods ref: girts closely spaced up the wall). 1400 C/C from the sheeting base.
+  ;; SYNC girts to THIS wall's OWN open-wall condition (owner 28-Jul: "framing must sync with wall conditions").
+  ;; Girts fill the SHEETED zone only, densely (1400 C/C, drawn as the Z-girt's 60 mm visible lip), ABOVE the
+  ;; brick/open line. A hanging-column end wall already carries its open height as hangHt; other walls read
+  ;; OW_<surf> ("Open up to X M for Brickwork/Access ...") -> peb-fr-openwall-ht.
+  (setq owText (peb-tb-or (MSPL-Get-Str data (strcat "OW_" surf)) "")
+        gbase  (if (and ewHang (> hangHt 0.0)) hangHt (peb-fr-openwall-ht owText)))
   (setq gsp 1400.0 pdep 60.0 i 1)
   (while (< (+ base gbase (* i gsp)) (- (+ base eaveH) 200.0))
     (setq gy (+ base gbase (* i gsp)))
     (command "_.LINE" (list ox gy) (list (+ ox faceLen) gy) "")
     (command "_.LINE" (list ox (+ gy pdep)) (list (+ ox faceLen) (+ gy pdep)) "")
     (setq i (1+ i)))
+  ;; brick/open zone below the sheeting line: a base line + a label straight from the wall condition, so the
+  ;; framing visibly matches "brickwork by others" vs "open for access" at the right per-wall height.
+  (if (> gbase 200.0)
+    (progn
+      ;; sheeting-base line (hanging end walls already have the carrying beam at this level, so skip it there)
+      (if (not (and ewHang (> hangHt 0.0)))
+        (progn (setvar "CLAYER" "GIRTS")
+          (command "_.LINE" (list ox (+ base gbase)) (list (+ ox faceLen) (+ base gbase)) "")))
+      (setvar "CLAYER" "TEXT")
+      (txt "MC" (list (+ ox (/ faceLen 2.0)) (+ base (* gbase 0.42))) (* 300 *PEB-TEXT-SCALE*) 0
+           (strcat (if (wcmatch (strcase owText) "*ACCESS*") "OPEN FOR ACCESS (BY OTHERS)"
+                                                             "BRICK WALL (BY OTHERS)")
+                   " - H=" (rtos (/ gbase 1000.0) 2 2) " M"))))
   (setvar "CLAYER" "TEXT")
   (txt "ML" (list (+ ox faceLen (* 350 *PEB-TEXT-SCALE*)) (+ base (* eaveH 0.42)))
        (* 300 *PEB-TEXT-SCALE*) 0 "GIRT Z200x60x1.5mm @ 1400 C/C")
