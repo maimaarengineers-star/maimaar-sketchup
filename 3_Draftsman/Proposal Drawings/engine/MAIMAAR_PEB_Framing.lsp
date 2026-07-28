@@ -280,7 +280,8 @@
                               eaveH eaveHi eaveLo brickH hiName hiSide wallEave
                               faceLen stations isEnd base colhw rise ridgeRise
                               i x g yTop pts cx prev braced b x0 x1 y0 y1 lbl bubGap
-                              gsp gy cnt pre psurf pat pw mark expr ov noteY)
+                              gsp gy cnt pre psurf pat pw mark expr ov noteY
+                              ewHang hangHt cnt2 gbase)
   (setq len    (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
         wid    (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
         slopeD (slope-denom (peb-tb-or (MSPL-Get-Str data "SLOPE") "10"))
@@ -329,17 +330,47 @@
   (command "_.LINE" (list (- ox (* 0.03 faceLen)) base)
                     (list (+ ox faceLen (* 0.03 faceLen)) base) "")
 
-  ;; 2. I-columns (slender rectangle) + base plates at every station
+  ;; 2. I-columns (slender rectangle) + base plates at every station.
+  ;; HANGING COLUMNS (owner 25-Jul): when THIS end wall's frame is "Main Frame with Hanging Columns",
+  ;; the INTERIOR end-wall columns do NOT run to FFL — they HANG from the rafter down to the open-wall
+  ;; line (BP_EW_LEFT/RIGHT_BRICK_HT: the "Open up to X M" height) and carry NO base plate; only the two
+  ;; CORNER columns keep the full height + base plate. LEW/REW read their OWN frame + open height (owner:
+  ;; the two end walls may differ). Side walls + non-hanging end walls are UNCHANGED (ewHang nil).
+  (setq ewHang (and isEnd
+                    (wcmatch (strcase (peb-tb-or (MSPL-Get-Str data
+                                (if (= surf "LEW") "EW_LEFT_FRAME" "EW_RIGHT_FRAME")) ""))
+                             "*HANGING*")))
+  (setq hangHt (if ewHang
+                 (atof (peb-tb-or (MSPL-Get-Str data
+                          (if (= surf "LEW") "BP_EW_LEFT_BRICK_HT" "BP_EW_RIGHT_BRICK_HT")) "0"))
+                 0.0))
+  (setq cnt2 (length stations) i 0)
   (foreach g stations
-    (setq x (+ ox g)
+    (setq x    (+ ox g)
           yTop (if isEnd
                  (peb-fr-topy g faceLen base eaveH eaveHi eaveLo rise rtype hiSide)
-                 (+ base wallEave)))
+                 (+ base wallEave))
+          ;; b = CORNER column? (first or last station); y0 = this column's foot
+          b    (or (= i 0) (= i (1- cnt2)))
+          y0   (if (and ewHang (not b) (> hangHt 0.0)) (+ base hangHt) base))
     (setvar "CLAYER" "COLUMNS")
-    (command "_.RECTANG" (list (- x colhw) base) (list (+ x colhw) yTop))
-    (setvar "CLAYER" "PLATES")
-    (command "_.RECTANG" (list (- x (* colhw 1.7)) (- base (* colhw 0.28)))
-                         (list (+ x (* colhw 1.7)) (+ base (* colhw 0.28)))))
+    (command "_.RECTANG" (list (- x colhw) y0) (list (+ x colhw) yTop))
+    ;; base plate ONLY where the column lands on the foundation (corners always; interior unless hanging)
+    (if (or (not ewHang) b (<= hangHt 0.0))
+      (progn
+        (setvar "CLAYER" "PLATES")
+        (command "_.RECTANG" (list (- x (* colhw 1.7)) (- base (* colhw 0.28)))
+                             (list (+ x (* colhw 1.7)) (+ base (* colhw 0.28))))))
+    (setq i (1+ i)))
+  ;; carrying beam the hanging columns land on (at the open-wall line, corner->corner) + a label
+  (if (and ewHang (> hangHt 0.0) (>= cnt2 2))
+    (progn
+      (setvar "CLAYER" "STRUCTURE")
+      (command "_.LINE" (list (+ ox (car stations)) (+ base hangHt))
+                        (list (+ ox (last stations)) (+ base hangHt)) "")
+      (setvar "CLAYER" "TEXT")
+      (txt "MC" (list (+ ox (/ faceLen 2.0)) (+ base hangHt (* 380 *PEB-TEXT-SCALE*)))
+           (* 240 *PEB-TEXT-SCALE*) 0 "HANGING COLUMNS (NO BASE PLATE)")))
 
   ;; 3. eave strut + rafter / roof profile
   (if isEnd
@@ -375,11 +406,13 @@
           (command "_.LINE" (list ox (+ base wallEave rise))
                             (list (+ ox faceLen) (+ base wallEave rise)) "")))))
 
-  ;; 4. girts (secondary) from brick height up to eave + a note
+  ;; 4. girts (secondary) from the sheeting base up to eave + a note. Sheeting starts at brick height,
+  ;; or — on a hanging-column end wall — at the per-side open-wall line (so no girts hang in the open bay).
   (setvar "CLAYER" "GIRTS")
+  (setq gbase (if (and ewHang (> hangHt 0.0)) hangHt (max brickH 0.0)))
   (setq gsp 1800.0 i 1)
-  (while (< (+ base (max brickH 0.0) (* i gsp)) (+ base eaveH))
-    (setq gy (+ base (max brickH 0.0) (* i gsp)))
+  (while (< (+ base gbase (* i gsp)) (+ base eaveH))
+    (setq gy (+ base gbase (* i gsp)))
     (command "_.LINE" (list ox gy) (list (+ ox faceLen) gy) "")
     (setq i (1+ i)))
   (setvar "CLAYER" "TEXT")
