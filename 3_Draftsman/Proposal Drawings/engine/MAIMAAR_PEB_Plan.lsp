@@ -1711,6 +1711,8 @@
 ;; title-block value helpers (IF-linked): default when blank; dash "-" when not
 ;; applicable (zero / none); seismic shown as a ZONE.
 (defun peb-tb-or (v d) (if (= v "") d v))
+;; roof slope for the title block: normalized SLOPE is often just the ratio denominator ("10") -> "1:10".
+(defun peb-tb-slope (v) (cond ((= v "") "-") ((= v "0") "FLAT") ((vl-string-search ":" v) v) (T (strcat "1:" v))))
 (defun peb-tb-snow (v) (if (member (strcase v) '("" "0" "0.0" "0.00" "NONE" "-")) "-" v))
 (defun peb-tb-zone (v) (cond ((= v "") "AS PER SITE") ((wcmatch (strcase v) "*ZONE*") v) (T (strcat "ZONE " v))))
 
@@ -1803,6 +1805,14 @@
     (cons "TEMP"     (peb-tb-snow (MSPL-Get-Str data "TEMP")))
     (cons "RAIN"     (peb-tb-or   (MSPL-Get-Str data "RAIN") "-"))
     (cons "CODE"     (peb-tb-or (MSPL-Get-Str data "DESIGNCODE") "MBMA 2006"))
+    ;; building data — for the CROSS SECTION sheet's title block (owner 29-Jul: each sheet's title bar
+    ;; carries details about ITS drawing; the Section shows BUILDING data, never member sections/thk).
+    (cons "BWIDTH"   (peb-tb-or (MSPL-Get-Str data "WIDTH")       "-"))
+    (cons "BLENGTH"  (peb-tb-or (MSPL-Get-Str data "LENGTH")      "-"))
+    (cons "BEAVE"    (peb-tb-or (MSPL-Get-Str data "CLEARHEIGHT") "-"))
+    (cons "BSLOPE"   (peb-tb-slope (MSPL-Get-Str data "SLOPE")))
+    (cons "BBAYS"    (peb-tb-or (MSPL-Get-Str data "NUMBAYS")     "-"))
+    (cons "ROOFPANEL" (peb-tb-or (MSPL-Get-Str data "ROOFSHEETING") ""))
     (cons "PROJECT"  (peb-tb-or (MSPL-Get-Str data "PROJECT") "UNNAMED PROJECT"))
     (cons "CUSTOMER" (peb-tb-or (MSPL-Get-Str data "CLIENT") "UNNAMED CLIENT"))
     (cons "ADDR"
@@ -1857,7 +1867,7 @@
 ;; mirror of the Mammut proposal-drawing title block).  Every value links to the IF.
 (defun peb-titleblock-mammut (X0 Y0 W H data
                               / white grey green cyan midX cw val lbl bv sm tbBlind
-                              yCur bt rh bottomH lx vx ux c1x c2x tb-get tb-hdiv s)
+                              yCur bt rh bottomH lx vx ux c1x c2x tb-get tb-hdiv s dt tbKind bandTop)
   (setq white 7 grey 8 green 3 cyan 4)
   (setq s (if (and *PEB-TB-SIZEH* (> *PEB-TB-SIZEH* 0.0)) *PEB-TB-SIZEH* H))   ; F2 flush-strip content cap (owner 16-Jul)
   (defun tb-get (k) (cond ((cdr (assoc k data))) (T "")))
@@ -1890,42 +1900,98 @@
     (strcat "THIS DOCUMENT IS A PROPOSAL DRAWING OF\\P"
             "MAIMAAR STEEL (PVT) LTD - NOT FOR CONSTRUCTION") cyan)
   (tb-hdiv yCur)
-  ;; ----- DESIGN-LOAD table (Mammut format) -----
-  (setq lx (+ X0 (* W 0.05)) vx (+ X0 (* W 0.70)) ux (+ X0 (* W 0.865)))   ; owner 7-Jul: value+unit cols pushed right (into the empty right margin) so labels never touch the value and the table fills its width
-  (setq rh (* s 0.052) bt yCur yCur (- yCur rh))
-  ;; owner 5-Jul: the BOLD heading is wider than tb-fith's non-bold estimate, so it was wrapping to 3 lines
-  ;; and the 3rd overran the first load row.  Size it small enough that each half stays on ONE line (2 lines
-  ;; total) and give the wrap the full inner width.
-  (tb-mtext (+ X0 (* W 0.035)) (- bt (* s 0.0110))
-    (tb-fith "THE BUILDING HAS BEEN DESIGNED TO" (* cw 0.80) (* s 0.0086)) (* W 0.93) 1
-    (strcat "THE BUILDING HAS BEEN DESIGNED TO\\P"
-            "SUPPORT IT'S OWN DEAD LOAD PLUS:") green)
-  (foreach r (list
-       (list "LIVE LOAD ON ROOF"      (tb-get "LL_ROOF")  "KN/SQ.M.")
-       (list "LIVE LOAD ON FRAME"     (tb-get "LL_FRAME") "KN/SQ.M.")
-       (list "WIND SPEED (3-SEC GUST)" (tb-get "WIND")    "KPH")
-       (list "EXPOSURE CATEGORY"      (tb-get "EXPOSURE") "")
-       (list "ADD'L. COLLATERAL LOAD" (tb-get "COLL")     "")
-       (list "ROOF SNOW LOAD"         (tb-get "SNOW")     "KN/SQ.M.")
-       (list "SEISMIC LOAD"           (tb-get "SEISMIC")  "")
-       (list "TEMPERATURE LOAD"       (tb-get "TEMP")     "")
-       (list "RAINFALL INTENSITY"     (tb-get "RAIN")     "MM/HR"))
-    (setq rh (* s 0.0200) yCur (- yCur rh))
-    ;; owner 7-Jul: FIT the label to the label column so long ones (WIND SPEED (3-SEC GUST),
-    ;; RAINFALL INTENSITY, ADD'L. COLLATERAL LOAD) can't overflow into the value; tighten the value
-    ;; width so it can't touch the unit (KPH was rendering as "PH").
-    (tb-mtext lx (+ yCur (* rh 0.5)) (tb-fith (car r) (* W 0.63) sm) 0 4 (car r) white)
-    (tb-mtext vx (+ yCur (* rh 0.5)) (tb-fith (cadr r) (* W 0.15) val) 0 4 (cadr r) green)
-    (if (/= (caddr r) "")
-      (tb-mtext ux (+ yCur (* rh 0.5)) (tb-fith (caddr r) (* W 0.13) sm) 0 4 (caddr r) grey)))
-  ;; code note — taller row + smaller fit so the 2-line text stays INSIDE the box
-  ;; (above the divider), never overwriting the rule below.
-  (setq rh (* s 0.044) yCur (- yCur rh))
-  (tb-mtext (+ X0 (* W 0.04)) (+ yCur (* rh 0.74))
-    (tb-fith (strcat "AS PER " (tb-get "CODE") " METAL BUILDING SYSTEMS MANUAL")
-             (* cw 1.02) (* s 0.0092)) cw 1
-    (strcat "{\\Fromand.shx;AS PER " (tb-get "CODE")
-            " METAL BUILDING SYSTEMS MANUAL}") green)
+  ;; ----- SHEET-SPECIFIC DATA / NOTES (owner 29-Jul) -----
+  ;; Mammut puts the design CRITERIA (loads) on the general Column-Layout-Plan sheet ONLY; every OTHER sheet
+  ;; carries notes/data about ITS OWN drawing.  Kind is inferred from the drawing title (no extra field to
+  ;; thread); an unrecognised title keeps the DESIGN-LOAD table (back-compat for Roof/other landscape sheets).
+  ;; PROPOSAL level — never member sections / web-flange thicknesses (owner).  All four kinds fill the SAME
+  ;; vertical band (bandTop -> bandTop-0.276s) so the bottom PROJECT block still lines up on every sheet.
+  (setq lx (+ X0 (* W 0.05)) vx (+ X0 (* W 0.70)) ux (+ X0 (* W 0.865)))   ; owner 7-Jul: value+unit cols
+  (setq dt (strcase (tb-get "DRGTITLE"))
+        tbKind (cond ((wcmatch dt "*SECTION*")             "SECTION")
+                     ((wcmatch dt "*FRAMING*")             "FRAMING")
+                     ((wcmatch dt "*SHEETING*,*CLADDING*") "SHEETING")
+                     (T                                    "PLAN"))
+        bandTop yCur)
+  (cond
+    ;; ==== PLAN / default : DESIGN-LOAD table (the design-criteria home) ====
+    ((= tbKind "PLAN")
+      (setq rh (* s 0.052) bt yCur yCur (- yCur rh))
+      (tb-mtext (+ X0 (* W 0.035)) (- bt (* s 0.0110))
+        (tb-fith "THE BUILDING HAS BEEN DESIGNED TO" (* cw 0.80) (* s 0.0086)) (* W 0.93) 1
+        (strcat "THE BUILDING HAS BEEN DESIGNED TO\\P"
+                "SUPPORT IT'S OWN DEAD LOAD PLUS:") green)
+      (foreach r (list
+           (list "LIVE LOAD ON ROOF"      (tb-get "LL_ROOF")  "KN/SQ.M.")
+           (list "LIVE LOAD ON FRAME"     (tb-get "LL_FRAME") "KN/SQ.M.")
+           (list "WIND SPEED (3-SEC GUST)" (tb-get "WIND")    "KPH")
+           (list "EXPOSURE CATEGORY"      (tb-get "EXPOSURE") "")
+           (list "ADD'L. COLLATERAL LOAD" (tb-get "COLL")     "")
+           (list "ROOF SNOW LOAD"         (tb-get "SNOW")     "KN/SQ.M.")
+           (list "SEISMIC LOAD"           (tb-get "SEISMIC")  "")
+           (list "TEMPERATURE LOAD"       (tb-get "TEMP")     "")
+           (list "RAINFALL INTENSITY"     (tb-get "RAIN")     "MM/HR"))
+        (setq rh (* s 0.0200) yCur (- yCur rh))
+        (tb-mtext lx (+ yCur (* rh 0.5)) (tb-fith (car r) (* W 0.63) sm) 0 4 (car r) white)
+        (tb-mtext vx (+ yCur (* rh 0.5)) (tb-fith (cadr r) (* W 0.15) val) 0 4 (cadr r) green)
+        (if (/= (caddr r) "")
+          (tb-mtext ux (+ yCur (* rh 0.5)) (tb-fith (caddr r) (* W 0.13) sm) 0 4 (caddr r) grey)))
+      (setq rh (* s 0.044) yCur (- yCur rh))
+      (tb-mtext (+ X0 (* W 0.04)) (+ yCur (* rh 0.74))
+        (tb-fith (strcat "AS PER " (tb-get "CODE") " METAL BUILDING SYSTEMS MANUAL")
+                 (* cw 1.02) (* s 0.0092)) cw 1
+        (strcat "{\\Fromand.shx;AS PER " (tb-get "CODE")
+                " METAL BUILDING SYSTEMS MANUAL}") green))
+    ;; ==== SECTION : KEY BUILDING DATA (dimensions in MM — NEVER member sections/thk) ====
+    ((= tbKind "SECTION")
+      (setq rh (* s 0.052) bt yCur yCur (- yCur rh))
+      (tb-mtext-bold (+ X0 (* W 0.035)) (- bt (* s 0.0130))
+        (tb-fith "KEY BUILDING DATA" (* cw 0.85) (* s 0.0120)) (* W 0.93) 1 "KEY BUILDING DATA" green)
+      (foreach r (list
+           (list "BUILDING WIDTH"  (tb-get "BWIDTH")  "MM")
+           (list "BUILDING LENGTH" (tb-get "BLENGTH") "MM")
+           (list "EAVE HEIGHT"     (tb-get "BEAVE")   "MM")
+           (list "ROOF SLOPE"      (tb-get "BSLOPE")  "")
+           (list "No. OF BAYS"     (tb-get "BBAYS")   ""))
+        (setq rh (* s 0.0280) yCur (- yCur rh))
+        (tb-mtext lx (+ yCur (* rh 0.5)) (tb-fith (car r) (* W 0.55) sm) 0 4 (car r) white)
+        (tb-mtext vx (+ yCur (* rh 0.5)) (tb-fith (cadr r) (* W 0.16) val) 0 4 (cadr r) green)
+        (if (/= (caddr r) "")
+          (tb-mtext ux (+ yCur (* rh 0.5)) (tb-fith (caddr r) (* W 0.13) sm) 0 4 (caddr r) grey)))
+      (setq rh (* s 0.050) yCur (- yCur rh))
+      (tb-mtext (+ X0 (* W 0.04)) (+ yCur (* rh 0.72))
+        (tb-fith "HEIGHTS, SLOPE & GRIDS AS SHOWN ON THE SECTION." (* cw 1.02) (* s 0.0090)) cw 1
+        "HEIGHTS, SLOPE & GRIDS AS SHOWN ON THE SECTION." green))
+    ;; ==== FRAMING : proposal-level framing notes (NO member sizes/sections) ====
+    ((= tbKind "FRAMING")
+      (setq rh (* s 0.052) bt yCur yCur (- yCur rh))
+      (tb-mtext-bold (+ X0 (* W 0.035)) (- bt (* s 0.0130))
+        (tb-fith "FRAMING NOTES" (* cw 0.85) (* s 0.0120)) (* W 0.93) 1 "FRAMING NOTES" green)
+      (setq rh (* s 0.224) yCur (- yCur rh))
+      (tb-mtext (+ X0 (* W 0.04)) (- (+ yCur rh) (* sm 1.3))
+        (tb-fith "3. BRACING, BASE PLATES & ANCHOR BOLTS PER" cw (* sm 0.82)) cw 1
+        (strcat "1. STRUCTURAL FRAMING SHOWN IS INDICATIVE.\\P"
+                "2. MEMBER SIZES ARE NOT SHOWN AT PROPOSAL\\P"
+                "    STAGE - THEY ARE FIXED BY THE DESIGN.\\P"
+                "3. BRACING, BASE PLATES & ANCHOR BOLTS PER\\P"
+                "    THE APPROVED DESIGN.\\P"
+                "4. WALL INFILL (BRICK / BLOCK / OPEN) BY\\P"
+                "    OTHERS AS SHOWN.") white))
+    ;; ==== SHEETING / CLADDING : proposal-level cladding notes ====
+    (T
+      (setq rh (* s 0.052) bt yCur yCur (- yCur rh))
+      (tb-mtext-bold (+ X0 (* W 0.035)) (- bt (* s 0.0130))
+        (tb-fith "CLADDING NOTES" (* cw 0.85) (* s 0.0120)) (* W 0.93) 1 "CLADDING NOTES" green)
+      (setq rh (* s 0.224) yCur (- yCur rh))
+      (tb-mtext (+ X0 (* W 0.04)) (- (+ yCur rh) (* sm 1.3))
+        (tb-fith "2. SHEETING PROFILE & COLOUR TO CLIENT" cw (* sm 0.82)) cw 1
+        (strcat "1. ROOF & WALL PANELS AS SPECIFIED IN THE\\P"
+                "    PROPOSAL.\\P"
+                "2. SHEETING PROFILE & COLOUR TO CLIENT\\P"
+                "    SELECTION.\\P"
+                "3. FLASHINGS & TRIMS PER THE APPROVED DESIGN.\\P"
+                "4. OPENINGS & INFILL BY OTHERS AS SHOWN.") white)))
+  (setq yCur (- bandTop (* s 0.276)))
   (tb-hdiv yCur)
 
   ;; ============ BOTTOM : PROJECT INFORMATION (anchored to bottom) ============
