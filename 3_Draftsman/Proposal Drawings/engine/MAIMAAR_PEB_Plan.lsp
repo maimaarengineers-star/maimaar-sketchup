@@ -4381,9 +4381,11 @@
   (setq i (fix (/ (length bayPts) 2)))
   (vl-catch-all-apply
     (function (lambda ()
+      ;; owner 29-Jul: drop the label well below the NSW line so it clears the centred "CROSS BRACING (TYP.)"
+      ;; text (which sits ~900 below the line) — the two were overlapping at the bottom centre.
       (peb-label-with-leader "RAFTER"
                              (list (+ (nth i bayPts) (* 1200 *PEB-DIM-SCALE*))
-                                   (- (* 1200 *PEB-DIM-SCALE*)))
+                                   (- (* 2200 *PEB-DIM-SCALE*)))
                              (list (nth i bayPts) (/ wid 4.0))
                              "S" 600.0))))
 

@@ -266,13 +266,19 @@
 ;;  Owner 13-Jul: sheeting skins read e.g. "0.50mm AZ 150 (PPGL)".
 (defun peb-finish-code (mat finish / m f painted)
   (setq m (strcase (if mat mat "")) f (strcase (if finish finish "")))
-  (setq painted (or (wcmatch f "*PAINT*") (wcmatch f "*PPG*")
-                    (wcmatch f "*POLYESTER*") (wcmatch f "*PVDF*")))
-  (cond
-    ((wcmatch m "*AZ*")               (if painted " (PPGL)" " (GL)"))   ; Aluzinc / galvalume
-    ((wcmatch m "*GALVALUME*")        (if painted " (PPGL)" " (GL)"))
-    ((or (wcmatch m "*GI*") (wcmatch m "*GALVANI*")) (if painted " (PPGI)" " (GI)"))
-    (T "")))
+  ;; owner 29-Jul: if the material string ALREADY carries a coating code (e.g. "0.50 mm AZ150 PPGL"), don't
+  ;; append another → was rendering "...PPGL (PPGL)".
+  (if (or (wcmatch m "*PPGL*") (wcmatch m "*PPGI*") (wcmatch m "*(GL)*") (wcmatch m "*(GI)*")
+          (wcmatch m "* GL") (wcmatch m "* GI"))
+    ""
+    (progn
+      (setq painted (or (wcmatch f "*PAINT*") (wcmatch f "*PPG*")
+                        (wcmatch f "*POLYESTER*") (wcmatch f "*PVDF*")))
+      (cond
+        ((wcmatch m "*AZ*")               (if painted " (PPGL)" " (GL)"))   ; Aluzinc / galvalume
+        ((wcmatch m "*GALVALUME*")        (if painted " (PPGL)" " (GL)"))
+        ((or (wcmatch m "*GI*") (wcmatch m "*GALVANI*")) (if painted " (PPGI)" " (GI)"))
+        (T "")))))
 
 ;;  peb-profile-name — the sheeting PROFILE suffix shown after the outer skin, from
 ;;  PN_<KEY>_OUTER_PROFILE (BS).  Owner 14-Jul: ALWAYS show the profile (they run BOTH S-Type and
