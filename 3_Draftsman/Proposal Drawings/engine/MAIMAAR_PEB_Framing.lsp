@@ -408,24 +408,28 @@
   ;; and two labels. Drawn BEFORE the columns so the steel overdraws it.
   (if (and rbOn hasR)
     (progn
+      ;; existing floor line + the existing building's outer vertical edges (0 -> steel base)
       (setvar "CLAYER" "GROUND")
       (command "_.LINE" (list (+ ox rx0) (+ base rbFloor)) (list (+ ox rx1) (+ base rbFloor)) "")
-      (if (> rx0 1.0)                (command "_.LINE" (list (+ ox rx0) base) (list (+ ox rx0) (+ base rbFloor)) ""))
-      (if (< rx1 (- faceLen 1.0))    (command "_.LINE" (list (+ ox rx1) base) (list (+ ox rx1) (+ base rbFloor)) ""))
-      ;; RCC pedestal + brick band (existing pillars extended) — grey, manual 45° hatch (thin band)
-      (setvar "CLAYER" "HATCHR")
-      (vl-catch-all-apply (function (lambda () (setvar "CECOLOR" "RGB:150,150,150"))))
-      (command "_.RECTANG" (list (+ ox rx0 40.0) (+ base rbFloor 15.0)) (list (- (+ ox rx1) 40.0) (+ base rbBase -15.0)))
-      (setq bc (+ ox rx0))
-      (while (< bc (+ ox rx1))
-        (command "_.LINE" (list bc (+ base rbFloor)) (list (min (+ ox rx1) (+ bc (- rbBase rbFloor))) (+ base rbBase)) "")
-        (setq bc (+ bc 400.0)))
-      (setvar "CECOLOR" "BYLAYER")
+      (if (> rx0 1.0)             (command "_.LINE" (list (+ ox rx0) base) (list (+ ox rx0) (+ base rbBase)) ""))
+      (if (< rx1 (- faceLen 1.0)) (command "_.LINE" (list (+ ox rx1) base) (list (+ ox rx1) (+ base rbBase)) ""))
+      ;; BRICK MASONRY infill across the existing zone (FFL -> steel base): brick colour + AR-B816
+      (peb-fr-material-fill (+ ox rx0) base (- rx1 rx0) rbBase 0.0 "Brickwork (By Others)")
+      ;; RCC PILLARS (existing, extended by the pedestal) at each RAISED column station — grey concrete over
+      ;; the brick, so the elevation reads "RCC pillars with brick masonry between" (owner 29-Jul).
+      (setq bc 0)
+      (foreach g stations
+        (if (or (and (not isEnd) (>= (1+ bc) rbFrom) (<= (1+ bc) rbTo)) (and isEnd ewRaised))
+          (peb-fr-rcc-pillar (+ ox g) base (+ base rbBase) (max 250.0 (* colhw 1.5))))
+        (setq bc (1+ bc)))
+      ;; steel-base (pedestal-top) line
+      (setvar "CLAYER" "STRUCTURE")
+      (command "_.LINE" (list (+ ox rx0) (+ base rbBase)) (list (+ ox rx1) (+ base rbBase)) "")
       (setvar "CLAYER" "TEXT")
-      (peb-fr-masked-label (+ ox (* 0.5 (+ rx0 rx1))) (+ base (* rbFloor 0.52)) (* 260 *PEB-TEXT-SCALE*)
-           (strcat "EXISTING RCC BUILDING (BY OTHERS) - F.L. +" (rtos (/ rbFloor 1000.0) 2 3)))
-      (peb-fr-masked-label (+ ox (* 0.5 (+ rx0 rx1))) (+ base rbBase (* 300.0 *PEB-TEXT-SCALE*)) (* 235 *PEB-TEXT-SCALE*)
-           (strcat "RCC PEDESTAL + BRICK TO +" (rtos (/ rbBase 1000.0) 2 3) " (STEEL BASE)"))))
+      (peb-fr-masked-label (+ ox (* 0.5 (+ rx0 rx1))) (+ base (* rbFloor 0.45)) (* 255 *PEB-TEXT-SCALE*)
+           (strcat "EXISTING RCC BUILDING (BY OTHERS) - 1st FLOOR +" (rtos (/ rbFloor 1000.0) 2 3)))
+      (peb-fr-masked-label (+ ox (* 0.5 (+ rx0 rx1))) (+ base rbBase (* 330.0 *PEB-TEXT-SCALE*)) (* 235 *PEB-TEXT-SCALE*)
+           (strcat "RCC PILLARS + BRICK INFILL TO +" (rtos (/ rbBase 1000.0) 2 3) " (STEEL BASE)"))))
   (foreach g stations
     (setq x    (+ ox g)
           yTop (if isEnd
@@ -693,6 +697,19 @@
     (command "_.WIPEOUT" (list x0 y0) (list x1 y0) (list x1 y1) (list x0 y1) ""))))
   (txt "MC" (list cx cy) h 0 str))
 
+;; Existing RCC pillar in the raised zone of an ELEVATION (owner 29-Jul: "RCC pillars, and between them brick
+;; masonry"): a grey concrete column (cx±hw, y0->y1) with a 45° concrete cross-hatch, drawn OVER the brick.
+(defun peb-fr-rcc-pillar (cx y0 y1 hw / yy)
+  (setvar "CLAYER" "HATCHR")
+  (vl-catch-all-apply (function (lambda () (setvar "CECOLOR" "RGB:150,150,150"))))
+  (command "_.RECTANG" (list (- cx hw) y0) (list (+ cx hw) y1))
+  (setq yy (- y0 (* 2.0 hw)))
+  (while (< yy y1)
+    (command "_.LINE" (list (- cx hw) (max y0 yy)) (list (+ cx hw) (min y1 (+ yy (* 2.0 hw)))) "")
+    (setq yy (+ yy 300.0)))
+  (setvar "CECOLOR" "BYLAYER")
+  (princ))
+
 ;; Masked condition label for a SHEETING-elevation segment (brick/open by others, at height gbase from cy's base).
 (defun peb-sh-label (cx cy gbase owText / owU)
   (setq owU (strcase owText))
@@ -881,23 +898,26 @@
                     (list ox (if isEnd (peb-fr-topy 0.0 faceLen base eaveH eaveHi eaveLo rise rtype hiSide) (+ base wallEave))) "")
   (command "_.LINE" (list (+ ox faceLen) base)
                     (list (+ ox faceLen) (if isEnd (peb-fr-topy faceLen faceLen base eaveH eaveHi eaveLo rise rtype hiSide) (+ base wallEave))) "")
-  ;; existing raised RCC structure (mirror the framing): floor line + building step + RCC pedestal band + label
+  ;; existing raised RCC structure (mirror the framing): brick masonry infill + RCC PILLARS at the grid lines
   (if (and rbOn hasR)
     (progn
       (setvar "CLAYER" "GROUND")
       (command "_.LINE" (list (+ ox rx0) (+ base rbFloor)) (list (+ ox rx1) (+ base rbFloor)) "")
-      (if (> rx0 1.0)             (command "_.LINE" (list (+ ox rx0) base) (list (+ ox rx0) (+ base rbFloor)) ""))
-      (if (< rx1 (- faceLen 1.0)) (command "_.LINE" (list (+ ox rx1) base) (list (+ ox rx1) (+ base rbFloor)) ""))
-      (setvar "CLAYER" "HATCHR")
-      (vl-catch-all-apply (function (lambda () (setvar "CECOLOR" "RGB:150,150,150"))))
-      (command "_.RECTANG" (list (+ ox rx0 40.0) (+ base rbFloor 15.0)) (list (- (+ ox rx1) 40.0) (+ base rbBase -15.0)))
-      (setq bc (+ ox rx0))
-      (while (< bc (+ ox rx1))
-        (command "_.LINE" (list bc (+ base rbFloor)) (list (min (+ ox rx1) (+ bc (- rbBase rbFloor))) (+ base rbBase)) "")
-        (setq bc (+ bc 400.0)))
-      (setvar "CECOLOR" "BYLAYER")
-      (peb-fr-masked-label (+ ox (* 0.5 (+ rx0 rx1))) (+ base (* rbFloor 0.52)) (* 250 *PEB-TEXT-SCALE*)
-           (strcat "EXISTING RCC BUILDING (BY OTHERS) - F.L. +" (rtos (/ rbFloor 1000.0) 2 3)))))
+      (if (> rx0 1.0)             (command "_.LINE" (list (+ ox rx0) base) (list (+ ox rx0) (+ base rbBase)) ""))
+      (if (< rx1 (- faceLen 1.0)) (command "_.LINE" (list (+ ox rx1) base) (list (+ ox rx1) (+ base rbBase)) ""))
+      (peb-fr-material-fill (+ ox rx0) base (- rx1 rx0) rbBase 0.0 "Brickwork (By Others)")
+      (setq bc 0)
+      (foreach g stations
+        (if (or (and (not isEnd) (>= (1+ bc) rbFrom) (<= (1+ bc) rbTo)) (and isEnd ewRaised))
+          (peb-fr-rcc-pillar (+ ox g) base (+ base rbBase) 300.0))
+        (setq bc (1+ bc)))
+      (setvar "CLAYER" "STRUCTURE")
+      (command "_.LINE" (list (+ ox rx0) (+ base rbBase)) (list (+ ox rx1) (+ base rbBase)) "")
+      (setvar "CLAYER" "TEXT")
+      (peb-fr-masked-label (+ ox (* 0.5 (+ rx0 rx1))) (+ base (* rbFloor 0.45)) (* 250 *PEB-TEXT-SCALE*)
+           (strcat "EXISTING RCC BUILDING (BY OTHERS) - 1st FLOOR +" (rtos (/ rbFloor 1000.0) 2 3)))
+      (peb-fr-masked-label (+ ox (* 0.5 (+ rx0 rx1))) (+ base rbBase (* 320.0 *PEB-TEXT-SCALE*)) (* 230 *PEB-TEXT-SCALE*)
+           (strcat "RCC PILLARS + BRICK INFILL TO +" (rtos (/ rbBase 1000.0) 2 3) " (STEEL BASE)"))))
   ;; FULL-HEIGHT OPEN FOR ACCESS (owner 29-Jul: LEW is "not fully sheeted but FULL OPEN ... full height till
   ;; peak, open for access") — NO sheeting, NO brick; just the frame outline (already drawn) + an OPEN label.
   (if (and (wcmatch (strcase owText) "*OPEN*") (<= gbase 100.0) (not (and rbOn hasR)))
