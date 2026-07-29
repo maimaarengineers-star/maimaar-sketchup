@@ -7556,6 +7556,69 @@
       (setvar "CLAYER" "0")))
   (princ))
 
+;; simple 45° concrete cross-hatch inside a rectangle (manual — reliable headless, unlike AR-CONC)
+(defun peb-sec-xhatch (x0 y0 x1 y1 / d xx)
+  (setq d (- y1 y0) xx x0)
+  (while (< xx x1)
+    (command "_.LINE" (list xx y0) (list (min x1 (+ xx d)) (+ y0 (min d (- x1 xx)))) "")
+    (setq xx (+ xx 300.0)))
+  (setq xx (- x0 d))
+  (while (< xx x1)
+    (command "_.LINE" (list (max x0 xx) (+ y0 (max 0.0 (- x0 xx)))) (list (min x1 (+ xx d)) (+ y0 (min d (- x1 xx)))) "")
+    (setq xx (+ xx 300.0))))
+
+;; RAISED-BASE DETAIL on the CROSS SECTION (owner 29-Jul): to the RIGHT of the typical frame, show how the
+;; steel typical column at grid rbFrom..rbTo lands on the EXISTING RCC building — existing RCC column (0 ->
+;; +rbFloor) + the first-floor RCC beam/slab (built in concrete) + an RCC pedestal (+rbFloor -> +rbBase), with
+;; the STEEL column starting on top at +rbBase. Sets *PEB-SEC-DETAIL-R* so the sheet border widens to include it.
+(defun peb-sec-raised-detail (data wid H / rf rb gf gt ts ox cw colH rxL rxR)
+  (if (= (peb-tb-or (MSPL-Get-Str data "BP_RAISED_ON") "0") "1")
+    (progn
+      (setq rf (atof (peb-tb-or (MSPL-Get-Str data "BP_RAISED_FLOOR") "0"))
+            rb (atof (peb-tb-or (MSPL-Get-Str data "BP_RAISED_BASE") "0"))
+            gf (peb-tb-or (MSPL-Get-Str data "BP_RAISED_GRID_FROM") "4")
+            gt (peb-tb-or (MSPL-Get-Str data "BP_RAISED_GRID_TO") "5")
+            ts (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)
+            ox (+ wid (* 9000 ts)) cw 700.0 colH 3000.0)
+      (if (> rb 0.0)
+        (progn
+          (setvar "CECOLOR" "BYLAYER")
+          ;; ground line
+          (setvar "CLAYER" "GROUND")
+          (command "_.LINE" (list (- ox (* 2600 ts)) 0.0) (list (+ ox cw (* 2600 ts)) 0.0) "")
+          ;; EXISTING RCC COLUMN (0 -> rf) + FIRST-FLOOR BEAM/SLAB at rf + RCC PEDESTAL (rf -> rb) : grey concrete
+          (setvar "CLAYER" "HATCHR")
+          (vl-catch-all-apply (function (lambda () (setvar "CECOLOR" "RGB:150,150,150"))))
+          (command "_.RECTANG" (list ox 0.0) (list (+ ox cw) rf))                                   ; RCC column
+          (peb-sec-xhatch ox 0.0 (+ ox cw) rf)
+          (setq rxL (- ox (* 1900 ts)) rxR (+ ox cw (* 1900 ts)))
+          (command "_.RECTANG" (list rxL rf) (list rxR (+ rf 380.0)))                                ; first-floor beam/slab
+          (peb-sec-xhatch rxL rf rxR (+ rf 380.0))
+          (command "_.RECTANG" (list (+ ox 70.0) (+ rf 380.0)) (list (+ ox cw -70.0) rb))            ; RCC pedestal
+          (peb-sec-xhatch (+ ox 70.0) (+ rf 380.0) (+ ox cw -70.0) rb)
+          (setvar "CECOLOR" "BYLAYER")
+          ;; STEEL COLUMN (I-section, double line) starting on the pedestal at rb + base plate
+          (setvar "CLAYER" "COLUMNS")
+          (command "_.RECTANG" (list (+ ox (* cw 0.5) -130.0) rb) (list (+ ox (* cw 0.5) 130.0) (+ rb colH)))
+          (setvar "CLAYER" "PLATES")
+          (command "_.RECTANG" (list (+ ox (* cw 0.5) -300.0) (- rb 45.0)) (list (+ ox (* cw 0.5) 300.0) (+ rb 45.0)))
+          ;; level ticks + labels (to the right)
+          (setvar "CLAYER" "TEXT")
+          (txt "MC" (list (+ ox (* cw 0.5)) (- 0.0 (* 1000 ts))) (* 320 ts) 0
+               (strcat "DETAIL @ GRID " gf "-" gt " - STEEL COLUMN ON EXISTING RCC"))
+          ;; labels stacked at WELL-SEPARATED heights (with short leaders) so they don't overlap
+          (setvar "CLAYER" "TEXT")
+          (command "_.LINE" (list (+ ox (* cw 0.5)) (+ rb (* colH 0.62))) (list (+ rxR (* 300 ts)) (+ rb (* colH 0.62))) "")
+          (txt "ML" (list (+ rxR (* 400 ts)) (+ rb (* colH 0.62))) (* 250 ts) 0 "STEEL TYPICAL COLUMN (BY MAIMAAR)")
+          (command "_.LINE" (list (+ ox cw -70.0) (+ rf 380.0 (* 0.5 (- rb (+ rf 380.0))))) (list (+ rxR (* 300 ts)) (+ rb 900.0)) "")
+          (txt "ML" (list (+ rxR (* 400 ts)) (+ rb 900.0)) (* 250 ts) 0 (strcat "RCC PEDESTAL TO +" (rtos (/ rb 1000.0) 2 3) " M (STEEL BASE)"))
+          (command "_.LINE" (list rxR (+ rf 190.0)) (list (+ rxR (* 300 ts)) (- rf 600.0)) "")
+          (txt "ML" (list (+ rxR (* 400 ts)) (- rf 600.0)) (* 250 ts) 0 (strcat "EXISTING 1st-FLOOR RCC BEAM / SLAB  +" (rtos (/ rf 1000.0) 2 3) " M"))
+          (command "_.LINE" (list (+ ox cw) (* rf 0.45)) (list (+ rxR (* 300 ts)) (* rf 0.30)) "")
+          (txt "ML" (list (+ rxR (* 400 ts)) (* rf 0.30)) (* 250 ts) 0 "EXISTING RCC COLUMN (BY OTHERS)")
+          (setq *PEB-SEC-DETAIL-R* (+ rxR (* 16000 ts)))))))
+  (princ))
+
 (defun C:PEB-SECTION
   ( / dataFile data
     project client propinput propno fulldate
@@ -9218,10 +9281,16 @@
   ;; border, and its BOTTOM line must overlap the border bottom.
   ;; Compute border edges FIRST, then size the table to fit
   ;; borderL..borderR horizontally and tbTop..borderB vertically.
+  ;; RAISED BASE (owner 29-Jul): part of the building (grid rbFrom..rbTo) rests on an existing RCC building.
+  ;; Draw a DETAIL to the right of the typical frame — the existing RCC column + first-floor beam/slab (built
+  ;; in concrete) + RCC pedestal, with the STEEL typical column starting above it at +rbBase.
+  (setq *PEB-SEC-DETAIL-R* nil)
+  (vl-catch-all-apply (function (lambda () (peb-sec-raised-detail data wid H))))
   (setq borderL (min (- (* 6000 *PEB-DIM-SCALE*))
                      (- c0 (* 800 *PEB-TEXT-SCALE*))))
   (setq borderR (max (+ wid (* 6000 *PEB-DIM-SCALE*))
-                     (+ c6 (* 800 *PEB-TEXT-SCALE*))))
+                     (+ c6 (* 800 *PEB-TEXT-SCALE*))
+                     (if *PEB-SEC-DETAIL-R* *PEB-SEC-DETAIL-R* 0.0)))
   (setq borderB (- tbBot (* 1200 *PEB-TEXT-SCALE*)))
   ;; owner 23-Jul: this is the operative top-border Y for the section sheet. The title was lifted (hdBase
   ;; 5100->6200) so its info bar clears the sheeting labels; the border top is raised 6500->10500·TS to keep
