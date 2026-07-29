@@ -247,6 +247,20 @@
           (* (atof num) 1000.0))
         0.0))))
 
+;; Height (mm) of the RAISED grid-segment condition inside a COMPOUND OW_<surf> string (owner 29-Jul writes
+;; "... + Open up to X M ... between Grids ..."). The main wall uses the FIRST condition (peb-fr-openwall-ht);
+;; the raised band uses the "between Grids" segment's height. Returns 0 when there is no such segment.
+(defun peb-fr-seg-openwall-ht (s / u p k lastk seg)
+  (setq u (strcase (if s s "")) p (vl-string-search "BETWEEN GRID" u))
+  (if p
+    (progn
+      (setq k 0 lastk -1)
+      (while (and (setq k (vl-string-search " + " s k)) (< k p))
+        (setq lastk k k (+ k 3)))
+      (setq seg (if (>= lastk 0) (substr s (+ lastk 4)) s))
+      (peb-fr-openwall-ht seg))
+    0.0))
+
 ;; spans from an IF expression, scaled to close EXACTLY on `total` (parity with
 ;; the Plan's ewStations handling); always returns (0.0 ... total).
 (defun peb-fr-scaled-stations (expr total / lst sum sc acc out)
@@ -301,7 +315,8 @@
                               gsp gy cnt pre psurf pat pw mark expr ov noteY
                               ewHang hangHt cnt2 gbase
                               p0 p1 sdx sdy slen ux uy nx ny pdep npl jj tt px py rdep owText
-                              bc bx0 by0 bx1 by1 owU isRcc hEnt)
+                              bc bx0 by0 bx1 by1 owU isRcc hEnt
+                              rbOn rbFrom rbTo rbFloor rbBase nLen ewGrid ewRaised rx0 rx1 gridNum plateY hasR gbaseR)
   (setq len    (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
         wid    (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
         slopeD (slope-denom (peb-tb-or (MSPL-Get-Str data "SLOPE") "10"))
@@ -366,28 +381,82 @@
                           (if (= surf "LEW") "BP_EW_LEFT_BRICK_HT" "BP_EW_RIGHT_BRICK_HT")) "0"))
                  0.0))
   (setq cnt2 (length stations) i 0)
+  ;; ---- RAISED BASE (owner 29-Jul): grids [rbFrom..rbTo] rest on an existing RCC floor at +rbFloor; an RCC
+  ;; pedestal + brick carry the existing pillars up to +rbBase where the STEEL columns start (shorter cols).
+  ;; Side-wall station i => length-grid (i+1); an END wall raises wholesale if its own length-grid is in the
+  ;; range (LEW = grid 1, REW = grid nLen). rx0..rx1 = the raised horizontal band of THIS wall (relative ox). ----
+  (setq rbOn    (= (peb-tb-or (MSPL-Get-Str data "BP_RAISED_ON") "0") "1")
+        rbFrom  (atoi (peb-tb-or (MSPL-Get-Str data "BP_RAISED_GRID_FROM") "0"))
+        rbTo    (atoi (peb-tb-or (MSPL-Get-Str data "BP_RAISED_GRID_TO") "0"))
+        rbFloor (atof (peb-tb-or (MSPL-Get-Str data "BP_RAISED_FLOOR") "0"))
+        rbBase  (atof (peb-tb-or (MSPL-Get-Str data "BP_RAISED_BASE") "0")))
+  (if (or (not rbOn) (<= rbBase 0.0)) (setq rbOn nil))
+  (setq nLen (length (peb-fr-scaled-stations (peb-tb-or (MSPL-Get-Str data "BAYEXPR") "") len)))
+  (if (< nLen 2) (setq nLen 2))
+  (setq ewGrid   (cond ((= surf "LEW") 1) ((= surf "REW") nLen) (T 0))
+        ewRaised (and rbOn isEnd (>= ewGrid rbFrom) (<= ewGrid rbTo))
+        hasR nil rx0 0.0 rx1 0.0)
+  (if rbOn
+    (if isEnd
+      (if ewRaised (setq hasR T rx0 0.0 rx1 faceLen))            ; whole end wall sits on the existing floor
+      (if (and (>= rbTo 1) (<= rbFrom nLen) (<= rbFrom rbTo))    ; SIDE wall: raised band grid rbFrom..rbTo
+        (setq hasR T
+              rx0 (if (<= rbFrom 1) 0.0
+                    (* 0.5 (+ (nth (- rbFrom 2) stations) (nth (- rbFrom 1) stations))))
+              rx1 (if (>= rbTo nLen) faceLen
+                    (* 0.5 (+ (nth (- rbTo 1) stations) (nth rbTo stations))))))))
+  ;; existing RCC structure under the raised band: top-of-floor line at +rbFloor, the building's vertical
+  ;; edges (step up from FFL), an RCC pedestal + brick band (rbFloor -> rbBase, where the steel base lands),
+  ;; and two labels. Drawn BEFORE the columns so the steel overdraws it.
+  (if (and rbOn hasR)
+    (progn
+      (setvar "CLAYER" "GROUND")
+      (command "_.LINE" (list (+ ox rx0) (+ base rbFloor)) (list (+ ox rx1) (+ base rbFloor)) "")
+      (if (> rx0 1.0)                (command "_.LINE" (list (+ ox rx0) base) (list (+ ox rx0) (+ base rbFloor)) ""))
+      (if (< rx1 (- faceLen 1.0))    (command "_.LINE" (list (+ ox rx1) base) (list (+ ox rx1) (+ base rbFloor)) ""))
+      ;; RCC pedestal + brick band (existing pillars extended) — grey, manual 45° hatch (thin band)
+      (setvar "CLAYER" "HATCHR")
+      (vl-catch-all-apply (function (lambda () (setvar "CECOLOR" "RGB:150,150,150"))))
+      (command "_.RECTANG" (list (+ ox rx0 40.0) (+ base rbFloor 15.0)) (list (- (+ ox rx1) 40.0) (+ base rbBase -15.0)))
+      (setq bc (+ ox rx0))
+      (while (< bc (+ ox rx1))
+        (command "_.LINE" (list bc (+ base rbFloor)) (list (min (+ ox rx1) (+ bc (- rbBase rbFloor))) (+ base rbBase)) "")
+        (setq bc (+ bc 400.0)))
+      (setvar "CECOLOR" "BYLAYER")
+      (setvar "CLAYER" "TEXT")
+      (peb-fr-masked-label (+ ox (* 0.5 (+ rx0 rx1))) (+ base (* rbFloor 0.52)) (* 260 *PEB-TEXT-SCALE*)
+           (strcat "EXISTING RCC BUILDING (BY OTHERS) - F.L. +" (rtos (/ rbFloor 1000.0) 2 3)))
+      (peb-fr-masked-label (+ ox (* 0.5 (+ rx0 rx1))) (+ base rbBase (* 300.0 *PEB-TEXT-SCALE*)) (* 235 *PEB-TEXT-SCALE*)
+           (strcat "RCC PEDESTAL + BRICK TO +" (rtos (/ rbBase 1000.0) 2 3) " (STEEL BASE)"))))
   (foreach g stations
     (setq x    (+ ox g)
           yTop (if isEnd
                  (peb-fr-topy g faceLen base eaveH eaveHi eaveLo rise rtype hiSide)
                  (+ base wallEave))
-          ;; b = CORNER column? (first or last station); y0 = this column's foot
-          b    (or (= i 0) (= i (1- cnt2)))
-          y0   (if (and ewHang (not b) (> hangHt 0.0)) (+ base hangHt) base))
+          ;; b = CORNER column? (first or last station); gridNum = this column's LENGTH grid; y0 = its foot.
+          ;; RAISED grids start on the existing floor at +rbBase (short column); else hanging line; else FFL.
+          b       (or (= i 0) (= i (1- cnt2)))
+          gridNum (if isEnd ewGrid (1+ i))
+          y0      (cond ((and rbOn (>= gridNum rbFrom) (<= gridNum rbTo)) (+ base rbBase))
+                        ((and ewHang (not b) (> hangHt 0.0)) (+ base hangHt))
+                        (T base))
+          plateY  y0)
     (setvar "CLAYER" "COLUMNS")
     (command "_.RECTANG" (list (- x colhw) y0) (list (+ x colhw) yTop))
-    ;; base plate ONLY where the column lands on the foundation (corners always; interior unless hanging)
-    (if (or (not ewHang) b (<= hangHt 0.0))
+    ;; base plate wherever the column lands on a foundation OR on the RCC pedestal (raised) — NOT on a
+    ;; hanging-column interior foot (that lands on the carrying beam, no plate).
+    (if (not (and ewHang (not b) (> hangHt 0.0)
+                  (not (and rbOn (>= gridNum rbFrom) (<= gridNum rbTo)))))
       (progn
         (setvar "CLAYER" "PLATES")
-        (command "_.RECTANG" (list (- x (* colhw 1.7)) (- base (* colhw 0.28)))
-                             (list (+ x (* colhw 1.7)) (+ base (* colhw 0.28))))
+        (command "_.RECTANG" (list (- x (* colhw 1.7)) (- plateY (* colhw 0.28)))
+                             (list (+ x (* colhw 1.7)) (+ plateY (* colhw 0.28))))
         ;; anchor bolts under the base plate (ref: the "III" ticks) — two short stubs
         (setvar "CLAYER" "BOLTS")
-        (command "_.LINE" (list (- x (* colhw 0.75)) (- base (* colhw 0.28)))
-                          (list (- x (* colhw 0.75)) (- base (* colhw 1.05))) "")
-        (command "_.LINE" (list (+ x (* colhw 0.75)) (- base (* colhw 0.28)))
-                          (list (+ x (* colhw 0.75)) (- base (* colhw 1.05))) "")))
+        (command "_.LINE" (list (- x (* colhw 0.75)) (- plateY (* colhw 0.28)))
+                          (list (- x (* colhw 0.75)) (- plateY (* colhw 1.05))) "")
+        (command "_.LINE" (list (+ x (* colhw 0.75)) (- plateY (* colhw 0.28)))
+                          (list (+ x (* colhw 0.75)) (- plateY (* colhw 1.05))) "")))
     (setq i (1+ i)))
   ;; carrying beam the hanging columns land on (at the open-wall line, corner->corner) + a label
   (if (and ewHang (> hangHt 0.0) (>= cnt2 2))
@@ -515,78 +584,26 @@
           (command "_.LINE" (list ox (+ base wallEave rise))
                             (list (+ ox faceLen) (+ base wallEave rise)) "")))))
 
-  ;; 4. girts (secondary) from the sheeting base up to eave + a note. Sheeting starts at brick height,
-  ;; or — on a hanging-column end wall — at the per-side open-wall line (so no girts hang in the open bay).
-  (setvar "CLAYER" "GIRTS")
-  ;; SYNC girts to THIS wall's OWN open-wall condition (owner 28-Jul: "framing must sync with wall conditions").
-  ;; Girts fill the SHEETED zone only, densely (1400 C/C, drawn as the Z-girt's 60 mm visible lip), ABOVE the
-  ;; brick/open line. A hanging-column end wall already carries its open height as hangHt; other walls read
-  ;; OW_<surf> ("Open up to X M for Brickwork/Access ...") -> peb-fr-openwall-ht.
+  ;; 4. girts + sheeting-base + brick/RCC hatch + condition label — drawn PER WALL-FACE SEGMENT (owner 29-Jul)
+  ;; so a RAISED band (on the existing floor) starts its brick/sheeting from +rbBase, not FFL. See
+  ;; peb-fr-wallface. gy = the ABSOLUTE eave top for the girts (roof is continuous; side walls use wallEave,
+  ;; end walls the low eave eaveH). gbase = sheeting-base height (hanging end wall = hangHt; else OW_<surf>).
   (setq owText (peb-tb-or (MSPL-Get-Str data (strcat "OW_" surf)) "")
-        gbase  (if (and ewHang (> hangHt 0.0)) hangHt (peb-fr-openwall-ht owText)))
-  (setq gsp 1400.0 pdep 60.0 i 1)
-  (while (< (+ base gbase (* i gsp)) (- (+ base eaveH) 200.0))
-    (setq gy (+ base gbase (* i gsp)))
-    (command "_.LINE" (list ox gy) (list (+ ox faceLen) gy) "")
-    (command "_.LINE" (list ox (+ gy pdep)) (list (+ ox faceLen) (+ gy pdep)) "")
-    (setq i (1+ i)))
-  ;; brick/open zone below the sheeting line: a base line + a label straight from the wall condition, so the
-  ;; framing visibly matches "brickwork by others" vs "open for access" at the right per-wall height.
-  (if (> gbase 200.0)
-    (progn
-      ;; sheeting-base line (hanging end walls already have the carrying beam at this level, so skip it there)
-      (if (not (and ewHang (> hangHt 0.0)))
-        (progn (setvar "CLAYER" "GIRTS")
-          (command "_.LINE" (list ox (+ base gbase)) (list (+ ox faceLen) (+ base gbase)) "")))
-      ;; MASONRY / CONCRETE hatch by the wall condition (owner 28-Jul: real brick pattern + RCC concrete, on
-      ;; their SEMANTIC colour layers so the DWG is colour-coded and the mono plot keeps the tuned weights):
-      ;;   Brickwork / Blockwall  -> AR-B816 running-bond BRICK on layer BRICK-WALL (brown);
-      ;;   Pre-Cast / RCC / Concrete -> AR-CONC aggregate on layer HATCHR (orange concrete poche), MaxHatch
-      ;;     raised so it doesn't abort; entity-check fallback to a manual 45-deg cross-hatch if it makes nothing.
-      ;;   Access / Glazing / Open -> no fill.
-      (setq owU (strcase owText)
-            isRcc (wcmatch owU "*PRE-CAST*,*PRECAST*,*RCC*,*CONCRETE*,*R.C.C*"))
-      (if (and (> gbase 500.0) (not (wcmatch owU "*ACCESS*")) (not (wcmatch owU "*GLAZ*")))
-        (progn
-          (setvar "CLAYER" (if isRcc "HATCHR" "BRICK-WALL"))
-          ;; material-resembling COLOUR for the DWG view (mono plots black either way): light brick / concrete grey
-          (vl-catch-all-apply (function (lambda ()
-            (setvar "CECOLOR" (if isRcc "RGB:150,150,150" "RGB:200,132,96")))))
-          (command "_.RECTANG" (list (+ ox colhw 40.0) (+ base 40.0))
-                               (list (- (+ ox faceLen) colhw 40.0) (+ base gbase -40.0)))
-          (setq hEnt (entlast))
-          ;; raise MaxHatch so a fine pattern over a big panel doesn't abort ("hatch too dense")
-          (vl-catch-all-apply (function (lambda () (setenv "MaxHatch" "50000000"))))
-          (vl-catch-all-apply (function (lambda ()
-            (command "_.-HATCH" "_P" (if isRcc "AR-CONC" "AR-B816")
-                     (if isRcc (* 120.0 *PEB-TEXT-SCALE*) (* 20.0 *PEB-TEXT-SCALE*)) 0.0
-                     "_S" (entlast) "" ""))))
-          ;; FALLBACK for RCC only: if AR-CONC made no hatch entity, draw a manual 45-deg cross-hatch.
-          (if (and isRcc (eq (entlast) hEnt))
-            (progn
-              (setq bc (- 0.0 gbase))
-              (while (< bc faceLen)
-                (setq bx0 (if (>= bc 0.0) bc 0.0) by0 (if (>= bc 0.0) 0.0 (- 0.0 bc))
-                      bx1 (if (<= (+ bc gbase) faceLen) (+ bc gbase) faceLen)
-                      by1 (if (<= (+ bc gbase) faceLen) gbase (- faceLen bc)))
-                (command "_.LINE" (list (+ ox bx0) (+ base by0)) (list (+ ox bx1) (+ base by1)) "")
-                (setq bc (+ bc 750.0)))
-              (setq bc 0.0)
-              (while (< bc (+ faceLen gbase))
-                (setq bx0 (if (<= bc faceLen) bc faceLen) by0 (if (<= bc faceLen) 0.0 (- bc faceLen))
-                      bx1 (if (>= (- bc gbase) 0.0) (- bc gbase) 0.0) by1 (if (>= (- bc gbase) 0.0) gbase bc))
-                (command "_.LINE" (list (+ ox bx0) (+ base by0)) (list (+ ox bx1) (+ base by1)) "")
-                (setq bc (+ bc 750.0)))))
-          (setvar "CECOLOR" "BYLAYER")))
-      (setvar "CLAYER" "TEXT")
-      (peb-fr-masked-label (+ ox (/ faceLen 2.0)) (+ base (* gbase 0.42)) (* 300 *PEB-TEXT-SCALE*)
-           (strcat (cond ((wcmatch owU "*ACCESS*")               "OPEN FOR ACCESS (BY OTHERS)")
-                         ((wcmatch owU "*PRE-CAST*,*PRECAST*")   "PRE-CAST RCC PANELS (BY OTHERS)")
-                         ((wcmatch owU "*RCC*,*R.C.C*,*CONCRETE*") "RCC WALL (BY OTHERS)")
-                         ((wcmatch owU "*BLOCK*")                "BLOCKWALL (BY OTHERS)")
-                         ((wcmatch owU "*GLAZ*")                 "GLAZING (BY OTHERS)")
-                         (T                                      "BRICK WALL (BY OTHERS)"))
-                   " - H=" (rtos (/ gbase 1000.0) 2 2) " M"))))
+        gbase  (if (and ewHang (> hangHt 0.0)) hangHt (peb-fr-openwall-ht owText))
+        gbaseR (peb-fr-seg-openwall-ht owText)                 ; raised-band brick height (compound OW segment)
+        gy     (if isEnd (+ base eaveH) (+ base wallEave)))
+  (if (<= gbaseR 0.0) (setq gbaseR gbase))                    ; no per-segment condition -> reuse the main height
+  (cond
+    ((and rbOn ewRaised)                                       ; whole END wall sits on the existing floor
+      (peb-fr-wallface ox faceLen (+ base rbBase) gbase colhw owText gy nil))
+    ((and rbOn hasR (not isEnd))                               ; SIDE wall: normal [0..rx0] + raised [rx0..rx1] (+ tail)
+      (if (> rx0 1.0)
+        (peb-fr-wallface ox rx0 base gbase colhw owText gy (and ewHang (> hangHt 0.0))))
+      (peb-fr-wallface (+ ox rx0) (- rx1 rx0) (+ base rbBase) gbaseR colhw owText gy nil)
+      (if (< rx1 (- faceLen 1.0))
+        (peb-fr-wallface (+ ox rx1) (- faceLen rx1) base gbase colhw owText gy nil)))
+    (T                                                         ; normal wall — one face at FFL
+      (peb-fr-wallface ox faceLen base gbase colhw owText gy (and ewHang (> hangHt 0.0)))))
   ;; (Proposal Drawing: girt/purlin SIZE + SPACING call-outs omitted — set by design at approval stage.)
 
   ;; 5. wall X cross-bracing — SIDE walls only (braced bays). The reference END WALL FRAMING carries NO
@@ -669,6 +686,62 @@
   (vl-catch-all-apply (function (lambda ()
     (command "_.WIPEOUT" (list x0 y0) (list x1 y0) (list x1 y1) (list x0 y1) ""))))
   (txt "MC" (list cx cy) h 0 str))
+
+;; Draw ONE wall-face SEGMENT of a FRAMING elevation: dense girts (sheeted zone) + sheeting-base line +
+;; brick/RCC hatch + the condition label. Factored out of peb-draw-framing-elev (owner 29-Jul) so a wall can
+;; be drawn in SEGMENTS at DIFFERENT bases — a normal segment at FFL and a RAISED segment sitting on an
+;; existing RCC floor start from different `wbase`. [ox0 .. ox0+flen] horizontally; brick from `wbase` up to
+;; `wbase+gbase`; girts from there up to `eaveTop-200` (eaveTop is ABSOLUTE — the roof line is continuous, so
+;; a raised segment's girts still stop at the true eave). skipBaseLine = T for a hanging-column end wall.
+(defun peb-fr-wallface (ox0 flen wbase gbase colhw owText eaveTop skipBaseLine / gsp pdep i gy owU isRcc hEnt bc bx0 by0 bx1 by1)
+  (setvar "CLAYER" "GIRTS")
+  (setq gsp 1400.0 pdep 60.0 i 1)
+  (while (< (+ wbase gbase (* i gsp)) (- eaveTop 200.0))
+    (setq gy (+ wbase gbase (* i gsp)))
+    (command "_.LINE" (list ox0 gy) (list (+ ox0 flen) gy) "")
+    (command "_.LINE" (list ox0 (+ gy pdep)) (list (+ ox0 flen) (+ gy pdep)) "")
+    (setq i (1+ i)))
+  (if (> gbase 200.0)
+    (progn
+      (if (not skipBaseLine)
+        (progn (setvar "CLAYER" "GIRTS")
+          (command "_.LINE" (list ox0 (+ wbase gbase)) (list (+ ox0 flen) (+ wbase gbase)) "")))
+      (setq owU (strcase owText) isRcc (wcmatch owU "*PRE-CAST*,*PRECAST*,*RCC*,*CONCRETE*,*R.C.C*"))
+      (if (and (> gbase 500.0) (not (wcmatch owU "*ACCESS*")) (not (wcmatch owU "*GLAZ*")))
+        (progn
+          (setvar "CLAYER" (if isRcc "HATCHR" "BRICK-WALL"))
+          (vl-catch-all-apply (function (lambda () (setvar "CECOLOR" (if isRcc "RGB:150,150,150" "RGB:200,132,96")))))
+          (command "_.RECTANG" (list (+ ox0 colhw 40.0) (+ wbase 40.0)) (list (- (+ ox0 flen) colhw 40.0) (+ wbase gbase -40.0)))
+          (setq hEnt (entlast))
+          (vl-catch-all-apply (function (lambda () (setenv "MaxHatch" "50000000"))))
+          (vl-catch-all-apply (function (lambda ()
+            (command "_.-HATCH" "_P" (if isRcc "AR-CONC" "AR-B816")
+                     (if isRcc (* 120.0 *PEB-TEXT-SCALE*) (* 20.0 *PEB-TEXT-SCALE*)) 0.0 "_S" (entlast) "" ""))))
+          (if (and isRcc (eq (entlast) hEnt))                       ; RCC hatch aborted -> manual 45° cross-hatch
+            (progn
+              (setq bc (- 0.0 gbase))
+              (while (< bc flen)
+                (setq bx0 (if (>= bc 0.0) bc 0.0) by0 (if (>= bc 0.0) 0.0 (- 0.0 bc))
+                      bx1 (if (<= (+ bc gbase) flen) (+ bc gbase) flen) by1 (if (<= (+ bc gbase) flen) gbase (- flen bc)))
+                (command "_.LINE" (list (+ ox0 bx0) (+ wbase by0)) (list (+ ox0 bx1) (+ wbase by1)) "")
+                (setq bc (+ bc 750.0)))
+              (setq bc 0.0)
+              (while (< bc (+ flen gbase))
+                (setq bx0 (if (<= bc flen) bc flen) by0 (if (<= bc flen) 0.0 (- bc flen))
+                      bx1 (if (>= (- bc gbase) 0.0) (- bc gbase) 0.0) by1 (if (>= (- bc gbase) 0.0) gbase bc))
+                (command "_.LINE" (list (+ ox0 bx0) (+ wbase by0)) (list (+ ox0 bx1) (+ wbase by1)) "")
+                (setq bc (+ bc 750.0)))))
+          (setvar "CECOLOR" "BYLAYER")))
+      (setvar "CLAYER" "TEXT")
+      (peb-fr-masked-label (+ ox0 (/ flen 2.0)) (+ wbase (* gbase 0.42)) (* 300 *PEB-TEXT-SCALE*)
+           (strcat (cond ((wcmatch owU "*ACCESS*")               "OPEN FOR ACCESS (BY OTHERS)")
+                         ((wcmatch owU "*PRE-CAST*,*PRECAST*")   "PRE-CAST RCC PANELS (BY OTHERS)")
+                         ((wcmatch owU "*RCC*,*R.C.C*,*CONCRETE*") "RCC WALL (BY OTHERS)")
+                         ((wcmatch owU "*BLOCK*")                "BLOCKWALL (BY OTHERS)")
+                         ((wcmatch owU "*GLAZ*")                 "GLAZING (BY OTHERS)")
+                         (T                                      "BRICK WALL (BY OTHERS)"))
+                   " - H=" (rtos (/ gbase 1000.0) 2 2) " M"))))
+  (princ))
 
 ;; Brick / RCC material fill for a wall zone (0..faceLen x 0..gbase from base), synced to the wall condition.
 ;; Brick/Block -> AR-B816 (light-brick colour); Pre-Cast/RCC/Concrete -> AR-CONC aggregate (grey) w/ manual
