@@ -2112,7 +2112,7 @@
 ;; Create an A4 layout `lname` viewing the model region bmin..bmax at a real standard scale.
 ;; `tbData` = peb-build-tbdata alist; `sheetNo` overrides the SHEET NO. cell (nil = keep).  Returns 1:S.
 (defun peb-add-layout (lname bmin bmax tbData sheetNo / paperW paperH margin tbW gap
-                       dawX0 dawX1 dawY0 dawY1 mw mh sc lay)
+                       dawX0 dawX1 dawY0 dawY1 mw mh sc lay vp cx cy pdw pdh cxp cyp)
   (setq paperW 297.0 paperH 210.0 margin 6.0 gap 3.0)   ; A4 landscape (owner: proposals always print on A4)
   (setq tbW    (* (- paperH (* 2.0 margin)) 0.32)
         dawX0  margin
@@ -2150,12 +2150,27 @@
     (setvar "CLAYER" "0")
     (command "_.RECTANG" (list 3.0 3.0) (list (- paperW 3.0) (- paperH 3.0)))
     (command "_.RECTANG" (list margin margin) (list (- paperW margin) (- paperH margin))))))
-  ;; drawing viewport + real scale inside it
+  ;; drawing viewport + real scale inside it. TWO fixes over the old MSPACE+ZOOM-Window (owner 29-Jul):
+  ;;  1. The viewport is sized to the DRAWING's own aspect (mw/sc x mh/sc), centred in the drawing-area box,
+  ;;     so it shows ONLY this sheet — a fixed A4-aspect viewport shows extra model area in the non-binding
+  ;;     dimension, which in the COMBINED DWG bleeds in the neighbouring tiled sheet.
+  ;;  2. The view is set via ActiveX (ViewCenter + CustomScale) so it frames the sheet wherever it sits in the
+  ;;     model — ZOOM-Window only worked when the sheet was at the origin (the PDF path erases between sheets).
   (setvar "CLAYER" "0")
-  (command "_.MVIEW" (list dawX0 dawY0) (list dawX1 dawY1))
+  (setq cx  (/ (+ (car bmin) (car bmax)) 2.0)   cy  (/ (+ (cadr bmin) (cadr bmax)) 2.0)
+        pdw (/ mw (float sc))                    pdh (/ mh (float sc))
+        cxp (/ (+ dawX0 dawX1) 2.0)              cyp (/ (+ dawY0 dawY1) 2.0))
+  (command "_.MVIEW" (list (- cxp (/ pdw 2.0)) (- cyp (/ pdh 2.0)))
+                     (list (+ cxp (/ pdw 2.0)) (+ cyp (/ pdh 2.0))))
+  (setq vp (vlax-ename->vla-object (entlast)))
+  (vl-catch-all-apply (function (lambda ()
+    (vla-put-ViewportOn vp :vlax-true)
+    (vla-put-ViewCenter vp (vlax-3d-point cx cy 0.0))
+    (vla-put-CustomScale vp (/ 1.0 (float sc))))))
+  ;; belt-and-suspenders for any build where the ActiveX put is a no-op: enter the viewport, ZOOM to the
+  ;; centre at the matching height (= mh), then leave paperspace.
   (command "_.MSPACE")
-  (command "_.ZOOM" "_W" bmin bmax)
-  (command "_.ZOOM" (strcat (rtos (/ 1.0 (float sc)) 2 8) "xp"))
+  (vl-catch-all-apply (function (lambda () (command "_.ZOOM" "_C" (list cx cy) mh))))
   (command "_.PSPACE")
   sc)
 
