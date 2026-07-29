@@ -593,13 +593,17 @@
         gbaseR (peb-fr-seg-openwall-ht owText)                 ; raised-band brick height (compound OW segment)
         gy     (if isEnd (+ base eaveH) (+ base wallEave)))
   (if (<= gbaseR 0.0) (setq gbaseR gbase))                    ; no per-segment condition -> reuse the main height
+  ;; On the RAISED band the RCC pedestal + brick already carry UP TO the steel base (+rbBase); the brick that
+  ;; remains ABOVE the base = (brick-height-from-FFL - rbBase), clamped to 0. When the brick just reaches the
+  ;; base (235 REW: 3.95 brick on a 3.95 base) that is 0 -> SHEETED above (owner 29-Jul: "sheeting above 3950,
+  ;; not brick"). A wall with brick taller than the base still shows the excess as brick, then sheeted.
   (cond
     ((and rbOn ewRaised)                                       ; whole END wall sits on the existing floor
-      (peb-fr-wallface ox faceLen (+ base rbBase) gbase colhw owText gy nil))
+      (peb-fr-wallface ox faceLen (+ base rbBase) (max 0.0 (- gbase rbBase)) colhw owText gy nil))
     ((and rbOn hasR (not isEnd))                               ; SIDE wall: normal [0..rx0] + raised [rx0..rx1] (+ tail)
       (if (> rx0 1.0)
         (peb-fr-wallface ox rx0 base gbase colhw owText gy (and ewHang (> hangHt 0.0))))
-      (peb-fr-wallface (+ ox rx0) (- rx1 rx0) (+ base rbBase) gbaseR colhw owText gy nil)
+      (peb-fr-wallface (+ ox rx0) (- rx1 rx0) (+ base rbBase) (max 0.0 (- gbaseR rbBase)) colhw owText gy nil)
       (if (< rx1 (- faceLen 1.0))
         (peb-fr-wallface (+ ox rx1) (- faceLen rx1) base gbase colhw owText gy nil)))
     (T                                                         ; normal wall — one face at FFL
@@ -850,6 +854,9 @@
         (setq hasR T
               rx0 (if (<= rbFrom 1) 0.0 (* 0.5 (+ (nth (- rbFrom 2) stations) (nth (- rbFrom 1) stations))))
               rx1 (if (>= rbTo nLen) faceLen (* 0.5 (+ (nth (- rbTo 1) stations) (nth rbTo stations))))))))
+  ;; brick that remains ABOVE the steel base on the raised band = (brick-from-FFL - rbBase), clamped to 0.
+  ;; 0 -> sheeted above the base (owner 29-Jul: "sheeting above 3950, not brick").
+  (if (and rbOn hasR) (setq gbaseR (max 0.0 (- gbaseR rbBase))))
   ;; ground line
   (setvar "CLAYER" "GROUND")
   (command "_.LINE" (list (- ox (* 0.03 faceLen)) base) (list (+ ox faceLen (* 0.03 faceLen)) base) "")
