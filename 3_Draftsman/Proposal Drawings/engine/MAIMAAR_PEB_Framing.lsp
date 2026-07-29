@@ -579,7 +579,7 @@
                 (setq bc (+ bc 750.0)))))
           (setvar "CECOLOR" "BYLAYER")))
       (setvar "CLAYER" "TEXT")
-      (txt "MC" (list (+ ox (/ faceLen 2.0)) (+ base (* gbase 0.42))) (* 300 *PEB-TEXT-SCALE*) 0
+      (peb-fr-masked-label (+ ox (/ faceLen 2.0)) (+ base (* gbase 0.42)) (* 300 *PEB-TEXT-SCALE*)
            (strcat (cond ((wcmatch owU "*ACCESS*")               "OPEN FOR ACCESS (BY OTHERS)")
                          ((wcmatch owU "*PRE-CAST*,*PRECAST*")   "PRE-CAST RCC PANELS (BY OTHERS)")
                          ((wcmatch owU "*RCC*,*R.C.C*,*CONCRETE*") "RCC WALL (BY OTHERS)")
@@ -655,6 +655,20 @@
   (vl-catch-all-apply (function (lambda () (peb-fr-dimchain ox noteY stations))))
   (setvar "CLAYER" prev)
   (princ))
+
+;; Condition label with an opaque WIPEOUT mask behind it so it reads clearly OVER the brick/RCC hatch
+;; (owner 29-Jul: "the brick masonry height text on the hatching is not clearly visible").  A wipeout plots
+;; as blank paper (no border when WIPEOUTFRAME 0), hiding the hatch ONLY under the text.  Drawn AFTER the
+;; hatch and BEFORE the text, so: hatch < wipeout < text.  Catch-guarded → falls back to plain text if the
+;; WIPEOUT command is unavailable headless (no worse than before).
+(defun peb-fr-masked-label (cx cy h str / w x0 x1 y0 y1)
+  (setq w  (* (max 1 (strlen str)) h 0.66)
+        x0 (- cx (* w 0.5) h) x1 (+ cx (* w 0.5) h)
+        y0 (- cy (* h 0.95))  y1 (+ cy (* h 0.95)))
+  (setvar "WIPEOUTFRAME" 0)   ; no plotted border → the mask is invisible, only the text shows (clean)
+  (vl-catch-all-apply (function (lambda ()
+    (command "_.WIPEOUT" (list x0 y0) (list x1 y0) (list x1 y1) (list x0 y1) ""))))
+  (txt "MC" (list cx cy) h 0 str))
 
 ;; Brick / RCC material fill for a wall zone (0..faceLen x 0..gbase from base), synced to the wall condition.
 ;; Brick/Block -> AR-B816 (light-brick colour); Pre-Cast/RCC/Concrete -> AR-CONC aggregate (grey) w/ manual
@@ -767,7 +781,7 @@
   (if (> gbase 200.0)
     (progn (setvar "CLAYER" "TEXT")
       (setq owU (strcase owText))
-      (txt "MC" (list (+ ox (/ faceLen 2.0)) (+ base (* gbase 0.42))) (* 300 *PEB-TEXT-SCALE*) 0
+      (peb-fr-masked-label (+ ox (/ faceLen 2.0)) (+ base (* gbase 0.42)) (* 300 *PEB-TEXT-SCALE*)
            (strcat (cond ((wcmatch owU "*ACCESS*") "OPEN FOR ACCESS (BY OTHERS)")
                          ((wcmatch owU "*PRE-CAST*,*PRECAST*") "PRE-CAST RCC PANELS (BY OTHERS)")
                          ((wcmatch owU "*RCC*,*CONCRETE*") "RCC WALL (BY OTHERS)")
