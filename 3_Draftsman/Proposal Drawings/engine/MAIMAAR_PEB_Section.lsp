@@ -9321,7 +9321,12 @@
   ;; existing frame unchanged).  For F2 the strip is TALL (flush to the raised border), so cap the content to
   ;; its natural height so text stays readable and the extra height becomes a clean middle gap.
   (setq *PEB-TB-SIZEH* (if (= stype "F2") (min tbStripH (* tbStripW 1.6)) nil))
-  (peb-titleblock-mammut tbStripX tbFrmB tbStripW tbStripH tbData)
+  ;; owner 29-Jul: skip the EMBEDDED section title block when the caller suppresses it (*PEB-SUPPRESS-TB*).
+  ;; The A4 paperspace Layout provides ONE title block on the sheet; drawing it here too gave a DOUBLE title
+  ;; block inside the viewport.  (Plan/Framing already gate via peb-frame-and-titleblock; the Section drew it
+  ;; inline, ungated.)
+  (if (not *PEB-SUPPRESS-TB*)
+    (peb-titleblock-mammut tbStripX tbFrmB tbStripW tbStripH tbData))
   (setq *PEB-TB-SIZEH* nil)
   ;; Drawing border wraps the section + the title strip.
   ;; owner 14-Jul STRICT: the RIGHT-SIDE TITLE BLOCK must be FLUSH on all 3 outer sides (right, top,
@@ -9340,8 +9345,9 @@
 
   ;; Drawing border — borderL/B/R/T already computed above (before
   ;; the table) so the table sits flush against them.  Just draw
-  ;; the rectangle here.
-  (draw-border borderL borderB borderR borderT)
+  ;; the rectangle here.  Suppressed sheets (A4 Layout) get their border from the Layout, not the Model.
+  (if (not *PEB-SUPPRESS-TB*)
+    (draw-border borderL borderB borderR borderT))
 
   ;; (Y-axis right-shift removed for the same hang reason as above.
   ;;  Drawing stays at its native coordinates with borderL slightly
