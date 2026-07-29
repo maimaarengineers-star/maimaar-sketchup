@@ -1971,14 +1971,11 @@
         (tb-fith "FRAMING NOTES" (* cw 0.85) (* s 0.0120)) (* W 0.93) 1 "FRAMING NOTES" green)
       (setq rh (* s 0.224) yCur (- yCur rh))
       (tb-mtext (+ X0 (* W 0.04)) (- (+ yCur rh) (* sm 1.3))
-        (tb-fith "3. BRACING, BASE PLATES & ANCHOR BOLTS PER" cw (* sm 0.82)) cw 1
-        (strcat "1. STRUCTURAL FRAMING SHOWN IS INDICATIVE.\\P"
-                "2. MEMBER SIZES ARE NOT SHOWN AT PROPOSAL\\P"
-                "    STAGE - THEY ARE FIXED BY THE DESIGN.\\P"
-                "3. BRACING, BASE PLATES & ANCHOR BOLTS PER\\P"
-                "    THE APPROVED DESIGN.\\P"
-                "4. WALL INFILL (BRICK / BLOCK / OPEN) BY\\P"
-                "    OTHERS AS SHOWN.") white))
+        (tb-fith "3. BRACING & ANCHORS PER APPROVED DESIGN." cw (* sm 1.05)) cw 1
+        (strcat "1. FRAMING SHOWN IS INDICATIVE ONLY.\\P"
+                "2. MEMBER SIZES PER APPROVED DESIGN.\\P"
+                "3. BRACING & ANCHORS PER APPROVED DESIGN.\\P"
+                "4. WALL INFILL BY OTHERS AS SHOWN.") white))
     ;; ==== SHEETING / CLADDING : proposal-level cladding notes ====
     (T
       (setq rh (* s 0.052) bt yCur yCur (- yCur rh))
@@ -1986,12 +1983,10 @@
         (tb-fith "CLADDING NOTES" (* cw 0.85) (* s 0.0120)) (* W 0.93) 1 "CLADDING NOTES" green)
       (setq rh (* s 0.224) yCur (- yCur rh))
       (tb-mtext (+ X0 (* W 0.04)) (- (+ yCur rh) (* sm 1.3))
-        (tb-fith "2. SHEETING PROFILE & COLOUR TO CLIENT" cw (* sm 0.82)) cw 1
-        (strcat "1. ROOF & WALL PANELS AS SPECIFIED IN THE\\P"
-                "    PROPOSAL.\\P"
-                "2. SHEETING PROFILE & COLOUR TO CLIENT\\P"
-                "    SELECTION.\\P"
-                "3. FLASHINGS & TRIMS PER THE APPROVED DESIGN.\\P"
+        (tb-fith "3. FLASHINGS & TRIMS PER APPROVED DESIGN." cw (* sm 1.05)) cw 1
+        (strcat "1. ROOF & WALL PANELS AS SPECIFIED.\\P"
+                "2. PROFILE & COLOUR TO CLIENT SELECTION.\\P"
+                "3. FLASHINGS & TRIMS PER APPROVED DESIGN.\\P"
                 "4. OPENINGS & INFILL BY OTHERS AS SHOWN.") white)))
   (setq yCur (- bandTop (* s 0.276)))
   (tb-hdiv yCur)
