@@ -401,10 +401,8 @@
       (if ewRaised (setq hasR T rx0 0.0 rx1 faceLen))            ; whole end wall sits on the existing floor
       (if (and (>= rbTo 1) (<= rbFrom nLen) (<= rbFrom rbTo))    ; SIDE wall: raised band grid rbFrom..rbTo
         (setq hasR T
-              rx0 (if (<= rbFrom 1) 0.0
-                    (* 0.5 (+ (nth (- rbFrom 2) stations) (nth (- rbFrom 1) stations))))
-              rx1 (if (>= rbTo nLen) faceLen
-                    (* 0.5 (+ (nth (- rbTo 1) stations) (nth rbTo stations))))))))
+              rx0 (if (<= rbFrom 1) 0.0 (nth (- rbFrom 1) stations))     ; existing building starts AT grid rbFrom
+              rx1 (if (>= rbTo nLen) faceLen (nth (- rbTo 1) stations)))))) ; ...and ends AT grid rbTo (owner: "b/w GL 4-5 only")
   ;; existing RCC structure under the raised band: top-of-floor line at +rbFloor, the building's vertical
   ;; edges (step up from FFL), an RCC pedestal + brick band (rbFloor -> rbBase, where the steel base lands),
   ;; and two labels. Drawn BEFORE the columns so the steel overdraws it.
@@ -606,6 +604,10 @@
       (peb-fr-wallface (+ ox rx0) (- rx1 rx0) (+ base rbBase) (max 0.0 (- gbaseR rbBase)) colhw owText gy nil)
       (if (< rx1 (- faceLen 1.0))
         (peb-fr-wallface (+ ox rx1) (- faceLen rx1) base gbase colhw owText gy nil)))
+    ((and (wcmatch (strcase owText) "*OPEN*") (<= gbase 100.0))  ; FULL-HEIGHT OPEN for access — frame only + label
+      (setvar "CLAYER" "TEXT")
+      (peb-fr-masked-label (+ ox (/ faceLen 2.0)) (+ base (* (if isEnd eaveH wallEave) 0.45)) (* 360 *PEB-TEXT-SCALE*)
+           "FULL HEIGHT OPEN FOR ACCESS (BY OTHERS)"))
     (T                                                         ; normal wall — one face at FFL
       (peb-fr-wallface ox faceLen base gbase colhw owText gy (and ewHang (> hangHt 0.0)))))
   ;; (Proposal Drawing: girt/purlin SIZE + SPACING call-outs omitted — set by design at approval stage.)
@@ -852,8 +854,8 @@
       (if ewRaised (setq hasR T rx0 0.0 rx1 faceLen))
       (if (and (>= rbTo 1) (<= rbFrom nLen) (<= rbFrom rbTo))
         (setq hasR T
-              rx0 (if (<= rbFrom 1) 0.0 (* 0.5 (+ (nth (- rbFrom 2) stations) (nth (- rbFrom 1) stations))))
-              rx1 (if (>= rbTo nLen) faceLen (* 0.5 (+ (nth (- rbTo 1) stations) (nth rbTo stations))))))))
+              rx0 (if (<= rbFrom 1) 0.0 (nth (- rbFrom 1) stations))       ; existing building AT grid rbFrom..rbTo
+              rx1 (if (>= rbTo nLen) faceLen (nth (- rbTo 1) stations))))))  ; (owner: "b/w GL 4-5 only")
   ;; brick that remains ABOVE the steel base on the raised band = (brick-from-FFL - rbBase), clamped to 0.
   ;; 0 -> sheeted above the base (owner 29-Jul: "sheeting above 3950, not brick").
   (if (and rbOn hasR) (setq gbaseR (max 0.0 (- gbaseR rbBase))))
@@ -896,36 +898,44 @@
       (setvar "CECOLOR" "BYLAYER")
       (peb-fr-masked-label (+ ox (* 0.5 (+ rx0 rx1))) (+ base (* rbFloor 0.52)) (* 250 *PEB-TEXT-SCALE*)
            (strcat "EXISTING RCC BUILDING (BY OTHERS) - F.L. +" (rtos (/ rbFloor 1000.0) 2 3)))))
-  ;; brick / RCC by others below the sheeting line — PER SEGMENT (normal at FFL, raised band at +rbBase)
-  (if (and rbOn hasR)
+  ;; FULL-HEIGHT OPEN FOR ACCESS (owner 29-Jul: LEW is "not fully sheeted but FULL OPEN ... full height till
+  ;; peak, open for access") — NO sheeting, NO brick; just the frame outline (already drawn) + an OPEN label.
+  (if (and (wcmatch (strcase owText) "*OPEN*") (<= gbase 100.0) (not (and rbOn hasR)))
     (progn
-      (if (> rx0 1.0) (peb-fr-material-fill ox base rx0 gbase 0.0 owText))
-      (peb-fr-material-fill (+ ox rx0) (+ base rbBase) (- rx1 rx0) gbaseR 0.0 owText)
-      (if (< rx1 (- faceLen 1.0)) (peb-fr-material-fill (+ ox rx1) base (- faceLen rx1) gbase 0.0 owText)))
-    (peb-fr-material-fill ox base faceLen gbase 0.0 owText))
-  ;; sheeting-base line(s)
-  (setvar "CLAYER" "STRUCTURE")
-  (if (and rbOn hasR)
+      (setvar "CLAYER" "TEXT")
+      (peb-fr-masked-label (+ ox (/ faceLen 2.0)) (+ base (* eaveH 0.45)) (* 360 *PEB-TEXT-SCALE*)
+           "FULL HEIGHT OPEN FOR ACCESS (BY OTHERS)"))
     (progn
-      (if (and (> rx0 1.0) (> gbase 100.0)) (command "_.LINE" (list ox (+ base gbase)) (list (+ ox rx0) (+ base gbase)) ""))
-      (command "_.LINE" (list (+ ox rx0) (+ base rbBase gbaseR)) (list (+ ox rx1) (+ base rbBase gbaseR)) "")
-      (if (and (< rx1 (- faceLen 1.0)) (> gbase 100.0)) (command "_.LINE" (list (+ ox rx1) (+ base gbase)) (list (+ ox faceLen) (+ base gbase)) "")))
-    (if (> gbase 100.0) (command "_.LINE" (list ox (+ base gbase)) (list (+ ox faceLen) (+ base gbase)) "")))
-  ;; PROFILED SHEETING — vertical lines from the (segment) sheeting base up to the roof/eave, ~333 mm apart
-  (setvar "CLAYER" "CLADDING")
-  (setq sp 333.0 sx sp)
-  (while (< sx faceLen)
-    (setq yTop (if isEnd (peb-fr-topy sx faceLen base eaveH eaveHi eaveLo rise rtype hiSide) (+ base wallEave))
-          sgb  (if (and rbOn hasR (>= sx rx0) (< sx rx1)) (+ base rbBase gbaseR) (+ base gbase)))
-    (if (> yTop (+ sgb 100.0))
-      (command "_.LINE" (list (+ ox sx) sgb) (list (+ ox sx) yTop) ""))
-    (setq sx (+ sx sp)))
-  ;; condition label(s) — per segment
-  (if (and rbOn hasR)
-    (progn
-      (if (and (> rx0 1.0) (> gbase 200.0)) (peb-sh-label (+ ox (* 0.5 rx0)) (+ base (* gbase 0.42)) gbase owText))
-      (if (> gbaseR 200.0) (peb-sh-label (+ ox (* 0.5 (+ rx0 rx1))) (+ base rbBase (* gbaseR 0.42)) gbaseR owText)))
-    (if (> gbase 200.0) (peb-sh-label (+ ox (/ faceLen 2.0)) (+ base (* gbase 0.42)) gbase owText)))
+      ;; brick / RCC by others below the sheeting line — PER SEGMENT (normal at FFL, raised band at +rbBase)
+      (if (and rbOn hasR)
+        (progn
+          (if (> rx0 1.0) (peb-fr-material-fill ox base rx0 gbase 0.0 owText))
+          (peb-fr-material-fill (+ ox rx0) (+ base rbBase) (- rx1 rx0) gbaseR 0.0 owText)
+          (if (< rx1 (- faceLen 1.0)) (peb-fr-material-fill (+ ox rx1) base (- faceLen rx1) gbase 0.0 owText)))
+        (peb-fr-material-fill ox base faceLen gbase 0.0 owText))
+      ;; sheeting-base line(s)
+      (setvar "CLAYER" "STRUCTURE")
+      (if (and rbOn hasR)
+        (progn
+          (if (and (> rx0 1.0) (> gbase 100.0)) (command "_.LINE" (list ox (+ base gbase)) (list (+ ox rx0) (+ base gbase)) ""))
+          (command "_.LINE" (list (+ ox rx0) (+ base rbBase gbaseR)) (list (+ ox rx1) (+ base rbBase gbaseR)) "")
+          (if (and (< rx1 (- faceLen 1.0)) (> gbase 100.0)) (command "_.LINE" (list (+ ox rx1) (+ base gbase)) (list (+ ox faceLen) (+ base gbase)) "")))
+        (if (> gbase 100.0) (command "_.LINE" (list ox (+ base gbase)) (list (+ ox faceLen) (+ base gbase)) "")))
+      ;; PROFILED SHEETING — vertical lines from the (segment) sheeting base up to the roof/eave, ~333 mm apart
+      (setvar "CLAYER" "CLADDING")
+      (setq sp 333.0 sx sp)
+      (while (< sx faceLen)
+        (setq yTop (if isEnd (peb-fr-topy sx faceLen base eaveH eaveHi eaveLo rise rtype hiSide) (+ base wallEave))
+              sgb  (if (and rbOn hasR (>= sx rx0) (< sx rx1)) (+ base rbBase gbaseR) (+ base gbase)))
+        (if (> yTop (+ sgb 100.0))
+          (command "_.LINE" (list (+ ox sx) sgb) (list (+ ox sx) yTop) ""))
+        (setq sx (+ sx sp)))
+      ;; condition label(s) — per segment
+      (if (and rbOn hasR)
+        (progn
+          (if (and (> rx0 1.0) (> gbase 200.0)) (peb-sh-label (+ ox (* 0.5 rx0)) (+ base (* gbase 0.42)) gbase owText))
+          (if (> gbaseR 200.0) (peb-sh-label (+ ox (* 0.5 (+ rx0 rx1))) (+ base rbBase (* gbaseR 0.42)) gbaseR owText)))
+        (if (> gbase 200.0) (peb-sh-label (+ ox (/ faceLen 2.0)) (+ base (* gbase 0.42)) gbase owText)))))
   ;; openings (doors / windows) — a clear rectangle cut in the sheeting
   (setq cnt (atoi (peb-tb-or (MSPL-Get-Str data "PL_COUNT") "0")) i 1)
   (while (<= i cnt)
