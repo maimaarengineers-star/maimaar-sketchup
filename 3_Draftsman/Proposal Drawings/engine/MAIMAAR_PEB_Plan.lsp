@@ -3697,6 +3697,27 @@
 
 ;; ===================== MAIN COMMAND =====================
 
+;; Mark the raised-base zone on the Column Layout Plan (owner 29-Jul): the bay between length-grids
+;; rbFrom..rbTo rests on the existing RCC building — a light hatch + boundary + note across the full width.
+(defun peb-plan-raised-zone (data bayPts wid / rgf rgt rff x0 x1)
+  (if (and (= (peb-tb-or (MSPL-Get-Str data "BP_RAISED_ON") "0") "1") bayPts (> (length bayPts) 1))
+    (progn
+      (setq rgf (atoi (peb-tb-or (MSPL-Get-Str data "BP_RAISED_GRID_FROM") "0"))
+            rgt (atoi (peb-tb-or (MSPL-Get-Str data "BP_RAISED_GRID_TO") "0"))
+            rff (atof (peb-tb-or (MSPL-Get-Str data "BP_RAISED_FLOOR") "0")))
+      (if (and (>= rgf 1) (<= rgt (length bayPts)) (<= rgf rgt))
+        (progn
+          (setq x0 (nth (1- rgf) bayPts) x1 (nth (1- rgt) bayPts))
+          (vl-catch-all-apply (function (lambda () (peb-mezz-hatch x0 0.0 x1 wid 1400.0))))
+          (setvar "CLAYER" "DIMENSIONS")
+          (command "_.RECTANG" (list x0 0.0) (list x1 wid))
+          (setvar "CLAYER" "TEXT")
+          (txt "MC" (list (* 0.5 (+ x0 x1)) (* wid 0.60)) (* 450.0 *PEB-TEXT-SCALE*) 0
+               (strcat "ON EXISTING RCC FLOOR +" (rtos (/ rff 1000.0) 2 3) " M"))
+          (txt "MC" (list (* 0.5 (+ x0 x1)) (* wid 0.47)) (* 360.0 *PEB-TEXT-SCALE*) 0
+               (strcat "(EXISTING RCC BUILDING - BY OTHERS, GRID " (itoa rgf) "-" (itoa rgt) ")"))))))
+  (princ))
+
 (defun C:PEB-PLAN
   ( / dataFile data
     project client propinput propno fulldate
@@ -5027,6 +5048,8 @@
         *PEB-AR-POS* (MSPL-Get-Str data "AR_POSITION")
         *PEB-AR-REF* (MSPL-Get-Int data "AR_REF_AREA")
         *PEB-AR-GAP* (MSPL-Get-Num data "AR_GAP"))
+  ;; RAISED BASE (owner 29-Jul): mark the grids [from..to] bay that rests on the existing RCC building.
+  (vl-catch-all-apply (function (lambda () (peb-plan-raised-zone data bayPts wid))))
   (if (not *PEB-SUPPRESS-TB*)
     (progn
       ;; owner 22-Jul: CAP the title-block CONTENT height (like the Section) so the text is sized to the strip
