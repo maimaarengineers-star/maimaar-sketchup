@@ -2160,6 +2160,81 @@
   sc)
 
 ;; ============================================================================
+;; COMBINED-DWG helpers (owner 29-Jul): lay EVERY sheet into ONE shared model space, each
+;; framed by its OWN named A4 layout tab, WITHOUT erasing between sheets — so the saved DWG
+;; opens as a proper tabbed drawing set (all geometry visible in the single model, each tab
+;; auto-fitted to its drawing). Used by the combined-DWG script; the PDF path is untouched.
+
+;; Selection set of every MODEL entity created AFTER `marker` (nil = from the very first
+;; entity). entnext walks the whole db in creation order, so calling this immediately after a
+;; draw command captures exactly what that command just drew.
+(defun peb-ents-after (marker / e ss)
+  (setq ss (ssadd) e (if marker (entnext marker) (entnext)))
+  (while e (setq ss (ssadd e ss) e (entnext e)))
+  ss)
+
+;; Bounding box (list min max) of a selection set via vla-GetBoundingBox; degenerate/failed
+;; entities are skipped. Returns nil for an empty set.
+(defun peb-ss-bbox (ss / i n o p1 p2 mn mx)
+  (setq i 0 n (if ss (sslength ss) 0))
+  (while (< i n)
+    (setq o (vlax-ename->vla-object (ssname ss i)))
+    (vl-catch-all-apply
+      (function (lambda ()
+        (vla-GetBoundingBox o 'p1 'p2)
+        (setq p1 (vlax-safearray->list p1) p2 (vlax-safearray->list p2))
+        (if mn (setq mn (mapcar 'min mn p1) mx (mapcar 'max mx p2))
+                (setq mn p1 mx p2)))))
+    (setq i (1+ i)))
+  (if mn (list mn mx)))
+
+;; Move a selection set by (dx dy).
+(defun peb-ss-move (ss dx dy)
+  (if (and ss (> (sslength ss) 0))
+    (command "_.MOVE" ss "" (list 0.0 0.0) (list dx dy))))
+
+;; Frame the sheet drawn since `mk` on its OWN named, auto-fitted A4 layout tab, then return to
+;; the shared model. The from-file drawers already tiled the geometry left→right (peb-tile-place),
+;; so here we only measure the just-drawn region and wrap it. Draw the sheet BETWEEN
+;; (setq MK (entlast)) and this call, so any draw command composes.
+;;   mk      : entlast marker captured just BEFORE the draw
+;;   tabName : layout TAB text on AutoCAD's bottom bar (e.g. "PRO-01 COLUMN LAYOUT PLAN")
+;;   tbData  : title-block alist (peb-build-tbdata ...)   sheetNo : SHEET NO. cell (e.g. "PRO-01")
+(defun peb-frame-sheet (mk tabName tbData sheetNo / ss bb)
+  (setq ss (peb-ents-after mk) bb (peb-ss-bbox ss))
+  (if bb
+    (progn
+      (peb-add-layout tabName (car bb) (cadr bb) tbData sheetNo)
+      (setvar "TILEMODE" 1) (setvar "CTAB" "Model")))    ; back to the shared model for the next sheet
+  (princ))
+
+;; A BARE A4 layout (no Mammut strip / border of its own) whose single full-page viewport frames
+;; bmin..bmax — for the COVER sheet, which already carries its own complete A4 presentation frame.
+(defun peb-add-plain-layout (lname bmin bmax / paperW paperH lay)
+  (setq paperW 297.0 paperH 210.0)
+  (command "_.-LAYOUT" "_N" lname)
+  (command "_.-LAYOUT" "_S" lname)
+  (setvar "CTAB" lname)
+  (setq lay (vla-get-ActiveLayout (vla-get-ActiveDocument (vlax-get-acad-object))))
+  (vl-catch-all-apply (function (lambda () (vla-put-ConfigName lay "DWG To PDF.pc3"))))
+  (vl-catch-all-apply (function (lambda () (vla-put-CanonicalMediaName lay "ISO_full_bleed_A4_(297.00_x_210.00_MM)"))))
+  (vl-catch-all-apply (function (lambda () (vla-put-StyleSheet lay "monochrome.ctb"))))
+  (vl-catch-all-apply (function (lambda () (vla-put-PlotWithPlotStyles lay :vlax-true))))
+  (vl-catch-all-apply (function (lambda () (vla-put-PlotRotation lay 0))))
+  (setvar "TILEMODE" 0) (command "_.PSPACE") (command "_.ERASE" "_ALL" "")
+  (setvar "CLAYER" "0")
+  (command "_.MVIEW" (list 0.0 0.0) (list paperW paperH))
+  (command "_.MSPACE") (command "_.ZOOM" "_W" bmin bmax) (command "_.PSPACE")
+  (setvar "TILEMODE" 1) (setvar "CTAB" "Model")
+  (princ))
+
+;; Frame the COVER (drawn since `mk`) on a bare full-page A4 tab.
+(defun peb-frame-cover (mk tabName / ss bb)
+  (setq ss (peb-ents-after mk) bb (peb-ss-bbox ss))
+  (if bb (peb-add-plain-layout tabName (car bb) (cadr bb)))
+  (princ))
+
+;; ============================================================================
 ;; COMPONENT OVERLAY PASS (owner 6-Jul) — draws the IF components onto the Column
 ;; Layout Plan AFTER the frame/columns/placements.  Each drawer is self-contained
 ;; (add a component = one new defun + one line in peb-draw-components).  Owner
