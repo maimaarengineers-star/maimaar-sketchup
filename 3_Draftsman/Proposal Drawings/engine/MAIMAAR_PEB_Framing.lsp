@@ -289,24 +289,34 @@
 
 ;; A horizontal dimension CHAIN drawn from primitives (batch-safe, independent of
 ;; the wall's base Y — unlike peb-dim-h-stretch which pins its def-points to y=0).
-(defun peb-fr-dimchain (ox y stations / ts i x0 x1 tick)
+;; A small OPEN-V arrowhead drawn from primitives (owner 29-Jul: match the plan/section
+;; dimension arrows, which use DIMBLK "_OPEN"). tip = the station point; dir +1 draws ">"
+;; (tip on the right, barbs to the left), dir -1 draws "<" (tip on the left, barbs to the right).
+(defun peb-fr-dimarrow (x y dir aL aW)
+  (setvar "CLAYER" "DIMENSIONS")
+  (command "_.LINE" (list x y) (list (- x (* dir aL)) (+ y aW)) "")
+  (command "_.LINE" (list x y) (list (- x (* dir aL)) (- y aW)) ""))
+
+(defun peb-fr-dimchain (ox y stations / ts i x0 x1 aL aW)
   (if (< (length stations) 2) nil
     (progn
-      (setq ts (if *PEB-DIM-SCALE* *PEB-DIM-SCALE* 1.0) tick (* 180 ts) i 0)
+      (setq ts (if *PEB-DIM-SCALE* *PEB-DIM-SCALE* 1.0)
+            aL (* 300 ts)                    ; open-arrow length along the dim line
+            aW (* 95 ts)                     ; half-width -> slim open "V" like DIMBLK _OPEN
+            i  0)
       (setvar "CLAYER" "DIMENSIONS")
       (command "_.LINE" (list (+ ox (car stations)) y)
                         (list (+ ox (last stations)) y) "")
+      ;; each bay = its own dim segment: OPEN arrowheads at both ends, so interior grids get
+      ;; the "> <" meeting pair exactly like the plan/section chains (no more tick slashes).
       (while (< (1+ i) (length stations))
         (setq x0 (+ ox (nth i stations)) x1 (+ ox (nth (1+ i) stations)))
-        (setvar "CLAYER" "DIMENSIONS")
-        (command "_.LINE" (list x0 (- y tick)) (list x0 (+ y tick)) "")
+        (peb-fr-dimarrow x0 y -1 aL aW)      ; "<" tip at bay start
+        (peb-fr-dimarrow x1 y  1 aL aW)      ; ">" tip at bay end
         (setvar "CLAYER" "TEXT")
         (txt "MC" (list (/ (+ x0 x1) 2.0) (- y (* 340 ts))) (* 230 ts) 0
              (peb-comma (rtos (- (nth (1+ i) stations) (nth i stations)) 2 0)))
-        (setq i (1+ i)))
-      (setvar "CLAYER" "DIMENSIONS")
-      (setq x1 (+ ox (last stations)))
-      (command "_.LINE" (list x1 (- y tick)) (list x1 (+ y tick)) ""))))
+        (setq i (1+ i))))))
 
 (defun peb-draw-framing-elev (surf ox oy data / len wid slopeD stype rtype
                               eaveH eaveHi eaveLo brickH hiName hiSide wallEave
