@@ -687,6 +687,18 @@
     (command "_.WIPEOUT" (list x0 y0) (list x1 y0) (list x1 y1) (list x0 y1) ""))))
   (txt "MC" (list cx cy) h 0 str))
 
+;; Masked condition label for a SHEETING-elevation segment (brick/open by others, at height gbase from cy's base).
+(defun peb-sh-label (cx cy gbase owText / owU)
+  (setq owU (strcase owText))
+  (setvar "CLAYER" "TEXT")
+  (peb-fr-masked-label cx cy (* 300 *PEB-TEXT-SCALE*)
+     (strcat (cond ((wcmatch owU "*ACCESS*")               "OPEN FOR ACCESS (BY OTHERS)")
+                   ((wcmatch owU "*PRE-CAST*,*PRECAST*")   "PRE-CAST RCC PANELS (BY OTHERS)")
+                   ((wcmatch owU "*RCC*,*R.C.C*,*CONCRETE*") "RCC WALL (BY OTHERS)")
+                   ((wcmatch owU "*BLOCK*")                "BLOCKWALL (BY OTHERS)")
+                   (T                                      "BRICK WALL (BY OTHERS)"))
+             " - H=" (rtos (/ gbase 1000.0) 2 2) " M")))
+
 ;; Draw ONE wall-face SEGMENT of a FRAMING elevation: dense girts (sheeted zone) + sheeting-base line +
 ;; brick/RCC hatch + the condition label. Factored out of peb-draw-framing-elev (owner 29-Jul) so a wall can
 ;; be drawn in SEGMENTS at DIFFERENT bases — a normal segment at FFL and a RAISED segment sitting on an
@@ -783,7 +795,8 @@
 ;; by others below (synced to the wall condition), the gable/eave outline, openings, grid bubbles + dim chain.
 (defun peb-draw-sheeting-elev (surf ox oy data / len wid slopeD stype rtype eaveH eaveHi eaveLo hiName hiSide
                               wallEave faceLen stations isEnd base rise ridgeRise i g x yTop pts cx prev lbl
-                              bubGap ov gbase owText sp sx cnt pre psurf pat pw noteY owU)
+                              bubGap ov gbase owText sp sx cnt pre psurf pat pw noteY owU
+                              rbOn rbFrom rbTo rbFloor rbBase nLen ewGrid ewRaised rx0 rx1 hasR gbaseR bc sbase sgb)
   (setq len (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
         wid (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
         slopeD (slope-denom (peb-tb-or (MSPL-Get-Str data "SLOPE") "10"))
@@ -815,6 +828,28 @@
           stations (peb-fr-scaled-stations (peb-tb-or (MSPL-Get-Str data "BAYEXPR") "") len)))
   (setq owText (peb-tb-or (MSPL-Get-Str data (strcat "OW_" surf)) "")
         gbase (peb-fr-openwall-ht owText))
+  ;; RAISED BASE (owner 29-Jul) — mirror the framing so the sheeting elevations SYNC: grids [rbFrom..rbTo]
+  ;; sit on an existing RCC floor; the raised band's brick/sheeting starts from +rbBase.
+  (setq rbOn    (= (peb-tb-or (MSPL-Get-Str data "BP_RAISED_ON") "0") "1")
+        rbFrom  (atoi (peb-tb-or (MSPL-Get-Str data "BP_RAISED_GRID_FROM") "0"))
+        rbTo    (atoi (peb-tb-or (MSPL-Get-Str data "BP_RAISED_GRID_TO") "0"))
+        rbFloor (atof (peb-tb-or (MSPL-Get-Str data "BP_RAISED_FLOOR") "0"))
+        rbBase  (atof (peb-tb-or (MSPL-Get-Str data "BP_RAISED_BASE") "0")))
+  (if (or (not rbOn) (<= rbBase 0.0)) (setq rbOn nil))
+  (setq nLen (length (peb-fr-scaled-stations (peb-tb-or (MSPL-Get-Str data "BAYEXPR") "") len)))
+  (if (< nLen 2) (setq nLen 2))
+  (setq ewGrid   (cond ((= surf "LEW") 1) ((= surf "REW") nLen) (T 0))
+        ewRaised (and rbOn isEnd (>= ewGrid rbFrom) (<= ewGrid rbTo))
+        gbaseR   (peb-fr-seg-openwall-ht owText)
+        hasR nil rx0 0.0 rx1 0.0)
+  (if (<= gbaseR 0.0) (setq gbaseR gbase))
+  (if rbOn
+    (if isEnd
+      (if ewRaised (setq hasR T rx0 0.0 rx1 faceLen))
+      (if (and (>= rbTo 1) (<= rbFrom nLen) (<= rbFrom rbTo))
+        (setq hasR T
+              rx0 (if (<= rbFrom 1) 0.0 (* 0.5 (+ (nth (- rbFrom 2) stations) (nth (- rbFrom 1) stations))))
+              rx1 (if (>= rbTo nLen) faceLen (* 0.5 (+ (nth (- rbTo 1) stations) (nth rbTo stations))))))))
   ;; ground line
   (setvar "CLAYER" "GROUND")
   (command "_.LINE" (list (- ox (* 0.03 faceLen)) base) (list (+ ox faceLen (* 0.03 faceLen)) base) "")
@@ -837,30 +872,53 @@
                     (list ox (if isEnd (peb-fr-topy 0.0 faceLen base eaveH eaveHi eaveLo rise rtype hiSide) (+ base wallEave))) "")
   (command "_.LINE" (list (+ ox faceLen) base)
                     (list (+ ox faceLen) (if isEnd (peb-fr-topy faceLen faceLen base eaveH eaveHi eaveLo rise rtype hiSide) (+ base wallEave))) "")
-  ;; brick / RCC by others below the sheeting line (full width) + label
-  (peb-fr-material-fill ox base faceLen gbase 0.0 owText)
-  (if (> gbase 100.0)
-    (progn (setvar "CLAYER" "STRUCTURE")
-      (command "_.LINE" (list ox (+ base gbase)) (list (+ ox faceLen) (+ base gbase)) "")))
-  ;; PROFILED SHEETING — vertical lines from the sheeting base up to the roof/eave, ~333 mm apart
+  ;; existing raised RCC structure (mirror the framing): floor line + building step + RCC pedestal band + label
+  (if (and rbOn hasR)
+    (progn
+      (setvar "CLAYER" "GROUND")
+      (command "_.LINE" (list (+ ox rx0) (+ base rbFloor)) (list (+ ox rx1) (+ base rbFloor)) "")
+      (if (> rx0 1.0)             (command "_.LINE" (list (+ ox rx0) base) (list (+ ox rx0) (+ base rbFloor)) ""))
+      (if (< rx1 (- faceLen 1.0)) (command "_.LINE" (list (+ ox rx1) base) (list (+ ox rx1) (+ base rbFloor)) ""))
+      (setvar "CLAYER" "HATCHR")
+      (vl-catch-all-apply (function (lambda () (setvar "CECOLOR" "RGB:150,150,150"))))
+      (command "_.RECTANG" (list (+ ox rx0 40.0) (+ base rbFloor 15.0)) (list (- (+ ox rx1) 40.0) (+ base rbBase -15.0)))
+      (setq bc (+ ox rx0))
+      (while (< bc (+ ox rx1))
+        (command "_.LINE" (list bc (+ base rbFloor)) (list (min (+ ox rx1) (+ bc (- rbBase rbFloor))) (+ base rbBase)) "")
+        (setq bc (+ bc 400.0)))
+      (setvar "CECOLOR" "BYLAYER")
+      (peb-fr-masked-label (+ ox (* 0.5 (+ rx0 rx1))) (+ base (* rbFloor 0.52)) (* 250 *PEB-TEXT-SCALE*)
+           (strcat "EXISTING RCC BUILDING (BY OTHERS) - F.L. +" (rtos (/ rbFloor 1000.0) 2 3)))))
+  ;; brick / RCC by others below the sheeting line — PER SEGMENT (normal at FFL, raised band at +rbBase)
+  (if (and rbOn hasR)
+    (progn
+      (if (> rx0 1.0) (peb-fr-material-fill ox base rx0 gbase 0.0 owText))
+      (peb-fr-material-fill (+ ox rx0) (+ base rbBase) (- rx1 rx0) gbaseR 0.0 owText)
+      (if (< rx1 (- faceLen 1.0)) (peb-fr-material-fill (+ ox rx1) base (- faceLen rx1) gbase 0.0 owText)))
+    (peb-fr-material-fill ox base faceLen gbase 0.0 owText))
+  ;; sheeting-base line(s)
+  (setvar "CLAYER" "STRUCTURE")
+  (if (and rbOn hasR)
+    (progn
+      (if (and (> rx0 1.0) (> gbase 100.0)) (command "_.LINE" (list ox (+ base gbase)) (list (+ ox rx0) (+ base gbase)) ""))
+      (command "_.LINE" (list (+ ox rx0) (+ base rbBase gbaseR)) (list (+ ox rx1) (+ base rbBase gbaseR)) "")
+      (if (and (< rx1 (- faceLen 1.0)) (> gbase 100.0)) (command "_.LINE" (list (+ ox rx1) (+ base gbase)) (list (+ ox faceLen) (+ base gbase)) "")))
+    (if (> gbase 100.0) (command "_.LINE" (list ox (+ base gbase)) (list (+ ox faceLen) (+ base gbase)) "")))
+  ;; PROFILED SHEETING — vertical lines from the (segment) sheeting base up to the roof/eave, ~333 mm apart
   (setvar "CLAYER" "CLADDING")
   (setq sp 333.0 sx sp)
   (while (< sx faceLen)
-    (setq yTop (if isEnd (peb-fr-topy sx faceLen base eaveH eaveHi eaveLo rise rtype hiSide) (+ base wallEave)))
-    (if (> yTop (+ base gbase 100.0))
-      (command "_.LINE" (list (+ ox sx) (+ base gbase)) (list (+ ox sx) yTop) ""))
+    (setq yTop (if isEnd (peb-fr-topy sx faceLen base eaveH eaveHi eaveLo rise rtype hiSide) (+ base wallEave))
+          sgb  (if (and rbOn hasR (>= sx rx0) (< sx rx1)) (+ base rbBase gbaseR) (+ base gbase)))
+    (if (> yTop (+ sgb 100.0))
+      (command "_.LINE" (list (+ ox sx) sgb) (list (+ ox sx) yTop) ""))
     (setq sx (+ sx sp)))
-  ;; condition label under the brick line
-  (if (> gbase 200.0)
-    (progn (setvar "CLAYER" "TEXT")
-      (setq owU (strcase owText))
-      (peb-fr-masked-label (+ ox (/ faceLen 2.0)) (+ base (* gbase 0.42)) (* 300 *PEB-TEXT-SCALE*)
-           (strcat (cond ((wcmatch owU "*ACCESS*") "OPEN FOR ACCESS (BY OTHERS)")
-                         ((wcmatch owU "*PRE-CAST*,*PRECAST*") "PRE-CAST RCC PANELS (BY OTHERS)")
-                         ((wcmatch owU "*RCC*,*CONCRETE*") "RCC WALL (BY OTHERS)")
-                         ((wcmatch owU "*BLOCK*") "BLOCKWALL (BY OTHERS)")
-                         (T "BRICK WALL (BY OTHERS)"))
-                   " - H=" (rtos (/ gbase 1000.0) 2 2) " M"))))
+  ;; condition label(s) — per segment
+  (if (and rbOn hasR)
+    (progn
+      (if (and (> rx0 1.0) (> gbase 200.0)) (peb-sh-label (+ ox (* 0.5 rx0)) (+ base (* gbase 0.42)) gbase owText))
+      (if (> gbaseR 200.0) (peb-sh-label (+ ox (* 0.5 (+ rx0 rx1))) (+ base rbBase (* gbaseR 0.42)) gbaseR owText)))
+    (if (> gbase 200.0) (peb-sh-label (+ ox (/ faceLen 2.0)) (+ base (* gbase 0.42)) gbase owText)))
   ;; openings (doors / windows) — a clear rectangle cut in the sheeting
   (setq cnt (atoi (peb-tb-or (MSPL-Get-Str data "PL_COUNT") "0")) i 1)
   (while (<= i cnt)
