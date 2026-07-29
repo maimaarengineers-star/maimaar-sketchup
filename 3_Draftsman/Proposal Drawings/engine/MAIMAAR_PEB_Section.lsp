@@ -9162,13 +9162,18 @@
   ;; offset BELOW that by peb-dim-text-spacing (auto-scales with
   ;; DIMTXT × DIMSCALE so dim texts always have a visible gap).
   (setq *PEB-DIM-TXT* 320.0)                   ; owner 14-Jul: match the height dims (uniform dim text)
+  ;; owner 29-Jul: overall-width LABEL now follows the IF "Measured At" basis (BP_WIDTH_REF), so the
+  ;; section matches the plan (235 = "C/C STEEL", not the old hard-coded "0/0 OF SHEETING LINE"). A blank
+  ;; basis falls back to the sheeting label so every existing (O/O-sheeting) building is unchanged.
+  (setq wsfx (MSPL-Get-Str data "WIDTH_REF"))
+  (setq wsfx (if (and wsfx (/= wsfx "")) (peb-basis-suffix wsfx) "0/0 OF SHEETING LINE"))
   (peb-dim-h-stretch -235.0 (+ wid 235.0)
                      (- 0.0
                         (+ (if (> (length cols) 2)
                              (+ (* 1500 *PEB-DIM-SCALE*) (peb-dim-text-spacing "horizontal"))
                              (* 1500 *PEB-DIM-SCALE*))
                            (* 450 *PEB-DIM-SCALE*)))   ; owner 14-Jul: drop the O/O dim clear of the FFL line + FFL text
-                     "<>\\P0/0 OF SHEETING LINE")
+                     (strcat "<>\\P" wsfx))
   (setq *PEB-DIM-TXT* nil)
   (peb-recolor-last-dim 0)                    ; ByBlock for overall width dim
 

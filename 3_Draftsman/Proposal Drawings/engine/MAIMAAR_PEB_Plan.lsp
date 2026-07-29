@@ -1259,8 +1259,11 @@
         brick (if (eq dir 'W) 200.0 (if *PEB-EW-BYFLUSH* 0.0 200.0))
         dc (if (and drawnHalf (> drawnHalf 0.0)) drawnHalf hw))     ; drawn web-centre offset
   (cond
+    ;; owner 29-Jul FIX: the IF value (BP_WIDTH/LENGTH) is ALREADY stored in the *_REF basis, so when that
+    ;; basis is C/C the number IS the C/C distance — show it VERBATIM (the old code subtracted 2×half-web,
+    ;; double-converting 19150 C/C -> 18750 while the module chain printed 19150 -> the 18750-vs-19150 clash).
     ((wcmatch u "*CENTER TO CENTER*,*CENTRE TO CENTRE*,*C/C*")
-       (list (- gridVal (* 2.0 hw)) hw (- hw) dc (- dc)))                   ; witness on drawn web centre
+       (list gridVal 0.0 0.0 0.0 0.0))                                      ; grid span = the entered C/C value
     ((wcmatch u "*KNEE*")
        (setq d (peb-haunch-web-depth gridVal))
        (list (- gridVal (* 2.0 d)) d (- d) (* 2.0 dc) (* -2.0 dc)))         ; witness on drawn inner face
