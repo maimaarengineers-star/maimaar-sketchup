@@ -22,6 +22,14 @@ render-then-merge** automatically — verified: canopy + monitor from Area 01 ap
 | Canopy | `peb-draw-canopy` | COMP-CANOPY (3) | `CN_TOGGLE`, `CN_<W>_{WIDTH=proj, LEN, EAVE...}` |
 | Roof extension | `peb-draw-roof-ext` | COMP-ROOF-EXT (5) | `RX_TOGGLE`, `RX_<W>_{WIDTH, LEN, EAVE}` |
 | Fascia / parapet | `peb-draw-fascia` | COMP-FASCIA (2) | `FA_TOGGLE`, `FA_<W>_{PROJ, LEN, TYPE}` |
+<!-- 25-Jul: the SECTION now draws the Standard Vertical fascia too — `draw-fascia-vertical`
+     / `peb-fascia-side` in MAIMAAR_PEB_Section.lsp, on the NSW/FSW eaves of every non-RC
+     frame.  Geometry per Manual Ch.10 §10.4 p.240 (600 projection from the steel line,
+     200 cage, height = FA_<W>_HT else the roof rise); member names per our own archive
+     (FASCIA COLUMN / FASCIA PANEL / SOFFIT PANEL / CAP FLASHING).  It also consumes the
+     previously-unused FA_<W>_{HT, SOFFIT, BACKUP, PANEL}.  Curved + parapet types are NOT
+     drawn in section yet — they keep the plan band only. -->
+
 | Roof monitor | `peb-draw-monitor` | COMP-MONITOR (4) | `RM_TOGGLE`, `RM_{OVERALL_WIDTH, LENGTH}` |
 | Mezzanine | `peb-draw-mezzanine` | COMP-MEZZ (6) | `MZ_TOGGLE`, `MZ_COL_SPACING`, `MZ<n>_{LEN, WID, CH_FFL_BEAM}` |
 | Crane | `peb-draw-crane` | COMP-CRANE (1) | `CR_TOGGLE`, `CR<n>_{SPAN, RUN_LENGTH, CAP, TYPE, CMAA_CLASS, GRID_LOC}` |

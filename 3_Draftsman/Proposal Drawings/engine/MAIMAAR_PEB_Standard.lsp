@@ -174,6 +174,14 @@
     (if (< d bd) (progn (setq bd d) (setq best c))))
   best)
 
+;; owner 23-Jul: BLIND toggle for the DRAWINGS ONLY (Cover/Plan/Section).  TRUE => the "for estimate" version
+;; sent to outside fabricators/estimators — CUSTOMER + PROJECT (subject) are left blank so the client is not
+;; revealed; MAIMAAR's proposal branding stays prominent.  Default nil => the full customer version.  Set via
+;; the *PEB-BLIND* global (the "generate for estimate" path) OR a per-drawing data flag BLIND=1/YES.
+(defun peb-blind-p (data / v)
+  (or (and (boundp '*PEB-BLIND*) *PEB-BLIND*)
+      (and data (setq v (cdr (assoc "BLIND" data))) (member (strcase v) '("1" "YES" "TRUE" "Y")))))
+
 ;; Create/refresh ONE layer with colour + linetype + lineweight (code 370).
 (defun peb-ensure-layer (name color ltype lwmm / lw)
   (peb-std-ltype ltype)
@@ -202,8 +210,18 @@
 ;; engine's proven make-text-style: name, font, then 6 Enters
 ;; (height, width, oblique, backwards, upside-down, vertical) — the trailing
 ;; vertical answer is REQUIRED for .shx fonts or acad /b hangs at that prompt.
-(defun peb-std-textstyle (name font)
-  (if (not (tblsearch "STYLE" name))
+;; owner 22-Jul: if the style ALREADY exists this now FORCES its font (entmod), instead of skipping.  The old
+;; "create only if absent" let whichever setup ran FIRST win the font — so an early Arial creator could pin
+;; PEB-* to Arial and these romand calls became dead no-ops (the load-order drift).  Forcing romand every time
+;; means romand always wins no matter who created the style first.
+(defun peb-std-textstyle (name font / so sd)
+  (if (tblsearch "STYLE" name)
+    (vl-catch-all-apply
+      (function (lambda ()
+        (setq so (tblobjname "STYLE" name) sd (entget so))
+        (if (assoc 3 sd) (setq sd (subst (cons 3 font) (assoc 3 sd) sd)))
+        (if (assoc 4 sd) (setq sd (subst (cons 4 "")   (assoc 4 sd) sd)))
+        (entmod sd) (entupd so))))
     (vl-catch-all-apply
       '(lambda () (command "_.-STYLE" name font "" "" "" "" "" "")))))
 
@@ -224,13 +242,19 @@
   ;; preload the linetypes the standard uses
   (foreach lt '("DASHDOT" "HIDDEN" "CENTER" "DASHED" "DOT") (peb-std-ltype lt))
   (peb-ensure-layers)
-  ;; owner 15-Jul STANDARD: body / title / dim text = ARIAL (proportional TrueType), matching the
-  ;; approved frame set — NOT romans.shx single-stroke (that regressed the look).  Applies to EVERY frame.
-  (peb-std-ttf-style "PEB-TITLE" "arialbd.ttf")
-  (peb-std-ttf-style "PEB-BODY"  "arial.ttf")
-  (peb-std-ttf-style "PEB-DIM"   "arial.ttf")
+  ;; owner UNIVERSAL STANDING RULE 22-Jul: ALL drawing text = ROMAND (romand.shx) — dims, titles, body,
+  ;; M-Ladder, cover, everything.  These base styles MUST be romand so the drift can't recur no matter which
+  ;; engine (Section / Plan / Cover) creates the style first (the old Arial here won the load-order race on
+  ;; the Plan sheet and put every PEB-* text in Arial).  Bold headings = heavier PEN on romand, not Arial-bold.
+  (peb-std-textstyle "PEB-TITLE" "romand.shx")
+  (peb-std-textstyle "PEB-BODY"  "romand.shx")
+  (peb-std-textstyle "PEB-DIM"   "romand.shx")
   (peb-std-textstyle "ROMAND"    "romand.shx")
   (peb-std-textstyle "OPEN"      "romand.shx")
+  ;; the default "Standard" style is what stray TEXT/MTEXT (and \F fallbacks) land on — force it romand too,
+  ;; and point FONTALT at romand so even a missing-font substitution renders romand.  Belt-and-suspenders.
+  (peb-std-textstyle "Standard"  "romand.shx")
+  (vl-catch-all-apply '(lambda () (setvar "FONTALT" "romand.shx")))
   (princ "\nMAIMAAR PEB presentation standard ready (layers + colours + styles).")
   (princ))
 
@@ -348,6 +372,17 @@
 (defun peb-bubble (cx cy r lab dir)
   (peb-circle cx cy r "GRID")
   (peb-text cx cy (* r 0.85) 0.0 lab "GRID-TEXT"))
+
+;; UNIVERSAL dual-dimension string (owner 21-Jul): a mm value -> "5300 [17'-5\"]".
+;; Shared in Standard.lsp (loaded before Section+Plan) so ANY sheet's dimension can read
+;; in BOTH mm and architectural feet-inches, matching the Section's DIMALT dual display and
+;; the Plan's *PEB-DIM-DISPLAY* = MMFT default.  ft-inches rounded to the nearest inch.
+(defun peb-dim-mmft (mm / ti ft in)
+  (setq ti (/ (abs mm) 25.4)
+        ft (fix (/ ti 12.0))
+        in (fix (+ 0.5 (- ti (* ft 12.0)))))
+  (if (>= in 12) (setq ft (1+ ft) in 0))
+  (strcat (rtos mm 2 0) " [" (itoa ft) "'-" (itoa in) "\"]"))
 
 ;; LEADER = line tip->elbow + filled arrowhead at the tip + text at the elbow.
 ;; Batch-safe MLEADER stand-in, drawn entirely on the given layer.
