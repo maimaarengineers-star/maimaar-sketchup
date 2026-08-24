@@ -4455,7 +4455,7 @@
   )
 )
 
-(defun draw-cladding (data W H rise brickH monoRise rightH rccRight throatWin / rHt rEndX rDrop reEL reEY tLo tHi apexY yLo yHi
+(defun draw-cladding (data W H rise brickH monoRise rightH rccRight throatWin / rHt rEndX rDrop reEL reEY reEYR tLo tHi apexY yLo yHi
                        cladThk purlinH girtDepth slopeLen sa ca y d xT yT slpDrop ribStep roofLbl wallLbl
                        labRX labRY labWX labWY leadX leadYStart leadYEnd
                        rParts rLine1 rLine2 rBarY rBarLen rTargetY rDx rTextW rWrapW
@@ -4528,14 +4528,29 @@
       ;; rccRight (LEAN-TO): the high end TUCKS to the existing wall face (x=W) with NO 270mm overhang.
       (setq rEndX (if rccRight W (+ W 270.0)))
       (setq rDrop (if rccRight 0.0 slpDrop))
-      (command "LINE" (list -270.0 (+ H purlinH (- 0 slpDrop)))
-                      (list rEndX (+ H monoRise purlinH rDrop)) "")
-      (command "LINE" (list -270.0 (+ H purlinH cladThk (- 0 slpDrop)))
-                      (list rEndX (+ H monoRise purlinH cladThk rDrop)) "")
-      (command "LINE" (list -270.0 (+ H purlinH (- 0 slpDrop)))
-                      (list -270.0 (+ H purlinH cladThk (- 0 slpDrop))) "")
-      (command "LINE" (list rEndX (+ H monoRise purlinH rDrop))
-                      (list rEndX (+ H monoRise purlinH cladThk rDrop)) ""))
+      ;; The two eave ends, lifted out of the LINE calls below so a parapet can move
+      ;; one of them without disturbing the other (they are no longer symmetric).
+      (setq reEL  -270.0
+            reEY  (+ H purlinH (- 0 slpDrop))
+            reEYR (+ H monoRise purlinH rDrop))
+      ;; PARAPET eave (FA_*): NO 270 overhang — the sheet is TRIMMED inboard, over
+      ;; the valley gutter at the parapet base, so it drips into the trough instead
+      ;; of running straight through the panel.  Only the eave that actually carries
+      ;; the parapet moves; the other keeps its overhang.
+      (if *PEB-FA-PARA-L*
+        (setq reEL (peb-para-sheet-in)
+              reEY (+ H purlinH (* (peb-para-sheet-in) (/ monoRise W)))))
+      (if (and *PEB-FA-PARA-R* (not rccRight))
+        (setq rEndX (- W (peb-para-sheet-in))
+              reEYR (+ H monoRise purlinH (- 0 (* (peb-para-sheet-in) (/ monoRise W))))))
+      (command "LINE" (list reEL reEY)
+                      (list rEndX reEYR) "")
+      (command "LINE" (list reEL (+ reEY cladThk))
+                      (list rEndX (+ reEYR cladThk)) "")
+      (command "LINE" (list reEL reEY)
+                      (list reEL (+ reEY cladThk)) "")
+      (command "LINE" (list rEndX reEYR)
+                      (list rEndX (+ reEYR cladThk)) ""))
     (progn
       (setq slpDrop (* 270.0 (/ sa ca)))
       ;; owner 16-Jul markup 16: for the RC FASCIA the roof is TRIMMED at the valley gutter (eave at the rafter
@@ -4543,6 +4558,19 @@
       (if (and *PEB-RC-INSET* (> *PEB-RC-INSET* 0.0))
         (setq reEL *PEB-RC-INSET* rEndX (- W *PEB-RC-INSET*) reEY (+ H purlinH))
         (setq reEL -270.0 rEndX (+ W 270.0) reEY (+ H purlinH (- 0 slpDrop))))
+      ;; Left and right eaves used to share reEY.  A parapet on ONE sidewall breaks
+      ;; that symmetry, so the right end carries its own Y from here on.
+      (setq reEYR reEY)
+      ;; PARAPET eave (FA_*): NO 270 overhang — the sheet is TRIMMED inboard, over
+      ;; the valley gutter at the parapet base, so it drips into the trough instead
+      ;; of running straight through the panel.  The sheet CLIMBS as it runs inboard,
+      ;; hence + (not -) the slope drop over that distance.
+      (if *PEB-FA-PARA-L*
+        (setq reEL (peb-para-sheet-in)
+              reEY (+ H purlinH (* (peb-para-sheet-in) (/ sa ca)))))
+      (if *PEB-FA-PARA-R*
+        (setq rEndX (- W (peb-para-sheet-in))
+              reEYR (+ H purlinH (* (peb-para-sheet-in) (/ sa ca)))))
       ;; owner 19-Jul UNIVERSAL RULE (roof monitor): when a THROAT window is present the roof
       ;; sheeting is TRIMMED at the two throat-edge purlins (the O.W. opening) — no sheeting spans
       ;; the throat.  throatWin = (throatLo throatHi) in X; nil => original continuous gable sheeting.
@@ -4550,22 +4578,22 @@
         (progn
           (setq tLo (car throatWin) tHi (cadr throatWin) apexY (+ H rise purlinH))
           (setq yLo (+ reEY (* (- apexY reEY) (/ (- tLo reEL) (- (/ W 2.0) reEL)))))
-          (setq yHi (+ apexY (* (- reEY apexY) (/ (- tHi (/ W 2.0)) (- rEndX (/ W 2.0))))))
+          (setq yHi (+ apexY (* (- reEYR apexY) (/ (- tHi (/ W 2.0)) (- rEndX (/ W 2.0))))))
           (command "LINE" (list reEL reEY) (list tLo yLo) "")                                  ; L slope outer -> throat edge
           (command "LINE" (list reEL (+ reEY cladThk)) (list tLo (+ yLo cladThk)) "")          ; L slope inner
           (command "LINE" (list tLo yLo) (list tLo (+ yLo cladThk)) "")                        ; L throat trimmed edge cap
-          (command "LINE" (list tHi yHi) (list rEndX reEY) "")                                 ; R slope outer throat edge -> eave
-          (command "LINE" (list tHi (+ yHi cladThk)) (list rEndX (+ reEY cladThk)) "")         ; R slope inner
+          (command "LINE" (list tHi yHi) (list rEndX reEYR) "")                                ; R slope outer throat edge -> eave
+          (command "LINE" (list tHi (+ yHi cladThk)) (list rEndX (+ reEYR cladThk)) "")        ; R slope inner
           (command "LINE" (list tHi yHi) (list tHi (+ yHi cladThk)) "")                        ; R throat trimmed edge cap
           (command "LINE" (list reEL reEY) (list reEL (+ reEY cladThk)) "")                    ; L eave cap
-          (command "LINE" (list rEndX reEY) (list rEndX (+ reEY cladThk)) ""))                 ; R eave cap
+          (command "LINE" (list rEndX reEYR) (list rEndX (+ reEYR cladThk)) ""))               ; R eave cap
         (progn
           (command "LINE" (list reEL reEY) (list (/ W 2.0) (+ H rise purlinH)) "")
           (command "LINE" (list reEL (+ reEY cladThk)) (list (/ W 2.0) (+ H rise purlinH cladThk)) "")
-          (command "LINE" (list (/ W 2.0) (+ H rise purlinH)) (list rEndX reEY) "")
-          (command "LINE" (list (/ W 2.0) (+ H rise purlinH cladThk)) (list rEndX (+ reEY cladThk)) "")
+          (command "LINE" (list (/ W 2.0) (+ H rise purlinH)) (list rEndX reEYR) "")
+          (command "LINE" (list (/ W 2.0) (+ H rise purlinH cladThk)) (list rEndX (+ reEYR cladThk)) "")
           (command "LINE" (list reEL reEY) (list reEL (+ reEY cladThk)) "")
-          (command "LINE" (list rEndX reEY) (list rEndX (+ reEY cladThk)) "")))))
+          (command "LINE" (list rEndX reEYR) (list rEndX (+ reEYR cladThk)) "")))))
 
   ;; --- Labels with L-shaped (90-deg) leader arrows ----
   (setvar "CLAYER" "TEXT")
@@ -4893,7 +4921,7 @@
                          slopeLen sa ca slpDrop d xT yT roofLbl wallLbl
                          rParts rLine1 rLine2 rBarY rBarLen rTargetY rDx rTextW rWrapW nRSpec
                          rLine2_2L rCombined mlResult mtResult
-                         labRX labRY gxL_last ridgeX_last
+                         labRX labRY gxL_last ridgeX_last mgEL mgEY mgER mgERY
                          wParts wLine1 wLine2 wBarY wBarLen wTargetY wWrapW
                          wLine2_2L wCombined wHeadY wSpecY
                          labWX labWY wExtX wArrowBase
@@ -4911,6 +4939,22 @@
   (setq sa (/ rise slopeLen))
   (setq ca (/ (/ gW 2.0) slopeLen))
   (setq slpDrop (* 270.0 (/ sa ca)))     ; Y-drop over 270mm horizontal eave overhang
+  ;; The two OUTER eave ends.  Standard = 270 past the column, matching the eave
+  ;; gutter.  PARAPET eave (FA_*) = TRIMMED inboard over the valley gutter at the
+  ;; parapet base, because a parapet stands in the wall plane and the overhang
+  ;; would otherwise run straight through the panel.  Only the eave carrying the
+  ;; parapet moves.  (Inner gable junctions are untouched -- they drain to their
+  ;; own valley gutters and never meet a parapet.)
+  (setq mgEL  -270.0
+        mgEY  (+ H purlinH (- 0 slpDrop))
+        mgER  (+ W 270.0)
+        mgERY (+ H purlinH (- 0 slpDrop)))
+  (if *PEB-FA-PARA-L*
+    (setq mgEL (peb-para-sheet-in)
+          mgEY (+ H purlinH (* (peb-para-sheet-in) (/ sa ca)))))
+  (if *PEB-FA-PARA-R*
+    (setq mgER  (- W (peb-para-sheet-in))
+          mgERY (+ H purlinH (* (peb-para-sheet-in) (/ sa ca)))))
   ;; --- LEFT outer wall sheeting (2 lines OUTSIDE girts, 50 mm overlap on brick) ---
   (if (< brickH H)
     (progn
@@ -4956,17 +5000,18 @@
     ;; LEFT half of this gable
     (if (= i 0)
       (progn
-        ;; Outer left eave: extend sheeting 270mm past column to match gutter
+        ;; Outer left eave: 270mm past the column to match the gutter -- or trimmed
+        ;; inboard over the valley gutter when this wall carries a parapet.
         (command "LINE"
-          (list -270.0  (+ H purlinH (- 0 slpDrop)))
+          (list mgEL    mgEY)
           (list ridgeX  (+ H rise purlinH)) "")
         (command "LINE"
-          (list -270.0  (+ H purlinH cladThk (- 0 slpDrop)))
+          (list mgEL    (+ mgEY cladThk))
           (list ridgeX  (+ H rise purlinH cladThk)) "")
         ;; Eave cap at extension end
         (command "LINE"
-          (list -270.0  (+ H purlinH (- 0 slpDrop)))
-          (list -270.0  (+ H purlinH cladThk (- 0 slpDrop))) "")
+          (list mgEL    mgEY)
+          (list mgEL    (+ mgEY cladThk)) "")
       )
       (progn
         ;; Inner valley boundary: sheeting STAYS at +200 above rafter top
@@ -4993,17 +5038,17 @@
     ;; RIGHT half of this gable
     (if (= i (1- numGab))
       (progn
-        ;; Outer right eave: extend 270mm
+        ;; Outer right eave: 270mm past the column -- or trimmed inboard on a parapet.
         (command "LINE"
-          (list ridgeX     (+ H rise purlinH))
-          (list (+ W 270.0) (+ H purlinH (- 0 slpDrop))) "")
+          (list ridgeX (+ H rise purlinH))
+          (list mgER   mgERY) "")
         (command "LINE"
-          (list ridgeX     (+ H rise purlinH cladThk))
-          (list (+ W 270.0) (+ H purlinH cladThk (- 0 slpDrop))) "")
+          (list ridgeX (+ H rise purlinH cladThk))
+          (list mgER   (+ mgERY cladThk)) "")
         ;; Eave cap at extension end
         (command "LINE"
-          (list (+ W 270.0) (+ H purlinH (- 0 slpDrop)))
-          (list (+ W 270.0) (+ H purlinH cladThk (- 0 slpDrop))) "")
+          (list mgER   mgERY)
+          (list mgER   (+ mgERY cladThk)) "")
       )
       (progn
         ;; Inner valley boundary: sheet STAYS at +200 above rafter top
@@ -5902,6 +5947,12 @@
   ;; Outer side (away from building) at outerX=-390, height=196 with hem fold.
   (setq innerX -200.0)
   (setq outerX (- innerX botW))
+  ;; PARAPET (FA_*): this eave has no gutter.  A parapet stands in the wall
+  ;; plane, so a trough at 200..390 OUTBOARD would hang in open air outside the
+  ;; building -- the roof drains inboard into the valley gutter drawn by
+  ;; peb-fascia-parapet instead.  Flag set once in C:PEB-SECTION.
+  (if (not *PEB-FA-PARA-L*)
+  (progn
   (command "PLINE"
     (list (- innerX 25.0) gyTopIn)                ; inner lip end (25mm into gutter)
     "W" 1.5 1.5
@@ -5915,10 +5966,11 @@
     (list outerX        (- gyTopOut 70.0))
     (list outerX gyTopOut)                         ; outer top
     (list (+ outerX 25.0) gyTopOut)                ; outer lip end (25mm into gutter)
-    "")
+    "")))
 
   ;; ----- RIGHT side eave gutter — SKIPPED for a mono roof (water drains to the LOW/left eave) -----
-  (if (not mono)
+  ;; … and skipped for a PARAPET on this eave, same reason as the left side.
+  (if (and (not mono) (not *PEB-FA-PARA-R*))
   (progn
   (setq innerX (+ W 200.0))
   (setq outerX (+ innerX botW))
@@ -5941,17 +5993,19 @@
   ;; horizontal "bar" segment exactly 300 mm with text starting at the
   ;; bar's right end.  Text X = arrow X + 300.
   (setvar "CLAYER" "TEXT")
-  ;; LEFT label  (arrow at left of building)
-  (setq ax (- 0.0 botW (* 100 *PEB-TEXT-SCALE*)))    ; arrow X
-  (setq tx (+ ax 300.0))                             ; text 300 right of arrow
-  (setq ty (+ gyTopOut (* 1200.0 *PEB-TEXT-SCALE*)))
-  (peb-label-with-leader "EAVE GUTTER"
-                         (list tx ty)                ; labelPos
-                         (list ax gyTopOut)          ; arrowPt
-                         "V"
-                         220)
+  ;; LEFT label  (arrow at left of building) — nothing to call out on a parapet eave
+  (if (not *PEB-FA-PARA-L*)
+    (progn
+      (setq ax (- 0.0 botW (* 100 *PEB-TEXT-SCALE*)))    ; arrow X
+      (setq tx (+ ax 300.0))                             ; text 300 right of arrow
+      (setq ty (+ gyTopOut (* 1200.0 *PEB-TEXT-SCALE*)))
+      (peb-label-with-leader "EAVE GUTTER"
+                             (list tx ty)                ; labelPos
+                             (list ax gyTopOut)          ; arrowPt
+                             "V"
+                             220)))
   ;; RIGHT label  (arrow at right of building) — SKIPPED for a mono roof (no right gutter)
-  (if (not mono)
+  (if (and (not mono) (not *PEB-FA-PARA-R*))
     (progn
       (setq ax (+ W botW (* 100 *PEB-TEXT-SCALE*)))      ; arrow X
       (setq tx (+ ax 300.0))                             ; text 300 right of arrow
@@ -6029,14 +6083,243 @@
   (setvar "PLINEWID" 0.0)
   (princ))
 
+;; ---- CURVED-FASCIA QUARTER ROUNDS ------------------------------------------
+;; The manual dimensions every curve R=500 (p.241/242/243).  Both helpers draw ONE
+;; quarter of that circle as a 3-point ARC — the same idiom draw-arch-roof uses —
+;; so the sweep is true geometry, not a faceted approximation.
+;;
+;;   peb-fascia-quarter      BOTTOM sweep: vertical at full projection, turning
+;;                           inboard until it runs horizontal at the steel line.
+;;   peb-fascia-quarter-top  TOP sweep: the same quarter mirrored in Y, carrying
+;;                           the face up and back OVER the cage (p.242).
+;;
+;; `p` is the projection the vertical face sits at and `r` the radius, so the
+;; inner face is drawn by passing (p - panelThickness) and (r - panelThickness):
+;; concentric arcs, which is what keeps the panel a constant thickness round the
+;; bend.  `yEdge` is the outermost Y the sweep reaches (the panel's bottom / top).
+;; `side` is documentation only — the caller says which face it is drawing.
+(defun peb-fascia-quarter (xs sgn p r yEdge side / cx cy k)
+  (setq cx (+ xs (* sgn (- p r)))                 ; centre sits r inboard of the face
+        cy (+ yEdge r)                            ; … and r above the edge
+        k  (* r 0.70710678))                      ; 45 degrees along the sweep
+  (command "ARC" (list (+ cx (* sgn r)) cy)                   ; start: on the vertical face
+                 (list (+ cx (* sgn k)) (- cy k))             ; mid:   45 degrees round
+                 (list cx (- cy r)))                          ; end:   horizontal, inboard
+  (princ))
+
+(defun peb-fascia-quarter-top (xs sgn p r yEdge side / cx cy k)
+  (setq cx (+ xs (* sgn (- p r)))
+        cy (- yEdge r)                            ; centre r BELOW the top edge
+        k  (* r 0.70710678))
+  (command "ARC" (list cx (+ cy r))                            ; start: horizontal, inboard
+                 (list (+ cx (* sgn k)) (+ cy k))              ; mid:   45 degrees round
+                 (list (+ cx (* sgn r)) cy))                   ; end:   on the vertical face
+  (princ))
+
+;; ============================================================================
+;; PARAPET FASCIA  (Ref. Manual Ch.10 10.4 p.244 -- the fifth standard fascia)
+;; ----------------------------------------------------------------------------
+;; The other four fascias HANG OFF the building: a panel out on a 600 projection
+;; with a girt cage behind it.  The parapet is not that -- it is the WALL ITSELF
+;; carried up past the eave, and two things follow from that:
+;;
+;;   * there is NO projection.  The parapet stands in the wall-cladding plane
+;;     (200 out to the girt face, 235 to the sheet face -- draw-cladding's own
+;;     numbers), so nothing can be concealed behind it and nothing overhangs.
+;;
+;;   * there is therefore NO eave gutter.  Our eave gutter lives at 200..390
+;;     OUTBOARD (draw-eave-features), which on a parapet wall is beyond the
+;;     panel face -- it would hang in open air outside the building.  The roof
+;;     drains INBOARD instead, into a VALLEY GUTTER at the parapet base.  That
+;;     is the manual's arrangement and it is the same one draw-rc-fascia
+;;     already uses for the concrete parapet on an RC frame.
+;;
+;; Because of that second point the parapet cannot be drawn by this routine
+;; alone: the eave gutter has to be suppressed and the roof sheet trimmed, and
+;; BOTH of those are drawn BEFORE the fascia detail runs.  So C:PEB-SECTION sets
+;; *PEB-FA-PARA-L* / *PEB-FA-PARA-R* once, up front, and draw-eave-features and
+;; draw-cladding read them.  The three constants below are the contract between
+;; those routines and this one -- they live in ONE place so the trimmed sheet
+;; edge and the trough it drips into can never drift apart.
+;;
+;; KNOWN LIMIT: the sheet trim is wired into draw-cladding (CS/MS/SS/LT) and
+;; draw-cladding-mg (MG).  The ARCHED frames (ACS/AMS) draw their own curved
+;; sheeting inline and are NOT trimmed -- a parapet on an arch still gets its
+;; eave gutter suppressed, but the curved sheet runs past the panel face.
+;; ============================================================================
+(defun peb-para-gut-out () 120.0)   ; valley gutter OUTER wall, inboard of the steel line
+(defun peb-para-gut-in  () 520.0)   ; valley gutter INNER upstand, inboard of the steel line
+(defun peb-para-sheet-in () 300.0)  ; roof sheet is trimmed HERE -- over the trough, so it drips in
+
+;; Is this wall's fascia the parapet one?  The same three BSF keys, read in the
+;; same order, as peb-fascia-side's own dispatch -- master toggle, wall toggle,
+;; then the type.  BSF is the single truth; this only reads it.
+(defun peb-fascia-parapet-p (data w)
+  (and (= (strcase (peb-tb-or (MSPL-Get-Str data "FA_TOGGLE") "")) "YES")
+       (= (strcase (peb-tb-or (MSPL-Get-Str data (strcat "FA_" w "_TOGGLE")) "")) "YES")
+       (wcmatch (strcase (peb-tb-or (MSPL-Get-Str data (strcat "FA_" w "_TYPE")) ""))
+                "*PARAPET*")))
+
+;; one sidewall parapet.  Same arguments as peb-fascia-side, which dispatches here.
+(defun peb-fascia-parapet (data w sgn xs H rise lab / fh bak mat gd pt
+                                xGi xPi xPo xTo yB yT gh gc gb
+                                gOut gIn gBot gTop tx)
+  ;; ---- BSF: the same keys and the same precedence as the other four --------
+  ;; HEIGHT -- a typed FA_<W>_HT wins outright; the auto value is the one the
+  ;; vertical fascia uses (rise + 235 = the ridge SHEETING top, purlin 200 +
+  ;; cladding 35 above the rafter rise), so the parapet hides the peak behind it.
+  (setq fh (MSPL-Get-Num data (strcat "FA_" w "_HT")))
+  (if (or (null fh) (<= fh 0.0)) (setq fh (+ rise 235.0)))
+  (if (<= fh 0.0) (setq fh 1200.0))                     ; flat roof: no rise to follow
+  (setq bak (= (strcase (peb-tb-or (MSPL-Get-Str data (strcat "FA_" w "_BACKUP")) "NO")) "YES"))
+  (setq mat (strcase (peb-tb-or (MSPL-Get-Str data (strcat "FA_" w "_PANEL")) "")))
+  (if (wcmatch mat "*SAME AS*") (setq mat ""))          ; the BSF default carries no extra information
+  ;; FA_<W>_PROJ and FA_<W>_SOFFIT are deliberately NOT read: a parapet has no
+  ;; projection to dimension and no soffit to draw.  FA_<W>_GUTTER is not read
+  ;; either -- its BSF default is "Eave", but an eave gutter cannot exist outside
+  ;; a parapet, so the gutter is DERIVED from the type, which is the real truth.
+
+  ;; ---- geometry -- the wall plane, continued ------------------------------
+  (setq gd 200.0 pt 35.0)                               ; girt depth / panel thickness (draw-cladding)
+  (setq xGi xs                                          ; INNER face of the parapet framing = steel line
+        xPi (+ xs (* sgn gd))                           ; panel INNER face = outer face of the girts
+        xPo (+ xs (* sgn (+ gd pt)))                    ; panel OUTER face -- FLUSH with the wall sheet below
+        xTo (+ xPo (* sgn 15.0)))                       ; trims wrap 15 proud, same as the fascia
+  (setq yB H yT (+ H fh))
+  ;; girt depth on the sheet + edge clearance -- the same clamps the fascia
+  ;; uses, so the two girts never meet on a short parapet
+  (setq gh (max 60.0 (min 150.0 (* fh 0.16))))
+  (setq gc (max 30.0 (min  70.0 (* fh 0.07))))
+  ;; BOTTOM-GIRT BASE.  The fascia hangs its cage 400 out, in clear air; the
+  ;; parapet's cage is in the wall plane, and the EAVE PURLIN is already there --
+  ;; draw-purlins forces one at the eave (rule P1) and its Z reaches ~200 above
+  ;; the rafter top, x -197..-103 on the NSW.  Starting the bottom girt at gc
+  ;; (67 above the eave) drew it straight THROUGH that purlin, so it starts a
+  ;; purlin-depth clear instead.  On a very short parapet the clamp pulls it back
+  ;; down rather than letting the two girts meet.
+  (setq gb (max (+ yB 30.0)
+                (min (+ yB 230.0) (- yT gc gh gh 40.0))))
+
+  ;; ---- PARAPET PANEL (cut) ------------------------------------------------
+  ;; Capped at the TOP only.  The bottom is deliberately left OPEN: this is the
+  ;; wall sheet running on past the eave, and a line across at yB would draw a
+  ;; horizontal joint that does not exist on the building.
+  (setvar "CLAYER" "CLADDING")
+  (command "PLINE" (list xPo yB) "W" 1.5 1.5
+                   (list xPo yT) (list xPi yT) (list xPi yB) "")
+
+  ;; ---- CAP FLASHING (coping) -- folded over the top of the parapet --------
+  ;; It falls INBOARD.  A coping sheds into the valley gutter behind it, never
+  ;; down the face of the building -- the opposite of the fascia cap, which has
+  ;; no gutter behind it to shed into.
+  (command "PLINE" (list xTo (- yT 140.0)) "W" 1.0 1.0
+                   (list xTo (+ yT 45.0))
+                   (list xGi (+ yT 10.0))
+                   (list xGi (- yT 140.0)) "")
+
+  ;; ---- PARAPET GIRTS -- the wall girts continued above the eave -----------
+  ;; The same open C the fascia cage carries (peb-fascia-girt): web against the
+  ;; panel, flanges running back inboard.  Top girt under the coping, bottom
+  ;; girt just above the eave.
+  (setvar "CLAYER" "GIRTS")
+  (peb-fascia-girt xPi xGi (- yT gc) (- yT gc gh))
+  (peb-fascia-girt xPi xGi (+ gb gh) gb)
+  ;; ---- PARAPET COLUMN -- the frame column carried up past the eave --------
+  ;; structural member -> the same 12.0 weight the girts and purlins carry
+  (setvar "CLAYER" "FRAME")
+  (command "PLINE" (list xPi (- yT gc gh)) "W" 12.0 12.0
+                   (list xGi (- yT gc gh))
+                   (list xGi (+ gb gh))
+                   (list xPi (+ gb gh)) "C")
+  (setvar "PLINEWID" 0.0)
+
+  ;; ---- VALLEY GUTTER at the parapet base ----------------------------------
+  ;; A box gutter sitting on the rafter top, INBOARD of the eave purlin -- whose
+  ;; flanges reach 60 either side of the steel line (draw-purlins forces a
+  ;; purlin at d=0), hence the 120 start.  draw-cladding has already trimmed the
+  ;; roof sheet to peb-para-sheet-in, so the sheet stops OVER the trough and
+  ;; drips into it.  The inner upstand is held at H+190 -- just under the sheet
+  ;; underside AT THE EAVE (H+200) -- so the sheeting laps OVER it at ANY slope,
+  ;; since the sheet only climbs as it runs inboard.
+  (setq gOut (- xs (* sgn (peb-para-gut-out)))
+        gIn  (- xs (* sgn (peb-para-gut-in)))
+        gBot (+ H 20.0)                                 ; trough bottom, just clear of the rafter top flange
+        gTop (+ H 450.0))                               ; outer wall, carried up the parapet inner face
+  (setvar "CLAYER" "GUTTER")
+  (command "PLINE" (list gOut gTop) "W" 1.5 1.5
+                   (list gOut gBot)
+                   (list gIn  gBot)
+                   (list gIn  (+ H 190.0)) "")
+
+  ;; ---- BACK-UP PANEL (optional) -- inner skin, gutter up to the coping ----
+  (if bak
+    (progn (setvar "CLAYER" "CLADDING")
+           (command "PLINE" (list xGi gTop) "W" 1.0 1.0 (list xGi yT) "")))
+
+  ;; ---- LABELS + DIM -- only on the SIDE THE CALLER NOMINATED --------------
+  ;; Same rule as the fascia: a cross-section is symmetric, so the callouts go
+  ;; on ONE eave.  Same text column, same leader helper, same offsets -- the two
+  ;; details have to read as one family on the sheet.
+  (if lab
+    (progn
+      (setvar "CLAYER" "TEXT")
+      (setq tx (+ xPo (* sgn (* 2500.0 *PEB-TEXT-SCALE*))))
+      (peb-label-pline-leader "CAP FLASHING"
+        (list tx (+ yT 1800.0))
+        (list (/ (+ xPo xGi) 2.0) (+ yT 30.0)) "H" 220)
+      (peb-label-pline-leader
+        (if (= mat "") "PARAPET PANEL" (strcat "PARAPET PANEL - " mat))
+        (list tx (+ yT 900.0))
+        (list xPo (+ yB (* fh 0.72))) "H" 220)
+      (peb-label-pline-leader "PARAPET GIRT"
+        (list tx (+ yT 100.0))
+        (list (/ (+ xPi xGi) 2.0) (- yT gc (* gh 0.5))) "H" 220)
+      (peb-label-pline-leader "PARAPET COLUMN"
+        (list tx (+ yB (* fh 0.45)))
+        (list (/ (+ xPi xGi) 2.0) (max (+ gb gh 60.0) (+ yB (* fh 0.45)))) "H" 220)
+      ;; VALLEY GUTTER reads from INSIDE the building -- it is inboard of the
+      ;; wall line, so its text cannot share the outboard column.  Kept CLOSE to
+      ;; the eave and HIGH: at 2200 inboard / eave+900 the text ran straight into
+      ;; the roof SLOPE TAG, which the engine parks at 75% of the half-span at
+      ;; about eave+800.  Both offsets scale with the text (a bigger building
+      ;; draws bigger text), because it is the TEXT that has to clear, not the mm.
+      (peb-label-pline-leader "VALLEY GUTTER"
+        (list (- xs (* sgn (* 700.0 *PEB-TEXT-SCALE*))) (+ H (* 1200.0 *PEB-TEXT-SCALE*)))
+        (list (/ (+ gOut gIn) 2.0) (+ H 40.0)) "H" 220)
+      ;; the manual dims the parapet HEIGHT.  There is no projection to dim and
+      ;; no 200 cage -- those two dims belong to the other four fascias only.
+      (vl-catch-all-apply
+        (function (lambda ()
+          (peb-dim-height-stretch xPo (+ xPo (* sgn (* 4200.0 *PEB-TEXT-SCALE*)))
+                                  yB yT (rtos fh 2 0)))))))
+  (setvar "CLAYER" "0")
+  (setvar "PLINEWID" 0.0)
+  (princ))
+
 (defun peb-fascia-side (data w sgn xs H rise lab / typ proj fh dep pt sof bak mat
-                             xO xPi xCo xCi yB yT gh gc tx ty)
+                             xO xPi xCo xCi yB yT gh gc tx ty cmode rad yCB yCT)
   (setq typ (strcase (peb-tb-or (MSPL-Get-Str data (strcat "FA_" w "_TYPE")) "")))
+  ;; ---- WHICH OF THE MANUAL'S FIVE STANDARD FASCIAS IS THIS? ----------------
+  ;; Ch.10 §10.4 p.239 "STANDARD FASCIAS VIEWED AT ENDWALL" lists exactly five:
+  ;; Vertical · Bottom Curved · Top & Bottom Curved · Center Curved · Parapet.
+  ;; The first four share one carcass (cage, girts, bracket, cap flashing) and
+  ;; differ ONLY in the panel profile, so they run through the common body below
+  ;; with `cmode` switching the outline.  The Parapet is a different animal — a
+  ;; wall extension standing ON the steel line with no projection at all — so it
+  ;; gets its own routine.  Match order matters: "TOP & BOTTOM" must be tested
+  ;; before the bare "BOTTOM".
+  (setq cmode
+    (cond ((wcmatch typ "*PARAPET*")                              "P")
+          ((and (wcmatch typ "*TOP*") (wcmatch typ "*BOTTOM*"))   "TB")
+          ((wcmatch typ "*CENT*")                                 "C")
+          ((wcmatch typ "*BOTTOM*")                               "B")
+          ((wcmatch typ "*CURV*")                                 "B")   ; bare "Curved" = the bottom one
+          (T                                                      "V")))
   (cond
     ;; wall not toggled -> nothing
     ((/= (strcase (peb-tb-or (MSPL-Get-Str data (strcat "FA_" w "_TOGGLE")) "")) "YES") nil)
-    ;; not the vertical one -> plan band only (curved / parapet still to come)
-    ((and (/= typ "") (not (wcmatch typ "*VERTICAL*"))) nil)
+    ;; parapet — its own detail (no projection, valley gutter behind it)
+    ((= cmode "P") (peb-fascia-parapet data w sgn xs H rise lab))
     (T
       ;; ---- read the BSF, defaults ONLY where the manual states one ----------
       (setq proj (MSPL-Get-Num data (strcat "FA_" w "_PROJ")))
@@ -6075,10 +6358,53 @@
       (setq gh (max 60.0 (min 150.0 (* fh 0.16))))
       (setq gc (max 30.0 (min  70.0 (* fh 0.07))))
 
+      ;; ---- CURVE RADIUS -----------------------------------------------------
+      ;; The manual dimensions every curved variant R=500 (p.241 bottom curved,
+      ;; p.242 top & bottom, p.243 centre) alongside the same 600 projection and
+      ;; 200 cage.  Clamp it so a shallow or short fascia cannot produce an arc
+      ;; bigger than the panel it belongs to: the sweep must fit inside BOTH the
+      ;; projection (it returns to the steel line) and the height.
+      (setq rad (max 150.0 (min 500.0 (- proj 100.0) (* fh 0.45))))
+      (setq yCB (+ yB rad))                                     ; bottom tangent point
+      (setq yCT (- yT rad))                                     ; top tangent point (TB only)
       ;; ---- FASCIA PANEL (cut) ----------------------------------------------
+      ;; One outer face, four profiles.  All OPEN linework — 3-point ARCs, the
+      ;; idiom the rest of this engine already uses for the arch roof.
       (setvar "CLAYER" "CLADDING")
-      (command "PLINE" (list xO yB) "W" 1.5 1.5 (list xO yT)
-                       (list xPi yT) (list xPi yB) "C")
+      (cond
+        ;; ---- CENTER CURVED (p.243): the face BOWS OUTBOARD — both ends sit
+        ;; back at the cage face (meeting the top and bottom girts) and the
+        ;; crown reaches full projection at mid height.  It keeps a soffit.
+        ((= cmode "C")
+         ;; outer face of the bow …
+         (command "ARC" (list xCi yT) (list xO (* 0.5 (+ yB yT))) (list xCi yB))
+         ;; … and its inner face, one panel thickness in
+         (command "ARC" (list xCi (- yT pt)) (list xPi (* 0.5 (+ yB yT))) (list xCi (+ yB pt))))
+        ;; ---- BOTTOM CURVED (p.241) and TOP & BOTTOM CURVED (p.242): a flat
+        ;; face with a quarter-round sweeping back INBOARD to the steel line.
+        ;; The bottom curve replaces the soffit — the manual draws no soffit
+        ;; panel on these two, the sweep itself closes the underside.
+        ((or (= cmode "B") (= cmode "TB"))
+         ;; outer face, top down to the bottom tangent
+         (command "PLINE" (list xO (if (= cmode "TB") yCT yT)) "W" 1.5 1.5 (list xO yCB) "")
+         ;; bottom quarter-round: vertical at xO -> horizontal at the steel line
+         (peb-fascia-quarter xs sgn proj rad yB "OUT")
+         (peb-fascia-quarter xs sgn (- proj pt) (- rad pt) (+ yB pt) "IN")
+         ;; inner face
+         (command "PLINE" (list xPi (if (= cmode "TB") yCT yT)) "W" 1.5 1.5
+                          (list xPi (+ yCB 0.0)) "")
+         (if (= cmode "TB")
+           (progn
+             ;; top quarter-round, mirrored in Y: vertical face sweeping up and
+             ;; back over the cage, terminating at the ANGLE (manual p.242).
+             (peb-fascia-quarter-top xs sgn proj rad yT "OUT")
+             (peb-fascia-quarter-top xs sgn (- proj pt) (- rad pt) (- yT pt) "IN"))
+           ;; plain bottom-curved: square top, closed across
+           (command "PLINE" (list xO yT) "W" 1.5 1.5 (list xPi yT) "")))
+        ;; ---- STANDARD VERTICAL (p.240): flat face, square top and bottom ----
+        (T
+         (command "PLINE" (list xO yB) "W" 1.5 1.5 (list xO yT)
+                          (list xPi yT) (list xPi yB) "C")))
       ;; ---- CAP FLASHING — folded trim wrapping OVER the top of the cage -----
       ;; outer leg down the face, over the top falling slightly inboard, inner leg down.
       (command "PLINE" (list xCo (- yT 140.0)) "W" 1.0 1.0
@@ -7727,6 +8053,17 @@
   (if (and (member stype '("FR" "F2")) (f2-active-p data)) (setq stype "F2"))
   ;; proper canopy name for this sheet; nil for non-canopy stypes (reset every sheet, never stale).
   (setq *PEB-CANOPY-NAME* (peb-canopy-name stype data))
+
+  ;; ── PARAPET FASCIA flags (FA_*) ───────────────────────────────────────
+  ;; The parapet is the only fascia that stands IN the wall plane, so on a parapet
+  ;; eave the gutter would hang outside the building and the 270 roof-sheet
+  ;; overhang would run straight through the panel.  draw-eave-features and
+  ;; draw-cladding both run BEFORE the fascia detail, so the decision is taken
+  ;; here, ONCE, and read from there.  Set on EVERY sheet (never left stale from
+  ;; the previous drawing).  RC has its own concrete parapet (draw-rc-fascia) and
+  ;; is excluded -- it suppresses its own eave gutter through *PEB-RC-FASCIA*.
+  (setq *PEB-FA-PARA-L* (and (/= stype "RC") (peb-fascia-parapet-p data "NSW")))
+  (setq *PEB-FA-PARA-R* (and (/= stype "RC") (peb-fascia-parapet-p data "FSW")))
 
   ;; ── Effective span for rise/haunch calc (per-gable for MG) ──
   ;; For MG: each gable has its own ridge, so rise is computed
