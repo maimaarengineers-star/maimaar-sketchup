@@ -6064,7 +6064,7 @@
 ;;  Only the STANDARD VERTICAL type draws here — curved/parapet keep the plan band.
 ;;  Everything is DERIVED from the BSF keys FA_<W>_*; nothing is recomputed.
 ;; ============================================================================
-(defun draw-fascia-vertical (data W H rise / nsw)
+(defun draw-fascia-vertical (data W H rise monoRise / nsw mono hL hR rL rR)
   (if (= (strcase (peb-tb-or (MSPL-Get-Str data "FA_TOGGLE") "")) "YES")
     (progn
       ;; Callouts go on the LEFT (NSW) eave when it carries a fascia, else on the right —
@@ -6074,13 +6074,29 @@
       ;; already placed the section's ONE gutter callout off the same answer, and the
       ;; two must not drift apart.
       (setq nsw (not *PEB-FA-LAB-R*))
+      ;; ---- ONE EAVE HEIGHT PER WALL (owner 25-Aug: "fascias are not shown on
+      ;; mono-slope buildings").  A gable has both eaves at H, so one H served
+      ;; both sides.  A MONO roof does not: the NSW/left eave is the LOW one at H
+      ;; and the FSW/right is the HIGH one at H + monoRise.  Passing H to both
+      ;; drew the right-hand fascia 4.5 m below its own eave on the 04_SingleSlope
+      ;; sample -- floating halfway down the wall sheeting.
+      ;;
+      ;; The auto HEIGHT follows the same manual rule (fascia height = peak minus
+      ;; eave) read per wall: from the LOW eave the roof climbs the full monoRise,
+      ;; so that is what has to be hidden; the HIGH eave IS the peak, so there is
+      ;; nothing to hide and it falls back to the default height.
+      (setq mono (and monoRise (> monoRise 0.0)))
+      (setq hL H
+            hR (if mono (+ H monoRise) H)
+            rL (if mono monoRise rise)
+            rR (if mono 0.0 rise))
       ;; Annotate ONE eave only (a cross-section is symmetric and our own reference
       ;; drawings call the fascia out once): the left/NSW eave when it has a fascia,
       ;; otherwise the right.  The other eave draws geometry only.
       (vl-catch-all-apply
-        (function (lambda () (peb-fascia-side data "NSW" -1.0 0.0 H rise nsw))))
+        (function (lambda () (peb-fascia-side data "NSW" -1.0 0.0 hL rL nsw))))
       (vl-catch-all-apply
-        (function (lambda () (peb-fascia-side data "FSW"  1.0 W   H rise (not nsw)))))))
+        (function (lambda () (peb-fascia-side data "FSW"  1.0 W   hR rR (not nsw)))))))
   (setvar "CLAYER" "0")
   (setvar "PLINEWID" 0.0)
   (princ))
@@ -6190,8 +6206,9 @@
   ;; vertical fascia uses (rise + 235 = the ridge SHEETING top, purlin 200 +
   ;; cladding 35 above the rafter rise), so the parapet hides the peak behind it.
   (setq fh (MSPL-Get-Num data (strcat "FA_" w "_HT")))
-  (if (or (null fh) (<= fh 0.0)) (setq fh (+ rise 235.0)))
-  (if (<= fh 0.0) (setq fh 1200.0))                     ; flat roof: no rise to follow
+  ;; Same rule as the fascia: typed wins, else rise+235 with a 1200 floor (the old
+  ;; second test was dead code -- see peb-fascia-side).
+  (if (or (null fh) (<= fh 0.0)) (setq fh (max 1200.0 (+ rise 235.0))))
   (setq bak (= (strcase (peb-tb-or (MSPL-Get-Str data (strcat "FA_" w "_BACKUP")) "NO")) "YES"))
   ;; FA_<W>_PANEL is not read either now the callouts are gone (it only fed the text).
   ;; FA_<W>_PROJ and FA_<W>_SOFFIT are deliberately NOT read: a parapet has no
@@ -6341,8 +6358,12 @@
       ;; rise.  So auto = rise + 235 and the fascia top lands exactly on the ridge sheet.
       ;; A typed FA_<W>_HT still wins outright — BSF is the single truth.
       (setq fh (MSPL-Get-Num data (strcat "FA_" w "_HT")))
-      (if (or (null fh) (<= fh 0.0)) (setq fh (+ rise 235.0)))
-      (if (<= fh 0.0) (setq fh 1200.0))                         ; flat roof: no rise to follow
+      ;; A typed FA_<W>_HT still wins outright.  The AUTO value gets a 1200 floor:
+      ;; the old second line read (if (<= fh 0.0) 1200) AFTER fh was already set to
+      ;; rise+235, so it could only fire for a rise below -235 -- it was dead, and a
+      ;; flat roof (rise 0) silently produced a 235 mm fascia.  The floor also
+      ;; covers the HIGH eave of a mono roof, where there is no peak to hide.
+      (if (or (null fh) (<= fh 0.0)) (setq fh (max 1200.0 (+ rise 235.0))))
       (setq sof (= (strcase (peb-tb-or (MSPL-Get-Str data (strcat "FA_" w "_SOFFIT")) "YES")) "YES"))
       (setq bak (= (strcase (peb-tb-or (MSPL-Get-Str data (strcat "FA_" w "_BACKUP")) "NO")) "YES"))
       ;; FA_<W>_PANEL is no longer read here: it only ever fed the FASCIA PANEL
@@ -9298,7 +9319,9 @@
   ;; excluded here; every other frame type gets the manual's vertical fascia detail.
   (if (/= stype "RC")
     (vl-catch-all-apply
-      (function (lambda () (draw-fascia-vertical data wid H rise)))))
+      ;; monoRise is nil on a gable and the mono rise on SS/LT -- it is what tells
+      ;; the fascia that the two eaves sit at different heights.
+      (function (lambda () (draw-fascia-vertical data wid H rise monoRise)))))
 
   ;; ── Slope tags placed 25% in from the RIDGE on each rafter half ──
   ;; sheeting top sits at H + rise + purlinH(200) + cladThk(35) above rafter.
