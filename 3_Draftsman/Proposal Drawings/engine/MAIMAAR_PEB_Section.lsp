@@ -8361,8 +8361,11 @@
         (draw-base-plate-at (- ppC1 (/ ppCwP 2.0)) (+ ppC1 (/ ppCwP 2.0)) cb (* 25 *PEB-TEXT-SCALE*))
         (draw-base-plate-at (- ppC2 (/ ppCwP 2.0)) (+ ppC2 (/ ppCwP 2.0)) cb (* 25 *PEB-TEXT-SCALE*))
         ;; I-shape (vertical) connection plate on the INNER face of each box column, spanning the roof-beam depth
-        (draw-cant-vplate (+ ppC1 (/ ppCwP 2.0)) (- H ppRtP) H 45.0 3)
-        (draw-cant-vplate (- ppC2 (/ ppCwP 2.0)) (- H ppRtP) H 45.0 3)))
+        ;; trailing nil = slope (the roof beam here is horizontal).  draw-cant-vplate
+        ;; takes SIX arguments and already turns a nil slope into 0.0 -- but the
+        ;; argument still has to be PASSED, or the branch aborts silently.
+        (draw-cant-vplate (+ ppC1 (/ ppCwP 2.0)) (- H ppRtP) H 45.0 3 nil)
+        (draw-cant-vplate (- ppC2 (/ ppCwP 2.0)) (- H ppRtP) H 45.0 3 nil)))
     ((= stype "MG")
       (progn
         ;; Gable boundaries (valleys) + per-gable ridge centres from the canonical FRAME GRID
@@ -8949,7 +8952,9 @@
           (setvar "CLAYER" "BRICK-WALL")
           (command "RECTANG" (list (- 0.0 200.0) 0.0) (list 0.0 brickH))
           (command "HATCH" "BRICK" 150 0 "L" "")))
-      (draw-cladding      data wid H rise brickH monoRise nil T)  ; mono roof (tucks to wall) + LEFT wall sheeting + roof/wall M-Ladders; skip right wall
+      ;; trailing nil = throatWin (see the SS branch): eight arguments silently
+      ;; aborted the whole section.  A lean-to carries no roof monitor either.
+      (draw-cladding      data wid H rise brickH monoRise nil T nil)  ; mono roof (tucks to wall) + LEFT wall sheeting + roof/wall M-Ladders; skip right wall
       (draw-purlins-mono  wid H monoRise)                         ; standard mono purlins (match CS/SS)
       (draw-girts         wid H brickH nil T)                     ; LEFT girts only + GIRT M-Ladder
       (draw-downpipes     wid H brickH T)                         ; LOW-side downpipe + DOWN PIPE + COLUMN M-Ladders
@@ -8968,7 +8973,10 @@
       (draw-girts         wid H brickH nil nil)
       (peb-arch-wall-sheeting wid H brickH)      ; owner 16-Jul: wall sheeting lines OUTSIDE girts, brick->eave/gutter
       (draw-downpipes     wid H brickH nil)
-      (draw-eave-features wid H nil)
+      ;; trailing nil = slope.  draw-eave-features takes FOUR arguments; three
+      ;; silently aborted the arched-frame branch the same way.  nil is what the
+      ;; call already meant: "no slope given" -> the legacy flat H+200 gutter lip.
+      (draw-eave-features wid H nil nil)
       ;; ── Curved roof cladding: arcs offset 200/235 above the rafter (2 lines = sheet thickness) ──
       ;; Same 3-point arcs as the frame's rafter (draw-acs-frame / draw-ams-frame).  Z-purlins ride the
       ;; RAFTER OUTER arc (H..H+rise) so their 200 mm web sits in the gap BELOW the sheeting (owner 16-Jul).
@@ -9242,7 +9250,12 @@
       (setq monoRise (/ wid slopeD))
       (setq ssHR (+ H monoRise))
       (draw-brick-wall    wid brickH)
-      (draw-cladding      data wid H rise brickH monoRise ssHR nil)   ; rightH = high eave
+      ;; NOTE the trailing nil: draw-cladding takes NINE arguments (throatWin last).
+      ;; Called with eight, AutoLISP does not raise a catchable error -- it silently
+      ;; unwinds the WHOLE evaluation, so every remaining line of C:PEB-SECTION
+      ;; (cladding, purlins, girts, gutter, FASCIA, slope tags, grid, dims, title
+      ;; block) was never drawn.  A mono roof carries no roof monitor, hence nil.
+      (draw-cladding      data wid H rise brickH monoRise ssHR nil nil)   ; rightH = high eave
       (draw-purlins-mono  wid H monoRise)                        ; MONO purlins follow the one slope (not gable)
       (draw-girts         wid H brickH ssHR nil)                  ; right girts to the high eave
       (draw-downpipes     wid H brickH T)                         ; mono -> low-side downpipe only
