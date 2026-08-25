@@ -3436,10 +3436,14 @@
       ;; (= H); without it, fall back to a member-depth rise (plate span minus the ext).  Eave knees only.
       (setq gH (- (- x1 x0) (* 2.0 ext)))
       (setq stTop (if (and *PEB-KNEE-TOPY* (> *PEB-KNEE-TOPY* (+ topY gH))) *PEB-KNEE-TOPY* (+ topY gH)))
-      ;; BOTH FLANGES (owner 25-Aug: "stiffeners are on outer flange").  The outer
-      ;; set below is the 14-Jul arrangement and is unchanged; the INNER flange now
-      ;; carries the mirror of it, using the same (+ x0 ext) / (- x1 ext) pair the
-      ;; splice case already stiffens both ends with.
+      ;; WHICH MEMBER GETS WHICH (owner 25-Aug, refining the same day's first note):
+      ;; "On Rafters Stiffeners are okay" + "on Columns the Stiffeners must be on
+      ;; the outer flanges".  In this detail the two plates straddle a horizontal
+      ;; seam at the column top / rafter underside, so:
+      ;;    topY  = top of the UPPER plate  -> the RAFTER side  -> BOTH flanges
+      ;;    loBot = bottom of the LOWER plate -> the COLUMN side -> OUTER flange only
+      ;; Hence the mirrored inner stiffener is drawn for the rafter and NOT for the
+      ;; column.  The outer pair is the 14-Jul arrangement, unchanged.
       ;; The vertical + diagonal stay OUTSIDE only: those two are the knee GUSSET
       ;; triangle, which has to land on the rafter OUTER flange — there is no inner
       ;; counterpart for them to rise to.
@@ -3447,16 +3451,16 @@
         (progn
           (draw-stiff-top (+ x0 ext) topY stW stH -1)   ; small stiffener OUTSIDE the top flange
           (draw-stiff-bot (+ x0 ext) loBot stW stH -1)  ; small stiffener OUTSIDE the bottom flange
-          (draw-stiff-top (- x1 ext) topY stW stH  1)   ; … and its mirror on the INNER top flange
-          (draw-stiff-bot (- x1 ext) loBot stW stH  1)  ; … INNER bottom flange
+          (draw-stiff-top (- x1 ext) topY stW stH  1)   ; RAFTER: mirror on the INNER top flange
+          ;; NO inner stiffener on loBot — the COLUMN carries the outer flange only.
           (command "LINE" (list (+ x0 ext) topY) (list (+ x0 ext) stTop) "")   ; vertical stiffener up to rafter outer flange
           (command "LINE" (list x1 topY)         (list (+ x0 ext) stTop) "")))  ; diagonal gusset
       (if (and dirOut (> dirOut 0))             ; RIGHT eave knee: outer flange at x1-ext, inner end x0
         (progn
           (draw-stiff-top (- x1 ext) topY stW stH 1)    ; small stiffener OUTSIDE the top flange
           (draw-stiff-bot (- x1 ext) loBot stW stH 1)   ; small stiffener OUTSIDE the bottom flange
-          (draw-stiff-top (+ x0 ext) topY stW stH -1)   ; … and its mirror on the INNER top flange
-          (draw-stiff-bot (+ x0 ext) loBot stW stH -1)  ; … INNER bottom flange
+          (draw-stiff-top (+ x0 ext) topY stW stH -1)   ; RAFTER: mirror on the INNER top flange
+          ;; NO inner stiffener on loBot — the COLUMN carries the outer flange only.
           (command "LINE" (list (- x1 ext) topY) (list (- x1 ext) stTop) "")   ; vertical stiffener up to rafter outer flange
           (command "LINE" (list x0 topY)         (list (- x1 ext) stTop) "")))))  ; diagonal gusset
   (setq *PEB-KNEE-TOPY* nil)   ; consume the per-knee top-flange hint so it never leaks to the next frame
