@@ -5924,7 +5924,7 @@
 
 (defun draw-eave-features (W H mono slope /
                           inH outH botW innerX outerX rslope
-                          gyTopIn gyBot gyTopOut
+                          gyTopIn gyBot gyTopOut gL gR
                           tx ty ax arrowX arrowY)
   ;;  MAIMAAR-standard eave gutter (open-top trough):
   ;;     INNER (toward building) vertical = 165 mm  with drip-lip on top
@@ -5999,14 +5999,23 @@
   ;; horizontal "bar" segment exactly 300 mm with text starting at the
   ;; bar's right end.  Text X = arrow X + 300.
   (setvar "CLAYER" "TEXT")
-  ;; ---- ONE gutter M-Ladder only (owner 25-Aug) ----------------------------
-  ;; A cross-section is symmetric, so the second EAVE GUTTER callout repeated the
-  ;; first word for word.  It goes on the LEFT eave when that eave actually HAS a
-  ;; gutter, otherwise on the RIGHT (mono drains left only; a parapet eave has no
-  ;; eave gutter at all).  When BOTH sidewalls carry parapets there is no eave
-  ;; gutter anywhere and no callout — peb-fascia-parapet's VALLEY GUTTER takes over.
+  ;; ---- ONE gutter callout for the whole section (owner 25-Aug) ------------
+  ;; Not one EAVE GUTTER callout -- ONE gutter callout, full stop.  It rides the
+  ;; ANNOTATED eave (the same one that carries the fascia dims), and names whatever
+  ;; gutter that eave actually has: if it is a parapet, peb-fascia-parapet writes
+  ;; VALLEY GUTTER there and this routine stays silent, which is why the parapet
+  ;; case is tested FIRST.  A building with a parapet on one wall and a fascia on
+  ;; the other used to get both labels -- two gutters, but still two callouts.
+  ;;
+  ;; The last two clauses are the fallback: if the annotated eave has no gutter at
+  ;; all (a MONO roof drains to the low/left eave only, so the right one is dry),
+  ;; the callout moves to the eave that does, rather than vanishing off the sheet.
+  (setq gL (not *PEB-FA-PARA-L*)                        ; left eave HAS an eave gutter
+        gR (and (not mono) (not *PEB-FA-PARA-R*)))      ; right eave HAS one
   (cond
-    ((not *PEB-FA-PARA-L*)
+    ;; annotated eave is a PARAPET -> its VALLEY GUTTER is the section's one callout
+    ((if *PEB-FA-LAB-R* *PEB-FA-PARA-R* *PEB-FA-PARA-L*) nil)
+    ((and gL (or (not *PEB-FA-LAB-R*) (not gR)))
       (setq ax (- 0.0 botW (* 100 *PEB-TEXT-SCALE*)))    ; arrow X
       (setq tx (+ ax 300.0))                             ; text 300 right of arrow
       (setq ty (+ gyTopOut (* 1200.0 *PEB-TEXT-SCALE*)))
@@ -6015,7 +6024,7 @@
                              (list ax gyTopOut)          ; arrowPt
                              "V"
                              220))
-    ((and (not mono) (not *PEB-FA-PARA-R*))
+    (gR
       (setq ax (+ W botW (* 100 *PEB-TEXT-SCALE*)))      ; arrow X
       (setq tx (+ ax 300.0))                             ; text 300 right of arrow
       (setq ty (+ gyTopOut (* 1200.0 *PEB-TEXT-SCALE*)))
@@ -6061,7 +6070,10 @@
       ;; Callouts go on the LEFT (NSW) eave when it carries a fascia, else on the right —
       ;; one set only (see peb-fascia-side).  The right eave has the title block/notes
       ;; beside it, so long material text must never start there.
-      (setq nsw (= (strcase (peb-tb-or (MSPL-Get-Str data "FA_NSW_TOGGLE") "")) "YES"))
+      ;; Read back from C:PEB-SECTION rather than recomputed: draw-eave-features has
+      ;; already placed the section's ONE gutter callout off the same answer, and the
+      ;; two must not drift apart.
+      (setq nsw (not *PEB-FA-LAB-R*))
       ;; Annotate ONE eave only (a cross-section is symmetric and our own reference
       ;; drawings call the fascia out once): the left/NSW eave when it has a fascia,
       ;; otherwise the right.  The other eave draws geometry only.
@@ -8035,6 +8047,15 @@
   ;; is excluded -- it suppresses its own eave gutter through *PEB-RC-FASCIA*.
   (setq *PEB-FA-PARA-L* (and (/= stype "RC") (peb-fascia-parapet-p data "NSW")))
   (setq *PEB-FA-PARA-R* (and (/= stype "RC") (peb-fascia-parapet-p data "FSW")))
+  ;; WHICH EAVE CARRIES THE ANNOTATION.  A cross-section is symmetric, so the
+  ;; engine annotates ONE eave: the left/NSW when it has a fascia, else the right.
+  ;; draw-fascia-vertical used to work this out for itself, but draw-eave-features
+  ;; now needs the same answer to decide where the ONE gutter callout goes -- and it
+  ;; runs FIRST.  Resolved here so the two can never disagree; draw-fascia-vertical
+  ;; reads it back rather than recomputing.
+  (setq *PEB-FA-LAB-R*
+    (and (= (strcase (peb-tb-or (MSPL-Get-Str data "FA_TOGGLE") "")) "YES")
+         (/= (strcase (peb-tb-or (MSPL-Get-Str data "FA_NSW_TOGGLE") "")) "YES")))
 
   ;; ── Effective span for rise/haunch calc (per-gable for MG) ──
   ;; For MG: each gable has its own ridge, so rise is computed
