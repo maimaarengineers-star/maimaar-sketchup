@@ -3436,16 +3436,27 @@
       ;; (= H); without it, fall back to a member-depth rise (plate span minus the ext).  Eave knees only.
       (setq gH (- (- x1 x0) (* 2.0 ext)))
       (setq stTop (if (and *PEB-KNEE-TOPY* (> *PEB-KNEE-TOPY* (+ topY gH))) *PEB-KNEE-TOPY* (+ topY gH)))
+      ;; BOTH FLANGES (owner 25-Aug: "stiffeners are on outer flange").  The outer
+      ;; set below is the 14-Jul arrangement and is unchanged; the INNER flange now
+      ;; carries the mirror of it, using the same (+ x0 ext) / (- x1 ext) pair the
+      ;; splice case already stiffens both ends with.
+      ;; The vertical + diagonal stay OUTSIDE only: those two are the knee GUSSET
+      ;; triangle, which has to land on the rafter OUTER flange — there is no inner
+      ;; counterpart for them to rise to.
       (if (and dirOut (< dirOut 0))             ; LEFT eave knee: outer flange at x0+ext, inner end x1
         (progn
           (draw-stiff-top (+ x0 ext) topY stW stH -1)   ; small stiffener OUTSIDE the top flange
           (draw-stiff-bot (+ x0 ext) loBot stW stH -1)  ; small stiffener OUTSIDE the bottom flange
+          (draw-stiff-top (- x1 ext) topY stW stH  1)   ; … and its mirror on the INNER top flange
+          (draw-stiff-bot (- x1 ext) loBot stW stH  1)  ; … INNER bottom flange
           (command "LINE" (list (+ x0 ext) topY) (list (+ x0 ext) stTop) "")   ; vertical stiffener up to rafter outer flange
           (command "LINE" (list x1 topY)         (list (+ x0 ext) stTop) "")))  ; diagonal gusset
       (if (and dirOut (> dirOut 0))             ; RIGHT eave knee: outer flange at x1-ext, inner end x0
         (progn
           (draw-stiff-top (- x1 ext) topY stW stH 1)    ; small stiffener OUTSIDE the top flange
           (draw-stiff-bot (- x1 ext) loBot stW stH 1)   ; small stiffener OUTSIDE the bottom flange
+          (draw-stiff-top (+ x0 ext) topY stW stH -1)   ; … and its mirror on the INNER top flange
+          (draw-stiff-bot (+ x0 ext) loBot stW stH -1)  ; … INNER bottom flange
           (command "LINE" (list (- x1 ext) topY) (list (- x1 ext) stTop) "")   ; vertical stiffener up to rafter outer flange
           (command "LINE" (list x0 topY)         (list (- x1 ext) stTop) "")))))  ; diagonal gusset
   (setq *PEB-KNEE-TOPY* nil)   ; consume the per-knee top-flange hint so it never leaks to the next frame
@@ -6453,6 +6464,21 @@
                        (list xCi (- yT gc gh))
                        (list xCi (+ yB gc gh))
                        (list xPi (+ yB gc gh)) "C")
+      (setvar "PLINEWID" 0.0)
+      ;; ---- MOUNTING BRACKET — what actually holds the fascia on the building --
+      ;; Owner 25-Aug: "vertical fascia is 500mm away from columns".  The cage backs
+      ;; onto xCi (400 out) and the column stands on the steel line, so the detail
+      ;; left a 400 mm void with nothing drawn across it and the whole assembly read
+      ;; as floating in front of the wall.  This is the bracket it hangs off.
+      ;; Height: 300 ABOVE the eave, so it passes OVER the eave gutter (that trough
+      ;; occupies 200..390 out and tops out around eave+235) rather than straight
+      ;; through it — which is how the real bracket clears it.  It also clears the
+      ;; wall sheeting, which stops at the eave.
+      ;; Structural member -> the same 12.0 weight the girts and the fascia column
+      ;; carry, so it reads as steel and not as a trim line.
+      (setvar "CLAYER" "FRAME")
+      (command "PLINE" (list xs (+ yB 300.0)) "W" 12.0 12.0
+                       (list xCi (+ yB 300.0)) "")
       (setvar "PLINEWID" 0.0)
       ;; ---- BACK-UP PANEL (optional — manual p.240 lower detail) -------------
       (if bak
