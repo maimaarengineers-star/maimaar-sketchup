@@ -5362,7 +5362,13 @@
   (if (and (> nP 1) (< (/ d_ridge_purlin nP) 1250.0)) (setq nP (1- nP)))
   (setq purlinSpacing (/ d_ridge_purlin nP))
   ;; roof-monitor THROAT window (X): skip purlins inside it, force one on each edge (owner 19-Jul).
-  (setq tLo (if throatWin (car throatWin) -1e12) tHi (if throatWin (cadr throatWin) 1e12))
+  ;; The two guards below KEEP a purlin when it falls OUTSIDE the throat — left half
+  ;; keeps `xL < tLo`, right half keeps `xR > tHi`.  So with NO throat the sentinels
+  ;; have to be the values that make those tests always TRUE: tLo = +BIG, tHi = -BIG.
+  ;; They were the other way round (-1e12 / +1e12), which made both tests always FALSE
+  ;; and silently dropped EVERY purlin on a normal roof — only the eave ones, drawn
+  ;; elsewhere, survived (owner 25-Aug: "purlins are missing").
+  (setq tLo (if throatWin (car throatWin) 1e12) tHi (if throatWin (cadr throatWin) -1e12))
 
   ;; LEFT half: u along rafter toward ridge = (ca, sa); v perp up = (-sa, ca)
   (setq uX ca   uY sa)
@@ -5993,9 +5999,14 @@
   ;; horizontal "bar" segment exactly 300 mm with text starting at the
   ;; bar's right end.  Text X = arrow X + 300.
   (setvar "CLAYER" "TEXT")
-  ;; LEFT label  (arrow at left of building) — nothing to call out on a parapet eave
-  (if (not *PEB-FA-PARA-L*)
-    (progn
+  ;; ---- ONE gutter M-Ladder only (owner 25-Aug) ----------------------------
+  ;; A cross-section is symmetric, so the second EAVE GUTTER callout repeated the
+  ;; first word for word.  It goes on the LEFT eave when that eave actually HAS a
+  ;; gutter, otherwise on the RIGHT (mono drains left only; a parapet eave has no
+  ;; eave gutter at all).  When BOTH sidewalls carry parapets there is no eave
+  ;; gutter anywhere and no callout — peb-fascia-parapet's VALLEY GUTTER takes over.
+  (cond
+    ((not *PEB-FA-PARA-L*)
       (setq ax (- 0.0 botW (* 100 *PEB-TEXT-SCALE*)))    ; arrow X
       (setq tx (+ ax 300.0))                             ; text 300 right of arrow
       (setq ty (+ gyTopOut (* 1200.0 *PEB-TEXT-SCALE*)))
@@ -6003,10 +6014,8 @@
                              (list tx ty)                ; labelPos
                              (list ax gyTopOut)          ; arrowPt
                              "V"
-                             220)))
-  ;; RIGHT label  (arrow at right of building) — SKIPPED for a mono roof (no right gutter)
-  (if (and (not mono) (not *PEB-FA-PARA-R*))
-    (progn
+                             220))
+    ((and (not mono) (not *PEB-FA-PARA-R*))
       (setq ax (+ W botW (* 100 *PEB-TEXT-SCALE*)))      ; arrow X
       (setq tx (+ ax 300.0))                             ; text 300 right of arrow
       (setq ty (+ gyTopOut (* 1200.0 *PEB-TEXT-SCALE*)))
@@ -6161,9 +6170,9 @@
                 "*PARAPET*")))
 
 ;; one sidewall parapet.  Same arguments as peb-fascia-side, which dispatches here.
-(defun peb-fascia-parapet (data w sgn xs H rise lab / fh bak mat gd pt
+(defun peb-fascia-parapet (data w sgn xs H rise lab / fh bak gd pt
                                 xGi xPi xPo xTo yB yT gh gc gb
-                                gOut gIn gBot gTop tx)
+                                gOut gIn gBot gTop)
   ;; ---- BSF: the same keys and the same precedence as the other four --------
   ;; HEIGHT -- a typed FA_<W>_HT wins outright; the auto value is the one the
   ;; vertical fascia uses (rise + 235 = the ridge SHEETING top, purlin 200 +
@@ -6172,8 +6181,7 @@
   (if (or (null fh) (<= fh 0.0)) (setq fh (+ rise 235.0)))
   (if (<= fh 0.0) (setq fh 1200.0))                     ; flat roof: no rise to follow
   (setq bak (= (strcase (peb-tb-or (MSPL-Get-Str data (strcat "FA_" w "_BACKUP")) "NO")) "YES"))
-  (setq mat (strcase (peb-tb-or (MSPL-Get-Str data (strcat "FA_" w "_PANEL")) "")))
-  (if (wcmatch mat "*SAME AS*") (setq mat ""))          ; the BSF default carries no extra information
+  ;; FA_<W>_PANEL is not read either now the callouts are gone (it only fed the text).
   ;; FA_<W>_PROJ and FA_<W>_SOFFIT are deliberately NOT read: a parapet has no
   ;; projection to dimension and no soffit to draw.  FA_<W>_GUTTER is not read
   ;; either -- its BSF default is "Eave", but an eave gutter cannot exist outside
@@ -6263,20 +6271,11 @@
   (if lab
     (progn
       (setvar "CLAYER" "TEXT")
-      (setq tx (+ xPo (* sgn (* 2500.0 *PEB-TEXT-SCALE*))))
-      (peb-label-pline-leader "CAP FLASHING"
-        (list tx (+ yT 1800.0))
-        (list (/ (+ xPo xGi) 2.0) (+ yT 30.0)) "H" 220)
-      (peb-label-pline-leader
-        (if (= mat "") "PARAPET PANEL" (strcat "PARAPET PANEL - " mat))
-        (list tx (+ yT 900.0))
-        (list xPo (+ yB (* fh 0.72))) "H" 220)
-      (peb-label-pline-leader "PARAPET GIRT"
-        (list tx (+ yT 100.0))
-        (list (/ (+ xPi xGi) 2.0) (- yT gc (* gh 0.5))) "H" 220)
-      (peb-label-pline-leader "PARAPET COLUMN"
-        (list tx (+ yB (* fh 0.45)))
-        (list (/ (+ xPi xGi) 2.0) (max (+ gb gh 60.0) (+ yB (* fh 0.45)))) "H" 220)
+      ;; ---- NO PARAPET CALLOUTS (owner 25-Aug, same ruling as the fascia) -------
+      ;; CAP FLASHING / PARAPET PANEL / PARAPET GIRT / PARAPET COLUMN are gone.
+      ;; VALLEY GUTTER STAYS — it is the gutter M-Ladder, not a fascia label, and on
+      ;; a parapet eave it is the ONLY gutter callout on the sheet (draw-eave-features
+      ;; suppresses the eave one here).  The height dim stays too.
       ;; VALLEY GUTTER reads from INSIDE the building -- it is inboard of the
       ;; wall line, so its text cannot share the outboard column.  Kept CLOSE to
       ;; the eave and HIGH: at 2200 inboard / eave+900 the text ran straight into
@@ -6296,8 +6295,8 @@
   (setvar "PLINEWID" 0.0)
   (princ))
 
-(defun peb-fascia-side (data w sgn xs H rise lab / typ proj fh dep pt sof bak mat
-                             xO xPi xCo xCi yB yT gh gc tx ty cmode rad yCB yCT)
+(defun peb-fascia-side (data w sgn xs H rise lab / typ proj fh dep pt sof bak
+                             xO xPi xCo xCi yB yT gh gc cmode rad yCB yCT)
   (setq typ (strcase (peb-tb-or (MSPL-Get-Str data (strcat "FA_" w "_TYPE")) "")))
   ;; ---- WHICH OF THE MANUAL'S FIVE STANDARD FASCIAS IS THIS? ----------------
   ;; Ch.10 §10.4 p.239 "STANDARD FASCIAS VIEWED AT ENDWALL" lists exactly five:
@@ -6334,10 +6333,9 @@
       (if (<= fh 0.0) (setq fh 1200.0))                         ; flat roof: no rise to follow
       (setq sof (= (strcase (peb-tb-or (MSPL-Get-Str data (strcat "FA_" w "_SOFFIT")) "YES")) "YES"))
       (setq bak (= (strcase (peb-tb-or (MSPL-Get-Str data (strcat "FA_" w "_BACKUP")) "NO")) "YES"))
-      ;; panel material: "Same as Building Wall" is the BSF default and carries no extra
-      ;; information on the drawing, so the callout stays the plain "FASCIA PANEL".
-      (setq mat (strcase (peb-tb-or (MSPL-Get-Str data (strcat "FA_" w "_PANEL")) "")))
-      (if (wcmatch mat "*SAME AS*") (setq mat ""))
+      ;; FA_<W>_PANEL is no longer read here: it only ever fed the FASCIA PANEL
+      ;; callout, and the callouts are gone.  The panel spec still reaches the
+      ;; proposal and the estimate from the BSF, which is where it belongs.
       ;; ---- geometry — a 1:1 MIRROR of the manual's p.240 sidewall detail -----
       ;; Every element is OPEN LINEWORK (PLINE outlines, no SOLID/HATCH anywhere), which
       ;; is how the manual draws it and what reads correctly at proposal scale.
@@ -6450,40 +6448,13 @@
       (if lab
         (progn
           (setvar "CLAYER" "TEXT")
-          ;; peb-label-pline-leader (not the native MLEADER) — the MLEADER re-anchors its
-          ;; text near the arrow, which squashed all four callouts into the ~1 m fascia.
-          ;; This helper puts the text exactly at labelPos, so the fan below is honoured.
-          ;; Offsets are absolute mm (TS is ~1.0 for a normal section) and are chosen to
-          ;; clear the engine's own EAVE GUTTER label, which sits at about eave + 1430.
-          (setq tx (+ xO (* sgn (* 2500.0 *PEB-TEXT-SCALE*))))
-          ;; CAP FLASHING must stay BELOW the wall-sheeting note, which the engine parks
-          ;; at about (H + rise + 3800·TS) — hence +1800, not higher.
-          ;; The manual's six callouts, in OUR archive's vocabulary:
-          ;;   manual TOP/BOTTOM GIRT -> FASCIA PURLIN (MSPL-23-154)
-          ;;   manual FASCIA BRACKET  -> FASCIA COLUMN (MSPL-21-062)
-          (peb-label-pline-leader "CAP FLASHING"
-            (list tx (+ yT 1800.0))
-            (list (/ (+ xO xCi) 2.0) (+ yT 60.0)) "H" 220)
-          (peb-label-pline-leader
-            (if (= mat "") "FASCIA PANEL" (strcat "FASCIA PANEL - " mat))
-            (list tx (+ yT 900.0))
-            (list xO (+ yB (* fh 0.72))) "H" 220)
-          (peb-label-pline-leader "FASCIA PURLIN"
-            (list tx (+ yT 100.0))
-            (list (/ (+ xPi xCi) 2.0) (- yT gc (* gh 0.5))) "H" 220)
-          (peb-label-pline-leader "FASCIA COLUMN"
-            (list tx (+ yB (* fh 0.45)))
-            (list (/ (+ xPi xCi) 2.0) (+ yB (* fh 0.45))) "H" 220)
-          ;; SILL/SOFFIT lifted (was -900/-1800): the soffit text used to sit on top of the
-          ;; manual's 200 cage dim, which lands at -2100.
-          (peb-label-pline-leader "SILL TRIM"
-            (list tx (- yB 300.0))
-            (list xCo (+ yB 60.0)) "H" 220)
-          (if sof
-            (peb-label-pline-leader "SOFFIT PANEL"
-              (list tx (- yB 1100.0))
-              (list (+ xs (* sgn (* proj 0.55))) (- yB pt)) "H" 220))
-          ;; BOTH dims ride with the callouts, on this one eave.  The HEIGHT dim goes
+          ;; ---- NO FASCIA CALLOUTS (owner 25-Aug: "remove the labeling of fascias") --
+          ;; CAP FLASHING / FASCIA PANEL / FASCIA PURLIN / FASCIA COLUMN / SILL TRIM /
+          ;; SOFFIT PANEL are all gone.  The geometry names itself at this scale and the
+          ;; six-leader fan was the densest thing on the eave.  The DIMS stay: they carry
+          ;; the height, projection and cage depth, which no amount of linework shows.
+          ;; (If they ever come back, they hung off a text column at xO + 2500·TS.)
+          ;; The HEIGHT dim goes
           ;; OUTBOARD of the text column (4200 > the 2500 text offset) so no leader ever
           ;; crosses its witness line; the other eave then stays completely clean.  On the
           ;; dim-only eave these collided with the engine's EAVE GUTTER label and the
