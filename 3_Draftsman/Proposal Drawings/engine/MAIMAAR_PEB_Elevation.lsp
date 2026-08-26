@@ -349,6 +349,9 @@
   (if (not *PEB-TEXT-SCALE*) (setq *PEB-TEXT-SCALE* 1.0))
   (if (not *PEB-DIM-SCALE*)  (setq *PEB-DIM-SCALE* 1.0))
   (setq prev-last (entlast))
+  ;; the frame must wrap THIS sheet, not every sheet drawn so far (see
+  ;; peb-frame-and-titleblock).  Same marker the tiler already uses.
+  (setq *PEB-SHEET-MARK* prev-last)
   (if prev-last
     (progn
       (command "_.REGEN")

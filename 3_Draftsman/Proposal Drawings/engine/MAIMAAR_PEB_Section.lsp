@@ -9950,7 +9950,10 @@
 
 (defun peb-section-from-file (path / prev-last prev-max-x e new-set offset)
   ;; ── Pre-draw: capture state of the drawing before our entities ──
-  (setq prev-last (entlast))           ;; nil if drawing is empty
+  (setq prev-last (entlast))
+  ;; the frame must wrap THIS sheet, not every sheet drawn so far (see
+  ;; peb-frame-and-titleblock).  Same marker the tiler already uses.
+  (setq *PEB-SHEET-MARK* prev-last)           ;; nil if drawing is empty
   (if prev-last
     (progn
       (command "_.REGEN")              ;; ensure EXTMAX reflects reality

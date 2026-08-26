@@ -492,6 +492,9 @@
 ;; ===========================================================================
 (defun peb-roof-from-file (path / prev-last prev-max-x)
   (setq prev-last (entlast))
+  ;; the frame must wrap THIS sheet, not every sheet drawn so far (see
+  ;; peb-frame-and-titleblock).  Same marker the tiler already uses.
+  (setq *PEB-SHEET-MARK* prev-last)
   (if prev-last
     (progn
       (command "_.REGEN")

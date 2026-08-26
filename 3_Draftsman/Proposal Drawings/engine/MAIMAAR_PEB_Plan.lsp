@@ -1935,7 +1935,7 @@
 ;; content is drawn).  ADAPTIVE: a landscape sheet (Plan/Roof) gets the full-height flush-right strip (the
 ;; owner 5-Jul look); a tall PORTRAIT stack (Wall/Framing elevations) gets a bottom-right CORNER block sized
 ;; to the content width, so the title block never balloons to the stack height.  drgTitle = the sheet title.
-(defun peb-frame-and-titleblock (data drgTitle / tbData ds bGap exmin exmax cW cH
+(defun peb-frame-and-titleblock (data drgTitle / tbData ds bGap exmin exmax cW cH shBB
                                                  borderL borderB borderT tbStripW tbStripH tbStripX tbY0 borderR)
   ;; owner 7-Jul (multi-area cover): when a combining orchestrator suppresses per-area title blocks
   ;; (*PEB-SUPPRESS-TB*), skip — the finalize pass draws ONE frame around the whole set (mirrors the CLP).
@@ -1949,8 +1949,30 @@
       ;; about 10.8 mm of blank paper on all four sides.  Trimmed to a normal drafting
       ;; margin; it still clears a grid bubble, which is what the bubR term is for.
       (setq bGap (max (* 1700.0 ds) (if *PEB-BUBRAD* (* 1.15 *PEB-BUBRAD*) 600.0)))
+      ;; ── FRAME THIS SHEET, NOT THE WHOLE DRAWING (owner 26-Aug) ───────────────
+      ;; EXTMIN/EXTMAX are the extents of EVERY entity in the drawing.  Each sheet is
+      ;; drawn at the origin and only tiled into place afterwards, so by the time the
+      ;; third sheet is framed the extents already span the first two — the frame
+      ;; stretched to cover them and the title block was pushed out past them, leaving
+      ;; the drawing stranded in the left fifth of a sheet that was mostly void.
+      ;;
+      ;; Measured on B-01: frame widths grew 68,690 -> 37,156 -> 235,385 -> 477,366,
+      ;; i.e. each frame was about as wide as everything drawn before it.  On the
+      ;; framing-elevations sheet the drawings held 0-19% of the width and the title
+      ;; block 90-100%: 71% of the sheet was empty.  The FIRST sheet in a file has no
+      ;; predecessors, which is why the cover and plan always looked right.
+      ;;
+      ;; *PEB-SHEET-MARK* is the entlast the from-file wrapper captured BEFORE drawing,
+      ;; so peb-ents-after returns exactly this sheet's entities.  Falls back to the old
+      ;; extents when no mark was set (a bare C:PEB-* command on an empty drawing).
       (vl-catch-all-apply (function (lambda () (command "_.ZOOM" "_E"))))
       (setq exmin (getvar "EXTMIN") exmax (getvar "EXTMAX"))
+      (setq shBB (if (boundp '*PEB-SHEET-MARK*)
+                   (vl-catch-all-apply
+                     (function (lambda () (peb-ss-bbox (peb-ents-after *PEB-SHEET-MARK*)))))
+                   nil))
+      (if (and shBB (not (vl-catch-all-error-p shBB)) (listp shBB) (= (length shBB) 2))
+        (setq exmin (car shBB) exmax (cadr shBB)))
       (setq cW (- (car exmax) (car exmin)) cH (- (cadr exmax) (cadr exmin)))
       (setq borderL (- (car  exmin) bGap)
             borderB (- (cadr exmin) bGap)
@@ -6257,6 +6279,9 @@
 
 (defun peb-plan-from-file (path / prev-last prev-max-x e new-set offset)
   (setq prev-last (entlast))
+  ;; the frame must wrap THIS sheet, not every sheet drawn so far (see
+  ;; peb-frame-and-titleblock).  Same marker the tiler already uses.
+  (setq *PEB-SHEET-MARK* prev-last)
   (if prev-last
     (progn
       (command "_.REGEN")
@@ -7034,6 +7059,9 @@
 
 (defun peb-mezz-floor-from-file (path floorNum / prev-last prev-max-x)
   (setq prev-last (entlast))
+  ;; the frame must wrap THIS sheet, not every sheet drawn so far (see
+  ;; peb-frame-and-titleblock).  Same marker the tiler already uses.
+  (setq *PEB-SHEET-MARK* prev-last)
   (if prev-last
     (progn (command "_.REGEN") (setq prev-max-x (car (getvar "EXTMAX")))
            (if (or (null prev-max-x) (< prev-max-x -1e10)) (setq prev-max-x nil)))

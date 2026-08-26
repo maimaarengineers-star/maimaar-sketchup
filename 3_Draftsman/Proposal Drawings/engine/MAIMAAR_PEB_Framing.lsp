@@ -1396,6 +1396,9 @@
   (vl-load-com) (setvar "CMDECHO" 0) (setvar "OSMODE" 0)
   (if (boundp 'peb-std-setup) (vl-catch-all-apply (function (lambda () (peb-std-setup)))))
   (setq prev-last (entlast))
+  ;; the frame must wrap THIS sheet, not every sheet drawn so far (see
+  ;; peb-frame-and-titleblock).  Same marker the tiler already uses.
+  (setq *PEB-SHEET-MARK* prev-last)
   (if prev-last
     (progn (command "_.REGEN") (setq prev-max-x (car (getvar "EXTMAX")))
            (if (or (null prev-max-x) (< prev-max-x -1e10)) (setq prev-max-x nil)))
@@ -1444,6 +1447,9 @@
   (if (not *PEB-TEXT-SCALE*) (setq *PEB-TEXT-SCALE* 1.0))
   (if (not *PEB-DIM-SCALE*)  (setq *PEB-DIM-SCALE* 1.0))
   (setq prev-last (entlast))
+  ;; the frame must wrap THIS sheet, not every sheet drawn so far (see
+  ;; peb-frame-and-titleblock).  Same marker the tiler already uses.
+  (setq *PEB-SHEET-MARK* prev-last)
   (if prev-last
     (progn (command "_.REGEN") (setq prev-max-x (car (getvar "EXTMAX")))
            (if (or (null prev-max-x) (< prev-max-x -1e10)) (setq prev-max-x nil)))
@@ -1671,6 +1677,9 @@
   (if (not *PEB-TEXT-SCALE*) (setq *PEB-TEXT-SCALE* 1.0))
   (if (not *PEB-DIM-SCALE*)  (setq *PEB-DIM-SCALE* 1.0))
   (setq prev-last (entlast))
+  ;; the frame must wrap THIS sheet, not every sheet drawn so far (see
+  ;; peb-frame-and-titleblock).  Same marker the tiler already uses.
+  (setq *PEB-SHEET-MARK* prev-last)
   (if prev-last
     (progn (command "_.REGEN") (setq prev-max-x (car (getvar "EXTMAX")))
            (if (or (null prev-max-x) (< prev-max-x -1e10)) (setq prev-max-x nil)))
