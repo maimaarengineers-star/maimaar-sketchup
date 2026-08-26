@@ -1353,6 +1353,16 @@
                           ((= surf "LEW") "LEFT END WALL") ((= surf "REW") "RIGHT END WALL") (T "WALL"))
                     " SHEETING"))
   (setvar "CECOLOR" "BYLAYER")
+  ;; SHEETING MLEADER — the wall equivalent of the roof sheeting plan's (owner 26-Aug).
+  ;; PN_WALL_OUTER_PROFILE is real BSF data; placed above the wall and off-centre so it
+  ;; clears the blue heading, matching where the framing sheet puts its GIRT TYPE mark.
+  (vl-catch-all-apply (function (lambda ()
+    (peb-label-with-leader
+      (strcat "WALL SHEETING : "
+              (strcase (peb-tb-or (MSPL-Get-Str data "PN_WALL_OUTER_PROFILE") "STANDARD PROFILE")))
+      (list (+ ox (* faceLen 0.74)) (+ base eaveH rise (* 900.0 *PEB-DIM-SCALE*)))
+      (list (+ ox (* faceLen 0.66)) (+ base (* eaveH 0.55)))
+      "S" 600.0))))
   ;; OVERALL HEIGHT — the sheeting sheet never carried one; the framing sheet beside
   ;; it did, so the pair disagreed about what the wall measured (owner 26-Aug).
   (vl-catch-all-apply (function (lambda ()
@@ -1614,22 +1624,17 @@
           (peb-th 'ANNOT) 0 "RIDGE LINE")
      ))
 
-  ;; --- member / cladding marks, arrow-led like the framing plan (owner 26-Aug) ---
-  ;; The purlins run UNDER this sheeting, so the sheet carries the same purlin mark as
-  ;; the Roof Framing Plan; the leader lands on the eave line, which is drawn here.
-  ;; The sheeting profile is REAL project data - PN_ROOF_OUTER_PROFILE off the BSF.
-  (vl-catch-all-apply (function (lambda ()
-    (peb-label-with-leader
-      (strcat "PURLIN TYPE : " (rtos (peb-purlin-depth) 2 0) "Z15 (TYP.)")
-      (list (+ ox (* len 0.26)) (- oy (* 1050.0 *PEB-DIM-SCALE*)))
-      (list (+ ox (* len 0.26)) oy)
-      "S" 600.0))))
+  ;; --- SHEETING MLEADER (owner 26-Aug) -------------------------------------
+  ;; "Framing plans must give the nomenclature of Purlins & Girts and Sheeting Plans
+  ;; must give the MLEADER for the Sheeting."  So the member nomenclature lives on the
+  ;; FRAMING sheets only; this sheet carries one mleader naming the cladding it shows.
+  ;; The profile is REAL project data - PN_ROOF_OUTER_PROFILE straight off the BSF.
   (vl-catch-all-apply (function (lambda ()
     (peb-label-with-leader
       (strcat "ROOF SHEETING : "
               (strcase (peb-tb-or (MSPL-Get-Str data "PN_ROOF_OUTER_PROFILE") "STANDARD PROFILE")))
-      (list (+ ox (* len 0.66)) (- oy (* 1050.0 *PEB-DIM-SCALE*)))
-      (list (+ ox (* len 0.66)) (+ oy (* wid 0.30)))
+      (list (+ ox (* len 0.34)) (- oy (* 1050.0 *PEB-DIM-SCALE*)))
+      (list (+ ox (* len 0.34)) (+ oy (* wid 0.30)))
       "S" 600.0))))
 
   ;; --- fall arrows: the SAME shared glyph the Column Layout Plan and the Roof
