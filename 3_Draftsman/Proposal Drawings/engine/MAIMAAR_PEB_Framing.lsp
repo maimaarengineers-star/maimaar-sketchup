@@ -282,6 +282,11 @@
 ;; single 1@<wid> — the elevation drew two corner columns and nothing between,
 ;; while the plan lettered A..D off its own rule.  The two sheets described the
 ;; same wall differently and the girts looked unsupported across the full span.
+;; One leg of a wall X-brace, drawn at TRUE linetype size (see the caller).
+(defun peb-fr-brace-line (x0 y0 x1 y1 es)
+  (entmake (list '(0 . "LINE") (cons 8 "CROSS") (cons 48 es)
+                 (cons 10 (list x0 y0 0.0)) (cons 11 (list x1 y1 0.0)))))
+
 (defun peb-fr-ew-stations (data wid surf / expr st ew out)
   (setq st (peb-fr-scaled-stations (peb-tb-or (MSPL-Get-Str data "MODEXPR") "") wid))
   (setq expr (peb-tb-or (if (= surf "LEW") (MSPL-Get-Str data "EWLEXPR")
@@ -348,7 +353,7 @@
                               ewHang hangHt cnt2 gbase
                               p0 p1 sdx sdy slen ux uy nx ny pdep npl jj tt px py rdep owText
                               bc bx0 by0 bx1 by1 owU isRcc hEnt
-                              rbOn rbFrom rbTo rbFloor rbBase nLen ewGrid ewRaised rx0 rx1 gridNum plateY hasR gbaseR)
+                              rbOn rbFrom rbTo rbFloor rbBase nLen ewGrid ewRaised rx0 rx1 gridNum plateY hasR gbaseR ltsE)
   (setq len    (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
         wid    (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
         slopeD (slope-denom (peb-tb-or (MSPL-Get-Str data "SLOPE") "10"))
@@ -652,6 +657,17 @@
                           (vl-catch-all-apply (function (lambda () (peb-braced-bays stations))))))
   (if (vl-catch-all-error-p braced) (setq braced nil))
   (setvar "CLAYER" "CROSS")
+  ;; TRUE-SIZE LINETYPE (owner 26-Aug: "show the bracings as well").  The braces were
+  ;; being drawn correctly and then not plotting: layer CROSS carries the DOT linetype,
+  ;; and the sheet set leaves LTSCALE at ~84 (the PLAN sheet raises it from 1 and
+  ;; peb-std-setup does not put it back), at which the pattern stops rendering and the
+  ;; X disappears from the sheet.  Rendered standalone, at LTSCALE 1, the same code
+  ;; drew them fine -- which is why this looked like "no bracing is generated".
+  ;; Same fix the engine already uses for the ridge line and the crane runway: draw the
+  ;; LINE with a PER-ENTITY linetype scale of 1/LTSCALE (DXF 48) so the pattern is a
+  ;; true mm size whatever the drawing's global LTSCALE. No global state is touched.
+  (setq ltsE (getvar "LTSCALE"))
+  (setq ltsE (if (> ltsE 0.0) (/ 1.0 ltsE) 1.0))
   (foreach b braced
     (if (and (numberp b) (>= b 0) (< (1+ b) (length stations)))
       (progn
@@ -661,8 +677,8 @@
                                  (+ base wallEave))
                       (if isEnd (peb-fr-topy (nth (1+ b) stations) faceLen base eaveH eaveHi eaveLo rise rtype hiSide)
                                  (+ base wallEave))))
-        (command "_.LINE" (list x0 y0) (list x1 y1) "")
-        (command "_.LINE" (list x0 y1) (list x1 y0) ""))))
+        (peb-fr-brace-line x0 y0 x1 y1 ltsE)
+        (peb-fr-brace-line x0 y1 x1 y0 ltsE))))
 
   ;; 6. framed openings on THIS wall (jamb posts + header + mark)
   (setq cnt (atoi (peb-tb-or (MSPL-Get-Str data "PL_COUNT") "0")) i 1)
