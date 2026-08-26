@@ -1127,15 +1127,36 @@
 ;; Draw a SET of elevations (framing or sheeting) for the given walls, stacked, with a title block.
 ;; kind = "F" (framing) | "S" (sheeting). Shared by the all / side / end variants — the pipeline splits
 ;; side vs end onto their OWN sheets for BIG buildings so each elevation prints large + legible (owner 28-Jul).
-(defun peb-draw-elev-set (data walls kind title / wid slopeD eaveH ts step i surf)
-  (setq wid    (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
+(defun peb-draw-elev-set (data walls kind title / wid len slopeD eaveH ts step i surf faceMax)
+  (setq len    (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
+        wid    (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
         slopeD (slope-denom (peb-tb-or (MSPL-Get-Str data "SLOPE") "10"))
         eaveH  (atof (peb-tb-or (MSPL-Get-Str data "CLEARHEIGHT")
                        (peb-tb-or (MSPL-Get-Str data "EAVE_HEIGHT")
                          (peb-tb-or (MSPL-Get-Str data "BP_EAVE_HEIGHT") "6000")))))
   (if (<= slopeD 0.0) (setq slopeD 10.0))
   (if (<= eaveH 0.0)  (setq eaveH 6000.0))
-  (setq ts   (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)
+  ;; ── TEXT / DIM / BUBBLE SCALE RULE (owner 26-Aug) ─────────────────────────
+  ;; "overall size of end frames is too small & dim bubbles and text too big —
+  ;;  expand the framing plan accordingly; the dim text should be proportionate."
+  ;;
+  ;; Scale from the WIDEST DRAWING ON THIS SHEET, not from the building.
+  ;; peb-elev-from-file sizes text off max(LENGTH, WIDTH) — the building's longest
+  ;; dimension — whichever wall the sheet actually shows.  So the END WALL sheet of
+  ;; a 122 x 30 m shed got text sized for 122 m and drew it on a 30 m elevation:
+  ;; bubbles and dimensions came out ~4x oversized, and because ZOOM Extents then
+  ;; has to fit that text, the frame itself was squeezed small.
+  ;;   end-wall set  (LEW/REW) -> the drawn width is WIDTH
+  ;;   side-wall set (NSW/FSW) -> the drawn width is LENGTH
+  ;;   all four on one sheet   -> the larger of the two, as before
+  (setq faceMax
+    (cond ((not (vl-some (function (lambda (w) (member w '("NSW" "FSW")))) walls)) wid)
+          ((not (vl-some (function (lambda (w) (member w '("LEW" "REW")))) walls)) len)
+          (T (max len wid))))
+  (if (<= faceMax 0.0) (setq faceMax (max len wid 1.0)))
+  (setq *PEB-TEXT-SCALE* (max 0.80 (min 4.00 (/ faceMax 45000.0)))
+        *PEB-DIM-SCALE*  *PEB-TEXT-SCALE*)
+  (setq ts   *PEB-TEXT-SCALE*
         step (+ eaveH (/ wid slopeD) (* 9000 ts)) i 0)   ; tall enough for full mono rise + titles/dims
   (foreach surf walls
     (if (= kind "F") (peb-draw-framing-elev  surf 0.0 (* i step) data)

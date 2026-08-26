@@ -2213,6 +2213,14 @@
   (setq cx  (/ (+ (car bmin) (car bmax)) 2.0)   cy  (/ (+ (cadr bmin) (cadr bmax)) 2.0)
         pdw (/ mw (float sc))                    pdh (/ mh (float sc))
         cxp (/ (+ dawX0 dawX1) 2.0)              cyp (/ (+ dawY0 dawY1) 2.0))
+  ;; VIEWPORT BORDER MUST NOT PLOT (owner 26-Aug: "Crossed Box must be deleted, it is
+  ;; not required — there is already a Box which is also part of the Title Block").
+  ;; MVIEW's own outline was printing as a SECOND rectangle around the drawing, inside
+  ;; the sheet border the title block already draws.  Put the viewport on its own
+  ;; no-plot layer: it still frames and scales the view, its outline just never
+  ;; reaches the paper.  CLAYER is restored to 0 straight after.
+  (vl-catch-all-apply (function (lambda ()
+    (command "_.-LAYER" "_Make" "PEB-VPORT" "_Plot" "_No" "PEB-VPORT" ""))))
   (command "_.MVIEW" (list (- cxp (/ pdw 2.0)) (- cyp (/ pdh 2.0)))
                      (list (+ cxp (/ pdw 2.0)) (+ cyp (/ pdh 2.0))))
   (setq vp (vlax-ename->vla-object (entlast)))
@@ -2225,6 +2233,7 @@
   (command "_.MSPACE")
   (vl-catch-all-apply (function (lambda () (command "_.ZOOM" "_C" (list cx cy) mh))))
   (command "_.PSPACE")
+  (setvar "CLAYER" "0")
   sc)
 
 ;; ============================================================================
