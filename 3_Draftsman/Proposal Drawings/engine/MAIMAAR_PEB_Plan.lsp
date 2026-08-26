@@ -5097,12 +5097,13 @@
         (command "TEXT" "J" "MC" (list (/ len 2.0) ySub) (* 560 (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0
           (vl-string-subst " x " " X "
             (strcase
-              ;; LINEAR SIZE IN MM (owner 26-Aug: all dimensions in mm, not metres) —
-              ;; this line sat directly under a plan whose own note says ALL DIMENSIONS
-              ;; ARE IN MM and read "122 x 30 m".  The AREA stays m2: it is not a linear
-              ;; dimension, and the proposal itself quotes area.
-              (strcat (peb-comma (rtos len 2 0)) " x "
-                      (peb-comma (rtos wid 2 0))
+              ;; SUBTITLE STAYS IN METRES (owner 26-Aug): the mm-only rule 4B.14 governs
+              ;; DIMENSIONS.  This line is a descriptive summary of the building — size,
+              ;; area, bays, slope — not a dimension on the drawing, so "122 x 30 m"
+              ;; beside "3,716 m2" is the right register and reads far better than
+              ;; "121,920 x 30,480".  Briefly converted to mm; reverted on the owner's call.
+              (strcat (rtos (/ len 1000.0) 2 0) " x "
+                      (rtos (/ wid 1000.0) 2 0) " m"
                       "  |  " (peb-comma (rtos areaM2 2 0)) " m2"
                       "  |  " (itoa bays) " BAYS"
                       "  |  SLOPE " roofSlope

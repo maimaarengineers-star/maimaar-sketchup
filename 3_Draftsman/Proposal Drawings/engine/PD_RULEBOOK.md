@@ -382,9 +382,16 @@ whole-foot rollover so nothing ever prints as `399'-12"`.
 read `122 x 30 m`, the brick-height notes read `H=3.05 M`, and the RCC level notes read
 `+3.048` — all on sheets whose own note promises millimetres.
 
-**The one exception is AREA.** `3,716 M2` stays in square metres: it is not a linear
-dimension and the proposal itself quotes area (per m² / per sq.ft). Same for the roof-
-opening note in SQM.
+**The rule governs DIMENSIONS, not descriptive text.** Two things stay in metres, both
+on the owner's call:
+
+* the **plan subtitle** — `122 x 30 m  |  3,716 m2  |  15 BAYS  |  SLOPE 1:10` — is a
+  summary *of* the building, not a dimension *on* it. Metres read better there, and it
+  is not what a fabricator measures from.
+* **area** — `3,716 M2`, and the roof-opening `SQM` note — is not a linear dimension, and
+  the proposal itself quotes area (per m² / per sq.ft).
+
+Everything a reader would scale or build from is millimetres.
 
 Do not divide by 1000 to make a drawing label. If a metre value is genuinely wanted for
 a customer-facing summary, it belongs in the proposal, not on the drawing.
