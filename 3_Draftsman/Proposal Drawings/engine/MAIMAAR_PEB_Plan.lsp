@@ -2316,6 +2316,24 @@
 
 ;; "ROOF FRAMING PLAN" -> "ROOF FRAMING PLAN  (SHEET 1 OF 2)" while a split is active.
 ;; Untouched when there is no split, so a normal building's heading never changes.
+;; ── A HEADING MUST FIT THE DRAWING IT TITLES (owner 27-Aug) ──────────────────
+;; "Proportionally size is too much."  peb-th 'HEADING is paper-constant (5.0 mm),
+;; which is right for a short title but says nothing about a LONG one: on the side
+;; wall sheets "FSW - FAR SIDE WALL SHEETING" is 28 characters and ran to about 54%
+;; of the wall's own width, so the title competed with the drawing.
+;;
+;; Same principle as the bubble rule (4B.10): keep the paper size, then cap it
+;; against the thing it has to sit over — here, 40% of the drawn width.  Short
+;; headings ("ROOF FRAMING PLAN" is 33%) are untouched; only the long ones shrink.
+;; txt-bold multiplies by TEXT-SCALE, so this returns the RAW height to hand it.
+(defun peb-head-h (s faceLen / n hmax ts)
+  (setq ts (if (and *PEB-TEXT-SCALE* (> *PEB-TEXT-SCALE* 0.01)) *PEB-TEXT-SCALE* 1.0)
+        n  (max 1 (strlen s)))
+  (if (> faceLen 1.0)
+    (progn (setq hmax (/ (* 0.34 faceLen) (* n 0.62 ts)))
+           (max (* 0.45 (peb-th 'HEADING)) (min (peb-th 'HEADING) hmax)))
+    (peb-th 'HEADING)))
+
 (defun peb-part-title (t0)
   (if (and *PEB-PART-N* (> *PEB-PART-N* 1))
     (strcat t0 "  (SHEET " (itoa (if *PEB-PART-P* *PEB-PART-P* 1))

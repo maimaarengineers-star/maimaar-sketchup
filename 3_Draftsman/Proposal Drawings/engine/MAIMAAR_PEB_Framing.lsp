@@ -573,7 +573,7 @@
 (defun peb-draw-framing-elev (surf ox oy data / len wid slopeD stype rtype
                               eaveH eaveHi eaveLo brickH hiName hiSide wallEave
                               faceLen stations isEnd base colhw rise ridgeRise
-                              i x g yTop pts cx prev braced b x0 x1 y0 y1 lbl bubGap bubR revView
+                              i x g yTop pts cx prev braced b x0 x1 y0 y1 lbl bubGap bubR revView hdTxt
                               gsp gy cnt pre psurf pat pw mark expr ov noteY
                               ewHang hangHt cnt2 gbase
                               p0 p1 sdx sdy slen ux uy nx ny pdep npl jj tt px py rdep owText
@@ -1024,17 +1024,18 @@
   ;; 8. title — blue + full wall name (owner 7-Jul, consistent with the Wall Elevations sheet)
   (setvar "CLAYER" "TEXT")
   (setvar "CECOLOR" "5")
+  (setq hdTxt (strcat surf " - "
+                (cond ((= surf "NSW") "NEAR SIDE WALL") ((= surf "FSW") "FAR SIDE WALL")
+                      ((= surf "LEW") "LEFT END WALL")  ((= surf "REW") "RIGHT END WALL") (T "WALL"))
+                " FRAMING"))
   (txt-bold "MC" (list (+ ox (/ faceLen 2.0)) (+ base eaveH rise (* 2600 *PEB-TEXT-SCALE*)))
             ;; HEADING SIZE.  txt-bold ALREADY multiplies by *PEB-TEXT-SCALE*, so the
             ;; original (* 500 *PEB-TEXT-SCALE*) scaled by TEXT-SCALE **SQUARED** and
             ;; ran the full width of the 122 m wall.  Fixing that overshot to 300, which
             ;; plots at 1.1 mm; the owner then asked for headings that MATCH across
             ;; sheets and are not too small.  One ladder entry now settles both.
-            (peb-th 'HEADING) 0
-            (strcat surf " - "
-                    (cond ((= surf "NSW") "NEAR SIDE WALL") ((= surf "FSW") "FAR SIDE WALL")
-                          ((= surf "LEW") "LEFT END WALL")  ((= surf "REW") "RIGHT END WALL") (T "WALL"))
-                    " FRAMING"))
+            ;; capped against the wall's own width — see peb-head-h (owner 27-Aug)
+            (peb-head-h hdTxt faceLen) 0 hdTxt)
   (setvar "CECOLOR" "BYLAYER")
 
   ;; 9. eave-height dim (left) + bay/station dim chain (below the bubbles)
@@ -1226,7 +1227,7 @@
 ;; by others below (synced to the wall condition), the gable/eave outline, openings, grid bubbles + dim chain.
 (defun peb-draw-sheeting-elev (surf ox oy data / len wid slopeD stype rtype eaveH eaveHi eaveLo hiName hiSide
                               wallEave faceLen stations isEnd base rise ridgeRise i g x yTop pts cx prev lbl
-                              bubGap bubR ov gbase owText sp sx cnt pre psurf pat pw noteY owU revView
+                              bubGap bubR ov gbase owText sp sx cnt pre psurf pat pw noteY owU revView hdTxt
                               rbOn rbFrom rbTo rbFloor rbBase nLen ewGrid ewRaised rx0 rx1 hasR gbaseR bc sbase sgb)
   (setq len (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
         wid (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
@@ -1401,11 +1402,12 @@
     (setq i (1+ i)))
   (setq *PEB-BUBRAD* ov)
   (setvar "CLAYER" "TEXT") (setvar "CECOLOR" "5")
-  (txt-bold "MC" (list (+ ox (/ faceLen 2.0)) (+ base eaveH rise (* 2600 *PEB-TEXT-SCALE*))) (peb-th 'HEADING) 0        ; ladder, raw — txt-bold applies TEXT-SCALE itself
-            (strcat surf " - "
-                    (cond ((= surf "NSW") "NEAR SIDE WALL") ((= surf "FSW") "FAR SIDE WALL")
-                          ((= surf "LEW") "LEFT END WALL") ((= surf "REW") "RIGHT END WALL") (T "WALL"))
-                    " SHEETING"))
+  (setq hdTxt (strcat surf " - "
+                (cond ((= surf "NSW") "NEAR SIDE WALL") ((= surf "FSW") "FAR SIDE WALL")
+                      ((= surf "LEW") "LEFT END WALL") ((= surf "REW") "RIGHT END WALL") (T "WALL"))
+                " SHEETING"))
+  (txt-bold "MC" (list (+ ox (/ faceLen 2.0)) (+ base eaveH rise (* 2600 *PEB-TEXT-SCALE*)))
+            (peb-head-h hdTxt faceLen) 0 hdTxt)
   (setvar "CECOLOR" "BYLAYER")
   ;; SHEETING MLEADER — the wall equivalent of the roof sheeting plan's (owner 26-Aug).
   ;; PN_WALL_OUTER_PROFILE is real BSF data; placed above the wall and off-centre so it
@@ -1833,22 +1835,58 @@
   (command "_.LINE" (list (+ x0 (* ht -0.30)) (+ y0 ht)) (list (+ x0 (* ht -0.55)) y0) "")
   (princ))
 
-(defun peb-sd-panel (ox y lock ttl mat fin col ptype / pit ht cov panW gA)
+(defun peb-sd-sandwich (x0 y0 n pit ht thk / i x)
+  ;; SANDWICH PANEL section (owner 27-Aug): the profiled OUTER skin sits ON the core,
+  ;; the flat liner closes the underside, and the CORE THICKNESS is whatever the BSF
+  ;; says (PN_*_PIR_THK) — the drawing follows the specification, it does not assume a
+  ;; standard panel.  The outer skin is the same S profile as a single-skin sheet,
+  ;; which is what a sandwich's outer face actually is.
+  (peb-sd-sprofile x0 (+ y0 thk) n pit ht)
+  (setvar "CLAYER" "SHEETING")
+  ;; flat inner liner
+  (command "_.LINE" (list x0 y0) (list (+ x0 (* n pit)) y0) "")
+  ;; close the core at both ends
+  (command "_.LINE" (list x0 y0) (list x0 (+ y0 thk)) "")
+  (command "_.LINE" (list (+ x0 (* n pit)) y0) (list (+ x0 (* n pit)) (+ y0 thk)) "")
+  ;; light core hatching, drawn as strokes so it cannot depend on a hatch pattern
+  (setvar "CLAYER" "HATCH")
+  (setq i 1)
+  (while (< (* i (/ thk 1.4)) (* n pit))
+    (setq x (+ x0 (* i (/ thk 1.4))))
+    (command "_.LINE" (list x y0)
+                      (list (max x0 (- x thk)) (min (+ y0 thk) (+ y0 thk))) "")
+    (setq i (1+ i)))
+  (princ))
+
+(defun peb-sd-panel (ox y lock ttl mat fin col ptype thk / pit ht cov panW gA sand dep)
   ;; ONE panel detail: the section, its rib/pitch dimensions, the cover dimension,
   ;; and that panel's OWN specification off the BSF.
   (setq pit 250.0 ht 35.0 cov 460.0 panW 1000.0)
+  (setq sand (and (> thk 0.0) (vl-string-search "SANDWICH" (strcase ptype))))
+  ;; The title clears the panel by its ACTUAL depth — a 50 mm sandwich core is deeper
+  ;; than a 35 mm rib, and a fixed offset put the title straight through it.
+  (setq dep (cond (lock 38.0) (sand (+ thk ht)) (T ht)))
   (setvar "CLAYER" "TEXT") (setvar "CECOLOR" "5")
-  (txt-bold "ML" (list ox (+ y 60.0)) (peb-th 'LABEL) 0 ttl)
+  (txt-bold "ML" (list ox (+ y dep 55.0)) (peb-th 'LABEL) 0 ttl)
   (setvar "CECOLOR" "BYLAYER")
-  (if lock
-    (progn (peb-sd-lockseam ox y 2 cov 38.0)
-           (setq gA "460 COVER  |  CONCEALED CLIP FIXING - NO FACE SCREWS"))
-    (progn (peb-sd-sprofile ox y 4 pit ht)
-           ;; rib pitch, on the panel itself
-           (vl-catch-all-apply (function (lambda ()
-             (peb-fr-overall-h (+ ox (* pit 0.84)) (+ ox (* pit 1.84)) (- y 55.0)
-                               (rtos pit 2 0)))))
-           (setq gA "35 RIB HEIGHT  |  250 RIB PITCH")))
+  (cond
+    (lock (peb-sd-lockseam ox y 2 cov 38.0)
+          (setq gA "CONCEALED CLIP FIXING - NO FACE SCREWS"))
+    (sand (peb-sd-sandwich ox y 4 pit ht thk)
+          ;; the core thickness is dimensioned because it IS the specified value
+          (vl-catch-all-apply (function (lambda ()
+            (peb-fr-overall-v (- ox 90.0) y (+ y thk) (strcat (rtos thk 2 0) " CORE")))))
+          (setq gA (strcat "35 RIB  |  250 PITCH  |  " (rtos thk 2 0)
+                           " CORE, PROFILED OUTER + FLAT LINER")))
+    (T    (peb-sd-sprofile ox y 4 pit ht)
+          (vl-catch-all-apply (function (lambda ()
+            (peb-fr-overall-h (+ ox (* pit 0.84)) (+ ox (* pit 1.84)) (- y 55.0)
+                              (rtos pit 2 0)))))
+          (setq gA "35 RIB HEIGHT  |  250 RIB PITCH")))
+  ;; the cover dim spans ONE panel of THIS profile — a lock-seam sheet covers 460, not
+  ;; the 1000 a trapezoidal sheet covers, and the bar said 1,000 while the note beside it
+  ;; said 460 (owner 27-Aug).
+  (if lock (setq panW cov))
   (vl-catch-all-apply (function (lambda ()
     (peb-fr-overall-h ox (+ ox panW) (- y 135.0)
                       (strcat (peb-comma (rtos panW 2 0)) " COVER")))))
@@ -1861,7 +1899,13 @@
                         (if (/= col "") (strcat "  |  " col) ""))))
   (princ))
 
-(defun peb-draw-sheeting-details (data ox oy / prev rp wp lockR lockW y)
+(defun peb-sd-title (lock data typeKey / ty)
+  (setq ty (strcase (peb-tb-or (MSPL-Get-Str data typeKey) "")))
+  (cond (lock "LOCK SEAM PROFILE")
+        ((vl-string-search "SANDWICH" ty) "SANDWICH PANEL (S PROFILE OUTER SKIN)")
+        (T "STANDARD S PROFILE 35-250")))
+
+(defun peb-draw-sheeting-details (data ox oy / prev rp wp lockR lockW y rSig wSig same)
   (setq prev (getvar "CLAYER"))
   (setq rp (strcase (peb-tb-or (MSPL-Get-Str data "PN_ROOF_OUTER_PROFILE") "STANDARD PROFILE"))
         wp (strcase (peb-tb-or (MSPL-Get-Str data "PN_WALL_OUTER_PROFILE") "STANDARD PROFILE")))
@@ -1873,23 +1917,41 @@
   ;; is ~200 mm across the page instead of a stamp in the corner.
   (setq *PEB-TEXT-SCALE* (/ 1000.0 45000.0) *PEB-DIM-SCALE* *PEB-TEXT-SCALE*)
 
-  ;; ROOF, then WALL — always BOTH, so a lock-seam roof over standard walls shows the
-  ;; two side by side, which is the case the owner asked for (26-Aug).  When they are
-  ;; the same product the pair simply confirms it.
+  ;; ONLY THE PROFILE THE BSF SELECTS IS DRAWN (owner 27-Aug).  When the roof and the
+  ;; wall are the SAME product there is one detail, titled for both; when they differ -
+  ;; a lock-seam roof over standard walls, the case the owner asked for on 26-Aug - both
+  ;; are drawn.  Nothing speculative is ever shown: a building with no lock seam never
+  ;; gets a lock-seam section.
+  (setq rSig (strcat (peb-tb-or (MSPL-Get-Str data "PN_ROOF_OUTER_PROFILE") "") "|"
+                     (peb-tb-or (MSPL-Get-Str data "PN_ROOF_TYPE") "") "|"
+                     (peb-tb-or (MSPL-Get-Str data "PN_ROOF_PIR_THK") "") "|"
+                     (peb-tb-or (MSPL-Get-Str data "PN_ROOF_OUTER_MAT") ""))
+        wSig (strcat (peb-tb-or (MSPL-Get-Str data "PN_WALL_OUTER_PROFILE") "") "|"
+                     (peb-tb-or (MSPL-Get-Str data "PN_WALL_TYPE") "") "|"
+                     (peb-tb-or (MSPL-Get-Str data "PN_WALL_PIR_THK") "") "|"
+                     (peb-tb-or (MSPL-Get-Str data "PN_WALL_OUTER_MAT") "")))
+  (setq same (= (strcase rSig) (strcase wSig)))
   (peb-sd-panel ox 0.0 lockR
-    (strcat "ROOF SHEETING - " (if lockR "LOCK SEAM PROFILE" "STANDARD S PROFILE 35-250"))
+    (strcat (if same "ROOF & WALL SHEETING - " "ROOF SHEETING - ")
+            (peb-sd-title lockR data "PN_ROOF_TYPE"))
     (peb-tb-or (MSPL-Get-Str data "PN_ROOF_OUTER_MAT") "")
     (peb-tb-or (MSPL-Get-Str data "PN_ROOF_OUTER_FINISH") "")
     (peb-tb-or (MSPL-Get-Str data "PN_ROOF_OUTER_COLOR") "")
-    (peb-tb-or (MSPL-Get-Str data "PN_ROOF_TYPE") ""))
-  (peb-sd-panel ox -380.0 lockW
-    (strcat "WALL SHEETING - " (if lockW "LOCK SEAM PROFILE" "STANDARD S PROFILE 35-250"))
-    (peb-tb-or (MSPL-Get-Str data "PN_WALL_OUTER_MAT") "")
-    (peb-tb-or (MSPL-Get-Str data "PN_WALL_OUTER_FINISH") "")
-    (peb-tb-or (MSPL-Get-Str data "PN_WALL_OUTER_COLOR") "")
-    (peb-tb-or (MSPL-Get-Str data "PN_WALL_TYPE") ""))
+    (peb-tb-or (MSPL-Get-Str data "PN_ROOF_TYPE") "")
+    (atof (peb-tb-or (MSPL-Get-Str data "PN_ROOF_PIR_THK") "0")))
+  ;; PITCH between the two details.  A panel occupies from (y + depth + title) down to
+  ;; its two spec lines at y-250, so -380 put the WALL title straight through the ROOF's
+  ;; specification (owner 27-Aug).  -520 clears the deepest case (a sandwich core).
+  (if (not same)
+    (peb-sd-panel ox -520.0 lockW
+      (strcat "WALL SHEETING - " (peb-sd-title lockW data "PN_WALL_TYPE"))
+      (peb-tb-or (MSPL-Get-Str data "PN_WALL_OUTER_MAT") "")
+      (peb-tb-or (MSPL-Get-Str data "PN_WALL_OUTER_FINISH") "")
+      (peb-tb-or (MSPL-Get-Str data "PN_WALL_OUTER_COLOR") "")
+      (peb-tb-or (MSPL-Get-Str data "PN_WALL_TYPE") "")
+      (atof (peb-tb-or (MSPL-Get-Str data "PN_WALL_PIR_THK") "0"))))
 
-  (setq y -720.0)
+  (setq y (if same -360.0 -880.0))
   (setvar "CLAYER" "TEXT")
   (txt "ML" (list ox y) (peb-th 'ANNOT) 0
        "PROFILE SHOWN INDICATIVE - PANEL SUPPLIED PER THE APPROVED DESIGN.")
