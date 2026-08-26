@@ -114,12 +114,34 @@
   (if (setq p (assoc sym *PEB-COLORS*)) (cdr p) 7))
 
 ;; ---------------------------------------------------------------------------
-;; 3) TEXT-HEIGHT LADDER (model-space mm; multiply by the drawing scale at use).
+;; 3) TEXT-HEIGHT LADDER  --  THE DRAWING STANDARD, IN MILLIMETRES OF PAPER.
 ;;    Fonts: romans.shx (dims/general), Arial (headings/title block),
 ;;    ravi.shx reserved for Urdu.
+;;
+;;    Hand one of these to txt / txt-bold / txt-rom RAW.  Those helpers multiply
+;;    by *PEB-TEXT-SCALE* themselves, and that is what makes the ladder a
+;;    standard rather than a suggestion:
+;;
+;;      TEXT-SCALE = faceMax / 45000, and each view is fitted to ~163 mm of paper
+;;      width, so the plotted height is
+;;          h * (faceMax/45000) / (faceMax/163)  =  h * 163/45000  =  h * 0.0036 mm
+;;      -- independent of the building.  A 14 m shed and a 122 m shed print the
+;;      same heading at the same size.  (Pre-multiplying by TEXT-SCALE first is
+;;      the classic bug here: it squares the scale and the label grows with the
+;;      building.  See rulebook 4B.2.)
+;;
+;;    Owner 26-Aug: "headings and bubbles and other supporting nomenclature must
+;;    match with other drawings.  Currently these are too small."  The old ladder
+;;    was 300-450, i.e. 1.1-1.6 mm on paper - too small to read, and ignored by
+;;    almost every sheet anyway.  These are the sizes an approval drawing uses:
 ;; ---------------------------------------------------------------------------
 (setq *PEB-TEXT-HEIGHTS*
-  '((SMALL . 50) (DIM . 56) (ANNOT . 300) (HEADING . 320) (LABEL . 400) (TITLE . 450)))
+  '((SMALL   .  550)      ; 2.0 mm - marks, leader tails, minor notes
+    (DIM     .  700)      ; 2.5 mm - dimension text (ISO)
+    (ANNOT   .  830)      ; 3.0 mm - nomenclature: RIDGE LINE, slope tags, member marks
+    (LABEL   .  970)      ; 3.5 mm - sub-headings
+    (HEADING . 1400)      ; 5.0 mm - the view heading under each drawing
+    (TITLE   . 1650)))    ; 6.0 mm - sheet title
 
 (defun peb-th (sym / p)
   (if (setq p (assoc sym *PEB-TEXT-HEIGHTS*)) (cdr p) 300))

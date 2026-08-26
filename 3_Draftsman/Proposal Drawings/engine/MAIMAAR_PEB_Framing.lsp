@@ -36,11 +36,11 @@
   (command "_.LINE" (list x y1) (list (+ x hb) (- y1 (* dir hb))) "")
   (setvar "CLAYER" "TEXT")
   (txt "MC" (list (+ x (* 700 *PEB-TEXT-SCALE*)) (/ (+ y0 y1) 2.0))
-       (* 240 *PEB-TEXT-SCALE*) 0 (strcat "1:" (rtos slopeD 2 0)))
+       (peb-th 'ANNOT) 0 (strcat "1:" (rtos slopeD 2 0)))
   (setvar "CLAYER" prev))
 
 (defun peb-draw-roof-framing (data ox oy / len wid slopeD bayPts purlSp nRows i x y
-                              prev cnt pre psurf pat pw mark midY j bubGap bubR
+                              prev cnt pre psurf pat pw mark midY j bubGap bubR ovr
                               stype mgGables mgGableW mgRid mgVal base hiNSW mgi k
                               loB hiB ry vy fx wgrid bx0 bx1 by0 by1 nPan panH)
   (setq len    (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
@@ -92,10 +92,10 @@
      (setvar "CLAYER" "TEXT")
      (foreach ry mgRid
        (txt "ML" (list (+ ox (* len 0.02)) (+ oy ry (* 300 *PEB-TEXT-SCALE*)))
-            (* 240 *PEB-TEXT-SCALE*) 0 "RIDGE LINE"))
+            (peb-th 'ANNOT) 0 "RIDGE LINE"))
      (foreach vy mgVal
        (txt "ML" (list (+ ox (* len 0.72)) (+ oy vy (* 300 *PEB-TEXT-SCALE*)))
-            (* 240 *PEB-TEXT-SCALE*) 0 "VALLEY GUTTER"))
+            (peb-th 'ANNOT) 0 "VALLEY GUTTER"))
      ;; falls: each ridge crest down to its two neighbours (valley or eave)
      (foreach fx (list (* len 0.25) (* len 0.75))
        (setq k 0)
@@ -111,7 +111,7 @@
      (command "_.LINE" (list ox midY) (list (+ ox len) midY) "")
      (setvar "CLAYER" "TEXT")
      (txt "MC" (list (+ ox (* len 0.5)) (+ midY (* 400 *PEB-TEXT-SCALE*)))
-          (* 240 *PEB-TEXT-SCALE*) 0 "VALLEY GUTTER")
+          (peb-th 'ANNOT) 0 "VALLEY GUTTER")
      (foreach fx (list (* len 0.25) (* len 0.75))
        (peb-fr-fall (+ ox fx) (+ oy (* wid 0.06)) (+ oy (* wid 0.44)) slopeD)
        (peb-fr-fall (+ ox fx) (+ oy (* wid 0.94)) (+ oy (* wid 0.56)) slopeD)))
@@ -138,7 +138,7 @@
      (command "_.LINE" (list ox midY) (list (+ ox len) midY) "")
      (setvar "CLAYER" "TEXT")
      (txt "ML" (list (+ ox (* len 0.02)) (+ midY (* 300 *PEB-TEXT-SCALE*)))
-          (* 240 *PEB-TEXT-SCALE*) 0 "RIDGE LINE")
+          (peb-th 'ANNOT) 0 "RIDGE LINE")
      (foreach fx (list (* len 0.25) (* len 0.75))
        (peb-fr-fall (+ ox fx) midY (+ oy (* wid 0.12)) slopeD)
        (peb-fr-fall (+ ox fx) midY (+ oy (* wid 0.88)) slopeD))))
@@ -212,11 +212,29 @@
       (vl-catch-all-apply (function (lambda ()
         (peb-dim-h-stretch ox (+ ox len) (+ oy wid (* 900 *PEB-DIM-SCALE*))
                            (peb-fmt-expr (MSPL-Get-Str data "BAYEXPR"))))))))
+  ;; OVERALL LENGTH + WIDTH in metres AND feet on the same dim lines (owner 26-Aug).
+  ;; This sheet carried only the bay chain, so the one number a customer looks for -
+  ;; how long and how wide the building is - was the one number missing from it.
+  ;; The LENGTH dim goes ABOVE the grid bubbles, not between them and the bay
+  ;; chain -- at 2600 it sat inside the bubble row and struck bubbles 8 and 9.
+  ;; bubGap/bubR are set just below, so mirror the same worst-case stack here.
+  (vl-catch-all-apply (function (lambda ()
+    (peb-fr-overall-h ox (+ ox len)
+      (+ oy wid (* *PEB-DIM-SCALE* (+ 1200.0 (* 3.2 1100.0) 2400.0)))
+      (peb-dim-mft len)))))
+  (vl-catch-all-apply (function (lambda ()
+    (peb-fr-overall-v (- ox (* 2000 *PEB-DIM-SCALE*)) oy (+ oy wid) (peb-dim-mft wid)))))
+
   ;; grid bubbles — numbers (top) + letters A/B at the eaves (owner 7-Jul, parity with other sheets)
-  (setq bubGap (* 3500 *PEB-TEXT-SCALE*) bubR (if *PEB-BUBRAD* *PEB-BUBRAD* (* 620 *PEB-TEXT-SCALE*)) j 1)
+  (setq bubR (peb-bub-radius (peb-min-spacing bayPts))
+        bubGap (+ (* 1200.0 *PEB-TEXT-SCALE*) (* 2.2 bubR))
+        j 1 ovr *PEB-BUBRAD* *PEB-BUBRAD* bubR)
   (foreach g bayPts
     (setvar "CLAYER" "GRID")
-    (command "_.LINE" (list (+ ox g) (+ oy wid)) (list (+ ox g) (+ oy wid bubGap)) "")
+    ;; the stalk starts ABOVE the bay chain (which sits at 900 * DIM-SCALE), so the
+    ;; chain text never has a run of stalks drawn through it (owner 26-Aug)
+    (command "_.LINE" (list (+ ox g) (+ oy wid (* 1800 *PEB-DIM-SCALE*)))
+                      (list (+ ox g) (+ oy wid bubGap)) "")
     (grid-bubble (+ ox g) (+ oy wid bubGap bubR) (itoa j) "D")
     (setq j (1+ j)))
   (setvar "CLAYER" "GRID")
@@ -232,13 +250,15 @@
   (command "_.LINE" (list ox (+ oy wid)) (list (- ox bubGap) (+ oy wid)) "")
   (grid-bubble (- ox bubGap bubR) (+ oy wid)
                (if wgrid (chr (+ 65 (1- (length wgrid)))) "B") "R")
+  (setq *PEB-BUBRAD* ovr)
   ;; blue title (below the roof) + shared title block
   (setvar "CLAYER" "TEXT")
   (setvar "CECOLOR" "5")
   (txt-bold "MC" (list (+ ox (/ len 2.0)) (- oy (* 3200 *PEB-TEXT-SCALE*)))
-            ;; plain height — txt-bold applies TEXT-SCALE itself (rulebook 4B.2).
-            ;; (* 450 TS) scaled by TS SQUARED, so this title grew with the building.
-            300.0 0 "ROOF FRAMING PLAN")
+            ;; The ladder, raw — txt-bold applies TEXT-SCALE itself (rulebook 4B.2).
+            ;; Was 300 (1.1 mm on paper), which is why this heading did not match
+            ;; the other sheets (owner 26-Aug).
+            (peb-th 'HEADING) 0 "ROOF FRAMING PLAN")
   (setvar "CECOLOR" "BYLAYER")
   (setvar "CLAYER" prev)
   (vl-catch-all-apply (function (lambda () (peb-frame-and-titleblock data "ROOF FRAMING PLAN")))))
@@ -365,13 +385,71 @@
   (command "_.LINE" (list x y) (list (- x (* dir aL)) (+ y aW)) "")
   (command "_.LINE" (list x y) (list (- x (* dir aL)) (- y aW)) ""))
 
-(defun peb-fr-dimchain (ox y stations / ts i x0 x1 aL aW)
+;; ── ONE OVERALL DIMENSION BAR (owner 26-Aug) ─────────────────────────────────
+;; The total length/width, in metres AND feet, on a single line under the bay
+;; chain.  Drawn by hand in the SAME style as peb-fr-dimchain -- plain line, OPEN
+;; arrow tipping outward at each end, short witness tick at each extent, value
+;; centred above -- so the two lines read as one family.
+;;
+;; Deliberately NOT a native DIMLINEAR.  DIMLINEAR runs its extension lines from
+;; the definition points to the dim line, and this line sits below the chain AND
+;; the grid bubbles: on the 122 m wall that drew a pair of 17.5 m verticals right
+;; through both of them.
+(defun peb-fr-overall-h (x0 x1 y label / ts aL aW tick)
+  (setq ts   (if *PEB-DIM-SCALE* *PEB-DIM-SCALE* 1.0)
+        aL   (* 300 ts)
+        aW   (* 95 ts)
+        tick (* 300 ts))
+  (setvar "CLAYER" "DIMENSIONS")
+  (command "_.LINE" (list x0 y) (list x1 y) "")
+  (peb-fr-dimarrow x0 y -1 aL aW)
+  (peb-fr-dimarrow x1 y  1 aL aW)
+  (command "_.LINE" (list x0 (- y tick)) (list x0 (+ y tick)) "")
+  (command "_.LINE" (list x1 (- y tick)) (list x1 (+ y tick)) "")
+  (setvar "CLAYER" "TEXT")
+  (txt "MC" (list (/ (+ x0 x1) 2.0) (+ y (* 0.95 (peb-th 'DIM) ts))) (peb-th 'DIM) 0 label))
+
+;; The same bar stood on end, for the overall HEIGHT.  peb-dim-height-stretch drew
+;; this natively at DIMTXT, which plotted about 1.5 mm -- noticeably smaller than
+;; every other number on the sheet.  Same style, same ladder entry, reads 90 deg.
+(defun peb-fr-overall-v (x y0 y1 label / ts aL aW tick)
+  (setq ts   (if *PEB-DIM-SCALE* *PEB-DIM-SCALE* 1.0)
+        aL   (* 300 ts)
+        aW   (* 95 ts)
+        tick (* 300 ts))
+  (setvar "CLAYER" "DIMENSIONS")
+  (command "_.LINE" (list x y0) (list x y1) "")
+  (command "_.LINE" (list x y0) (list (+ x aW) (+ y0 aL)) "")
+  (command "_.LINE" (list x y0) (list (- x aW) (+ y0 aL)) "")
+  (command "_.LINE" (list x y1) (list (+ x aW) (- y1 aL)) "")
+  (command "_.LINE" (list x y1) (list (- x aW) (- y1 aL)) "")
+  (command "_.LINE" (list (- x tick) y0) (list (+ x tick) y0) "")
+  (command "_.LINE" (list (- x tick) y1) (list (+ x tick) y1) "")
+  (setvar "CLAYER" "TEXT")
+  (txt "MC" (list (- x (* 0.95 (peb-th 'DIM) ts)) (/ (+ y0 y1) 2.0)) (peb-th 'DIM) 90 label))
+
+(defun peb-fr-dimchain (ox y stations / ts i x0 x1 aL aW th thR mb)
   (if (< (length stations) 2) nil
     (progn
       (setq ts (if *PEB-DIM-SCALE* *PEB-DIM-SCALE* 1.0)
             aL (* 300 ts)                    ; open-arrow length along the dim line
             aW (* 95 ts)                     ; half-width -> slim open "V" like DIMBLK _OPEN
             i  0)
+      ;; TEXT HEIGHT (owner 26-Aug: "dim sizes are very large", then "it should not
+      ;; be too small or too big").  This passed (* 230 ts) to `txt`, and `txt`
+      ;; multiplies by *PEB-TEXT-SCALE* itself, so the height was 230 x TS-SQUARED:
+      ;; 3.7 mm of paper on the 122 m wall but only 1.4 mm on a small shed.  The
+      ;; number was never sized -- it just drifted with the building.
+      ;;
+      ;; Pass a single-scaled height instead and it plots the SAME on every sheet:
+      ;; 420 -> 420 * 265/45000 = 2.5 mm, the ISO dimension-text size.  `txt` applies
+      ;; TEXT-SCALE itself, so hand it th/TS to land exactly there.  The bay cap only
+      ;; bites on tight spacings, where fitting inside the bay matters more.
+      (setq th (* (peb-th 'DIM) *PEB-TEXT-SCALE*)
+            mb (peb-min-spacing stations))
+      (if (> mb 1.0) (setq th (min th (* 0.16 mb))))
+      (setq th (max (* 170.0 *PEB-TEXT-SCALE*) th)
+            thR (/ th (if (> *PEB-TEXT-SCALE* 0.01) *PEB-TEXT-SCALE* 1.0)))
       (setvar "CLAYER" "DIMENSIONS")
       (command "_.LINE" (list (+ ox (car stations)) y)
                         (list (+ ox (last stations)) y) "")
@@ -382,14 +460,14 @@
         (peb-fr-dimarrow x0 y -1 aL aW)      ; "<" tip at bay start
         (peb-fr-dimarrow x1 y  1 aL aW)      ; ">" tip at bay end
         (setvar "CLAYER" "TEXT")
-        (txt "MC" (list (/ (+ x0 x1) 2.0) (- y (* 340 ts))) (* 230 ts) 0
+        (txt "MC" (list (/ (+ x0 x1) 2.0) (- y (* 0.85 th) (* 120.0 ts))) thR 0
              (peb-comma (rtos (- (nth (1+ i) stations) (nth i stations)) 2 0)))
         (setq i (1+ i))))))
 
 (defun peb-draw-framing-elev (surf ox oy data / len wid slopeD stype rtype
                               eaveH eaveHi eaveLo brickH hiName hiSide wallEave
                               faceLen stations isEnd base colhw rise ridgeRise
-                              i x g yTop pts cx prev braced b x0 x1 y0 y1 lbl bubGap
+                              i x g yTop pts cx prev braced b x0 x1 y0 y1 lbl bubGap bubR
                               gsp gy cnt pre psurf pat pw mark expr ov noteY
                               ewHang hangHt cnt2 gbase
                               p0 p1 sdx sdy slen ux uy nx ny pdep npl jj tt px py rdep owText
@@ -789,7 +867,15 @@
 
   ;; 7. grid bubbles below the base (side = numbers, end = letters) + stalk. Bigger bubble (owner 28-Jul,
   ;; KMFoods ref) via a local *PEB-BUBRAD* bump, restored after so other sheets are unaffected.
-  (setq bubGap (* 2100 *PEB-TEXT-SCALE*) i 0 ov *PEB-BUBRAD* *PEB-BUBRAD* (* 900 *PEB-TEXT-SCALE*))
+  ;; Bubble size: see peb-bub-radius.  900 x TEXT-SCALE tracked the wall's LENGTH,
+  ;; so on the 122 m side wall the bubbles were 4.9 m across and nearly touching
+  ;; (owner 26-Aug: "Proportionally bubbles and dim sizes are very large").  Now
+  ;; capped against the tightest bay AND this elevation's height; the stalk gap and
+  ;; the dim chain below both follow the radius, so the stack under the wall stays
+  ;; in proportion whatever the aspect ratio.
+  (setq bubR (peb-bub-radius (peb-min-spacing stations)))
+  (setq bubGap (+ (* 700.0 *PEB-TEXT-SCALE*) (* 2.2 bubR))
+        i 0 ov *PEB-BUBRAD* *PEB-BUBRAD* bubR)
   (foreach g stations
     (setq lbl (if isEnd (peb-fr-letter i) (itoa (1+ i))))
     (setvar "CLAYER" "GRID-LINES")
@@ -802,14 +888,12 @@
   (setvar "CLAYER" "TEXT")
   (setvar "CECOLOR" "5")
   (txt-bold "MC" (list (+ ox (/ faceLen 2.0)) (+ base eaveH rise (* 2600 *PEB-TEXT-SCALE*)))
-            ;; HEADING SIZE (owner 26-Aug: "Wall Framing Heading must be small in size").
-            ;; txt-bold ALREADY multiplies the height by *PEB-TEXT-SCALE*, so the old
-            ;; (* 500 *PEB-TEXT-SCALE*) scaled by TEXT-SCALE **SQUARED**.  On a medium
-            ;; building TS is about 1 and nobody noticed; on the 122 m shed TS is ~3, so
-            ;; the heading came out 9x instead of 3x and ran the full width of the wall.
-            ;; Pass the plain height and let txt-bold scale it once.  300, not the
-            ;; original 500, because the owner wants it smaller than it was designed.
-            300.0 0
+            ;; HEADING SIZE.  txt-bold ALREADY multiplies by *PEB-TEXT-SCALE*, so the
+            ;; original (* 500 *PEB-TEXT-SCALE*) scaled by TEXT-SCALE **SQUARED** and
+            ;; ran the full width of the 122 m wall.  Fixing that overshot to 300, which
+            ;; plots at 1.1 mm; the owner then asked for headings that MATCH across
+            ;; sheets and are not too small.  One ladder entry now settles both.
+            (peb-th 'HEADING) 0
             (strcat surf " - "
                     (cond ((= surf "NSW") "NEAR SIDE WALL") ((= surf "FSW") "FAR SIDE WALL")
                           ((= surf "LEW") "LEFT END WALL")  ((= surf "REW") "RIGHT END WALL") (T "WALL"))
@@ -818,10 +902,16 @@
 
   ;; 9. eave-height dim (left) + bay/station dim chain (below the bubbles)
   (vl-catch-all-apply (function (lambda ()
-    (peb-dim-height-stretch ox (- ox (* 1500 *PEB-DIM-SCALE*)) base (+ base eaveH)
-                            (peb-comma (rtos eaveH 2 0))))))
-  (setq noteY (- base bubGap (* 1500 *PEB-DIM-SCALE*)))
+    (peb-fr-overall-v (- ox (* 1500 *PEB-DIM-SCALE*)) base (+ base eaveH)
+                      (peb-dim-mft eaveH)))))
+  ;; the dim chain clears the bubble by its ACTUAL radius, not a fixed drop
+  (setq noteY (- base bubGap bubR (* 600.0 *PEB-DIM-SCALE*)))
   (vl-catch-all-apply (function (lambda () (peb-fr-dimchain ox noteY stations))))
+  ;; OVERALL LENGTH of the wall, below the bay chain, metres AND feet on the one
+  ;; line (owner 26-Aug).  The bay chain above stays in mm per the sheet note.
+  (vl-catch-all-apply (function (lambda ()
+    (peb-fr-overall-h ox (+ ox faceLen) (- noteY (* 2600.0 *PEB-DIM-SCALE*))
+                      (peb-dim-mft faceLen)))))
   (setvar "CLAYER" prev)
   (princ))
 
@@ -999,7 +1089,7 @@
 ;; by others below (synced to the wall condition), the gable/eave outline, openings, grid bubbles + dim chain.
 (defun peb-draw-sheeting-elev (surf ox oy data / len wid slopeD stype rtype eaveH eaveHi eaveLo hiName hiSide
                               wallEave faceLen stations isEnd base rise ridgeRise i g x yTop pts cx prev lbl
-                              bubGap ov gbase owText sp sx cnt pre psurf pat pw noteY owU
+                              bubGap bubR ov gbase owText sp sx cnt pre psurf pat pw noteY owU
                               rbOn rbFrom rbTo rbFloor rbBase nLen ewGrid ewRaised rx0 rx1 hasR gbaseR bc sbase sgb)
   (setq len (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
         wid (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
@@ -1149,7 +1239,15 @@
         (command "_.RECTANG" (list (+ ox pat (- (/ pw 2.0))) base) (list (+ ox pat (/ pw 2.0)) (+ base (* eaveH 0.72))))))
     (setq i (1+ i)))
   ;; grid bubbles + title + dim chain (mirror the framing)
-  (setq bubGap (* 2100 *PEB-TEXT-SCALE*) i 0 ov *PEB-BUBRAD* *PEB-BUBRAD* (* 900 *PEB-TEXT-SCALE*))
+  ;; Bubble size: see peb-bub-radius.  900 x TEXT-SCALE tracked the wall's LENGTH,
+  ;; so on the 122 m side wall the bubbles were 4.9 m across and nearly touching
+  ;; (owner 26-Aug: "Proportionally bubbles and dim sizes are very large").  Now
+  ;; capped against the tightest bay AND this elevation's height; the stalk gap and
+  ;; the dim chain below both follow the radius, so the stack under the wall stays
+  ;; in proportion whatever the aspect ratio.
+  (setq bubR (peb-bub-radius (peb-min-spacing stations)))
+  (setq bubGap (+ (* 700.0 *PEB-TEXT-SCALE*) (* 2.2 bubR))
+        i 0 ov *PEB-BUBRAD* *PEB-BUBRAD* bubR)
   (foreach g stations
     (setq lbl (if isEnd (peb-fr-letter i) (itoa (1+ i))))
     (setvar "CLAYER" "GRID-LINES")
@@ -1158,14 +1256,25 @@
     (setq i (1+ i)))
   (setq *PEB-BUBRAD* ov)
   (setvar "CLAYER" "TEXT") (setvar "CECOLOR" "5")
-  (txt-bold "MC" (list (+ ox (/ faceLen 2.0)) (+ base eaveH rise (* 2600 *PEB-TEXT-SCALE*))) 300.0 0                     ; plain height — txt-bold applies TEXT-SCALE itself
+  (txt-bold "MC" (list (+ ox (/ faceLen 2.0)) (+ base eaveH rise (* 2600 *PEB-TEXT-SCALE*))) (peb-th 'HEADING) 0        ; ladder, raw — txt-bold applies TEXT-SCALE itself
             (strcat surf " - "
                     (cond ((= surf "NSW") "NEAR SIDE WALL") ((= surf "FSW") "FAR SIDE WALL")
                           ((= surf "LEW") "LEFT END WALL") ((= surf "REW") "RIGHT END WALL") (T "WALL"))
                     " SHEETING"))
   (setvar "CECOLOR" "BYLAYER")
-  (setq noteY (- base bubGap (* 1500 *PEB-DIM-SCALE*)))
+  ;; OVERALL HEIGHT — the sheeting sheet never carried one; the framing sheet beside
+  ;; it did, so the pair disagreed about what the wall measured (owner 26-Aug).
+  (vl-catch-all-apply (function (lambda ()
+    (peb-fr-overall-v (- ox (* 1500 *PEB-DIM-SCALE*)) base (+ base eaveH)
+                      (peb-dim-mft eaveH)))))
+  ;; the dim chain clears the bubble by its ACTUAL radius, not a fixed drop
+  (setq noteY (- base bubGap bubR (* 600.0 *PEB-DIM-SCALE*)))
   (vl-catch-all-apply (function (lambda () (peb-fr-dimchain ox noteY stations))))
+  ;; OVERALL LENGTH of the wall, below the bay chain, metres AND feet on the one
+  ;; line (owner 26-Aug).  The bay chain above stays in mm per the sheet note.
+  (vl-catch-all-apply (function (lambda ()
+    (peb-fr-overall-h ox (+ ox faceLen) (- noteY (* 2600.0 *PEB-DIM-SCALE*))
+                      (peb-dim-mft faceLen)))))
   (setvar "CLAYER" prev)
   (princ))
 
@@ -1201,8 +1310,18 @@
   (if (<= faceMax 0.0) (setq faceMax (max len wid 1.0)))
   (setq *PEB-TEXT-SCALE* (max 0.80 (min 4.00 (/ faceMax 45000.0)))
         *PEB-DIM-SCALE*  *PEB-TEXT-SCALE*)
+  ;; VERTICAL PITCH between stacked elevations.  (* 9000 ts) was a guess, and it
+  ;; stopped being true the moment the overall metres/feet dim line went in below
+  ;; each wall: the FSW dim line landed on the NSW heading.  Size it from what is
+  ;; actually drawn, worst case -- peb-bub-radius caps bubR at 1100 * TEXT-SCALE:
+  ;;   below the base : bubble gap 700 + stalk 2.2*bubR + bubble bubR
+  ;;                    + chain clearance 600 + overall dim 2600 + slack 1800
+  ;;   above the wall : heading offset 2600 + 1.6 * the heading's own height
   (setq ts   *PEB-TEXT-SCALE*
-        step (+ eaveH (/ wid slopeD) (* 9000 ts)) i 0)   ; tall enough for full mono rise + titles/dims
+        step (+ eaveH (/ wid slopeD)
+                (* ts (+ 700.0 (* 3.2 1100.0) 600.0 2600.0 1800.0
+                         2600.0 (* 1.6 (peb-th 'HEADING)))))
+        i 0)
   (foreach surf walls
     (if (= kind "F") (peb-draw-framing-elev  surf 0.0 (* i step) data)
                      (peb-draw-sheeting-elev surf 0.0 (* i step) data))
@@ -1278,6 +1397,185 @@
     (setq prev-max-x nil))
   (setq *PEB-DATA-FILE* path)
   (C:PEB-ROOF-FRAMING)
+  (setq *PEB-DATA-FILE* nil)
+  (if (boundp 'peb-tile-place)
+    (vl-catch-all-apply (function (lambda () (peb-tile-place prev-last prev-max-x)))))
+  (princ))
+
+;; ── ROOF SHEETING PLAN (owner 26-Aug) ────────────────────────────────────────
+;; The twin of the Roof Framing Plan: same outline, same grid, same annotation
+;; standard — but it shows the CLADDING, not the steel.
+;;
+;;   * Sheeting runs go DOWN-SLOPE, ridge to eave, so in plan they are lines
+;;     ACROSS the width repeating along the length at the panel cover width.
+;;     That is deliberately perpendicular to the framing plan's purlin lines, so
+;;     the two sheets can never be mistaken for one another at a glance.
+;;   * The slope tags sit ON TOP of the sheeting (owner: "show the roof sheeting
+;;     with showing the slopes on top") — one fall arrow per roof plane, tagged
+;;     with the 1:NN ratio, exactly as the framing plan tags it.
+;;   * Skylights come FROM THE BSF (RA_SKYLIGHTS) through the same
+;;     peb-draw-roof-accessories the plan uses.  One source, no second opinion —
+;;     if the BSF says zero, this sheet draws none (owner: "if applicable").
+(defun peb-draw-roof-sheeting (data ox oy / len wid slopeD bayPts prev midY i x y
+                               cover nRuns stype mgGables mgGableW base mgi ry mgRid
+                               mgVal bubGap bubR ovr j fx hiNSW wgrid lbl)
+  (setq len    (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
+        wid    (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
+        slopeD (atof (peb-tb-or (MSPL-Get-Str data "SLOPE") "10")))
+  (if (<= slopeD 0.0) (setq slopeD 10.0))
+  (setq *PEB-TEXT-SCALE* (max 0.80 (min 4.00 (/ (max len wid 1.0) 45000.0)))
+        *PEB-DIM-SCALE*  *PEB-TEXT-SCALE*)
+  (setq bayPts (peb-fr-stations (MSPL-Get-Str data "BAYEXPR") len)
+        midY   (+ oy (/ wid 2.0))
+        prev   (getvar "CLAYER")
+        stype  (strcase (peb-tb-or (MSPL-Get-Str data "STYPE") "CS")))
+
+  ;; --- roof outline -------------------------------------------------------
+  (setvar "CLAYER" "STRUCTURE")
+  (command "_.RECTANG" (list ox oy) (list (+ ox len) (+ oy wid)))
+
+  ;; --- sheeting runs: one line per panel side-lap, at the cover width ------
+  ;; 1000 mm is the cover of the standard profile; the panel SCHEDULE lives in the
+  ;; proposal, so this sheet only has to read as sheeting, not to be counted off.
+  (setvar "CLAYER" "SHEETING")
+  (setq cover 1000.0
+        nRuns (fix (/ len cover))
+        i 1)
+  (if (> nRuns 400) (setq nRuns 400))          ; a very long shed would just go black
+  (while (< i nRuns)
+    (setq x (+ ox (* cover i)))
+    (command "_.LINE" (list x oy) (list x (+ oy wid)) "")
+    (setq i (1+ i)))
+
+  ;; --- main frame lines, light, so the grid still reads through the sheeting -
+  (setvar "CLAYER" "GRID-LINES")
+  (foreach g bayPts
+    (command "_.LINE" (list (+ ox g) oy) (list (+ ox g) (+ oy wid)) ""))
+
+  ;; --- ridge / valley + the falls, ON TOP of the sheeting ------------------
+  (cond
+    ;; MULTI-GABLE: N ridges, N-1 valley gutters
+    ((= stype "MG")
+     (setq mgGables (MSPL-Get-Int data "NUMGABLES"))
+     (if (or (null mgGables) (< mgGables 2)) (setq mgGables 2))
+     (setq mgGableW (/ wid (float mgGables)) mgRid '() mgVal '() mgi 0)
+     (while (< mgi mgGables)
+       (setq base (* mgi mgGableW))
+       (setq mgRid (append mgRid (list (+ base (/ mgGableW 2.0)))))
+       (if (< mgi (1- mgGables)) (setq mgVal (append mgVal (list (+ base mgGableW)))))
+       (setq mgi (1+ mgi)))
+     (setvar "CLAYER" "RIDGE")
+     (foreach ry mgRid (command "_.LINE" (list ox (+ oy ry)) (list (+ ox len) (+ oy ry)) ""))
+     (setvar "CLAYER" "GRID")
+     (foreach ry mgVal (command "_.LINE" (list ox (+ oy ry)) (list (+ ox len) (+ oy ry)) ""))
+     (setvar "CLAYER" "TEXT")
+     (foreach ry mgRid
+       (txt "ML" (list (+ ox (* len 0.02)) (+ oy ry (* 300 *PEB-TEXT-SCALE*)))
+            (peb-th 'ANNOT) 0 "RIDGE LINE"))
+     (foreach ry mgVal
+       (txt "ML" (list (+ ox (* len 0.72)) (+ oy ry (* 300 *PEB-TEXT-SCALE*)))
+            (peb-th 'ANNOT) 0 "VALLEY GUTTER"))
+     (foreach fx (list (* len 0.25) (* len 0.75))
+       (foreach ry mgRid
+         (peb-fr-fall (+ ox fx) (+ oy ry) (+ oy (- ry (* mgGableW 0.34))) slopeD)
+         (peb-fr-fall (+ ox fx) (+ oy ry) (+ oy (+ ry (* mgGableW 0.34))) slopeD))))
+    ;; BUTTERFLY: one central valley, both planes fall inwards
+    ((= stype "BF")
+     (setvar "CLAYER" "GRID")
+     (command "_.LINE" (list ox midY) (list (+ ox len) midY) "")
+     (setvar "CLAYER" "TEXT")
+     (txt "MC" (list (+ ox (* len 0.5)) (+ midY (* 400 *PEB-TEXT-SCALE*)))
+          (peb-th 'ANNOT) 0 "VALLEY GUTTER")
+     (foreach fx (list (* len 0.25) (* len 0.75))
+       (peb-fr-fall (+ ox fx) (+ oy (* wid 0.06)) (+ oy (* wid 0.44)) slopeD)
+       (peb-fr-fall (+ ox fx) (+ oy (* wid 0.94)) (+ oy (* wid 0.56)) slopeD)))
+    ;; MONO / LEAN-TO / CANOPY: no ridge, one fall the whole way across
+    ((member stype '("SS" "LT" "CC"))
+     (setq hiNSW (wcmatch (strcase (peb-tb-or (MSPL-Get-Str data "RA_MONO_HIGH") "")) "*NSW*"))
+     (foreach fx (list (* len 0.25) (* len 0.75))
+       (if hiNSW
+         (peb-fr-fall (+ ox fx) (+ oy (* wid 0.94)) (+ oy (* wid 0.06)) slopeD)
+         (peb-fr-fall (+ ox fx) (+ oy (* wid 0.06)) (+ oy (* wid 0.94)) slopeD))))
+    ;; GABLE (clear span / multi-span): ridge down the middle, falls both ways
+    (T
+     (setvar "CLAYER" "RIDGE")
+     (command "_.LINE" (list ox midY) (list (+ ox len) midY) "")
+     (setvar "CLAYER" "TEXT")
+     (txt "ML" (list (+ ox (* len 0.02)) (+ midY (* 300 *PEB-TEXT-SCALE*)))
+          (peb-th 'ANNOT) 0 "RIDGE LINE")
+     (foreach fx (list (* len 0.25) (* len 0.75))
+       (peb-fr-fall (+ ox fx) midY (+ oy (* wid 0.10)) slopeD)
+       (peb-fr-fall (+ ox fx) midY (+ oy (* wid 0.90)) slopeD))))
+
+  ;; --- skylights / vents / roof openings, straight from the BSF ------------
+  (if (boundp 'peb-draw-roof-accessories)
+    (vl-catch-all-apply (function (lambda () (peb-draw-roof-accessories data len wid)))))
+
+  ;; --- overall length + width, metres AND feet on the one line -------------
+  (vl-catch-all-apply (function (lambda ()
+    (peb-fr-overall-h ox (+ ox len)
+      (+ oy wid (* *PEB-DIM-SCALE* (+ 1200.0 (* 3.2 1100.0) 2400.0)))
+      (peb-dim-mft len)))))
+  (vl-catch-all-apply (function (lambda ()
+    (peb-fr-overall-v (- ox (* 2000 *PEB-DIM-SCALE*)) oy (+ oy wid) (peb-dim-mft wid)))))
+
+  ;; --- bay chain (verbatim IF expression) ---------------------------------
+  (if (and (boundp 'peb-fmt-expr) (vl-string-search "@" (peb-tb-or (MSPL-Get-Str data "BAYEXPR") "")))
+    (vl-catch-all-apply (function (lambda ()
+      (peb-dim-h-stretch ox (+ ox len) (+ oy wid (* 900 *PEB-DIM-SCALE*))
+                         (peb-fmt-expr (MSPL-Get-Str data "BAYEXPR")))))))
+
+  ;; --- grid bubbles: numbers along the length, letters at the eaves --------
+  (setq bubR   (peb-bub-radius (peb-min-spacing bayPts))
+        bubGap (+ (* 1200.0 *PEB-TEXT-SCALE*) (* 2.2 bubR))
+        j 1 ovr *PEB-BUBRAD* *PEB-BUBRAD* bubR)
+  (foreach g bayPts
+    (setvar "CLAYER" "GRID")
+    ;; the stalk starts ABOVE the bay chain (which sits at 900 * DIM-SCALE), so the
+    ;; chain text never has a run of stalks drawn through it (owner 26-Aug)
+    (command "_.LINE" (list (+ ox g) (+ oy wid (* 1800 *PEB-DIM-SCALE*)))
+                      (list (+ ox g) (+ oy wid bubGap)) "")
+    (grid-bubble (+ ox g) (+ oy wid bubGap bubR) (itoa j) "D")
+    (setq j (1+ j)))
+  (setvar "CLAYER" "GRID")
+  (command "_.LINE" (list ox oy) (list (- ox bubGap) oy) "")
+  (grid-bubble (- ox bubGap bubR) oy "A" "R")
+  ;; the far eave letter follows the MERGED width grid, like every other sheet
+  (setq wgrid (vl-catch-all-apply (function (lambda () (peb-fr-ew-stations data wid "LEW")))))
+  (if (or (vl-catch-all-error-p wgrid) (not (listp wgrid)) (< (length wgrid) 2)) (setq wgrid nil))
+  (command "_.LINE" (list ox (+ oy wid)) (list (- ox bubGap) (+ oy wid)) "")
+  (setq lbl (if wgrid (chr (+ 65 (1- (length wgrid)))) "B"))
+  (grid-bubble (- ox bubGap bubR) (+ oy wid) lbl "R")
+  (setq *PEB-BUBRAD* ovr)
+
+  ;; --- heading + title block ----------------------------------------------
+  (setvar "CLAYER" "TEXT")
+  (setvar "CECOLOR" "5")
+  (txt-bold "MC" (list (+ ox (/ len 2.0)) (- oy (* 3200 *PEB-TEXT-SCALE*)))
+            (peb-th 'HEADING) 0 "ROOF SHEETING PLAN")
+  (setvar "CECOLOR" "BYLAYER")
+  (setvar "CLAYER" prev)
+  (vl-catch-all-apply (function (lambda () (peb-frame-and-titleblock data "ROOF SHEETING PLAN")))))
+
+(defun C:PEB-ROOF-SHEETING ( / data)
+  (vl-load-com) (setvar "CMDECHO" 0) (setvar "OSMODE" 0)
+  (if (boundp 'peb-std-setup) (vl-catch-all-apply (function (lambda () (peb-std-setup)))))
+  (if (and (boundp '*PEB-DATA-FILE*) *PEB-DATA-FILE*)
+    (progn (setq data (MSPL-Read-Data *PEB-DATA-FILE*))
+           (if data (peb-draw-roof-sheeting data 0.0 0.0))))
+  (princ))
+
+;; tiled like the roof framing plan so it sits beside the other sheets.
+(defun peb-roof-sheeting-from-file (path / prev-last prev-max-x)
+  (if (not *PEB-TEXT-SCALE*) (setq *PEB-TEXT-SCALE* 1.0))
+  (if (not *PEB-DIM-SCALE*)  (setq *PEB-DIM-SCALE* 1.0))
+  (setq prev-last (entlast))
+  (if prev-last
+    (progn (command "_.REGEN") (setq prev-max-x (car (getvar "EXTMAX")))
+           (if (or (null prev-max-x) (< prev-max-x -1e10)) (setq prev-max-x nil)))
+    (setq prev-max-x nil))
+  (setq *PEB-DATA-FILE* path)
+  (C:PEB-ROOF-SHEETING)
   (setq *PEB-DATA-FILE* nil)
   (if (boundp 'peb-tile-place)
     (vl-catch-all-apply (function (lambda () (peb-tile-place prev-last prev-max-x)))))

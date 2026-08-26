@@ -293,7 +293,7 @@
                      (T "1")))
   (setvar "CLAYER" "TEXT")
   (setvar "CECOLOR" "5")   ; Mammut blue view title
-  (txt-bold "MC" (list (+ ox (/ faceLen 2.0)) (- oy (* 4400 su))) 520 0
+  (txt-bold "MC" (list (+ ox (/ faceLen 2.0)) (- oy (* 4400 su))) (peb-th 'HEADING) 0
             (strcat (if isEnd "END WALL ELEVATION" "SIDE WALL ELEVATION")
                     "  ALONG GRID LINE- " gridId))
   (setvar "CECOLOR" "BYLAYER")

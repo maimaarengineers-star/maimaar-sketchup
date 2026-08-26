@@ -482,6 +482,53 @@
 ;; aimed at the grid line (toward the building), with the number/letter centred in the circle.  dir tells
 ;; which way the pointer aims (toward the building): "D" down (top number row), "U" up (elevation bubbles
 ;; below the wall), "L" left, "R" right (left letter column).  Omitted dir defaults to "R" (never crashes).
+;; -- OVERALL DIMS CARRY METRES AND FEET ON THE SAME LINE (owner 26-Aug) -------
+;; "Show total length, width and height in all drawings in m and foot in the same
+;;  dim lines."  The sheet note says ALL DIMENSIONS ARE IN MM and the bay chains
+;; stay in mm - this is for the OVERALL length / width / height only, which is
+;; what a customer reads off the sheet.  Feet are shown as feet-and-inches, the
+;; way the trade quotes them, and rounded up a whole foot when the inches round
+;; to twelve so nothing ever prints as 399'-12".
+(defun peb-dim-mft (mm / m ft f i)
+  (setq m  (/ mm 1000.0)
+        ft (/ mm 304.8)
+        f  (fix ft)
+        i  (* (- ft f) 12.0))
+  (if (>= i 11.95) (setq f (1+ f) i 0.0))
+  (strcat (rtos m 2 2) " M (" (itoa f) "'-" (rtos i 2 0) "\")"))
+
+;; -- A BUBBLE MUST FIT THE DRAWING IT LABELS (owner 26-Aug) -------------------
+;; Sizing a grid bubble from *PEB-TEXT-SCALE* alone makes it track the drawing's
+;; WIDTH.  That is fine on a plan, which is about as tall as it is wide, and wrong
+;; on a wall elevation: the 122 m x 7 m side wall gives TEXT-SCALE 2.71, so the
+;; bubble came out 4.9 m across - two thirds of a 7.25 m bay (sixteen of them
+;; nearly touching) and taller than the wall band it labels.
+;;
+;; The size itself is NOT the thing to change.  Every sheet is auto-fitted to A4,
+;; so a radius of 720 * TEXT-SCALE plots at the same ~8.5 mm whatever the building
+;; -- that invariant is the entire reason TEXT-SCALE exists, and an earlier pass
+;; that capped the bubble against the WALL HEIGHT destroyed it and plotted a 2.6 mm
+;; bubble nobody could read (owner: "it should not be too small or too big").
+;;
+;; What was actually wrong on the 122 m wall is CROWDING: sixteen bays at 15.8 mm
+;; of paper each, with a 10.6 mm bubble sitting in every one.  So the only cap is a
+;; bay FRACTION -- scale-invariant, so it reads the same on paper as in the model:
+;; diameter <= 44% of the tightest bay, leaving clear white between neighbours.
+(defun peb-bub-radius (minSp / r)
+  (setq r (* 1100.0 *PEB-TEXT-SCALE*))                 ; ~8 mm dia on the plotted A4
+  (if (> minSp 1.0) (setq r (min r (* 0.30 minSp))))   ; ...but never over 60% of a bay
+  (max (* 300.0 *PEB-TEXT-SCALE*) r))                  ; floor stays paper-constant too
+
+;; Smallest gap in a station list (0.0 if there are fewer than two stations).
+;; The list is normally ascending, but abs() keeps this honest either way.
+(defun peb-min-spacing (stations / m i d)
+  (setq m 0.0 i 0)
+  (while (< (1+ i) (length stations))
+    (setq d (abs (- (nth (1+ i) stations) (nth i stations))))
+    (if (and (> d 1.0) (or (<= m 0.0) (< d m))) (setq m d))
+    (setq i (1+ i)))
+  m)
+
 (defun grid-bubble (x y label dir / r h prev pc d tail apex p1 p2 L phi alpha)
   (if (not *PEB-TEXT-SCALE*) (setq *PEB-TEXT-SCALE* 1.0))
   (setq r (if *PEB-BUBRAD* *PEB-BUBRAD* (* 620 *PEB-TEXT-SCALE*)) prev (getvar "CLAYER") pc (getvar "CECOLOR"))
@@ -4404,7 +4451,7 @@
   (setq txtGap (* 2000.0 *PEB-TEXT-SCALE*))                              ; FIXED gap between text rows
   (setq yBayDim (+ wid topGap))                                         ; per-bay dim chain
   (setq yOvrDim (+ yBayDim topGap))                                     ; overall-length dim (same gap)
-  (setq ovrTxtH (* 490.0 *PEB-DIM-SCALE*))                             ; outer-dim TEXT height (DIMTXT 440*DS) — clear it snugly
+  (setq ovrTxtH (* (peb-th 'DIM) *PEB-DIM-SCALE*))                     ; outer-dim TEXT height — track the ladder, not a copy of it
   ;; owner 10-Jul: push the number bubbles LIGHTLY upward (0.55*r) so the stem/pointer reads as a short
   ;; connector below the bubble instead of the dotted line crowding it.
   (setq gridY2  (+ yOvrDim ovrTxtH topGap *PEB-BUBRAD* (* 0.55 *PEB-BUBRAD*)))   ; grid bubble CENTRE
@@ -5304,7 +5351,7 @@
   ;; Dimension TEXT + ARROWS (owner: proper beautiful arrowheads, not ticks):
   ;;   DIMTXT 500 (clean); proper small CLOSED-FILLED arrowhead at each end,
   ;;   sitting on the dimension line (DIMTSZ 0 disables ticks; DIMBLK both ends).
-  (setvar "DIMTXT"   500.0)
+  (setvar "DIMTXT"   (peb-th 'DIM))     ; ladder: 2.5 mm of paper (x DIMSCALE)
   (setvar "DIMTSZ"     0.0)        ; no ticks -> use arrowheads
   (setvar "DIMASZ"   320.0)        ; proper small arrowhead (~0.6 x text)
   (vl-catch-all-apply (function (lambda () (setvar "DIMBLK" "_CLOSEDFILLED"))))
@@ -5932,7 +5979,7 @@
   ;; ── Phase-2A v3: DIMSCALE auto-scales with building size ──────
   (peb-safe-setvar "DIMSCALE" (if *PEB-DIM-SCALE* *PEB-DIM-SCALE* 1.0))
   ;; Proper small CLOSED-FILLED arrowheads at each end (owner), value above line.
-  (peb-safe-setvar "DIMTXT"   440.0)        ; owner 5-Jul: smaller, more proportional with the sheet
+  (peb-safe-setvar "DIMTXT"   (peb-th 'DIM))   ; ladder: 2.5 mm of paper (x DIMSCALE)
   (peb-safe-setvar "DIMTXSTY" "ROMAND")     ; owner 19-Jul STANDING: dimension Text style = ROMAND (romand.shx)
   (peb-safe-setvar "DIMTSZ"     0.0)        ; no ticks -> arrowheads
   (peb-safe-setvar "DIMASZ"   320.0)        ; proper small arrowhead
