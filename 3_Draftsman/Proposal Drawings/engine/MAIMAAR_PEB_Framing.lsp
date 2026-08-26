@@ -151,9 +151,20 @@
   ;; is panelised: a run of X panels between the two frames, each panel roughly
   ;; SQUARE, so the diagonals sit near 45 degrees and actually work as bracing.
   ;;
-  ;; Panel count = width / bay length, rounded, minimum 1 — i.e. each X is about as
-  ;; tall as the bay is wide.  On B-03 (30480 wide, 8263 bays) that gives 4 panels,
-  ;; which is what the owner marked up.
+  ;; PANEL COUNT IS A FUNCTION OF THE BUILDING WIDTH (owner 26-Aug: "No. of roof
+  ;; bracing crosses must be based on the engineering rules — develop the rules
+  ;; based on width of building").
+  ;;
+  ;; It uses the SAME width division the end-wall columns use, peb-ew-auto-cols:
+  ;; aim for ~6.25 m a panel and hold every panel inside 6.0-6.5 m.  Two reasons
+  ;; that is the right divisor rather than a fresh number:
+  ;;   * it is already the engine's engineering rule for dividing a width, so the
+  ;;     bracing cannot disagree with the end-wall framing about the same building;
+  ;;   * the panel NODES then land on the very grid lines the sheets letter (A..F
+  ;;     on B-03), which is where a brace should be connected.
+  ;; 30480 wide -> 5 panels;  13716 -> 3.  An earlier cut divided by the bay length
+  ;; instead, which made the panel count depend on the bay spacing rather than the
+  ;; width.
   ;; (This is the ROOF plane; the COLUMN LAYOUT plan carries the WALL bracing via
   ;; peb-draw-bracing.)
   (vl-catch-all-apply (function (lambda ()
@@ -162,8 +173,8 @@
     (foreach b (peb-braced-bays bayPts)
       (setq bx0 (+ ox (nth b bayPts))
             bx1 (+ ox (nth (1+ b) bayPts))
-            nPan (fix (+ 0.5 (/ wid (max 1.0 (- bx1 bx0)))))
-            nPan (max 1 nPan)
+            nPan (vl-catch-all-apply (function (lambda () (peb-ew-auto-cols wid))))
+            nPan (if (and (numberp nPan) (> nPan 0)) nPan 1)
             panH (/ wid (float nPan))
             k    0)
       (while (< k nPan)
