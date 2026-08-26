@@ -330,6 +330,35 @@ Both sheets belong in the **PDF** set and the **DWG** tab set. They were in the
 DWG path only (behind the draft-sheets gate) and the sheeting plan did not exist
 at all, so the PDF the customer received had no roof sheet in it.
 
+### 4B.13 ONE fall glyph on every plan-type sheet
+
+`peb-fall-glyph-set` is the single source of truth for the roof fall, and it must be
+what draws it on the **Column Layout Plan**, the **Roof Plan**, the **Roof Framing
+Plan** and the **Roof Sheeting Plan**. Never let a sheet roll its own.
+
+The Roof Framing Plan and the Roof Sheeting Plan used to call a local `peb-fr-fall` —
+a plain line with a two-line **open** arrowhead and a bare `1:10` — so three plan
+sheets in the same set showed the same fall three different ways (owner 26-Aug: *"the
+same Roof Slope Arrow can be placed for the Roof Sheeting and Roof Framing Plan"*).
+
+The reference sets back the shared glyph, not the local one:
+
+| reference | slope indication |
+|---|---|
+| MAIMAAR_02 ColdStorage | vertical shaft, **SOLID** filled head, datum tick, text `SLOPE` over `1:07` |
+| MAIMAAR_06 KMFoods | same, labelled `SLOPE` |
+| REF_09 Roshan | the pentagon glyph `peb-fall-marker` was built from, labelled `FALL` |
+
+All three use a **filled** head and a **labelled ratio**; none uses a bare open arrow.
+
+The glyph reads its ratio from `*PEB-ROOF-SLOPE*`, so a sheet must set that
+(`format-slope` on the BSF `SLOPE`) before calling the set. `peb-fall-glyph-set` also
+places in **absolute** model coordinates — fine for the roof drawers, which are called
+at 0,0 and tiled afterwards by `peb-tile-place`, but it is not `ox`/`oy` aware.
+
+It also skips **braced bays** when choosing where to sit, which is why the glyph never
+lands on top of an X-brace.
+
 ## 5. THE DOC SET (how the four files relate)
 | File | Holds | Read it when |
 |---|---|---|

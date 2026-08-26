@@ -97,14 +97,7 @@
        (txt "ML" (list (+ ox (* len 0.72)) (+ oy vy (* 300 *PEB-TEXT-SCALE*)))
             (peb-th 'ANNOT) 0 "VALLEY GUTTER"))
      ;; falls: each ridge crest down to its two neighbours (valley or eave)
-     (foreach fx (list (* len 0.25) (* len 0.75))
-       (setq k 0)
-       (foreach ry mgRid
-         (setq loB (if (= k 0) 0.0 (nth (1- k) mgVal))
-               hiB (if (< k (length mgVal)) (nth k mgVal) wid))
-         (peb-fr-fall (+ ox fx) (+ oy ry) (+ oy (+ loB (* (- ry loB) 0.18))) slopeD)
-         (peb-fr-fall (+ ox fx) (+ oy ry) (+ oy (- hiB (* (- hiB ry) 0.18))) slopeD)
-         (setq k (1+ k)))))
+     )
     ;; ---- BUTTERFLY: central valley gutter, falls both eaves -> centre ----
     ((= stype "BF")
      (setvar "CLAYER" "GRID")
@@ -112,26 +105,19 @@
      (setvar "CLAYER" "TEXT")
      (txt "MC" (list (+ ox (* len 0.5)) (+ midY (* 400 *PEB-TEXT-SCALE*)))
           (peb-th 'ANNOT) 0 "VALLEY GUTTER")
-     (foreach fx (list (* len 0.25) (* len 0.75))
-       (peb-fr-fall (+ ox fx) (+ oy (* wid 0.06)) (+ oy (* wid 0.44)) slopeD)
-       (peb-fr-fall (+ ox fx) (+ oy (* wid 0.94)) (+ oy (* wid 0.56)) slopeD)))
+     )
     ;; ---- MONO / SINGLE-SLOPE / LEAN-TO: no ridge, one-way fall ----
     ((member stype '("SS" "LT" "CC"))
      (setq hiNSW (wcmatch (strcase (peb-tb-or (MSPL-Get-Str data "RA_MONO_HIGH") "")) "*NSW*"))
      (setvar "CLAYER" "TEXT")
      (txt "MC" (list (+ ox (* len 0.5)) (+ oy (* wid 0.5))) (* 300 *PEB-TEXT-SCALE*) 0
           (if (= stype "LT") "LEAN-TO ROOF" "SINGLE SLOPE ROOF"))
-     (foreach fx (list (* len 0.25) (* len 0.75))
-       (if hiNSW
-         (peb-fr-fall (+ ox fx) (+ oy (* wid 0.10)) (+ oy (* wid 0.90)) slopeD)   ; high NSW -> low FSW
-         (peb-fr-fall (+ ox fx) (+ oy (* wid 0.90)) (+ oy (* wid 0.10)) slopeD)))) ; high FSW -> low NSW
+     )
     ;; ---- FLAT: no ridge; inward drain arrows to centre ----
     ((= stype "FR")
      (setvar "CLAYER" "TEXT")
      (txt "MC" (list (+ ox (* len 0.5)) (+ midY (* 400 *PEB-TEXT-SCALE*))) (* 300 *PEB-TEXT-SCALE*) 0 "FLAT ROOF")
-     (foreach fx (list (* len 0.25) (* len 0.75))
-       (peb-fr-fall (+ ox fx) (+ oy (* wid 0.06)) (+ oy (* wid 0.42)) slopeD)
-       (peb-fr-fall (+ ox fx) (+ oy (* wid 0.94)) (+ oy (* wid 0.58)) slopeD)))
+     )
     ;; ---- GABLE (CS / MS / RC / default): central ridge, falls ridge -> both eaves ----
     (T
      (setvar "CLAYER" "RIDGE")
@@ -139,9 +125,7 @@
      (setvar "CLAYER" "TEXT")
      (txt "ML" (list (+ ox (* len 0.02)) (+ midY (* 300 *PEB-TEXT-SCALE*)))
           (peb-th 'ANNOT) 0 "RIDGE LINE")
-     (foreach fx (list (* len 0.25) (* len 0.75))
-       (peb-fr-fall (+ ox fx) midY (+ oy (* wid 0.12)) slopeD)
-       (peb-fr-fall (+ ox fx) midY (+ oy (* wid 0.88)) slopeD))))
+     ))
 
   ;; ── ROOF CROSS-BRACING, IN PANELS (owner 26-Aug) ───────────────────────────
   ;; "Roof Framing Plan must have the bracings in PARTS as per the engineering rule."
@@ -184,10 +168,24 @@
         (setq k (1+ k))))
     (setvar "CLAYER" prev))))
 
-  ;; FALL arrows (ridge -> each eave) at a few stations
-  (foreach fx (list (* len 0.25) (* len 0.75))
-    (peb-fr-fall (+ ox fx) midY (+ oy (* wid 0.12)) slopeD)
-    (peb-fr-fall (+ ox fx) midY (+ oy (* wid 0.88)) slopeD))
+  ;; ── FALL ARROWS: THE SHARED GLYPH, NOT A LOCAL ONE (owner 26-Aug) ──────────
+  ;; "The same Roof Slope Arrow can be placed for the Roof Sheeting and Roof Framing
+  ;; Plan."  peb-fall-glyph-set is already the single source of truth for these -
+  ;; its own header says IDENTICAL on the Column Layout Plan AND the Roof Plan
+  ;; (owner 7-Jul) - but this sheet drew its own peb-fr-fall instead: a plain line
+  ;; with a two-line OPEN arrowhead and a bare "1:10".  Three plan sheets in one set
+  ;; showed the fall three different ways.
+  ;;
+  ;; The reference sets agree with the shared glyph, not with the local one: KMFoods
+  ;; and ColdStorage draw a SOLID filled head with the ratio labelled ("SLOPE" over
+  ;; "1:07"), and Roshan draws the pentagon this marker was built from.  None of them
+  ;; uses a bare open arrow.
+  ;;
+  ;; peb-fall-glyph-set places in absolute model coords; both roof drawers are called
+  ;; at 0,0 and tiled afterwards by peb-tile-place, so ox/oy are zero here.
+  (setq *PEB-ROOF-SLOPE* (format-slope (MSPL-Get-Str data "SLOPE")))
+  (vl-catch-all-apply (function (lambda ()
+    (peb-fall-glyph-set data stype len wid bayPts mgRid mgGableW))))
 
   ;; roof accessories: SURFACE=ROOF placements (skylights/vents) as small marks
   (setq cnt (atoi (peb-tb-or (MSPL-Get-Str data "PL_COUNT") "0")) i 1)
@@ -1495,10 +1493,7 @@
      (foreach ry mgVal
        (txt "ML" (list (+ ox (* len 0.72)) (+ oy ry (* 300 *PEB-TEXT-SCALE*)))
             (peb-th 'ANNOT) 0 "VALLEY GUTTER"))
-     (foreach fx (list (* len 0.25) (* len 0.75))
-       (foreach ry mgRid
-         (peb-fr-fall (+ ox fx) (+ oy ry) (+ oy (- ry (* mgGableW 0.34))) slopeD)
-         (peb-fr-fall (+ ox fx) (+ oy ry) (+ oy (+ ry (* mgGableW 0.34))) slopeD))))
+     )
     ;; BUTTERFLY: one central valley, both planes fall inwards
     ((= stype "BF")
      (setvar "CLAYER" "GRID")
@@ -1506,16 +1501,11 @@
      (setvar "CLAYER" "TEXT")
      (txt "MC" (list (+ ox (* len 0.5)) (+ midY (* 400 *PEB-TEXT-SCALE*)))
           (peb-th 'ANNOT) 0 "VALLEY GUTTER")
-     (foreach fx (list (* len 0.25) (* len 0.75))
-       (peb-fr-fall (+ ox fx) (+ oy (* wid 0.06)) (+ oy (* wid 0.44)) slopeD)
-       (peb-fr-fall (+ ox fx) (+ oy (* wid 0.94)) (+ oy (* wid 0.56)) slopeD)))
+     )
     ;; MONO / LEAN-TO / CANOPY: no ridge, one fall the whole way across
     ((member stype '("SS" "LT" "CC"))
      (setq hiNSW (wcmatch (strcase (peb-tb-or (MSPL-Get-Str data "RA_MONO_HIGH") "")) "*NSW*"))
-     (foreach fx (list (* len 0.25) (* len 0.75))
-       (if hiNSW
-         (peb-fr-fall (+ ox fx) (+ oy (* wid 0.94)) (+ oy (* wid 0.06)) slopeD)
-         (peb-fr-fall (+ ox fx) (+ oy (* wid 0.06)) (+ oy (* wid 0.94)) slopeD))))
+     )
     ;; GABLE (clear span / multi-span): ridge down the middle, falls both ways
     (T
      (setvar "CLAYER" "RIDGE")
@@ -1523,9 +1513,14 @@
      (setvar "CLAYER" "TEXT")
      (txt "ML" (list (+ ox (* len 0.02)) (+ midY (* 300 *PEB-TEXT-SCALE*)))
           (peb-th 'ANNOT) 0 "RIDGE LINE")
-     (foreach fx (list (* len 0.25) (* len 0.75))
-       (peb-fr-fall (+ ox fx) midY (+ oy (* wid 0.10)) slopeD)
-       (peb-fr-fall (+ ox fx) midY (+ oy (* wid 0.90)) slopeD))))
+     ))
+
+  ;; --- fall arrows: the SAME shared glyph the Column Layout Plan and the Roof
+  ;;     Framing Plan use, so all three plan sheets show the fall identically
+  ;;     (owner 26-Aug).  See the note in peb-draw-roof-framing.
+  (setq *PEB-ROOF-SLOPE* (format-slope (MSPL-Get-Str data "SLOPE")))
+  (vl-catch-all-apply (function (lambda ()
+    (peb-fall-glyph-set data stype len wid bayPts mgRid mgGableW))))
 
   ;; --- skylights / vents / roof openings, straight from the BSF ------------
   (if (boundp 'peb-draw-roof-accessories)
