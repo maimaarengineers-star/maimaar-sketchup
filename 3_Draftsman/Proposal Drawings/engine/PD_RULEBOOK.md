@@ -396,6 +396,43 @@ Everything a reader would scale or build from is millimetres.
 Do not divide by 1000 to make a drawing label. If a metre value is genuinely wanted for
 a customer-facing summary, it belongs in the proposal, not on the drawing.
 
+### 4B.15 ONE answer for the width-grid letter — `peb-width-letter`
+
+**RULE (owner 26-Aug):** *"Sync all the sheeting, especially the grid lines, with each
+other."* Every sheet that letters the width asks **`peb-width-letter i nSt`** — never its
+own `(chr (+ 65 i))`.
+
+The **Column Layout Plan is the reference**. It letters the width **reversed**: `A` at the
+FAR side wall (y = width), the last letter at the NEAR side wall (y = 0). `peb-width-letter`
+reproduces that, skips **I** via `peb-grid-letter`, and carries `*PEB-GRID-LET-OFS*` so the
+grid continues across areas.
+
+Audited on B-03 (width 30,480) — letter at `y=0` / `y=30,480`:
+
+| sheet | before | after |
+|---|---|---|
+| Column Layout Plan *(reference)* | F / A | F / A |
+| End Wall Framing | F / A | F / A |
+| End Wall Sheeting | F / A | F / A |
+| Cross Section | **A / F** | F / A |
+| Roof Framing Plan | **A / F** | F / A |
+| Roof Sheeting Plan | **A / A** | F / A |
+
+Three sheets in one set lettered the same building back to front, and the Roof Sheeting
+Plan printed **A at both eaves** because it resolved the merged grid *between* the two
+bubbles, so the first one always hit the literal fallback. **Resolve the merged grid
+before drawing any letter that depends on it.**
+
+Length numbering uses the matching `peb-fr-grid-label` (see 4B.8), which applies
+`*PEB-GRID-NUM-OFS*` so a match-line part keeps its true grid numbers.
+
+**Check it like this** rather than by eye — pull the single-capital texts on a `GRID`
+layer out of each sheet's DXF and compare the lowest/highest station:
+
+```
+letters = [t for t in dxf_texts if re.fullmatch(r'[A-HJ-Z]', t.s) and 'GRID' in t.layer]
+```
+
 ## 5. THE DOC SET (how the four files relate)
 | File | Holds | Read it when |
 |---|---|---|

@@ -298,10 +298,13 @@
   ;; line differently from every other sheet in the set.
   (setq wgrid (vl-catch-all-apply (function (lambda () (peb-fr-ew-stations data wid "LEW")))))
   (if (or (vl-catch-all-error-p wgrid) (not (listp wgrid)) (< (length wgrid) 2)) (setq wgrid nil))
-  (grid-bubble (- ox bubGap bubR) oy "A" "R")
+  ;; y=0 is the NEAR side wall, which the plan letters LAST — not "A" (owner 26-Aug).
+  ;; See the audit table on peb-width-letter.
+  (grid-bubble (- ox bubGap bubR) oy
+               (if wgrid (peb-width-letter 0 (length wgrid)) "A") "R")
   (command "_.LINE" (list ox (+ oy wid)) (list (- ox bubGap) (+ oy wid)) "")
   (grid-bubble (- ox bubGap bubR) (+ oy wid)
-               (if wgrid (peb-grid-letter (1- (length wgrid))) "B") "R")
+               (if wgrid (peb-width-letter (1- (length wgrid)) (length wgrid)) "B") "R")
   (setq *PEB-BUBRAD* ovr)
   ;; MATCH LINE on whichever edge of this part is a cut (owner 26-Aug).  It names the
   ;; sheet the drawing continues onto, so the two halves can be read as one building.
@@ -1678,15 +1681,21 @@
                       (list (+ ox g) (+ oy wid bubGap)) "")
     (grid-bubble (+ ox g) (+ oy wid bubGap bubR) (itoa j) "D")
     (setq j (1+ j)))
-  (setvar "CLAYER" "GRID")
-  (command "_.LINE" (list ox oy) (list (- ox bubGap) oy) "")
-  (grid-bubble (- ox bubGap bubR) oy "A" "R")
-  ;; the far eave letter follows the MERGED width grid, like every other sheet
+  ;; The MERGED width grid must be resolved BEFORE either eave letter is drawn — it was
+  ;; computed between them, so the near eave always fell back to the literal "A" and this
+  ;; sheet printed A at BOTH eaves (owner 26-Aug: "sync all the sheeting, especially the
+  ;; grid lines, with each other").
   (setq wgrid (vl-catch-all-apply (function (lambda () (peb-fr-ew-stations data wid "LEW")))))
   (if (or (vl-catch-all-error-p wgrid) (not (listp wgrid)) (< (length wgrid) 2)) (setq wgrid nil))
+  (setvar "CLAYER" "GRID")
+  (command "_.LINE" (list ox oy) (list (- ox bubGap) oy) "")
+  ;; y=0 is the NEAR side wall, which the plan letters LAST — not "A" (owner 26-Aug).
+  ;; See the audit table on peb-width-letter.
+  (grid-bubble (- ox bubGap bubR) oy
+               (if wgrid (peb-width-letter 0 (length wgrid)) "A") "R")
   (command "_.LINE" (list ox (+ oy wid)) (list (- ox bubGap) (+ oy wid)) "")
   ;; peb-grid-letter, not (chr 65+n): the plan skips I, so this must too
-  (setq lbl (if wgrid (peb-grid-letter (1- (length wgrid))) "B"))
+  (setq lbl (if wgrid (peb-width-letter (1- (length wgrid)) (length wgrid)) "B"))
   (grid-bubble (- ox bubGap bubR) (+ oy wid) lbl "R")
   (setq *PEB-BUBRAD* ovr)
 

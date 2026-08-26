@@ -475,6 +475,29 @@
 
 ;; Inverse: a grid-letter char -> its 0-based index, accounting for the skipped I.  'A'->0 … 'H'->7,
 ;; 'J'->8, 'K'->9 …  (An 'I', which should never be offered, maps to 8 like 'J' — harmless.)
+;; ── THE WIDTH-GRID LETTER RULE — ONE ANSWER FOR EVERY SHEET (owner 26-Aug) ───
+;; "Sync all the sheeting, especially the grid lines, with each other."
+;;
+;; The Column Layout Plan is the reference: it letters the width REVERSED, so A is
+;; at the FAR side wall (y = width) and the last letter is at the NEAR side wall
+;; (y = 0).  Any sheet that letters the width must give the SAME answer, so they all
+;; ask this one function instead of each doing its own (chr (+ 65 i)).
+;;
+;; Audited on B-03 (width 30480) before this existed — letter at y=0 / y=30480:
+;;    Column Layout Plan   F / A      <- the reference
+;;    End Wall Framing     F / A      ok
+;;    End Wall Sheeting    F / A      ok
+;;    Cross Section        A / F      INVERTED
+;;    Roof Framing Plan    A / F      INVERTED
+;;    Roof Sheeting Plan   A / F      INVERTED
+;; Three sheets in the same set lettered the same building back to front.
+;;
+;;   i    = width-station index, 0 = y=0 = the NEAR side wall
+;;   nSt  = how many width stations the merged grid has
+;; Skips I via peb-grid-letter and carries the cross-area offset, like the plan.
+(defun peb-width-letter (i nSt)
+  (peb-grid-letter (+ (- nSt 1 i) (if *PEB-GRID-LET-OFS* *PEB-GRID-LET-OFS* 0))))
+
 (defun peb-grid-letter-index (ch / a)
   (setq a (ascii (strcase ch)))
   (- a 65 (if (> a 73) 1 0)))

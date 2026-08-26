@@ -6595,7 +6595,12 @@
       (foreach st wgrid
         (if (< (abs (- st cx)) bd) (setq bd (abs (- st cx)) best k))
         (setq k (1+ k)))
-      (chr (+ 65 best)))))
+      ;; peb-width-letter, not (chr 65+best): the plan letters the width REVERSED (A at
+      ;; the far side wall), so this printed the section back to front - A where the plan
+      ;; says F (owner 26-Aug).  See the audit table on peb-width-letter.
+      (if (boundp 'peb-width-letter)
+        (peb-width-letter best (length wgrid))
+        (chr (+ 65 best))))))
 
 (defun draw-grid-bubble (cx cy r label)
   ;;  Single circle grid bubble (bottom of column), with grid letter inside.
