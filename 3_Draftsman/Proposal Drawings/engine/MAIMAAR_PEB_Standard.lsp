@@ -53,7 +53,17 @@
     ("COLUMNS"      1   "Continuous" 0.50)   ; Template-B heavy RED columns
     ("COL-CENTER"   1   "CENTER"     0.09)   ; plan column centre-line
     ("CL"           1   "CENTER"     0.09)   ; section alias of COL-CENTER
-    ("CROSS"        4   "DOT"        0.18)   ; cross-bracing — cyan DOTTED X (Zealcon Engineering)
+    ;; CROSS was "DOT".  A DOT pattern only renders while its dot spacing stays small
+    ;; relative to the line, so every brace needed a per-entity 1/LTSCALE correction read
+    ;; at draw time — and anything that changed LTSCALE afterwards silently switched the
+    ;; whole roof bracing off at plot.  That is exactly what the PDF pipeline does
+    ;; (peb-add-layout runs after the sheet is drawn), so the geometry was always present
+    ;; -- 30 CROSS lines on B-03 sheet 1, correctly placed -- and the plot was empty.
+    ;; Second time this class has bitten, so it is fixed at the layer: CONTINUOUS has no
+    ;; pattern, nothing to scale, and nothing downstream can turn it off.  Still cyan and
+    ;; 0.18 mm, so it reads as secondary bracing against the 0.35 mm framing, and it
+    ;; matches the reference sets (KMFoods draws bracing as plain thin lines).
+    ("CROSS"        4   "Continuous" 0.18)   ; cross-bracing — cyan thin X
     ("BOLTS"        7   "Continuous" 0.09)
     ("PLATES"       1   "Continuous" 0.35)   ; connection plates RED (owner 14-Jul)
     ("FRAME"        1   "Continuous" 0.30)   ; section main-frame outline — RED, lighter weight (owner 7-Jul)

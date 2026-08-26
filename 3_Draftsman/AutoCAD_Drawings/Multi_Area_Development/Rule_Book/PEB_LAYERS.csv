@@ -10,7 +10,7 @@ STRUCTURE,7,Continuous,0.25
 COLUMNS,1,Continuous,0.50
 COL-CENTER,1,CENTER,0.09
 CL,1,CENTER,0.09
-CROSS,4,DOT,0.18
+CROSS,4,Continuous,0.18
 BOLTS,7,Continuous,0.09
 PLATES,1,Continuous,0.35
 FRAME,7,Continuous,0.50

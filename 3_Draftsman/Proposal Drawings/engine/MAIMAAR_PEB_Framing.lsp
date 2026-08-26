@@ -430,8 +430,28 @@
 ;; while the plan lettered A..D off its own rule.  The two sheets described the
 ;; same wall differently and the girts looked unsupported across the full span.
 ;; One leg of a wall X-brace, drawn at TRUE linetype size (see the caller).
+;; ── A BRACE MUST PLOT, WHATEVER LTSCALE DOES LATER (owner 26-Aug) ────────────
+;; The CROSS layer is a DOT linetype, and a DOT pattern only renders when its dot
+;; spacing is small relative to the line.  The caller compensates with a per-entity
+;; scale of 1/LTSCALE (group 48) read AT DRAW TIME — which holds right up until
+;; something changes LTSCALE afterwards.  In the PDF pipeline peb-add-layout runs
+;; after the sheet is drawn, so by plot time the ratio was stale, the dots spaced
+;; out past the length of each diagonal, and the roof bracing plotted as NOTHING.
+;; It rendered correctly through the single-sheet path, which is exactly why this
+;; kept slipping through: the geometry was always there (30 CROSS lines on B-03
+;; sheet 1) — only the plot was empty.  Second time this class has bitten.
+;;
+;; The line is now explicitly CONTINUOUS, so no pattern, nothing to scale, nothing
+;; downstream can switch it off.  It stays on CROSS: cyan and 0.18 mm, so it still
+;; reads as secondary bracing against the 0.35 mm framing.  es is kept in the
+;; signature (callers still pass it) but no longer decides whether the brace exists.
 (defun peb-fr-brace-line (x0 y0 x1 y1 es)
-  (entmake (list '(0 . "LINE") (cons 8 "CROSS") (cons 48 es)
+  ;; No per-entity linetype or scale: the CROSS layer is CONTINUOUS now, so there is
+  ;; nothing to compensate for.  es stays in the signature (callers still pass it) but
+  ;; no longer decides whether the brace is visible.  An entity-level (6 . "Continuous")
+  ;; did NOT survive entmake here — the DXF came back BYLAYER — which is why this has to
+  ;; be the layer's own linetype rather than an override.
+  (entmake (list '(0 . "LINE") (cons 8 "CROSS")
                  (cons 10 (list x0 y0 0.0)) (cons 11 (list x1 y1 0.0)))))
 
 (defun peb-fr-ew-stations (data wid surf / expr st ew out)
@@ -553,7 +573,7 @@
 (defun peb-draw-framing-elev (surf ox oy data / len wid slopeD stype rtype
                               eaveH eaveHi eaveLo brickH hiName hiSide wallEave
                               faceLen stations isEnd base colhw rise ridgeRise
-                              i x g yTop pts cx prev braced b x0 x1 y0 y1 lbl bubGap bubR
+                              i x g yTop pts cx prev braced b x0 x1 y0 y1 lbl bubGap bubR revView
                               gsp gy cnt pre psurf pat pw mark expr ov noteY
                               ewHang hangHt cnt2 gbase
                               p0 p1 sdx sdy slen ux uy nx ny pdep npl jj tt px py rdep owText
@@ -594,6 +614,27 @@
           stations (peb-fr-ew-stations data wid surf))
     (setq faceLen len
           stations (peb-fr-scaled-stations (peb-tb-or (MSPL-Get-Str data "BAYEXPR") "") len)))
+  ;; ── AN ELEVATION IS VIEWED FROM OUTSIDE (owner 26-Aug) ────────────────────
+  ;; Standing outside a wall, the along-wall axis runs one way for two of the four
+  ;; walls and the OTHER way for the other two.  The engine drew all four left to
+  ;; right in model order, so half of them were effectively drawn from INSIDE.
+  ;;
+  ;; With the plan as reference (grid 1 at the LEW, letter A at the FSW):
+  ;;   NSW  looking +Y : screen-right = +X  ->  1..16 left to right   (as drawn)
+  ;;   FSW  looking -Y : screen-right = -X  ->  16..1                 MIRROR
+  ;;   REW  looking -X : screen-right = +Y  ->  F..A                  (as drawn)
+  ;;   LEW  looking +X : screen-right = -Y  ->  A..F                  MIRROR
+  ;;
+  ;; Mirroring the STATION LIST does the whole job: every column, girt, brace and
+  ;; dimension in this routine is driven off it, so they all follow.  Openings carry
+  ;; their own along-wall position and are mirrored where they are read, and a mono
+  ;; end wall has to swap which end is high.  Labels use the ORIGINAL index, so grid
+  ;; numbers and letters stay true to the plan while the geometry flips.
+  (setq revView (and (member surf '("LEW" "FSW")) T))
+  (if revView
+    (progn
+      (setq stations (reverse (mapcar (function (lambda (ss) (- faceLen ss))) stations)))
+      (if isEnd (setq hiSide (not hiSide)))))
   ;; ── COLUMN FLANGE WIDTH IN ELEVATION (owner 26-Aug) ────────────────────────
   ;; What you see edge-on in a wall elevation is the column's FLANGE, and a flange
   ;; is a flange — it does not grow with the span the way the web depth does.
@@ -948,6 +989,7 @@
     (setq pre   (strcat "PL" (itoa i) "_")
           psurf (strcase (peb-tb-or (MSPL-Get-Str data (strcat pre "SURFACE")) ""))
           pat   (atof (peb-tb-or (MSPL-Get-Str data (strcat pre "AT")) "0"))
+          pat   (if revView (- faceLen pat) pat)   ; outside view — see the mirror note
           pw    (atof (peb-tb-or (MSPL-Get-Str data (strcat pre "WIDTH")) "0"))
           mark  (peb-tb-or (MSPL-Get-Str data (strcat pre "MARK")) ""))
     (if (and (= psurf surf) (> pw 0.0))
@@ -971,7 +1013,8 @@
   (setq bubGap (+ (* 700.0 *PEB-TEXT-SCALE*) (* 2.2 bubR))
         i 0 ov *PEB-BUBRAD* *PEB-BUBRAD* bubR)
   (foreach g stations
-    (setq lbl (peb-fr-grid-label i (length stations) isEnd))
+    (setq lbl (peb-fr-grid-label (if revView (- (length stations) 1 i) i)
+                                 (length stations) isEnd))
     (setvar "CLAYER" "GRID-LINES")
     (command "_.LINE" (list (+ ox g) base) (list (+ ox g) (- base (* bubGap 0.45))) "")
     (vl-catch-all-apply (function (lambda () (grid-bubble (+ ox g) (- base bubGap) lbl "U"))))
@@ -1183,7 +1226,7 @@
 ;; by others below (synced to the wall condition), the gable/eave outline, openings, grid bubbles + dim chain.
 (defun peb-draw-sheeting-elev (surf ox oy data / len wid slopeD stype rtype eaveH eaveHi eaveLo hiName hiSide
                               wallEave faceLen stations isEnd base rise ridgeRise i g x yTop pts cx prev lbl
-                              bubGap bubR ov gbase owText sp sx cnt pre psurf pat pw noteY owU
+                              bubGap bubR ov gbase owText sp sx cnt pre psurf pat pw noteY owU revView
                               rbOn rbFrom rbTo rbFloor rbBase nLen ewGrid ewRaised rx0 rx1 hasR gbaseR bc sbase sgb)
   (setq len (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
         wid (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
@@ -1214,6 +1257,12 @@
           stations (peb-fr-ew-stations data wid surf))
     (setq faceLen len
           stations (peb-fr-scaled-stations (peb-tb-or (MSPL-Get-Str data "BAYEXPR") "") len)))
+  ;; viewed from OUTSIDE — same rule as the framing elevation, see the note there
+  (setq revView (and (member surf '("LEW" "FSW")) T))
+  (if revView
+    (progn
+      (setq stations (reverse (mapcar (function (lambda (ss) (- faceLen ss))) stations)))
+      (if isEnd (setq hiSide (not hiSide)))))
   (setq owText (peb-tb-or (MSPL-Get-Str data (strcat "OW_" surf)) "")
         gbase (peb-fr-openwall-ht owText))
   ;; RAISED BASE (owner 29-Jul) — mirror the framing so the sheeting elevations SYNC: grids [rbFrom..rbTo]
@@ -1327,6 +1376,7 @@
     (setq pre (strcat "PL" (itoa i) "_")
           psurf (strcase (peb-tb-or (MSPL-Get-Str data (strcat pre "SURFACE")) ""))
           pat (atof (peb-tb-or (MSPL-Get-Str data (strcat pre "AT")) "0"))
+          pat (if revView (- faceLen pat) pat)      ; outside view — see the mirror note
           pw (atof (peb-tb-or (MSPL-Get-Str data (strcat pre "WIDTH")) "0")))
     (if (and (= psurf surf) (> pw 0.0))
       (progn (setvar "CLAYER" "OPEN")
@@ -1343,7 +1393,8 @@
   (setq bubGap (+ (* 700.0 *PEB-TEXT-SCALE*) (* 2.2 bubR))
         i 0 ov *PEB-BUBRAD* *PEB-BUBRAD* bubR)
   (foreach g stations
-    (setq lbl (peb-fr-grid-label i (length stations) isEnd))
+    (setq lbl (peb-fr-grid-label (if revView (- (length stations) 1 i) i)
+                                 (length stations) isEnd))
     (setvar "CLAYER" "GRID-LINES")
     (command "_.LINE" (list (+ ox g) base) (list (+ ox g) (- base (* bubGap 0.45))) "")
     (vl-catch-all-apply (function (lambda () (grid-bubble (+ ox g) (- base bubGap) lbl "U"))))
