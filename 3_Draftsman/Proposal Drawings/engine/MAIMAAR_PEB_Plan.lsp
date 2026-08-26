@@ -1262,6 +1262,15 @@
     (if (and (= cnt 3) (> i 0)) (setq out (strcat "," out) cnt 0)))
   out)
 
+
+;; Comma-group a numeric title-block value; anything non-numeric (or missing) falls
+;; through untouched so a "-" stays a "-".
+(defun peb-tb-comma (v / t0)
+  (setq t0 (peb-tb-or v "-"))
+  (if (and t0 (/= t0 "-") (/= t0 "") (numberp (read t0)))
+    (peb-comma (rtos (atof t0) 2 0))
+    t0))
+
 (defun peb-fmt-value (value / mode)
   ;;  Format a single mm value per *PEB-DIM-DISPLAY* mode.
   ;;    "MM"   → "40000"
@@ -1907,11 +1916,14 @@
     (cons "CODE"     (peb-tb-or (MSPL-Get-Str data "DESIGNCODE") "MBMA 2006"))
     ;; building data — for the CROSS SECTION sheet's title block (owner 29-Jul: each sheet's title bar
     ;; carries details about ITS drawing; the Section shows BUILDING data, never member sections/thk).
-    (cons "BWIDTH"   (peb-tb-or (MSPL-Get-Str data "WIDTH")       "-"))
-    (cons "BLENGTH"  (peb-tb-or (MSPL-Get-Str data "LENGTH")      "-"))
+    ;; comma-grouped, like every other number in the set (owner's number-presentation
+    ;; standard).  KEY BUILDING DATA read "13716 / 33528 / 6996" on the Cross Section
+    ;; while the plan beside it read "121,920".
+    (cons "BWIDTH"   (peb-tb-comma (MSPL-Get-Str data "WIDTH")))
+    (cons "BLENGTH"  (peb-tb-comma (MSPL-Get-Str data "LENGTH")))
     ;; a real EAVE height, not the clear height wearing an eave label (owner 26-Aug)
-    (cons "BEAVE"    (peb-tb-eave-height data))
-    (cons "BCLEAR"   (peb-tb-or (MSPL-Get-Str data "CLEARHEIGHT") "-"))
+    (cons "BEAVE"    (peb-comma (peb-tb-eave-height data)))
+    (cons "BCLEAR"   (peb-tb-comma (MSPL-Get-Str data "CLEARHEIGHT")))
     (cons "BSLOPE"   (peb-tb-slope (MSPL-Get-Str data "SLOPE")))
     (cons "BBAYS"    (peb-tb-or (MSPL-Get-Str data "NUMBAYS")     "-"))
     (cons "ROOFPANEL" (peb-tb-or (MSPL-Get-Str data "ROOFSHEETING") ""))

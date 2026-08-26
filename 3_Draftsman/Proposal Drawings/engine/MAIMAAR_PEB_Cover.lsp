@@ -51,7 +51,7 @@
 (defun peb-cover-draw (data / white grey green blue red cx Hc Wc get
                             bx0 bx1 by0 by1 tx0 tx1 lx0 lx1 mid rh rt y1 y2 y3 y4 y5 yy
                             proj cust bname loc quote rev dat drn chk propinput propno
-                            bno ident nbld i sheets pitch sh blind)
+                            bno ident nbld i sheets pitch sh blind nSh avail shH)
   ;; Colours come from the shared Presentation Standards DB (*PEB-COLORS* via
   ;; peb-color) when MAIMAAR_PEB_Standard.lsp is loaded, so the cover stays in
   ;; lock-step with the plan/section palette; otherwise use the R6 literals.
@@ -261,11 +261,21 @@
                        '("04" "END WALL FRAMING ELEVATIONS")
                        '("05" "SIDE WALL SHEETING ELEVATIONS")
                        '("06" "END WALL SHEETING ELEVATIONS"))))
-  (setq yy (- by1 (* Hc 0.052)) pitch (* Hc 0.030))
+  ;; THE LIST MUST FIT ITS BOX (owner 26-Aug).  The pitch was a fixed 0.030*Hc, which
+  ;; holds exactly seven rows - the length of the old hard-coded list.  The moment the
+  ;; list became real, a nine-sheet building (the two roof plans) ran rows 07 and 08 out
+  ;; through the bottom border and across the footer, and a two-area building would push
+  ;; thirteen.  Pitch and text now divide the box by the row count, capped at the old
+  ;; values so a short list looks exactly as it did.
+  (setq nSh   (length sheets)
+        avail (- (- by1 (* Hc 0.052)) by0)
+        pitch (min (* Hc 0.030) (/ avail (max 1 nSh)))
+        shH   (min (* Hc 0.0120) (* pitch 0.42)))
+  (setq yy (- by1 (* Hc 0.052)))
   (foreach sh sheets
-    (tb-mtext (+ lx0 (* Hc 0.012)) yy (* Hc 0.0120) 0 4 (car sh) green)
+    (tb-mtext (+ lx0 (* Hc 0.012)) yy shH 0 4 (car sh) green)
     (tb-mtext (+ lx0 (* Hc 0.075)) yy
-              (tb-fith (cadr sh) (- lx1 (+ lx0 (* Hc 0.082))) (* Hc 0.0120)) 0 4
+              (tb-fith (cadr sh) (- lx1 (+ lx0 (* Hc 0.082))) shH) 0 4
               (cadr sh) white)
     (setq yy (- yy pitch)))
 
