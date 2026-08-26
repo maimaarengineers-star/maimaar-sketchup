@@ -389,12 +389,16 @@
           stations (peb-fr-ew-stations data wid surf))
     (setq faceLen len
           stations (peb-fr-scaled-stations (peb-tb-or (MSPL-Get-Str data "BAYEXPR") "") len)))
-  ;; column half-width in elevation (slender I) from the plan's web-depth rule
-  ;; column half-width — heavier than before (owner 28-Jul, KMFoods ref: columns read as solid members)
-  (setq colhw (* 0.5 (if (boundp 'peb-col-web-depth)
-                       (vl-catch-all-apply (function (lambda () (* 0.46 (peb-col-web-depth wid)))))
-                       300.0)))
-  (if (or (not (numberp colhw)) (< colhw 100.0)) (setq colhw 150.0))
+  ;; ── COLUMN FLANGE WIDTH IN ELEVATION (owner 26-Aug) ────────────────────────
+  ;; What you see edge-on in a wall elevation is the column's FLANGE, and a flange
+  ;; is a flange — it does not grow with the span the way the web depth does.
+  ;;   END wall  : 200 mm   ("normally columns flanges are also 200mm")
+  ;;   SIDE wall : 300 mm   ("for side framing 300 flange showing is okay")
+  ;;
+  ;; It used to be derived from the web depth (0.46 x D, halved), so on a 30 m
+  ;; building the columns were drawn 506 mm wide — flanges fatter than the 200 mm
+  ;; rafter web beside them, which is what made the rafter look too thin.
+  (setq colhw (if isEnd 100.0 150.0))
 
   ;; 1. base / foundation line
   (setvar "CLAYER" "GROUND")
