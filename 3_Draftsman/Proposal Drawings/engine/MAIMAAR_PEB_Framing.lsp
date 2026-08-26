@@ -273,6 +273,28 @@
       (foreach s lst (setq acc (+ acc (* s sc))) (setq out (append out (list acc))))
       out)))
 
+;; END-WALL COLUMN STATIONS — the width-module (main frame) lines MERGED with the
+;; end-wall column lines, which is exactly what the plan grids and letters.
+;; Explicit IF spacing (BP_EW_LEFT/RIGHT_SPACING) wins; otherwise the shared auto
+;; rule (peb-ew-auto-stations) applies.
+;;
+;; This used to read MODEXPR alone, so on a CLEAR SPAN — whose width module is a
+;; single 1@<wid> — the elevation drew two corner columns and nothing between,
+;; while the plan lettered A..D off its own rule.  The two sheets described the
+;; same wall differently and the girts looked unsupported across the full span.
+(defun peb-fr-ew-stations (data wid surf / expr st ew out)
+  (setq st (peb-fr-scaled-stations (peb-tb-or (MSPL-Get-Str data "MODEXPR") "") wid))
+  (setq expr (peb-tb-or (if (= surf "LEW") (MSPL-Get-Str data "EWLEXPR")
+                                           (MSPL-Get-Str data "EWREXPR")) ""))
+  (setq ew (if (/= expr "")
+             (peb-fr-scaled-stations expr wid)
+             (if (boundp 'peb-ew-auto-stations) (peb-ew-auto-stations wid) nil)))
+  (setq out st)
+  (foreach s ew
+    (if (not (vl-some (function (lambda (p) (< (abs (- p s)) 1.0))) out))
+      (setq out (append out (list s)))))
+  (vl-sort out '<))
+
 ;; Top-of-steel Y at width-station x for an END wall (LEW/REW).  faceLen = wid.
 ;;   G: peak at centre (rise above eave)      B: valley at centre (eaves high)
 ;;   M: linear from low eave to high eave      F: flat at eave
@@ -358,10 +380,7 @@
   ;; stations + face length
   (if isEnd
     (setq faceLen wid
-          stations (peb-fr-scaled-stations
-                     (peb-tb-or (if (= surf "LEW") (MSPL-Get-Str data "EWLEXPR")
-                                                   (MSPL-Get-Str data "EWREXPR"))
-                                (peb-tb-or (MSPL-Get-Str data "MODEXPR") "")) wid))
+          stations (peb-fr-ew-stations data wid surf))
     (setq faceLen len
           stations (peb-fr-scaled-stations (peb-tb-or (MSPL-Get-Str data "BAYEXPR") "") len)))
   ;; column half-width in elevation (slender I) from the plan's web-depth rule
@@ -854,9 +873,9 @@
         (T (setq wallEave eaveH)))
   (if isEnd
     (setq faceLen wid
-          stations (peb-fr-scaled-stations
-                     (peb-tb-or (if (= surf "LEW") (MSPL-Get-Str data "EWLEXPR") (MSPL-Get-Str data "EWREXPR"))
-                                (peb-tb-or (MSPL-Get-Str data "MODEXPR") "")) wid))
+          ;; same merged end-wall stations the FRAMING elevation uses, so the two
+          ;; elevations and the plan all letter the identical columns.
+          stations (peb-fr-ew-stations data wid surf))
     (setq faceLen len
           stations (peb-fr-scaled-stations (peb-tb-or (MSPL-Get-Str data "BAYEXPR") "") len)))
   (setq owText (peb-tb-or (MSPL-Get-Str data (strcat "OW_" surf)) "")

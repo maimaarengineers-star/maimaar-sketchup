@@ -793,6 +793,31 @@
 ;; Braced-bay selection — port of geometryRules bracingPlan: never brace the END
 ;; bays; brace the 2nd and 2nd-last bay; add interior braces so no unbraced run
 ;; exceeds 27 m. Returns 0-based bay indices. bayPts = grid x-stations (len+1 pts).
+;; ── AUTO END-WALL COLUMN RULE ────────────────────────────────────────────────
+;; How many bays the end wall is divided into when the IF gives no explicit
+;; BP_EW_LEFT/RIGHT_SPACING: aim for ~6.25 m and keep every resulting bay inside
+;; 6.0-6.5 m.  13716 -> 3 @ 4572;  30480 -> 5 @ 6096.
+;;
+;; This lives in ONE place because TWO sheets have to agree about it: the plan
+;; grids and letters every end-wall column (A, B, C, D ...), and the END WALL
+;; FRAMING elevation has to draw a column under each of those letters.  The
+;; elevation used to fall back to the width module instead, so a clear span drew
+;; only its two corner columns while the plan lettered A..D — the girt then
+;; appeared to span the full width unsupported (owner 25-Aug audit).
+(defun peb-ew-auto-cols (wid / n sp)
+  (setq n (fix (/ wid 6250.0)))
+  (if (< n 1) (setq n 1))
+  (setq sp (/ wid n))
+  (if (< sp 6000) (progn (setq n (1- n)) (if (< n 1) (setq n 1)) (setq sp (/ wid n))))
+  (if (> sp 6500) (setq n (1+ n)))
+  n)
+
+;; The stations themselves: (0, sp, 2sp, ... wid).
+(defun peb-ew-auto-stations (wid / n sp out i)
+  (setq n (peb-ew-auto-cols wid) sp (/ wid n) out (list 0.0) i 1)
+  (while (<= i n) (setq out (append out (list (* sp i))) i (1+ i)))
+  out)
+
 (defun peb-braced-bays (bayPts / n cum braced unbraced nSeg s target best bd bb mid)
   ;; EXACT port of geometryRules.bracingPlan (the IF's rule — STRICT, owner 2-Jul). bayPts = grid
   ;; x-stations (n+1 cumulative points, mm). Returns 0-based braced-bay indices.
@@ -4130,11 +4155,9 @@
   (setq *PEB-DIM-SCALE* *PEB-TEXT-SCALE*)
 
   ;; ── End wall columns ─────────────────────────────────────────
-  (setq ewcols (fix (/ wid 6250.0)))
-  (if (< ewcols 1) (setq ewcols 1))
-  (setq ewsp (/ wid ewcols))
-  (if (< ewsp 6000) (progn (setq ewcols (1- ewcols)) (if (< ewcols 1) (setq ewcols 1)) (setq ewsp (/ wid ewcols))))
-  (if (> ewsp 6500) (progn (setq ewcols (1+ ewcols)) (setq ewsp (/ wid ewcols))))
+  ;; the rule now lives in peb-ew-auto-cols so the END WALL FRAMING elevation
+  ;; can grid the identical columns (see the helper's note).
+  (setq ewcols (peb-ew-auto-cols wid) ewsp (/ wid ewcols))
 
   ;; RULE (owner, deviation from Zealcon): EVERY end-wall column gets a grid line
   ;; + letter.  Build the end-wall column stations (0, ewsp, 2*ewsp, … , wid) and
