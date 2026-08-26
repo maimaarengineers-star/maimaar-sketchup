@@ -246,13 +246,21 @@
   ;; numbered 00 = cover then 01.. matching the title-block SHEET NO. (PRO-0N) — NOT a list of buildings.
   ;; 28-Jul: the shipped A4 set = Cover + CLP + Cross Section + Side/End Framing + Side/End Sheeting; the
   ;; framing & sheeting split side/end so each elevation prints large on A4.  Number green, title white.
-  (setq sheets (list '("00" "COVER SHEET")
-                     '("01" "COLUMN LAYOUT PLAN")
-                     '("02" "CROSS SECTION")
-                     '("03" "SIDE WALL FRAMING ELEVATIONS")
-                     '("04" "END WALL FRAMING ELEVATIONS")
-                     '("05" "SIDE WALL SHEETING ELEVATIONS")
-                     '("06" "END WALL SHEETING ELEVATIONS")))
+  ;; THE LIST MUST BE THE SHEETS ACTUALLY IN THIS FILE (owner 26-Aug).  Hard-coded, it
+  ;; listed SIDE/END WALL sheets for a building whose file holds ONE combined elevation
+  ;; sheet, never mentioned the two roof plans, and ignored the extra sheets a multi-area
+  ;; building gets.  drawingData now derives *PEB-SHEET-LIST* from the very calls it is
+  ;; about to emit, so the index and the file are the same thing by construction.
+  ;; The literal below is only the fallback for a hand-run cover with no list set.
+  (setq sheets (if (and (boundp '*PEB-SHEET-LIST*) *PEB-SHEET-LIST*)
+                 *PEB-SHEET-LIST*
+                 (list '("00" "COVER SHEET")
+                       '("01" "COLUMN LAYOUT PLAN")
+                       '("02" "CROSS SECTION")
+                       '("03" "SIDE WALL FRAMING ELEVATIONS")
+                       '("04" "END WALL FRAMING ELEVATIONS")
+                       '("05" "SIDE WALL SHEETING ELEVATIONS")
+                       '("06" "END WALL SHEETING ELEVATIONS"))))
   (setq yy (- by1 (* Hc 0.052)) pitch (* Hc 0.030))
   (foreach sh sheets
     (tb-mtext (+ lx0 (* Hc 0.012)) yy (* Hc 0.0120) 0 4 (car sh) green)
