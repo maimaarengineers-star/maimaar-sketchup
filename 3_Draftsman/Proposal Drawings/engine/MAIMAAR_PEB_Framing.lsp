@@ -42,7 +42,7 @@
 (defun peb-draw-roof-framing (data ox oy / len wid slopeD bayPts purlSp nRows i x y
                               prev cnt pre psurf pat pw mark midY j bubGap bubR
                               stype mgGables mgGableW mgRid mgVal base hiNSW mgi k
-                              loB hiB ry vy fx)
+                              loB hiB ry vy fx wgrid bx0 bx1 by0 by1 nPan panH)
   (setq len    (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
         wid    (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
         slopeD (atof (peb-tb-or (MSPL-Get-Str data "SLOPE") "10")))
@@ -143,14 +143,34 @@
        (peb-fr-fall (+ ox fx) midY (+ oy (* wid 0.12)) slopeD)
        (peb-fr-fall (+ ox fx) midY (+ oy (* wid 0.88)) slopeD))))
 
-  ;; ROOF cross-bracing in the braced bays — full-bay X (this is the ROOF plane;
-  ;; the COLUMN LAYOUT plan carries the WALL bracing via peb-draw-bracing).
+  ;; ── ROOF CROSS-BRACING, IN PANELS (owner 26-Aug) ───────────────────────────
+  ;; "Roof Framing Plan must have the bracings in PARTS as per the engineering rule."
+  ;;
+  ;; It used to draw ONE X spanning the braced bay from eave to eave — a single
+  ;; diagonal ~30 m long, which is not how roof bracing is built.  Real roof bracing
+  ;; is panelised: a run of X panels between the two frames, each panel roughly
+  ;; SQUARE, so the diagonals sit near 45 degrees and actually work as bracing.
+  ;;
+  ;; Panel count = width / bay length, rounded, minimum 1 — i.e. each X is about as
+  ;; tall as the bay is wide.  On B-03 (30480 wide, 8263 bays) that gives 4 panels,
+  ;; which is what the owner marked up.
+  ;; (This is the ROOF plane; the COLUMN LAYOUT plan carries the WALL bracing via
+  ;; peb-draw-bracing.)
   (vl-catch-all-apply (function (lambda ()
     (setq prev (getvar "CLAYER"))
     (setvar "CLAYER" "CROSS")
     (foreach b (peb-braced-bays bayPts)
-      (command "_.LINE" (list (+ ox (nth b bayPts)) oy) (list (+ ox (nth (1+ b) bayPts)) (+ oy wid)) "")
-      (command "_.LINE" (list (+ ox (nth b bayPts)) (+ oy wid)) (list (+ ox (nth (1+ b) bayPts)) oy) ""))
+      (setq bx0 (+ ox (nth b bayPts))
+            bx1 (+ ox (nth (1+ b) bayPts))
+            nPan (fix (+ 0.5 (/ wid (max 1.0 (- bx1 bx0)))))
+            nPan (max 1 nPan)
+            panH (/ wid (float nPan))
+            k    0)
+      (while (< k nPan)
+        (setq by0 (+ oy (* k panH)) by1 (+ oy (* (1+ k) panH)))
+        (command "_.LINE" (list bx0 by0) (list bx1 by1) "")
+        (command "_.LINE" (list bx0 by1) (list bx1 by0) "")
+        (setq k (1+ k))))
     (setvar "CLAYER" prev))))
 
   ;; FALL arrows (ridge -> each eave) at a few stations
@@ -190,14 +210,24 @@
     (setq j (1+ j)))
   (setvar "CLAYER" "GRID")
   (command "_.LINE" (list ox oy) (list (- ox bubGap) oy) "")
+  ;; WIDTH LETTERS MUST MATCH THE OTHER SHEETS (rulebook 4B.8).  These were hardcoded
+  ;; "A" and "B" — the two eave lines — while the plan, section and both elevations
+  ;; letter the MERGED width grid (width modules + end-wall columns).  On B-03 that
+  ;; grid runs A..F, so the far eave is F, not B, and this sheet was naming the same
+  ;; line differently from every other sheet in the set.
+  (setq wgrid (vl-catch-all-apply (function (lambda () (peb-fr-ew-stations data wid "LEW")))))
+  (if (or (vl-catch-all-error-p wgrid) (not (listp wgrid)) (< (length wgrid) 2)) (setq wgrid nil))
   (grid-bubble (- ox bubGap bubR) oy "A" "R")
   (command "_.LINE" (list ox (+ oy wid)) (list (- ox bubGap) (+ oy wid)) "")
-  (grid-bubble (- ox bubGap bubR) (+ oy wid) "B" "R")
+  (grid-bubble (- ox bubGap bubR) (+ oy wid)
+               (if wgrid (chr (+ 65 (1- (length wgrid)))) "B") "R")
   ;; blue title (below the roof) + shared title block
   (setvar "CLAYER" "TEXT")
   (setvar "CECOLOR" "5")
   (txt-bold "MC" (list (+ ox (/ len 2.0)) (- oy (* 3200 *PEB-TEXT-SCALE*)))
-            (* 450 *PEB-TEXT-SCALE*) 0 "ROOF FRAMING PLAN")
+            ;; plain height — txt-bold applies TEXT-SCALE itself (rulebook 4B.2).
+            ;; (* 450 TS) scaled by TS SQUARED, so this title grew with the building.
+            300.0 0 "ROOF FRAMING PLAN")
   (setvar "CECOLOR" "BYLAYER")
   (setvar "CLAYER" prev)
   (vl-catch-all-apply (function (lambda () (peb-frame-and-titleblock data "ROOF FRAMING PLAN")))))
