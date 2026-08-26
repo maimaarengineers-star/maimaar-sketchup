@@ -1943,7 +1943,12 @@
     (progn
       (setq tbData (peb-build-tbdata data drgTitle))
       (setq ds (if *PEB-DIM-SCALE* *PEB-DIM-SCALE* 1.0))
-      (setq bGap (max (* 3000.0 ds) (if *PEB-BUBRAD* *PEB-BUBRAD* 600.0)))
+      ;; SHEET MARGIN.  A margin is a PAPER quantity - it must look the same on every
+      ;; sheet - but this is multiplied by DIM-SCALE, which tracks the building, so the
+      ;; bigger the shed the wider the empty band.  On B-03 it came out 8127 model units,
+      ;; about 10.8 mm of blank paper on all four sides.  Trimmed to a normal drafting
+      ;; margin; it still clears a grid bubble, which is what the bubR term is for.
+      (setq bGap (max (* 1700.0 ds) (if *PEB-BUBRAD* (* 1.15 *PEB-BUBRAD*) 600.0)))
       (vl-catch-all-apply (function (lambda () (command "_.ZOOM" "_E"))))
       (setq exmin (getvar "EXTMIN") exmax (getvar "EXTMAX"))
       (setq cW (- (car exmax) (car exmin)) cH (- (cadr exmax) (cadr exmin)))
@@ -1959,7 +1964,11 @@
           (setq tbStripW (* cW 0.20)
                 tbStripH (/ tbStripW 0.30)   ; keep the ~0.30 aspect
                 tbY0     borderB)))
-      (setq tbStripX (+ (car exmax) (* 3500.0 ds))
+      ;; GAP between the drawing and the title table (owner 26-Aug: "the Title Table
+      ;; Lines and Drawings there is lot of empty space in b/w").  3500 * DIM-SCALE was
+      ;; 9482 model units on B-03 - roughly 12.6 mm of dead paper down the middle of the
+      ;; sheet, and it grew with every bigger building.  A gutter, not a void.
+      (setq tbStripX (+ (car exmax) (* 1100.0 ds))
             borderR  (+ tbStripX tbStripW))
       (vl-catch-all-apply (function (lambda () (peb-titleblock-mammut tbStripX tbY0 tbStripW tbStripH tbData))))
       (draw-border borderL borderB borderR borderT)))
@@ -2072,25 +2081,47 @@
       (setq rh (* s 0.052) bt yCur yCur (- yCur rh))
       (tb-mtext-bold (+ X0 (* W 0.035)) (- bt (* s 0.0130))
         (tb-fith "FRAMING NOTES" (* cw 0.85) (* s 0.0120)) (* W 0.93) 1 "FRAMING NOTES" green)
+      ;; The band is sized for the DATA sheets, whose row list fills it.  These note
+      ;; sheets carried four short lines and left the other two thirds empty (owner
+      ;; 26-Aug).  It cannot be fixed by bigger text - tb-fith already caps these lines
+      ;; on the COLUMN WIDTH, so they are as large as the strip allows - and it cannot be
+      ;; fixed by a shorter band without the bottom PROJECT block sitting at a different
+      ;; height on notes sheets than on data sheets.  So the band is filled with content:
+      ;; two more proposal-level notes, same register as the existing four, each deferring
+      ;; to the proposal or the approved design rather than asserting anything new.
       (setq rh (* s 0.224) yCur (- yCur rh))
       (tb-mtext (+ X0 (* W 0.04)) (- (+ yCur rh) (* sm 1.3))
         (tb-fith "3. BRACING & ANCHORS PER APPROVED DESIGN." cw (* sm 1.05)) cw 1
         (strcat "1. FRAMING SHOWN IS INDICATIVE ONLY.\\P"
                 "2. MEMBER SIZES PER APPROVED DESIGN.\\P"
                 "3. BRACING & ANCHORS PER APPROVED DESIGN.\\P"
-                "4. WALL INFILL BY OTHERS AS SHOWN.") white))
+                "4. WALL INFILL BY OTHERS AS SHOWN.\\P"
+                ;; kept under ~40 characters so each note stays on ONE line — note 3 is
+                ;; the longest that fits the strip, and a wrapped note reads as a mistake
+                "5. CONNECTIONS BOLTED UNLESS NOTED.\\P"
+                "6. FRAME GEOMETRY PER CROSS SECTION.") white))
     ;; ==== SHEETING / CLADDING : proposal-level cladding notes ====
     (T
       (setq rh (* s 0.052) bt yCur yCur (- yCur rh))
       (tb-mtext-bold (+ X0 (* W 0.035)) (- bt (* s 0.0130))
         (tb-fith "CLADDING NOTES" (* cw 0.85) (* s 0.0120)) (* W 0.93) 1 "CLADDING NOTES" green)
+      ;; The band is sized for the DATA sheets, whose row list fills it.  These note
+      ;; sheets carried four short lines and left the other two thirds empty (owner
+      ;; 26-Aug).  It cannot be fixed by bigger text - tb-fith already caps these lines
+      ;; on the COLUMN WIDTH, so they are as large as the strip allows - and it cannot be
+      ;; fixed by a shorter band without the bottom PROJECT block sitting at a different
+      ;; height on notes sheets than on data sheets.  So the band is filled with content:
+      ;; two more proposal-level notes, same register as the existing four, each deferring
+      ;; to the proposal or the approved design rather than asserting anything new.
       (setq rh (* s 0.224) yCur (- yCur rh))
       (tb-mtext (+ X0 (* W 0.04)) (- (+ yCur rh) (* sm 1.3))
         (tb-fith "3. FLASHINGS & TRIMS PER APPROVED DESIGN." cw (* sm 1.05)) cw 1
         (strcat "1. ROOF & WALL PANELS AS SPECIFIED.\\P"
                 "2. PROFILE & COLOUR TO CLIENT SELECTION.\\P"
                 "3. FLASHINGS & TRIMS PER APPROVED DESIGN.\\P"
-                "4. OPENINGS & INFILL BY OTHERS AS SHOWN.") white)))
+                "4. OPENINGS & INFILL BY OTHERS AS SHOWN.\\P"
+                "5. SHEET THICKNESS PER THE PROPOSAL.\\P"
+                "6. FASTENERS & SEALANTS PER DESIGN.") white)))
   (setq yCur (- bandTop (* s 0.276)))
   (tb-hdiv yCur)
 

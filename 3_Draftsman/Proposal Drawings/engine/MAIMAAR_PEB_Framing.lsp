@@ -249,7 +249,7 @@
   (grid-bubble (- ox bubGap bubR) oy "A" "R")
   (command "_.LINE" (list ox (+ oy wid)) (list (- ox bubGap) (+ oy wid)) "")
   (grid-bubble (- ox bubGap bubR) (+ oy wid)
-               (if wgrid (chr (+ 65 (1- (length wgrid)))) "B") "R")
+               (if wgrid (peb-grid-letter (1- (length wgrid))) "B") "R")
   (setq *PEB-BUBRAD* ovr)
   ;; blue title (below the roof) + shared title block
   (setvar "CLAYER" "TEXT")
@@ -284,6 +284,26 @@
         (T "G")))
 
 ;; grid-letter for the Nth (0-based) end-wall column: 0->A .. 25->Z, 26->AA ...
+;; ── AN ELEVATION LETTERS ITS GRID EXACTLY LIKE THE PLAN (owner 26-Aug) ───────
+;; "Match the grid numbering of all elevations with plan."
+;;
+;; Width letters: the plan draws A at the FSW and the last letter at the NSW, via
+;; (peb-grid-letter (- nWid 1 j)) -- reversed, because station 0 is y=0, the NSW.
+;; The elevations used peb-fr-letter i, so A landed on the NSW: the same building
+;; lettered one way on the plan and the opposite way on its own end-wall elevation.
+;; peb-grid-letter also SKIPS I (it reads as a 1); peb-fr-letter did not, so the two
+;; ran one letter apart from the ninth grid on.
+;;
+;; Both offsets are applied for the same reason the plan applies them: on a
+;; multi-area building the grid CONTINUES across areas instead of restarting.
+;;
+;; nSt = how many stations this wall has; i = 0-based station index along the wall.
+(defun peb-fr-grid-label (i nSt isEnd)
+  (if isEnd
+    (peb-grid-letter (+ (- nSt 1 i) (if *PEB-GRID-LET-OFS* *PEB-GRID-LET-OFS* 0)))
+    (itoa (+ (1+ i) (if *PEB-GRID-NUM-OFS* *PEB-GRID-NUM-OFS* 0)))))
+
+;; Retained: still used where a plain running letter is wanted, with no plan to match.
 (defun peb-fr-letter (i / hi)
   (if (< i 26)
     (chr (+ 65 i))
@@ -877,7 +897,7 @@
   (setq bubGap (+ (* 700.0 *PEB-TEXT-SCALE*) (* 2.2 bubR))
         i 0 ov *PEB-BUBRAD* *PEB-BUBRAD* bubR)
   (foreach g stations
-    (setq lbl (if isEnd (peb-fr-letter i) (itoa (1+ i))))
+    (setq lbl (peb-fr-grid-label i (length stations) isEnd))
     (setvar "CLAYER" "GRID-LINES")
     (command "_.LINE" (list (+ ox g) base) (list (+ ox g) (- base (* bubGap 0.45))) "")
     (vl-catch-all-apply (function (lambda () (grid-bubble (+ ox g) (- base bubGap) lbl "U"))))
@@ -1249,7 +1269,7 @@
   (setq bubGap (+ (* 700.0 *PEB-TEXT-SCALE*) (* 2.2 bubR))
         i 0 ov *PEB-BUBRAD* *PEB-BUBRAD* bubR)
   (foreach g stations
-    (setq lbl (if isEnd (peb-fr-letter i) (itoa (1+ i))))
+    (setq lbl (peb-fr-grid-label i (length stations) isEnd))
     (setvar "CLAYER" "GRID-LINES")
     (command "_.LINE" (list (+ ox g) base) (list (+ ox g) (- base (* bubGap 0.45))) "")
     (vl-catch-all-apply (function (lambda () (grid-bubble (+ ox g) (- base bubGap) lbl "U"))))
@@ -1544,7 +1564,8 @@
   (setq wgrid (vl-catch-all-apply (function (lambda () (peb-fr-ew-stations data wid "LEW")))))
   (if (or (vl-catch-all-error-p wgrid) (not (listp wgrid)) (< (length wgrid) 2)) (setq wgrid nil))
   (command "_.LINE" (list ox (+ oy wid)) (list (- ox bubGap) (+ oy wid)) "")
-  (setq lbl (if wgrid (chr (+ 65 (1- (length wgrid)))) "B"))
+  ;; peb-grid-letter, not (chr 65+n): the plan skips I, so this must too
+  (setq lbl (if wgrid (peb-grid-letter (1- (length wgrid))) "B"))
   (grid-bubble (- ox bubGap bubR) (+ oy wid) lbl "R")
   (setq *PEB-BUBRAD* ovr)
 
