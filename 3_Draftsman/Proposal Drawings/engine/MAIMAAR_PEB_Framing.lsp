@@ -650,6 +650,12 @@
       (peb-fr-wallface ox faceLen base gbase colhw owText gy (and ewHang (> hangHt 0.0)))))
   ;; (Proposal Drawing: girt/purlin SIZE + SPACING call-outs omitted — set by design at approval stage.)
 
+  ;; 4b. GIRTS UP THE GABLE — end walls only, and only where there is a gable/valley
+  ;; triangle above the eave to girt (owner 26-Aug).  See peb-fr-gable-girts.
+  (if (and isEnd (member rtype '("G" "B")))
+    (vl-catch-all-apply (function (lambda ()
+      (peb-fr-gable-girts ox stations faceLen base eaveH eaveHi eaveLo rise rtype hiSide 1400.0)))))
+
   ;; 5. wall X cross-bracing — SIDE walls only (braced bays). The reference END WALL FRAMING carries NO
   ;; X cross-bracing (it uses girts + purlins + flange braces instead), and X-braces looked wrong crossing
   ;; the open bay below the hanging columns — so end walls skip it (owner 28-Jul, per old reference drawings).
@@ -773,6 +779,45 @@
 ;; existing RCC floor start from different `wbase`. [ox0 .. ox0+flen] horizontally; brick from `wbase` up to
 ;; `wbase+gbase`; girts from there up to `eaveTop-200` (eaveTop is ABSOLUTE — the roof line is continuous, so
 ;; a raised segment's girts still stop at the true eave). skipBaseLine = T for a hanging-column end wall.
+;; ── GIRTS IN THE V (GABLE) PORTION OF AN END WALL (owner 26-Aug) ─────────────
+;; "girts must support on the post columns & will not extend till full width, only
+;;  till internal post columns based on the slope; the spacing can be adjusted."
+;;
+;; Below the eave a girt runs the full width — every post reaches it.  Above the
+;; eave the wall is a triangle, so a girt only exists where the ROOF is above it:
+;; it lands on the innermost posts tall enough to carry it and stops there.  Each
+;; level up the gable is therefore shorter than the one below, and once fewer than
+;; two posts reach the level nothing more is drawn.
+;;
+;; All parameters are gg-prefixed on purpose: AutoLISP is dynamically scoped and
+;; the caller is mid-way through locals with names like faceLen / stations / rise.
+(defun peb-fr-gable-girts (ggOx ggSt ggFace ggBase ggEave ggHi ggLo ggRise ggType ggHiSide ggSp
+                           / ggY ggTop ggL ggR ggS ggPdep ggN)
+  (setvar "CLAYER" "GIRTS")
+  ;; SPACING ADAPTS TO THE TRIANGLE (owner: "the spacing can be adjusted accordingly").
+  ;; A fixed 1400 put the first gable girt ABOVE the ridge on a shallow roof — B-01's
+  ;; gable rises only 686 mm — so nothing was drawn at all.  Divide the rise instead:
+  ;; ggN levels at rise/(ggN+1), where ggN is how many 1400s fit.  A triangle too
+  ;; shallow to hold one girt correctly gets none.
+  (setq ggN (fix (/ ggRise ggSp)))
+  (if (< ggN 1) (setq ggN 0))
+  (setq ggPdep 60.0
+        ggSp   (if (> ggN 0) (/ ggRise (+ ggN 1.0)) 0.0)
+        ggY    (+ ggBase ggEave ggSp))
+  (if (<= ggN 0) (setq ggY (+ ggBase ggEave ggRise 1e6)))   ; no room -> loop never runs
+  (while
+    (progn
+      (setq ggL nil ggR nil)
+      (foreach ggS ggSt
+        (setq ggTop (peb-fr-topy ggS ggFace ggBase ggEave ggHi ggLo ggRise ggType ggHiSide))
+        (if (> ggTop (+ ggY 250.0))                    ; this post reaches the level
+          (progn (if (null ggL) (setq ggL ggS)) (setq ggR ggS))))
+      (and ggL ggR (> (- ggR ggL) 1.0)))               ; ... and at least two do
+    (command "_.LINE" (list (+ ggOx ggL) ggY) (list (+ ggOx ggR) ggY) "")
+    (command "_.LINE" (list (+ ggOx ggL) (+ ggY ggPdep)) (list (+ ggOx ggR) (+ ggY ggPdep)) "")
+    (setq ggY (+ ggY ggSp)))
+  (princ))
+
 (defun peb-fr-wallface (ox0 flen wbase gbase colhw owText eaveTop skipBaseLine / gsp pdep i gy owU isRcc hEnt bc bx0 by0 bx1 by1)
   (setvar "CLAYER" "GIRTS")
   (setq gsp 1400.0 pdep 60.0 i 1)
