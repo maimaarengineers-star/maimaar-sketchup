@@ -6577,6 +6577,22 @@
                          220)
 )
 
+;; Letter for a FRAME column in the section: its position in the MERGED width grid
+;; — width-module lines plus end-wall columns — which is exactly what the Column
+;; Layout Plan letters.  The section used to letter by its own column index, so a
+;; clear span called its two columns A and B while the plan called the same two
+;; lines A and D (with B and C the end-wall columns between them).  Falls back to
+;; the plain index if the merged grid is unavailable.
+(defun peb-sec-grid-letter (cx wgrid idx / k best bd)
+  (if (null wgrid)
+    (chr (+ 65 idx))
+    (progn
+      (setq k 0 best idx bd 1e18)
+      (foreach st wgrid
+        (if (< (abs (- st cx)) bd) (setq bd (abs (- st cx)) best k))
+        (setq k (1+ k)))
+      (chr (+ 65 best)))))
+
 (defun draw-grid-bubble (cx cy r label)
   ;;  Single circle grid bubble (bottom of column), with grid letter inside.
   (if (not *PEB-TEXT-SCALE*) (setq *PEB-TEXT-SCALE* 1.0))
@@ -7994,7 +8010,7 @@
     ext extY
     dimX1 dimX2 d y
     loadValX bubR
-    layout cols ridges i rx cx prevCol curCol modw
+    layout cols ridges i rx cx prevCol curCol modw wgrid
     numGab effSpan slopeRise spanPerGab gWmg haunchCols msApexX msWidths
     bubY tbShift tbScale cxL cyL cxR cyR tagRun
     dimX1 dimX2 dimX3 dimX4
@@ -9448,12 +9464,16 @@
   (setq bubY (- 0.0 (if (> (length cols) 2) (* 4600 *PEB-TEXT-SCALE*) (* 3300 *PEB-TEXT-SCALE*))))
   (setq i 0)
   (setq nCols (length cols))
+  ;; the plan's merged width grid, so both sheets letter the same lines the same way
+  (setq wgrid (vl-catch-all-apply
+                (function (lambda () (peb-fr-ew-stations data wid "LEW")))))
+  (if (or (vl-catch-all-error-p wgrid) (not (listp wgrid))) (setq wgrid nil))
   (foreach cx cols
     (cond
       ((= i 0)            (setq bubX (- cx 235.0)))   ; leftmost outer
       ((= i (1- nCols))   (setq bubX (+ cx 235.0)))   ; rightmost outer
       (T                  (setq bubX cx)))            ; interior
-    (draw-grid-bubble bubX bubY bubR (chr (+ 65 i)))   ; A, B, C, ...
+    (draw-grid-bubble bubX bubY bubR (peb-sec-grid-letter cx wgrid i))   ; letters follow the PLAN grid
     ;; Connector tick - a single continuous vertical line from FFL all
     ;; the way down to the top of the bubble, passing through the dim
     ;; lines so the chain visually merges into one column.
