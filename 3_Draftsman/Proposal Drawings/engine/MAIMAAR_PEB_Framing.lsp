@@ -96,15 +96,26 @@
   ;; the framing is indicative and note 2 defers sizes to the approved design, so a
   ;; number here would be asserting something the sheet explicitly does not promise.
   ;; Both labels sit BELOW the plan, clear of the heading (which is at 3200 * scale).
+  ;; SECTION MARK, not just the member name (owner 26-Aug: "marking of purlins like
+  ;; Purlin Type 150Z15").  The nomenclature is Maimaar's own, RULES/06_PEB_COMPONENTS:
+  ;;   depth + section + thickness x 10   ->  200Z15 = 200 mm Z at 1.5 mm
+  ;; and the eave strut is a C-profile 180ES20/25.
+  ;;
+  ;; The BSF export carries NO purlin depth or gauge, so nothing here is read from the
+  ;; project - the depth is the one the engine actually DRAWS (peb-purlin-depth, 200 mm)
+  ;; and the gauge is the documented standard (1.5).  It is marked (TYP.) and General
+  ;; Note 2 still defers the final size to the approved design, so the sheet shows the
+  ;; standard type without promising a designed section.
   (vl-catch-all-apply (function (lambda ()
-    (peb-label-with-leader "PURLINS"
-      (list (+ ox (* len 0.28)) (- oy (* 1050.0 *PEB-DIM-SCALE*)))
-      (list (+ ox (* len 0.28)) (+ oy (* (/ wid (float nRows)) 2.0)))
+    (peb-label-with-leader
+      (strcat "PURLIN TYPE : " (rtos (peb-purlin-depth) 2 0) "Z15 (TYP.)")
+      (list (+ ox (* len 0.26)) (- oy (* 1050.0 *PEB-DIM-SCALE*)))
+      (list (+ ox (* len 0.26)) (+ oy (* (/ wid (float nRows)) 2.0)))
       "S" 600.0))))
   (vl-catch-all-apply (function (lambda ()
-    (peb-label-with-leader "EAVE STRUT"
-      (list (+ ox (* len 0.62)) (- oy (* 1050.0 *PEB-DIM-SCALE*)))
-      (list (+ ox (* len 0.62)) oy)
+    (peb-label-with-leader "EAVE STRUT : 180ES20"
+      (list (+ ox (* len 0.66)) (- oy (* 1050.0 *PEB-DIM-SCALE*)))
+      (list (+ ox (* len 0.66)) oy)
       "S" 600.0))))
   ;; ── RIDGE / VALLEY lines + FALL arrows — by STRUCTURE TYPE ──────────
   ;; Registers with the Roof Sheeting Plan.  Reference-verified labels (real
@@ -885,7 +896,8 @@
   ;; GIRTS label — same plain-leader convention as the roof purlins above.  Placed above
   ;; the wall and off-centre so it clears the blue heading, which is centred on the wall.
   (vl-catch-all-apply (function (lambda ()
-    (peb-label-with-leader "GIRTS"
+    (peb-label-with-leader
+      (strcat "GIRT TYPE : " (rtos (peb-purlin-depth) 2 0) "Z15 (TYP.)")
       (list (+ ox (* faceLen 0.78)) (+ base eaveH rise (* 900.0 *PEB-DIM-SCALE*)))
       (list (+ ox (* faceLen 0.70)) (+ base gbase 2800.0))
       "S" 600.0))))
@@ -1601,6 +1613,24 @@
      (txt "ML" (list (+ ox (* len 0.02)) (+ midY (* 300 *PEB-TEXT-SCALE*)))
           (peb-th 'ANNOT) 0 "RIDGE LINE")
      ))
+
+  ;; --- member / cladding marks, arrow-led like the framing plan (owner 26-Aug) ---
+  ;; The purlins run UNDER this sheeting, so the sheet carries the same purlin mark as
+  ;; the Roof Framing Plan; the leader lands on the eave line, which is drawn here.
+  ;; The sheeting profile is REAL project data - PN_ROOF_OUTER_PROFILE off the BSF.
+  (vl-catch-all-apply (function (lambda ()
+    (peb-label-with-leader
+      (strcat "PURLIN TYPE : " (rtos (peb-purlin-depth) 2 0) "Z15 (TYP.)")
+      (list (+ ox (* len 0.26)) (- oy (* 1050.0 *PEB-DIM-SCALE*)))
+      (list (+ ox (* len 0.26)) oy)
+      "S" 600.0))))
+  (vl-catch-all-apply (function (lambda ()
+    (peb-label-with-leader
+      (strcat "ROOF SHEETING : "
+              (strcase (peb-tb-or (MSPL-Get-Str data "PN_ROOF_OUTER_PROFILE") "STANDARD PROFILE")))
+      (list (+ ox (* len 0.66)) (- oy (* 1050.0 *PEB-DIM-SCALE*)))
+      (list (+ ox (* len 0.66)) (+ oy (* wid 0.30)))
+      "S" 600.0))))
 
   ;; --- fall arrows: the SAME shared glyph the Column Layout Plan and the Roof
   ;;     Framing Plan use, so all three plan sheets show the fall identically
