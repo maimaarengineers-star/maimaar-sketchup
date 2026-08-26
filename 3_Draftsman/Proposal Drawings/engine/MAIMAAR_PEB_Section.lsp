@@ -7335,7 +7335,7 @@
   (setq iEnd (if skipLast (1- n) n) i 0)
   (while (< i iEnd)
     (setq tt (/ (float i) (float (1- n))) px (+ x1 (* dx tt)) py (+ y1 (* dy tt)))
-    (draw-z-purlin px py ux uy vx vy depth 45.0 45.0 8.0 14.0)
+    (draw-z-purlin px py ux uy vx vy depth 60.0 60.0 10.0 17.3)   ; Z200/60/20, as the main roof
     (setq i (1+ i))))
 
 (defun rm-leg-cap (cx cy w gdir gslope / pt hg)
@@ -7462,10 +7462,22 @@
     "C")
   ;; 3) BYPASS Z-PURLINS on the rafter top flange, then SHEETING (2 skins) OVER them — universal
   ;;    rule: purlins + sheeting FOLLOW the rafter slope, drawn with the engine's real Z-purlin.
-  (setq monPL (max 2 (fix (+ 1.5 (/ (distance (list eaveLx (+ eaveYL mDep)) (list ridgeX (+ monRidgeY mDep))) 600.0))))
-        monPR (max 2 (fix (+ 1.5 (/ (distance (list eaveRx (+ eaveYR mDep)) (list ridgeX (+ monRidgeY mDep))) 600.0)))))
-  (rm-mon-purlins eaveLx (+ eaveYL mDep) ridgeX (+ monRidgeY mDep) monPL 90.0 nil)   ; left half: eave..ridge (incl the shared ridge)
-  (rm-mon-purlins eaveRx (+ eaveYR mDep) ridgeX (+ monRidgeY mDep) monPR 90.0 T)     ; right half: eave.. (skip the shared ridge)
+  ;; ── MONITOR PURLINS (owner 26-Aug: "also the roof monitor purlins") ────────
+  ;; A purlin is a purlin: the monitor carries the SAME Z200 the main roof does, at
+  ;; the SAME spacing rule.  They were drawn 90 deep with a 45 flange and one every
+  ;; ~600 mm — half-size and twice as dense as the roof beside them, which at sheet
+  ;; scale read as a faint hatch rather than as purlins, so the monitor looked bare
+  ;; next to a main roof carrying visible Z's.
+  ;;
+  ;; Spacing follows rule P1, the same as draw-purlins: a purlin on BOTH ends of the
+  ;; run and the interior ones equally spaced, aiming at 1.25-1.5 m.
+  (setq monPL (max 2 (+ 1 (fix (+ 0.9999
+                (/ (distance (list eaveLx (+ eaveYL mDep)) (list ridgeX (+ monRidgeY mDep))) 1500.0)))))
+        monPR (max 2 (+ 1 (fix (+ 0.9999
+                (/ (distance (list eaveRx (+ eaveYR mDep)) (list ridgeX (+ monRidgeY mDep))) 1500.0))))))
+  ;; depth 200 / flange 60 / lip 20 — the identical Z the main roof purlins use.
+  (rm-mon-purlins eaveLx (+ eaveYL mDep) ridgeX (+ monRidgeY mDep) monPL 200.0 nil)  ; left half: eave..ridge (incl the shared ridge)
+  (rm-mon-purlins eaveRx (+ eaveYR mDep) ridgeX (+ monRidgeY mDep) monPR 200.0 T)    ; right half: eave.. (skip the shared ridge)
   (setvar "CLAYER" "CLADDING")     ; universal rule: roof sheeting = CLADDING (same as the main roof)
   (command "_.PLINE" (list eaveLx (+ eaveYL mDep 90.0)) (list ridgeX (+ monRidgeY mDep 90.0)) (list eaveRx (+ eaveYR mDep 90.0)) "")
   (command "_.PLINE" (list eaveLx (+ eaveYL mDep 125.0)) (list ridgeX (+ monRidgeY mDep 125.0)) (list eaveRx (+ eaveYR mDep 125.0)) "")
