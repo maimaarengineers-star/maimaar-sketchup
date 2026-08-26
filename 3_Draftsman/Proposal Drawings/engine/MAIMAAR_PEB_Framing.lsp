@@ -87,6 +87,25 @@
     (setq y (+ oy (* (/ wid (float nRows)) i)))
     (command "_.LINE" (list ox y) (list (+ ox len) y) "")
     (setq i (1+ i)))
+  ;; ── MEMBER LABELS (owner 26-Aug) ────────────────────────────────────────
+  ;; "Label the girts and purlins ... as per Mammut Sample Drawings and Maimaar Own
+  ;; Drawings."  Checked the reference sets first: they label members with a PLAIN
+  ;; leader carrying the member name and nothing else — MAIMAAR_03 Poultry Shed has a
+  ;; single "PURLINS" leader in model space, and the KMFoods sheets label "PURLIN" /
+  ;; "EAVE STRUT" the same way.  No size and no spacing: General Note 1 already says
+  ;; the framing is indicative and note 2 defers sizes to the approved design, so a
+  ;; number here would be asserting something the sheet explicitly does not promise.
+  ;; Both labels sit BELOW the plan, clear of the heading (which is at 3200 * scale).
+  (vl-catch-all-apply (function (lambda ()
+    (peb-label-with-leader "PURLINS"
+      (list (+ ox (* len 0.28)) (- oy (* 1050.0 *PEB-DIM-SCALE*)))
+      (list (+ ox (* len 0.28)) (+ oy (* (/ wid (float nRows)) 2.0)))
+      "S" 600.0))))
+  (vl-catch-all-apply (function (lambda ()
+    (peb-label-with-leader "EAVE STRUT"
+      (list (+ ox (* len 0.62)) (- oy (* 1050.0 *PEB-DIM-SCALE*)))
+      (list (+ ox (* len 0.62)) oy)
+      "S" 600.0))))
   ;; ── RIDGE / VALLEY lines + FALL arrows — by STRUCTURE TYPE ──────────
   ;; Registers with the Roof Sheeting Plan.  Reference-verified labels (real
   ;; Maimaar/Mammut approval DXFs): ridge = "RIDGE LINE" (dash-dot), valley =
@@ -863,6 +882,13 @@
            "FULL HEIGHT OPEN FOR ACCESS (BY OTHERS)"))
     (T                                                         ; normal wall — one face at FFL
       (peb-fr-wallface ox faceLen base gbase colhw owText gy (and ewHang (> hangHt 0.0)))))
+  ;; GIRTS label — same plain-leader convention as the roof purlins above.  Placed above
+  ;; the wall and off-centre so it clears the blue heading, which is centred on the wall.
+  (vl-catch-all-apply (function (lambda ()
+    (peb-label-with-leader "GIRTS"
+      (list (+ ox (* faceLen 0.78)) (+ base eaveH rise (* 900.0 *PEB-DIM-SCALE*)))
+      (list (+ ox (* faceLen 0.70)) (+ base gbase 2800.0))
+      "S" 600.0))))
   ;; (Proposal Drawing: girt/purlin SIZE + SPACING call-outs omitted — set by design at approval stage.)
 
   ;; 4b. GIRTS UP THE GABLE — end walls only, and only where there is a gable/valley
