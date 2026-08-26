@@ -5913,7 +5913,11 @@
   ;; LEFT side only, INSIDE the building, mid-height of brick wall.
   (setvar "CLAYER" "TEXT")
   (setq labDX (max 1800.0 (+ ht 800.0)))
-  (setq labDY (* brickH 0.5))
+  ;; Half the BRICK height puts the callout mid-brick — but a fully SHEETED wall has
+  ;; brickH = 0, which dropped the text onto the FFL line and the ground hatch, where
+  ;; it was unreadable (owner 25-Aug audit).  With no brick to sit against, hang it a
+  ;; quarter of the way up the wall instead.
+  (setq labDY (if (> brickH 400.0) (* brickH 0.5) (* H 0.25)))
   (peb-label-pline-leader "DOWN PIPE"
                          (list labDX labDY)
                          (list (/ (+ dpX1L dpX2L) 2.0) labDY)
@@ -8165,7 +8169,11 @@
 
   ;; ── Auto-computed member sizes (engineering judgment) ───────
   ;; effSpan was computed above (per-gable for MG, full width otherwise).
-  (setq ht      (max 700.0 (min 1100.0 (+ 700.0 (* (/ (- effSpan 15000.0) 35000.0) 400.0)))))   ; haunch depth: 700-1100mm for span 15-50m
+  ;; haunch depth 700-1100mm for a 15-50 m span — the rule now lives in
+  ;; peb-haunch-depth so the title block can add the SAME depth it draws.
+  (setq ht      (if (boundp 'peb-haunch-depth)
+                  (peb-haunch-depth effSpan)
+                  (max 700.0 (min 1100.0 (+ 700.0 (* (/ (- effSpan 15000.0) 35000.0) 400.0))))))
   ;; Ridge depth ~70% of haunch (visible vertical depth), per Chapter 3 / user guidance.
   (setq rd      (max 600.0 (min 1000.0 (- ht 100.0))))         ; ridge depth: ht-100mm (600-1000mm for span 15-50m)
   (setq cb      (max 250.0 (min 400.0 (+ 250.0 (* (/ (- effSpan 15000.0) 35000.0) 150.0)))))   ; column base: 250-400mm for span 15-50m

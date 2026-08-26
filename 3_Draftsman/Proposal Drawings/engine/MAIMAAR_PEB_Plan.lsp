@@ -695,6 +695,32 @@
 ;; Maimaar-typical built-up MAIN column web depth, sized BY SPAN (owner rule).
 ;; Rule of thumb ~ span/30, rounded to 50 mm, clamped 400..1000.  Drives both the
 ;; drawn column symbol and the sidewall inset colOff = web/2 (flange flush on grid).
+;; ── HAUNCH (RAFTER) DEPTH AT THE EAVE ────────────────────────────────────────
+;; 700 mm at a 15 m span rising to 1100 mm at 50 m, clamped at both ends.
+;; Lifted out of the section (it computed this inline) so the title block can add
+;; the same depth the section actually draws — the two must not drift.
+(defun peb-haunch-depth (effSpan)
+  (max 700.0 (min 1100.0 (+ 700.0 (* (/ (- effSpan 15000.0) 35000.0) 400.0)))))
+
+;; Purlin depth — the engine draws a 200-deep Z everywhere (draw-purlins, cladding).
+(defun peb-purlin-depth () 200.0)
+
+;; TRUE EAVE HEIGHT for the title block (owner 26-Aug).
+;;   clear height (underside of the haunch, what the section dimensions)
+;; + haunch depth  (the rafter at the eave)
+;; + purlin depth  (the Z the sheeting sits on)
+;; MG: the haunch follows the PER-GABLE span, the same effective span the section
+;; sizes the frame from, so divide the width by the gable count.
+(defun peb-tb-eave-height (data / clr wid ng eff)
+  (setq clr (atof (peb-tb-or (MSPL-Get-Str data "CLEARHEIGHT") "0"))
+        wid (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
+        ng  (atoi (peb-tb-or (MSPL-Get-Str data "NUMGABLES") "1")))
+  (if (< ng 1) (setq ng 1))
+  (setq eff (if (> wid 0.0) (/ wid ng) 0.0))
+  (if (<= clr 0.0)
+    "-"
+    (rtos (+ clr (peb-haunch-depth eff) (peb-purlin-depth)) 2 0)))
+
 (defun peb-col-web-depth (widthMm / d)
   (if (or (null widthMm) (<= widthMm 0.0)) (setq widthMm 18000.0))
   (setq d (* 50.0 (fix (+ 0.5 (/ (/ widthMm (peb-rule "col_depth_div" 27.0)) 50.0)))))   ; ROSHAN ratio: D = span/27 (compiler)
@@ -1837,7 +1863,9 @@
     ;; carries details about ITS drawing; the Section shows BUILDING data, never member sections/thk).
     (cons "BWIDTH"   (peb-tb-or (MSPL-Get-Str data "WIDTH")       "-"))
     (cons "BLENGTH"  (peb-tb-or (MSPL-Get-Str data "LENGTH")      "-"))
-    (cons "BEAVE"    (peb-tb-or (MSPL-Get-Str data "CLEARHEIGHT") "-"))
+    ;; a real EAVE height, not the clear height wearing an eave label (owner 26-Aug)
+    (cons "BEAVE"    (peb-tb-eave-height data))
+    (cons "BCLEAR"   (peb-tb-or (MSPL-Get-Str data "CLEARHEIGHT") "-"))
     (cons "BSLOPE"   (peb-tb-slope (MSPL-Get-Str data "SLOPE")))
     (cons "BBAYS"    (peb-tb-or (MSPL-Get-Str data "NUMBAYS")     "-"))
     (cons "ROOFPANEL" (peb-tb-or (MSPL-Get-Str data "ROOFSHEETING") ""))
