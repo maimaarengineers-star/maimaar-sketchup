@@ -258,6 +258,78 @@ four sheets, not A/B on some and A..D on others.
 
 ---
 
+### 4B.9 The text-height ladder IS the standard — every sheet reads it
+
+`*PEB-TEXT-HEIGHTS*` in `MAIMAAR_PEB_Standard.lsp` is stated in **millimetres of
+paper**, not model units. Every view is fitted to about 163 mm of paper width and
+`*PEB-TEXT-SCALE*` is `faceMax / 45000`, so a height handed raw to `txt` /
+`txt-bold` plots at `h x 163/45000 = h x 0.0036 mm` — the same on a 14 m shed and
+a 122 m shed.
+
+| entry | paper | used for |
+|---|---|---|
+| `SMALL` 550 | 2.0 mm | marks, leader tails, minor notes |
+| `DIM` 700 | 2.5 mm | dimension text (also `DIMTXT`, since `DIMSCALE` = `*PEB-DIM-SCALE*`) |
+| `ANNOT` 830 | 3.0 mm | nomenclature: RIDGE LINE, VALLEY GUTTER, slope tags, member marks |
+| `LABEL` 970 | 3.5 mm | sub-headings |
+| `HEADING` 1400 | 5.0 mm | the view heading under each drawing |
+| `TITLE` 1650 | 6.0 mm | sheet title |
+
+**Never hard-code a text height on a sheet.** Before this rule only three call
+sites in the whole engine used the ladder — every sheet carried its own numbers,
+which is exactly why the Roof Framing Plan's heading was a third the size of the
+one on the sheet beside it (owner 26-Aug: *"headings and bubbles and other
+supporting nomenclature must match with other drawings"*).
+
+### 4B.10 Annotation is sized for PAPER; only crowding is sized for the drawing
+
+Two different masters, and mixing them up breaks the sheet in opposite directions:
+
+* **How big it prints** comes from `*PEB-TEXT-SCALE*`. Leave that invariant alone.
+  A first pass at the oversized-bubble complaint capped the radius against the
+  *wall height*, which threw the invariant away and plotted a 2.6 mm bubble —
+  unreadable (owner: *"it should not be too small or too big"*).
+* **Whether it collides** is a **bay fraction**, which is scale-invariant, so it
+  reads the same on paper as in the model. That was the real fault on the 122 m
+  wall: sixteen bays at 15.8 mm of paper each with a 10.6 mm bubble in every one.
+
+`peb-bub-radius` therefore takes the paper-constant `1100 x TEXT-SCALE` (~8 mm
+diameter) and caps it at **30% of the tightest bay**. `peb-fr-dimchain` does the
+same for its numbers. Use `peb-min-spacing` to get the tightest bay.
+
+### 4B.11 Overall dimensions carry metres AND feet, on one line
+
+Every sheet that shows an overall extent shows total **length / width / height**
+through `peb-dim-mft`, e.g. `121.92 M (400'-0")` (owner 26-Aug). Bay chains stay
+in mm per General Note 1 — this is the overall only, which is the number a
+customer reads off the sheet.
+
+Draw it with `peb-fr-overall-h` / `peb-fr-overall-v`, **not** `DIMLINEAR`. A
+native dim runs its extension lines from the definition points all the way to the
+dim line; the overall line sits below the bay chain and the grid bubbles, so on
+B-03 that was a pair of 17.5 m verticals straight through both of them. The
+hand-rolled bar also matches the bay chain above it by construction.
+
+### 4B.12 The two roof sheets are a matched pair
+
+**Roof Framing Plan** carries the steel: purlins along the length, roof bracing
+panelised by the engineering rule, ridge/valley lines, falls.
+**Roof Sheeting Plan** carries the cladding: sheeting runs **down-slope** (across
+the width, repeating along the length at the panel cover width), the falls tagged
+**on top**, and skylights.
+
+The run direction is deliberately perpendicular to the framing plan's purlins so
+the two sheets can never be mistaken for one another at a glance.
+
+Skylights, turbo-vents and roof openings come **from the BSF** (`RA_SKYLIGHTS`,
+`RA_TURBOVENTS`, `RA_ROOF_OPENING`) via `peb-draw-roof-accessories` — the same
+routine the Column Layout Plan uses. One source, no second opinion: if the BSF
+declares none, the sheet draws none.
+
+Both sheets belong in the **PDF** set and the **DWG** tab set. They were in the
+DWG path only (behind the draft-sheets gate) and the sheeting plan did not exist
+at all, so the PDF the customer received had no roof sheet in it.
+
 ## 5. THE DOC SET (how the four files relate)
 | File | Holds | Read it when |
 |---|---|---|
