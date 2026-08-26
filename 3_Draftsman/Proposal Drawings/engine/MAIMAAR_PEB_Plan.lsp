@@ -482,20 +482,16 @@
 ;; aimed at the grid line (toward the building), with the number/letter centred in the circle.  dir tells
 ;; which way the pointer aims (toward the building): "D" down (top number row), "U" up (elevation bubbles
 ;; below the wall), "L" left, "R" right (left letter column).  Omitted dir defaults to "R" (never crashes).
-;; -- OVERALL DIMS CARRY METRES AND FEET ON THE SAME LINE (owner 26-Aug) -------
-;; "Show total length, width and height in all drawings in m and foot in the same
-;;  dim lines."  The sheet note says ALL DIMENSIONS ARE IN MM and the bay chains
-;; stay in mm - this is for the OVERALL length / width / height only, which is
-;; what a customer reads off the sheet.  Feet are shown as feet-and-inches, the
-;; way the trade quotes them, and rounded up a whole foot when the inches round
-;; to twelve so nothing ever prints as 399'-12".
-(defun peb-dim-mft (mm / m ft f i)
-  (setq m  (/ mm 1000.0)
-        ft (/ mm 304.8)
-        f  (fix ft)
-        i  (* (- ft f) 12.0))
-  (if (>= i 11.95) (setq f (1+ f) i 0.0))
-  (strcat (rtos m 2 2) " M (" (itoa f) "'-" (rtos i 2 0) "\")"))
+;; -- OVERALL DIMS: MILLIMETRES, WITH FEET ALONGSIDE (owner 26-Aug) ------------
+;; "ALL DIMENSIONS in all drawings must be in mm not in Meter, along with Ft."
+;; This first shipped as metres ("121.92 M (400'-0\")"), which contradicted General
+;; Note 1 on the very same sheet.  It now uses the house format the plan already
+;; uses for BUILDING LENGTH - millimetres, comma-grouped like the bay chain right
+;; above it, with feet-and-inches in square brackets:  121,920 [400'-0\"]
+;; peb-mm-to-ft-in already carries the whole-foot rollover, so nothing ever prints
+;; as 399'-12\".
+(defun peb-dim-mft (mm)
+  (strcat (peb-comma (rtos mm 2 0)) " [" (peb-mm-to-ft-in mm) "]"))
 
 ;; -- A BUBBLE MUST FIT THE DRAWING IT LABELS (owner 26-Aug) -------------------
 ;; Sizing a grid bubble from *PEB-TEXT-SCALE* alone makes it track the drawing's
@@ -1272,10 +1268,13 @@
   ;;    "MMFT" → "40000 [131'-3\"]"
   ;;    "FT"   → "131'-3\""
   (setq mode (if *PEB-DIM-DISPLAY* *PEB-DIM-DISPLAY* "MM"))
+  ;; comma-grouped, like every other number on the sheet (owner's number-presentation
+  ;; standard).  Without this "BUILDING LENGTH : 121920" sat on the same plan as the
+  ;; subtitle's "121,920 x 30,480" and the bay chain's "8,263".
   (cond
-    ((= mode "MMFT") (strcat (rtos value 2 0) " [" (peb-mm-to-ft-in value) "]"))
+    ((= mode "MMFT") (strcat (peb-comma (rtos value 2 0)) " [" (peb-mm-to-ft-in value) "]"))
     ((= mode "FT")   (peb-mm-to-ft-in value))
-    (T               (rtos value 2 0))))
+    (T               (peb-comma (rtos value 2 0)))))
 
 (defun peb-fmt-labelled (prefix value suffix / mode)
   ;;  Format a labelled dim like "BUILDING LENGTH : 40000 OUT TO OUT OF STEEL"
@@ -4043,7 +4042,7 @@
           (command "_.RECTANG" (list x0 0.0) (list x1 wid))
           (setvar "CLAYER" "TEXT")
           (txt "MC" (list (* 0.5 (+ x0 x1)) (* wid 0.60)) (* 450.0 *PEB-TEXT-SCALE*) 0
-               (strcat "ON EXISTING RCC FLOOR +" (rtos (/ rff 1000.0) 2 3) " M"))
+               (strcat "ON EXISTING RCC FLOOR +" (peb-comma (rtos rff 2 0))))
           (txt "MC" (list (* 0.5 (+ x0 x1)) (* wid 0.47)) (* 360.0 *PEB-TEXT-SCALE*) 0
                (strcat "(EXISTING RCC BUILDING - BY OTHERS, GRID " (itoa rgf) "-" (itoa rgt) ")"))))))
   (princ))
@@ -5098,8 +5097,12 @@
         (command "TEXT" "J" "MC" (list (/ len 2.0) ySub) (* 560 (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0
           (vl-string-subst " x " " X "
             (strcase
-              (strcat (rtos (/ len 1000.0) 2 0) " x "
-                      (rtos (/ wid 1000.0) 2 0) " m"
+              ;; LINEAR SIZE IN MM (owner 26-Aug: all dimensions in mm, not metres) —
+              ;; this line sat directly under a plan whose own note says ALL DIMENSIONS
+              ;; ARE IN MM and read "122 x 30 m".  The AREA stays m2: it is not a linear
+              ;; dimension, and the proposal itself quotes area.
+              (strcat (peb-comma (rtos len 2 0)) " x "
+                      (peb-comma (rtos wid 2 0))
                       "  |  " (peb-comma (rtos areaM2 2 0)) " m2"
                       "  |  " (itoa bays) " BAYS"
                       "  |  SLOPE " roofSlope

@@ -359,6 +359,36 @@ at 0,0 and tiled afterwards by `peb-tile-place`, but it is not `ox`/`oy` aware.
 It also skips **braced bays** when choosing where to sit, which is why the glyph never
 lands on top of an X-brace.
 
+### 4B.14 EVERY dimension is in MILLIMETRES — feet alongside, never metres
+
+**RULE (owner 26-Aug):** *"ALL DIMENSIONS in all drawings must be in mm not in Meter,
+along with Ft wherever required or marked already."*
+
+General Note 1 on every sheet already says ALL DIMENSIONS ARE IN MM, so a metre value
+anywhere on the sheet contradicts the sheet's own note. The house format is millimetres,
+**comma-grouped**, with feet-and-inches in square brackets:
+
+```
+121,920 [400'-0"]          <- overall length
+30,480 [100'-0"]           <- overall width
+6,096                      <- clear height (no ft needed on a derived value)
+```
+
+Use `peb-fmt-value` (honours `*PEB-DIM-DISPLAY*`: `MM` / `MMFT` / `FT`) or `peb-dim-mft`
+for an overall dim; both comma-group and both call `peb-mm-to-ft-in`, which carries the
+whole-foot rollover so nothing ever prints as `399'-12"`.
+
+**What was wrong.** The overall dims shipped as `121.92 M (400'-0")`, the plan subtitle
+read `122 x 30 m`, the brick-height notes read `H=3.05 M`, and the RCC level notes read
+`+3.048` — all on sheets whose own note promises millimetres.
+
+**The one exception is AREA.** `3,716 M2` stays in square metres: it is not a linear
+dimension and the proposal itself quotes area (per m² / per sq.ft). Same for the roof-
+opening note in SQM.
+
+Do not divide by 1000 to make a drawing label. If a metre value is genuinely wanted for
+a customer-facing summary, it belongs in the proposal, not on the drawing.
+
 ## 5. THE DOC SET (how the four files relate)
 | File | Holds | Read it when |
 |---|---|---|

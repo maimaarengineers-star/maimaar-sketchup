@@ -688,9 +688,9 @@
       (command "_.LINE" (list (+ ox rx0) (+ base rbBase)) (list (+ ox rx1) (+ base rbBase)) "")
       (setvar "CLAYER" "TEXT")
       (peb-fr-masked-label (+ ox (* 0.5 (+ rx0 rx1))) (+ base (* rbFloor 0.45)) (* 255 *PEB-TEXT-SCALE*)
-           (strcat "EXISTING RCC BUILDING (BY OTHERS) - 1st FLOOR +" (rtos (/ rbFloor 1000.0) 2 3)))
+           (strcat "EXISTING RCC BUILDING (BY OTHERS) - 1st FLOOR +" (peb-comma (rtos rbFloor 2 0))))
       (peb-fr-masked-label (+ ox (* 0.5 (+ rx0 rx1))) (+ base rbBase (* 330.0 *PEB-TEXT-SCALE*)) (* 235 *PEB-TEXT-SCALE*)
-           (strcat "RCC PILLARS + BRICK INFILL TO +" (rtos (/ rbBase 1000.0) 2 3) " (STEEL BASE)"))))
+           (strcat "RCC PILLARS + BRICK INFILL TO +" (peb-comma (rtos rbBase 2 0)) " (STEEL BASE)"))))
   (foreach g stations
     (setq x    (+ ox g)
           ;; column top = roof line MINUS the rafter depth = the underside of the
@@ -1043,7 +1043,7 @@
                    ((wcmatch owU "*RCC*,*R.C.C*,*CONCRETE*") "RCC WALL (BY OTHERS)")
                    ((wcmatch owU "*BLOCK*")                "BLOCKWALL (BY OTHERS)")
                    (T                                      "BRICK WALL (BY OTHERS)"))
-             " - H=" (rtos (/ gbase 1000.0) 2 2) " M")))
+             " - H=" (peb-comma (rtos gbase 2 0)))))
 
 ;; Draw ONE wall-face SEGMENT of a FRAMING elevation: dense girts (sheeted zone) + sheeting-base line +
 ;; brick/RCC hatch + the condition label. Factored out of peb-draw-framing-elev (owner 29-Jul) so a wall can
@@ -1137,7 +1137,7 @@
                          ((wcmatch owU "*BLOCK*")                "BLOCKWALL (BY OTHERS)")
                          ((wcmatch owU "*GLAZ*")                 "GLAZING (BY OTHERS)")
                          (T                                      "BRICK WALL (BY OTHERS)"))
-                   " - H=" (rtos (/ gbase 1000.0) 2 2) " M"))))
+                   " - H=" (peb-comma (rtos gbase 2 0))))))
   (princ))
 
 ;; Brick / RCC material fill for a wall zone (0..faceLen x 0..gbase from base), synced to the wall condition.
@@ -1277,9 +1277,9 @@
       (command "_.LINE" (list (+ ox rx0) (+ base rbBase)) (list (+ ox rx1) (+ base rbBase)) "")
       (setvar "CLAYER" "TEXT")
       (peb-fr-masked-label (+ ox (* 0.5 (+ rx0 rx1))) (+ base (* rbFloor 0.45)) (* 250 *PEB-TEXT-SCALE*)
-           (strcat "EXISTING RCC BUILDING (BY OTHERS) - 1st FLOOR +" (rtos (/ rbFloor 1000.0) 2 3)))
+           (strcat "EXISTING RCC BUILDING (BY OTHERS) - 1st FLOOR +" (peb-comma (rtos rbFloor 2 0))))
       (peb-fr-masked-label (+ ox (* 0.5 (+ rx0 rx1))) (+ base rbBase (* 320.0 *PEB-TEXT-SCALE*)) (* 230 *PEB-TEXT-SCALE*)
-           (strcat "RCC PILLARS + BRICK INFILL TO +" (rtos (/ rbBase 1000.0) 2 3) " (STEEL BASE)"))))
+           (strcat "RCC PILLARS + BRICK INFILL TO +" (peb-comma (rtos rbBase 2 0)) " (STEEL BASE)"))))
   ;; FULL-HEIGHT OPEN FOR ACCESS (owner 29-Jul: LEW is "not fully sheeted but FULL OPEN ... full height till
   ;; peak, open for access") — NO sheeting, NO brick; just the frame outline (already drawn) + an OPEN label.
   (if (and (wcmatch (strcase owText) "*OPEN*") (<= gbase 100.0) (not (and rbOn hasR)))
