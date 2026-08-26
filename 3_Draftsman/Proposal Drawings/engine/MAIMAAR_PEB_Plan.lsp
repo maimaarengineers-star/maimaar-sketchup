@@ -2231,6 +2231,65 @@
 ;; ============================================================================
 
 ;; round a model-per-paper ratio UP to a standard architectural scale denominator (1:S)
+;; ── MATCH-LINE SHEET PARTS (owner 26-Aug) ────────────────────────────────────
+;; The drawing area beside the title block is about 218 x 198 mm — roughly 1.1:1.
+;; A plan whose drawn block is far wider than that cannot use the sheet height AT
+;; ALL: the fit is bound by width and the leftover height is simply unreachable.
+;; Measured on B-03 (121920 x 30480 = 4:1): 118 mm of the 198 mm drawing height was
+;; blank — 60% of the sheet — with 51 mm above the drawing and 51 mm below.
+;;
+;; The drafting answer for a building that long is not a smaller scale, it is to cut
+;; it into parts joined by a MATCH LINE, each part drawn at roughly twice the scale.
+;;
+;; *PEB-PART-N* = how many parts this sheet is cut into (nil / 1 = not cut)
+;; *PEB-PART-P* = which part is being drawn, 1-based
+;;
+;; peb-part-range returns (i0 i1), the STATION INDEX range this part covers, sharing
+;; the boundary station with its neighbour so the match line falls on a real grid and
+;; the two halves visibly join. Returns nil when there is no split to make.
+(defun peb-part-range (nSt / p n per i0 i1)
+  (if (and *PEB-PART-N* (> *PEB-PART-N* 1) (> nSt 2))
+    (progn
+      (setq p   (if *PEB-PART-P* *PEB-PART-P* 1)
+            n   *PEB-PART-N*
+            per (max 1 (fix (+ 0.5 (/ (float (1- nSt)) n)))))
+      (setq i0 (* (1- p) per)
+            i1 (if (>= p n) (1- nSt) (min (1- nSt) (* p per))))
+      (if (>= i0 i1) nil (list i0 i1)))
+    nil))
+
+;; "ROOF FRAMING PLAN" -> "ROOF FRAMING PLAN  (SHEET 1 OF 2)" while a split is active.
+;; Untouched when there is no split, so a normal building's heading never changes.
+(defun peb-part-title (t0)
+  (if (and *PEB-PART-N* (> *PEB-PART-N* 1))
+    (strcat t0 "  (SHEET " (itoa (if *PEB-PART-P* *PEB-PART-P* 1))
+            " OF " (itoa *PEB-PART-N*) ")")
+    t0))
+
+;; elements a..b of a list, inclusive
+(defun peb-sub-list (l a b / i r)
+  (setq i 0 r '())
+  (foreach x l
+    (if (and (>= i a) (<= i b)) (setq r (cons x r)))
+    (setq i (1+ i)))
+  (reverse r))
+
+;; The MATCH LINE itself: a heavy dashed line down the cut edge, running clear of the
+;; drawing top and bottom, with the sheet it continues onto named beside it.
+(defun peb-match-line (x y0 y1 otherSheet / prev ov)
+  (setq prev (getvar "CLAYER"))
+  (setvar "CLAYER" "GRID")
+  (setq ov (getvar "CELTYPE"))
+  (vl-catch-all-apply (function (lambda () (setvar "CELTYPE" "DASHED"))))
+  (command "_.LINE" (list x y0) (list x y1) "")
+  (vl-catch-all-apply (function (lambda () (setvar "CELTYPE" ov))))
+  ;; the label reads ALONG the line, at mid-height.  Above the line it landed straight
+  ;; on the bay chain and the grid bubbles (owner 26-Aug).
+  (setvar "CLAYER" "TEXT")
+  (txt "MC" (list (+ x (* 700.0 *PEB-TEXT-SCALE*)) (/ (+ y0 y1) 2.0)) (peb-th 'ANNOT) 90
+       (strcat "MATCH LINE - SEE SHEET " otherSheet))
+  (setvar "CLAYER" prev))
+
 ;; ── STANDARD PLOT SCALES ─────────────────────────────────────────────────────
 ;; The sheet is drawn at the next standard scale ABOVE the one that would exactly
 ;; fit, so the ladder's step size IS wasted paper: a coarse step leaves the drawing

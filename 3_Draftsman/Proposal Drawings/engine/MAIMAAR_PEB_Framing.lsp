@@ -41,15 +41,35 @@
 
 (defun peb-draw-roof-framing (data ox oy / len wid slopeD bayPts purlSp nRows i x y
                               prev cnt pre psurf pat pw mark midY j bubGap bubR ovr
+                              prng pi0 pi1 px0 pOfs
                               stype mgGables mgGableW mgRid mgVal base hiNSW mgi k
                               loB hiB ry vy fx wgrid bx0 bx1 by0 by1 nPan panH)
   (setq len    (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
         wid    (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
         slopeD (atof (peb-tb-or (MSPL-Get-Str data "SLOPE") "10")))
   (if (<= slopeD 0.0) (setq slopeD 10.0))
-  ;; owner 7-Jul: set drawing scale from building size (parity with the other sheets)
-  (setq *PEB-TEXT-SCALE* (max 0.80 (min 4.00 (/ (max len wid 1.0) 45000.0))) *PEB-DIM-SCALE* *PEB-TEXT-SCALE*)
   (setq bayPts (peb-fr-stations (MSPL-Get-Str data "BAYEXPR") len))
+  ;; ── MATCH-LINE PART SLICE (owner 26-Aug) ─────────────────────────────────
+  ;; A 4:1 building cannot use the height of a 1.1:1 drawing area, so a long sheet is
+  ;; cut into parts joined by a MATCH LINE (see peb-part-range).  The slice is applied
+  ;; HERE, before anything is drawn: every element below is driven off bayPts and len,
+  ;; so shortening those two draws this part and nothing else, at roughly twice the
+  ;; scale, with no other change to the routine.
+  ;; pOfs keeps the grid numbers TRUE - part 2 starts at grid 9, not grid 1.
+  (setq pOfs 0 prng (peb-part-range (length bayPts)))
+  (if prng
+    (progn
+      (setq pi0 (car prng) pi1 (cadr prng) pOfs pi0)
+      (setq bayPts (peb-sub-list bayPts pi0 pi1))
+      (setq px0 (car bayPts))
+      (setq bayPts (mapcar (function (lambda (ss) (- ss px0))) bayPts))
+      (setq len (last bayPts))))
+  ;; TEXT-SCALE AFTER the slice, from the length actually drawn.  Sized from the whole
+  ;; building it left every label on a half-sheet at full-building size - the heading
+  ;; then overhung the plan and, being the widest thing on the sheet, drove the plot
+  ;; extents and threw away most of the scale the split had just won (owner 26-Aug).
+  (setq *PEB-TEXT-SCALE* (max 0.80 (min 4.00 (/ (max len wid 1.0) 45000.0)))
+        *PEB-DIM-SCALE*  *PEB-TEXT-SCALE*)
   (setq midY (+ oy (/ wid 2.0)) prev (getvar "CLAYER"))
 
   ;; building outline / eave lines
@@ -205,7 +225,11 @@
     (setq i (1+ i)))
 
   ;; bay spacing chain (verbatim IF) + title
-  (if (and (boundp 'peb-fmt-expr) (vl-string-search "@" (peb-tb-or (MSPL-Get-Str data "BAYEXPR") "")))
+  ;; The verbatim IF bay expression describes the WHOLE building, so it is wrong on a
+  ;; match-line part - sheet 1 of 2 was captioned "1@7250 + 13@8263 + 1@7250" over nine
+  ;; grids (owner 26-Aug).  The part's own overall dim already gives its true length.
+  (if (and (null prng)
+           (boundp 'peb-fmt-expr) (vl-string-search "@" (peb-tb-or (MSPL-Get-Str data "BAYEXPR") "")))
     (progn
       (vl-catch-all-apply (function (lambda ()
         (peb-dim-h-stretch ox (+ ox len) (+ oy wid (* 900 *PEB-DIM-SCALE*))
@@ -226,7 +250,7 @@
   ;; grid bubbles — numbers (top) + letters A/B at the eaves (owner 7-Jul, parity with other sheets)
   (setq bubR (peb-bub-radius (peb-min-spacing bayPts))
         bubGap (+ (* 1200.0 *PEB-TEXT-SCALE*) (* 2.2 bubR))
-        j 1 ovr *PEB-BUBRAD* *PEB-BUBRAD* bubR)
+        j (1+ pOfs) ovr *PEB-BUBRAD* *PEB-BUBRAD* bubR)
   (foreach g bayPts
     (setvar "CLAYER" "GRID")
     ;; the stalk starts ABOVE the bay chain (which sits at 900 * DIM-SCALE), so the
@@ -249,6 +273,17 @@
   (grid-bubble (- ox bubGap bubR) (+ oy wid)
                (if wgrid (peb-grid-letter (1- (length wgrid))) "B") "R")
   (setq *PEB-BUBRAD* ovr)
+  ;; MATCH LINE on whichever edge of this part is a cut (owner 26-Aug).  It names the
+  ;; sheet the drawing continues onto, so the two halves can be read as one building.
+  (if prng
+    (progn
+      (if (> pi0 0)
+        (peb-match-line ox (- oy (* 900.0 *PEB-TEXT-SCALE*)) (+ oy wid (* 900.0 *PEB-TEXT-SCALE*))
+                        (itoa (1- *PEB-PART-P*))))
+      (if (< *PEB-PART-P* *PEB-PART-N*)
+        (peb-match-line (+ ox len) (- oy (* 900.0 *PEB-TEXT-SCALE*)) (+ oy wid (* 900.0 *PEB-TEXT-SCALE*))
+                        (itoa (1+ *PEB-PART-P*))))))
+
   ;; blue title (below the roof) + shared title block
   (setvar "CLAYER" "TEXT")
   (setvar "CECOLOR" "5")
@@ -256,7 +291,7 @@
             ;; The ladder, raw — txt-bold applies TEXT-SCALE itself (rulebook 4B.2).
             ;; Was 300 (1.1 mm on paper), which is why this heading did not match
             ;; the other sheets (owner 26-Aug).
-            (peb-th 'HEADING) 0 "ROOF FRAMING PLAN")
+            (peb-th 'HEADING) 0 (peb-part-title "ROOF FRAMING PLAN"))
   (setvar "CECOLOR" "BYLAYER")
   (setvar "CLAYER" prev)
   (vl-catch-all-apply (function (lambda () (peb-frame-and-titleblock data "ROOF FRAMING PLAN")))))
@@ -1436,15 +1471,35 @@
 ;;     if the BSF says zero, this sheet draws none (owner: "if applicable").
 (defun peb-draw-roof-sheeting (data ox oy / len wid slopeD bayPts prev midY i x y
                                cover nRuns stype mgGables mgGableW base mgi ry mgRid
-                               mgVal bubGap bubR ovr j fx hiNSW wgrid lbl)
+                               mgVal bubGap bubR ovr j fx hiNSW wgrid lbl
+                               prng pi0 pi1 px0 pOfs)
   (setq len    (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
         wid    (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
         slopeD (atof (peb-tb-or (MSPL-Get-Str data "SLOPE") "10")))
   (if (<= slopeD 0.0) (setq slopeD 10.0))
+  (setq bayPts (peb-fr-stations (MSPL-Get-Str data "BAYEXPR") len))
+  ;; ── MATCH-LINE PART SLICE (owner 26-Aug) ─────────────────────────────────
+  ;; A 4:1 building cannot use the height of a 1.1:1 drawing area, so a long sheet is
+  ;; cut into parts joined by a MATCH LINE (see peb-part-range).  The slice is applied
+  ;; HERE, before anything is drawn: every element below is driven off bayPts and len,
+  ;; so shortening those two draws this part and nothing else, at roughly twice the
+  ;; scale, with no other change to the routine.
+  ;; pOfs keeps the grid numbers TRUE - part 2 starts at grid 9, not grid 1.
+  (setq pOfs 0 prng (peb-part-range (length bayPts)))
+  (if prng
+    (progn
+      (setq pi0 (car prng) pi1 (cadr prng) pOfs pi0)
+      (setq bayPts (peb-sub-list bayPts pi0 pi1))
+      (setq px0 (car bayPts))
+      (setq bayPts (mapcar (function (lambda (ss) (- ss px0))) bayPts))
+      (setq len (last bayPts))))
+  ;; TEXT-SCALE AFTER the slice, from the length actually drawn.  Sized from the whole
+  ;; building it left every label on a half-sheet at full-building size - the heading
+  ;; then overhung the plan and, being the widest thing on the sheet, drove the plot
+  ;; extents and threw away most of the scale the split had just won (owner 26-Aug).
   (setq *PEB-TEXT-SCALE* (max 0.80 (min 4.00 (/ (max len wid 1.0) 45000.0)))
         *PEB-DIM-SCALE*  *PEB-TEXT-SCALE*)
-  (setq bayPts (peb-fr-stations (MSPL-Get-Str data "BAYEXPR") len)
-        midY   (+ oy (/ wid 2.0))
+  (setq midY   (+ oy (/ wid 2.0))
         prev   (getvar "CLAYER")
         stype  (strcase (peb-tb-or (MSPL-Get-Str data "STYPE") "CS")))
 
@@ -1535,7 +1590,11 @@
     (peb-fr-overall-v (- ox (* 2000 *PEB-DIM-SCALE*)) oy (+ oy wid) (peb-dim-mft wid)))))
 
   ;; --- bay chain (verbatim IF expression) ---------------------------------
-  (if (and (boundp 'peb-fmt-expr) (vl-string-search "@" (peb-tb-or (MSPL-Get-Str data "BAYEXPR") "")))
+  ;; The verbatim IF bay expression describes the WHOLE building, so it is wrong on a
+  ;; match-line part - sheet 1 of 2 was captioned "1@7250 + 13@8263 + 1@7250" over nine
+  ;; grids (owner 26-Aug).  The part's own overall dim already gives its true length.
+  (if (and (null prng)
+           (boundp 'peb-fmt-expr) (vl-string-search "@" (peb-tb-or (MSPL-Get-Str data "BAYEXPR") "")))
     (vl-catch-all-apply (function (lambda ()
       (peb-dim-h-stretch ox (+ ox len) (+ oy wid (* 900 *PEB-DIM-SCALE*))
                          (peb-fmt-expr (MSPL-Get-Str data "BAYEXPR")))))))
@@ -1543,7 +1602,7 @@
   ;; --- grid bubbles: numbers along the length, letters at the eaves --------
   (setq bubR   (peb-bub-radius (peb-min-spacing bayPts))
         bubGap (+ (* 1200.0 *PEB-TEXT-SCALE*) (* 2.2 bubR))
-        j 1 ovr *PEB-BUBRAD* *PEB-BUBRAD* bubR)
+        j (1+ pOfs) ovr *PEB-BUBRAD* *PEB-BUBRAD* bubR)
   (foreach g bayPts
     (setvar "CLAYER" "GRID")
     ;; the stalk starts ABOVE the bay chain (which sits at 900 * DIM-SCALE), so the
@@ -1564,11 +1623,22 @@
   (grid-bubble (- ox bubGap bubR) (+ oy wid) lbl "R")
   (setq *PEB-BUBRAD* ovr)
 
+  ;; MATCH LINE on whichever edge of this part is a cut (owner 26-Aug).  It names the
+  ;; sheet the drawing continues onto, so the two halves can be read as one building.
+  (if prng
+    (progn
+      (if (> pi0 0)
+        (peb-match-line ox (- oy (* 900.0 *PEB-TEXT-SCALE*)) (+ oy wid (* 900.0 *PEB-TEXT-SCALE*))
+                        (itoa (1- *PEB-PART-P*))))
+      (if (< *PEB-PART-P* *PEB-PART-N*)
+        (peb-match-line (+ ox len) (- oy (* 900.0 *PEB-TEXT-SCALE*)) (+ oy wid (* 900.0 *PEB-TEXT-SCALE*))
+                        (itoa (1+ *PEB-PART-P*))))))
+
   ;; --- heading + title block ----------------------------------------------
   (setvar "CLAYER" "TEXT")
   (setvar "CECOLOR" "5")
   (txt-bold "MC" (list (+ ox (/ len 2.0)) (- oy (* 3200 *PEB-TEXT-SCALE*)))
-            (peb-th 'HEADING) 0 "ROOF SHEETING PLAN")
+            (peb-th 'HEADING) 0 (peb-part-title "ROOF SHEETING PLAN"))
   (setvar "CECOLOR" "BYLAYER")
   (setvar "CLAYER" prev)
   (vl-catch-all-apply (function (lambda () (peb-frame-and-titleblock data "ROOF SHEETING PLAN")))))
@@ -1582,6 +1652,21 @@
   (princ))
 
 ;; tiled like the roof framing plan so it sits beside the other sheets.
+;; PART-AWARE entry points.  The pipeline calls these once per part; each renders a
+;; complete A4 sheet covering its own slice of the building, joined by a MATCH LINE.
+;; Part 1 of 1 is exactly the old behaviour, so nothing changes for a normal building.
+(defun peb-roof-framing-part-from-file (path p n)
+  (setq *PEB-PART-P* p *PEB-PART-N* n)
+  (peb-roof-framing-from-file path)
+  (setq *PEB-PART-P* nil *PEB-PART-N* nil)
+  (princ))
+
+(defun peb-roof-sheeting-part-from-file (path p n)
+  (setq *PEB-PART-P* p *PEB-PART-N* n)
+  (peb-roof-sheeting-from-file path)
+  (setq *PEB-PART-P* nil *PEB-PART-N* nil)
+  (princ))
+
 (defun peb-roof-sheeting-from-file (path / prev-last prev-max-x)
   (if (not *PEB-TEXT-SCALE*) (setq *PEB-TEXT-SCALE* 1.0))
   (if (not *PEB-DIM-SCALE*)  (setq *PEB-DIM-SCALE* 1.0))
