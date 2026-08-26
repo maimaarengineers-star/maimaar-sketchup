@@ -433,6 +433,34 @@ layer out of each sheet's DXF and compare the lowest/highest station:
 letters = [t for t in dxf_texts if re.fullmatch(r'[A-HJ-Z]', t.s) and 'GRID' in t.layer]
 ```
 
+### 4B.16 SHEETING PROFILE DETAILS — one page, both panels, sourced numbers
+
+**RULE (owner 26-Aug):** *"There should be one page of detailed sheeting sections — in
+case of Standard S Profile its profile details should be shown; in case of seamlock,
+BOTH standard for walls and lockseam for roof shown in the same drawing ... for customer
+understanding."*
+
+One page per building, drawn by `peb-sheeting-details-from-file`. It always shows the
+**ROOF** panel and the **WALL** panel as separate details, so a lock-seam roof over
+standard walls stands side by side; when they are the same product the pair confirms it.
+
+**Every dimension is sourced — none invented:**
+
+| what | value | where it comes from |
+|---|---|---|
+| Standard S profile | 35 mm rib, 250 mm pitch, 1000 cover | the BSF's own option name, `panelDefaults.js`: *Standard S Profile 35-250* |
+| Lock seam | 460 mm effective cover, concealed clip fixing, no face screws | `estimation/quickest/cladding.ts` — 1219 coil slit to 2 × 610, roll-formed to 460; the same figure the estimate prices |
+| material / thickness / finish / colour / type | per panel | `PN_ROOF_*` and `PN_WALL_*` off the BSF |
+
+The seam **height** is not carried anywhere in the system, so the seam is drawn to shape
+and deliberately left **undimensioned** rather than given a made-up number. The sheet
+also carries *"PROFILE SHOWN INDICATIVE — PANEL SUPPLIED PER THE APPROVED DESIGN."*
+
+**Scale.** A ~1000 mm detail needs the small end of the ladder, so `peb-std-scale` now
+carries 1, 2, 5 and 10; the sheet sets its own `*PEB-TEXT-SCALE*` (`1000/45000`) because
+the usual `faceMax/45000` floored at 0.80 would put 660 mm lettering on a 1000 mm detail.
+Keep the whole sheet inside roughly 1000 × 900 so it plots at 1:10 or better.
+
 ## 5. THE DOC SET (how the four files relate)
 | File | Holds | Read it when |
 |---|---|---|

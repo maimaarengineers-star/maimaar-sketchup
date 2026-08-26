@@ -2361,7 +2361,9 @@
 ;; write in the title block; the ladder already carried non-ISO-preferred steps
 ;; (75, 125, 150, 250, 300, 400, 750), so this is the same convention, finer.
 (defun peb-std-scale (r / scales)
-  (setq scales '(20 25 30 40 50 60 75 100 125 150 175 200 225 250 275 300 350 400
+  ;; 1..10 are for DETAIL sheets (the sheeting profile section is ~1000 mm wide and
+  ;; would otherwise round to 1:20 and sit as a stamp in the corner of an A4).
+  (setq scales '(1 2 5 10 20 25 30 40 50 60 75 100 125 150 175 200 225 250 275 300 350 400
                  450 500 550 600 650 700 750 800 900 1000 1100 1250 1500 1750 2000
                  2500 3000 4000 5000))
   (while (and (cdr scales) (< (car scales) r)) (setq scales (cdr scales)))

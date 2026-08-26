@@ -1779,6 +1779,151 @@
   (princ))
 
 ;; tiled like the roof framing plan so it sits beside the other sheets.
+
+;; ── SHEETING PROFILE DETAILS (owner 26-Aug) ──────────────────────────────────
+;; "There should be one page of detailed sheeting sections — in case of Standard S
+;;  Profile its profile details should be shown; in case of seamlock, BOTH standard
+;;  for walls and lockseam for roof shown in the same drawing ... for customer
+;;  understanding."
+;;
+;; EVERY NUMBER HERE IS SOURCED, none invented:
+;;   * "Standard S Profile 35-250" is the BSF's own option name (panelDefaults.js) —
+;;     35 mm rib height at 250 mm rib pitch; 4 pitches = the 1000 mm cover.
+;;   * Lock seam: the 1219 mm coil is slit into 2 x 610 mm strips, each roll-forming
+;;     to 460 mm effective cover, concealed clip fixing, no face screws
+;;     (services/estimation/quickest/cladding.ts — the same figure the estimate prices).
+;;   * Material / thickness / finish / colour come straight off the BSF.
+;; The seam HEIGHT is not carried anywhere, so the seam is drawn to shape and left
+;; undimensioned rather than given a made-up number.
+;;
+;; One pitch of the S profile, left to right, over `pit`:
+;;   flat pan .68  |  web up .08  |  crown .16  |  web down .08   (of the pitch)
+(defun peb-sd-sprofile (x0 y0 n pit ht / i x pts)
+  (setq i 0 pts (list (list x0 y0)))
+  (while (< i n)
+    (setq x (+ x0 (* i pit)))
+    (setq pts (append pts (list (list (+ x (* pit 0.68)) y0)
+                                (list (+ x (* pit 0.76)) (+ y0 ht))
+                                (list (+ x (* pit 0.92)) (+ y0 ht))
+                                (list (+ x pit)          y0))))
+    (setq i (1+ i)))
+  (setvar "CLAYER" "SHEETING")
+  (setq i 0)
+  (while (< (1+ i) (length pts))
+    (command "_.LINE" (nth i pts) (nth (1+ i) pts) "")
+    (setq i (1+ i)))
+  pts)
+
+;; One lock-seam pan: flat, then the standing seam upstand at each edge.
+(defun peb-sd-lockseam (x0 y0 n cov ht / i x)
+  (setvar "CLAYER" "SHEETING")
+  (setq i 0)
+  (while (< i n)
+    (setq x (+ x0 (* i cov)))
+    ;; the pan
+    (command "_.LINE" (list (+ x (* ht 0.55)) y0) (list (+ x cov (* ht -0.55)) y0) "")
+    ;; standing seam at the right-hand edge — up, folded over, back down
+    (command "_.LINE" (list (+ x cov (* ht -0.55)) y0) (list (+ x cov (* ht -0.30)) (+ y0 ht)) "")
+    (command "_.LINE" (list (+ x cov (* ht -0.30)) (+ y0 ht)) (list (+ x cov (* ht 0.30)) (+ y0 ht)) "")
+    (command "_.LINE" (list (+ x cov (* ht 0.30)) (+ y0 ht)) (list (+ x cov (* ht 0.55)) y0) "")
+    (setq i (1+ i)))
+  ;; the first seam (left edge of the run)
+  (command "_.LINE" (list (+ x0 (* ht 0.55)) y0) (list (+ x0 (* ht 0.30)) (+ y0 ht)) "")
+  (command "_.LINE" (list (+ x0 (* ht 0.30)) (+ y0 ht)) (list (+ x0 (* ht -0.30)) (+ y0 ht)) "")
+  (command "_.LINE" (list (+ x0 (* ht -0.30)) (+ y0 ht)) (list (+ x0 (* ht -0.55)) y0) "")
+  (princ))
+
+(defun peb-sd-panel (ox y lock ttl mat fin col ptype / pit ht cov panW gA)
+  ;; ONE panel detail: the section, its rib/pitch dimensions, the cover dimension,
+  ;; and that panel's OWN specification off the BSF.
+  (setq pit 250.0 ht 35.0 cov 460.0 panW 1000.0)
+  (setvar "CLAYER" "TEXT") (setvar "CECOLOR" "5")
+  (txt-bold "ML" (list ox (+ y 60.0)) (peb-th 'LABEL) 0 ttl)
+  (setvar "CECOLOR" "BYLAYER")
+  (if lock
+    (progn (peb-sd-lockseam ox y 2 cov 38.0)
+           (setq gA "460 COVER  |  CONCEALED CLIP FIXING - NO FACE SCREWS"))
+    (progn (peb-sd-sprofile ox y 4 pit ht)
+           ;; rib pitch, on the panel itself
+           (vl-catch-all-apply (function (lambda ()
+             (peb-fr-overall-h (+ ox (* pit 0.84)) (+ ox (* pit 1.84)) (- y 55.0)
+                               (rtos pit 2 0)))))
+           (setq gA "35 RIB HEIGHT  |  250 RIB PITCH")))
+  (vl-catch-all-apply (function (lambda ()
+    (peb-fr-overall-h ox (+ ox panW) (- y 135.0)
+                      (strcat (peb-comma (rtos panW 2 0)) " COVER")))))
+  (setvar "CLAYER" "TEXT")
+  (txt "ML" (list ox (- y 200.0)) (peb-th 'ANNOT) 0 gA)
+  (txt "ML" (list ox (- y 250.0)) (peb-th 'ANNOT) 0
+       (strcase (strcat (if (/= ptype "") (strcat ptype "  |  ") "")
+                        (if (/= mat "") mat "PANEL AS SPECIFIED")
+                        (if (/= fin "") (strcat "  |  " fin) "")
+                        (if (/= col "") (strcat "  |  " col) ""))))
+  (princ))
+
+(defun peb-draw-sheeting-details (data ox oy / prev rp wp lockR lockW y)
+  (setq prev (getvar "CLAYER"))
+  (setq rp (strcase (peb-tb-or (MSPL-Get-Str data "PN_ROOF_OUTER_PROFILE") "STANDARD PROFILE"))
+        wp (strcase (peb-tb-or (MSPL-Get-Str data "PN_WALL_OUTER_PROFILE") "STANDARD PROFILE")))
+  (setq lockR (or (vl-string-search "LOCK" rp) (vl-string-search "SEAM" rp))
+        lockW (or (vl-string-search "LOCK" wp) (vl-string-search "SEAM" wp)))
+  ;; Text is sized from THIS sheet, not from a building: the ladder's usual
+  ;; faceMax/45000 (floored at 0.80) would put 660 mm lettering on a 1000 mm detail.
+  ;; Keeping the whole sheet inside ~1000 x 900 lets it plot at 1:5, so the section
+  ;; is ~200 mm across the page instead of a stamp in the corner.
+  (setq *PEB-TEXT-SCALE* (/ 1000.0 45000.0) *PEB-DIM-SCALE* *PEB-TEXT-SCALE*)
+
+  ;; ROOF, then WALL — always BOTH, so a lock-seam roof over standard walls shows the
+  ;; two side by side, which is the case the owner asked for (26-Aug).  When they are
+  ;; the same product the pair simply confirms it.
+  (peb-sd-panel ox 0.0 lockR
+    (strcat "ROOF SHEETING - " (if lockR "LOCK SEAM PROFILE" "STANDARD S PROFILE 35-250"))
+    (peb-tb-or (MSPL-Get-Str data "PN_ROOF_OUTER_MAT") "")
+    (peb-tb-or (MSPL-Get-Str data "PN_ROOF_OUTER_FINISH") "")
+    (peb-tb-or (MSPL-Get-Str data "PN_ROOF_OUTER_COLOR") "")
+    (peb-tb-or (MSPL-Get-Str data "PN_ROOF_TYPE") ""))
+  (peb-sd-panel ox -380.0 lockW
+    (strcat "WALL SHEETING - " (if lockW "LOCK SEAM PROFILE" "STANDARD S PROFILE 35-250"))
+    (peb-tb-or (MSPL-Get-Str data "PN_WALL_OUTER_MAT") "")
+    (peb-tb-or (MSPL-Get-Str data "PN_WALL_OUTER_FINISH") "")
+    (peb-tb-or (MSPL-Get-Str data "PN_WALL_OUTER_COLOR") "")
+    (peb-tb-or (MSPL-Get-Str data "PN_WALL_TYPE") ""))
+
+  (setq y -720.0)
+  (setvar "CLAYER" "TEXT")
+  (txt "ML" (list ox y) (peb-th 'ANNOT) 0
+       "PROFILE SHOWN INDICATIVE - PANEL SUPPLIED PER THE APPROVED DESIGN.")
+  (setvar "CECOLOR" "5")
+  (txt-bold "MC" (list (+ ox 500.0) (- y 120.0)) (peb-th 'HEADING) 0
+            "SHEETING PROFILE DETAILS")
+  (setvar "CECOLOR" "BYLAYER")
+  (setvar "CLAYER" prev)
+  (vl-catch-all-apply (function (lambda () (peb-frame-and-titleblock data "SHEETING PROFILE DETAILS")))))
+
+(defun C:PEB-SHEETING-DETAILS ( / data)
+  (vl-load-com) (setvar "CMDECHO" 0) (setvar "OSMODE" 0)
+  (if (boundp 'peb-std-setup) (vl-catch-all-apply (function (lambda () (peb-std-setup)))))
+  (if (and (boundp '*PEB-DATA-FILE*) *PEB-DATA-FILE*)
+    (progn (setq data (MSPL-Read-Data *PEB-DATA-FILE*))
+           (if data (peb-draw-sheeting-details data 0.0 0.0))))
+  (princ))
+
+(defun peb-sheeting-details-from-file (path / prev-last prev-max-x)
+  (if (not *PEB-TEXT-SCALE*) (setq *PEB-TEXT-SCALE* 1.0))
+  (if (not *PEB-DIM-SCALE*)  (setq *PEB-DIM-SCALE* 1.0))
+  (setq prev-last (entlast))
+  (setq *PEB-SHEET-MARK* prev-last)
+  (if prev-last
+    (progn (command "_.REGEN") (setq prev-max-x (car (getvar "EXTMAX")))
+           (if (or (null prev-max-x) (< prev-max-x -1e10)) (setq prev-max-x nil)))
+    (setq prev-max-x nil))
+  (setq *PEB-DATA-FILE* path)
+  (C:PEB-SHEETING-DETAILS)
+  (setq *PEB-DATA-FILE* nil)
+  (if (boundp 'peb-tile-place)
+    (vl-catch-all-apply (function (lambda () (peb-tile-place prev-last prev-max-x)))))
+  (princ))
+
 ;; PART-AWARE entry points.  The pipeline calls these once per part; each renders a
 ;; complete A4 sheet covering its own slice of the building, joined by a MATCH LINE.
 ;; Part 1 of 1 is exactly the old behaviour, so nothing changes for a normal building.
