@@ -2231,8 +2231,24 @@
 ;; ============================================================================
 
 ;; round a model-per-paper ratio UP to a standard architectural scale denominator (1:S)
+;; ── STANDARD PLOT SCALES ─────────────────────────────────────────────────────
+;; The sheet is drawn at the next standard scale ABOVE the one that would exactly
+;; fit, so the ladder's step size IS wasted paper: a coarse step leaves the drawing
+;; floating in white.
+;;
+;; The old ladder jumped 500 -> 750 -> 1000.  The B-03 roof plan needs 1:595, which
+;; rounded to 1:750 and drew the building at 79% of the width it could have used --
+;; about 22 mm of blank down EACH side, and the right-hand one sits against the title
+;; table, which is what reads as a gap (owner 26-Aug: "still there is gap").
+;;
+;; Steps are now no coarser than ~1.15x, so the rounding can never waste more than
+;; about 13% of the sheet.  Every value is still a round number a draftsman would
+;; write in the title block; the ladder already carried non-ISO-preferred steps
+;; (75, 125, 150, 250, 300, 400, 750), so this is the same convention, finer.
 (defun peb-std-scale (r / scales)
-  (setq scales '(20 25 50 75 100 125 150 200 250 300 400 500 750 1000 1500 2000 2500 3000 4000 5000))
+  (setq scales '(20 25 30 40 50 60 75 100 125 150 175 200 225 250 275 300 350 400
+                 450 500 550 600 650 700 750 800 900 1000 1100 1250 1500 1750 2000
+                 2500 3000 4000 5000))
   (while (and (cdr scales) (< (car scales) r)) (setq scales (cdr scales)))
   (car scales))
 
