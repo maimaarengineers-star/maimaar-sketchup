@@ -353,7 +353,8 @@
                               ewHang hangHt cnt2 gbase
                               p0 p1 sdx sdy slen ux uy nx ny pdep npl jj tt px py rdep owText
                               bc bx0 by0 bx1 by1 owU isRcc hEnt
-                              rbOn rbFrom rbTo rbFloor rbBase nLen ewGrid ewRaised rx0 rx1 gridNum plateY hasR gbaseR ltsE)
+                              rbOn rbFrom rbTo rbFloor rbBase nLen ewGrid ewRaised rx0 rx1 gridNum plateY hasR gbaseR ltsE
+                              ewMain webD rdepC rdepL gg d0 d1)
   (setq len    (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
         wid    (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
         slopeD (slope-denom (peb-tb-or (MSPL-Get-Str data "SLOPE") "10"))
@@ -414,6 +415,26 @@
                  (atof (peb-tb-or (MSPL-Get-Str data
                           (if (= surf "LEW") "BP_EW_LEFT_BRICK_HT" "BP_EW_RIGHT_BRICK_HT")) "0"))
                  0.0))
+  ;; end-wall rafter depth per station, computed ONCE (see the column loop)
+  (setq ewMain (and isEnd
+                    (wcmatch (strcase (peb-tb-or (MSPL-Get-Str data
+                                (if (= surf "LEW") "EW_LEFT_FRAME" "EW_RIGHT_FRAME")) ""))
+                             "*MAIN*")))
+  (setq webD (vl-catch-all-apply (function (lambda () (peb-col-web-depth wid)))))
+  (if (or (not (numberp webD)) (< webD 200.0)) (setq webD 600.0))
+  ;; BEARING FRAME rafter = a 200 mm web (owner 26-Aug: "End Walls Rafter must have
+  ;; less depth, normally it is only 200mm web").  It is a fixed section, not a
+  ;; fraction of the column — a bearing end wall carries only its own cladding.
+  ;; MAIN FRAME keeps the tapered rigid-frame depth off the column web.
+  (setq rdepC 200.0 rdepL nil)
+  (if isEnd
+    (foreach gg stations
+      (setq rdepL (append rdepL
+        (list (if ewMain
+                (* webD (+ 0.55 (* 0.45 (if (> faceLen 1.0)
+                                          (/ (abs (- gg (/ faceLen 2.0))) (/ faceLen 2.0))
+                                          0.0))))
+                rdepC))))))
   (setq cnt2 (length stations) i 0)
   ;; ---- RAISED BASE (owner 29-Jul): grids [rbFrom..rbTo] rest on an existing RCC floor at +rbFloor; an RCC
   ;; pedestal + brick carry the existing pillars up to +rbBase where the STEEL columns start (shorter cols).
@@ -466,8 +487,11 @@
            (strcat "RCC PILLARS + BRICK INFILL TO +" (rtos (/ rbBase 1000.0) 2 3) " (STEEL BASE)"))))
   (foreach g stations
     (setq x    (+ ox g)
+          ;; column top = roof line MINUS the rafter depth = the underside of the
+          ;; rafter's bottom flange (owner 26-Aug, both frame types).
           yTop (if isEnd
-                 (peb-fr-topy g faceLen base eaveH eaveHi eaveLo rise rtype hiSide)
+                 (- (peb-fr-topy g faceLen base eaveH eaveHi eaveLo rise rtype hiSide)
+                    (if rdepL (nth i rdepL) rdepC))
                  (+ base wallEave))
           ;; b = CORNER column? (first or last station); gridNum = this column's LENGTH grid; y0 = its foot.
           ;; RAISED grids start on the existing floor at +rbBase (short column); else hanging line; else FFL.
@@ -522,16 +546,31 @@
       ;; rafter as a DOUBLE-line member (top = roof line through the column tops; bottom = underside offset
       ;; perpendicular into the roof by the member depth), so it reads as a beam, not a hairline (ref).
       (setvar "CLAYER" "STRUCTURE")
+      ;; rdep MUST stay assigned — the FLANGE BRACES further down still measure off
+      ;; it.  Dropping it (an earlier attempt did) left it nil, the brace arithmetic
+      ;; errored, and the ENTIRE end-wall draw unwound silently: no error, no
+      ;; geometry, no sheet.
       (setq rdep (* 380.0 *PEB-TEXT-SCALE*) i 0)
+      ;; The rafter UNDERSIDE is offset by the depth at each end instead — tapered
+      ;; for a main frame, constant for a bearing frame — so it lands exactly on the
+      ;; column tops, which are set to the same depth below the roof line.
       (while (< (1+ i) (length pts))
         (setq p0 (nth i pts) p1 (nth (1+ i) pts)
               sdx (- (car p1) (car p0)) sdy (- (cadr p1) (cadr p0))
-              slen (sqrt (+ (* sdx sdx) (* sdy sdy))))
+              slen (sqrt (+ (* sdx sdx) (* sdy sdy)))
+              d0 (if ewMain
+                   (* webD (+ 0.55 (* 0.45 (if (> faceLen 1.0)
+                       (/ (abs (- (- (car p0) ox) (/ faceLen 2.0))) (/ faceLen 2.0)) 0.0))))
+                   rdepC)
+              d1 (if ewMain
+                   (* webD (+ 0.55 (* 0.45 (if (> faceLen 1.0)
+                       (/ (abs (- (- (car p1) ox) (/ faceLen 2.0))) (/ faceLen 2.0)) 0.0))))
+                   rdepC))
         (command "_.LINE" p0 p1 "")
         (if (> slen 1.0)
           (command "_.LINE"
-            (list (+ (car p0) (* (/ sdy slen) rdep)) (- (cadr p0) (* (/ sdx slen) rdep)))
-            (list (+ (car p1) (* (/ sdy slen) rdep)) (- (cadr p1) (* (/ sdx slen) rdep))) ""))
+            (list (+ (car p0) (* (/ sdy slen) d0)) (- (cadr p0) (* (/ sdx slen) d0)))
+            (list (+ (car p1) (* (/ sdy slen) d1)) (- (cadr p1) (* (/ sdx slen) d1))) ""))
         (setq i (1+ i)))
       ;; (Proposal Drawing: member marks + sizes/spacings omitted — those are set by design at approval stage.)
       ;; PURLINS (owner 28-Jul, ref: END WALL FRAMING shows the Z-purlins as short ticks sitting ON the
@@ -718,7 +757,14 @@
   (setvar "CLAYER" "TEXT")
   (setvar "CECOLOR" "5")
   (txt-bold "MC" (list (+ ox (/ faceLen 2.0)) (+ base eaveH rise (* 2600 *PEB-TEXT-SCALE*)))
-            (* 500 *PEB-TEXT-SCALE*) 0
+            ;; HEADING SIZE (owner 26-Aug: "Wall Framing Heading must be small in size").
+            ;; txt-bold ALREADY multiplies the height by *PEB-TEXT-SCALE*, so the old
+            ;; (* 500 *PEB-TEXT-SCALE*) scaled by TEXT-SCALE **SQUARED**.  On a medium
+            ;; building TS is about 1 and nobody noticed; on the 122 m shed TS is ~3, so
+            ;; the heading came out 9x instead of 3x and ran the full width of the wall.
+            ;; Pass the plain height and let txt-bold scale it once.  300, not the
+            ;; original 500, because the owner wants it smaller than it was designed.
+            300.0 0
             (strcat surf " - "
                     (cond ((= surf "NSW") "NEAR SIDE WALL") ((= surf "FSW") "FAR SIDE WALL")
                           ((= surf "LEW") "LEFT END WALL")  ((= surf "REW") "RIGHT END WALL") (T "WALL"))
@@ -1067,7 +1113,7 @@
     (setq i (1+ i)))
   (setq *PEB-BUBRAD* ov)
   (setvar "CLAYER" "TEXT") (setvar "CECOLOR" "5")
-  (txt-bold "MC" (list (+ ox (/ faceLen 2.0)) (+ base eaveH rise (* 2600 *PEB-TEXT-SCALE*))) (* 500 *PEB-TEXT-SCALE*) 0
+  (txt-bold "MC" (list (+ ox (/ faceLen 2.0)) (+ base eaveH rise (* 2600 *PEB-TEXT-SCALE*))) 300.0 0                     ; plain height — txt-bold applies TEXT-SCALE itself
             (strcat surf " - "
                     (cond ((= surf "NSW") "NEAR SIDE WALL") ((= surf "FSW") "FAR SIDE WALL")
                           ((= surf "LEW") "LEFT END WALL") ((= surf "REW") "RIGHT END WALL") (T "WALL"))
