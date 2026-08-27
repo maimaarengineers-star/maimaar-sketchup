@@ -574,6 +574,7 @@
                               eaveH eaveHi eaveLo brickH hiName hiSide wallEave
                               faceLen stations isEnd base colhw rise ridgeRise
                               i x g yTop pts cx prev braced b x0 x1 y0 y1 lbl bubGap bubR revView hdTxt
+                              prng pi0 pi1 px0 pOfs pnTot
                               gsp gy cnt pre psurf pat pw mark expr ov noteY
                               ewHang hangHt cnt2 gbase
                               p0 p1 sdx sdy slen ux uy nx ny pdep npl jj tt px py rdep owText
@@ -630,6 +631,19 @@
   ;; their own along-wall position and are mirrored where they are read, and a mono
   ;; end wall has to swap which end is high.  Labels use the ORIGINAL index, so grid
   ;; numbers and letters stay true to the plan while the geometry flips.
+  ;; ── MATCH-LINE PART SLICE, BEFORE THE MIRROR (owner 27-Aug) ──────────────
+  ;; A 122 m x 6 m wall stacked two-up is about 4:1 once its annotation is counted, and
+  ;; a 1.1:1 drawing area cannot use the height — the same geometry that drove the roof
+  ;; plans to a match line.  The slice happens FIRST, in model order, so pi0/pi1 always
+  ;; mean the same physical bays; the mirror below then flips whichever part this is.
+  (setq pOfs 0 pnTot (length stations) prng (peb-part-range (length stations)))
+  (if prng
+    (progn
+      (setq pi0 (car prng) pi1 (cadr prng) pOfs pi0)
+      (setq stations (peb-sub-list stations pi0 pi1))
+      (setq px0 (car stations))
+      (setq stations (mapcar (function (lambda (ss) (- ss px0))) stations))
+      (setq faceLen (last stations))))
   (setq revView (and (member surf '("LEW" "FSW")) T))
   (if revView
     (progn
@@ -1013,8 +1027,10 @@
   (setq bubGap (+ (* 700.0 *PEB-TEXT-SCALE*) (* 2.2 bubR))
         i 0 ov *PEB-BUBRAD* *PEB-BUBRAD* bubR)
   (foreach g stations
-    (setq lbl (peb-fr-grid-label (if revView (- (length stations) 1 i) i)
-                                 (length stations) isEnd))
+    ;; pOfs keeps the numbers TRUE on a match-line part: part 2 starts at grid 9.
+    (setq lbl (peb-fr-grid-label
+                (+ pOfs (if revView (- (length stations) 1 i) i))
+                pnTot isEnd))
     (setvar "CLAYER" "GRID-LINES")
     (command "_.LINE" (list (+ ox g) base) (list (+ ox g) (- base (* bubGap 0.45))) "")
     (vl-catch-all-apply (function (lambda () (grid-bubble (+ ox g) (- base bubGap) lbl "U"))))
@@ -1022,6 +1038,19 @@
   (setq *PEB-BUBRAD* ov)
 
   ;; 8. title — blue + full wall name (owner 7-Jul, consistent with the Wall Elevations sheet)
+  ;; MATCH LINE on whichever DRAWN edge is a cut.  The mirror swaps them: on a reversed
+  ;; wall (LEW/FSW) the low-grid end is drawn on the RIGHT, so the cut edges swap too.
+  (if prng
+    (progn
+      (if (if revView (< pi1 (1- pnTot)) (> pi0 0))
+        (peb-match-line ox (- base (* 700.0 *PEB-DIM-SCALE*))
+                        (+ base eaveH rise (* 700.0 *PEB-DIM-SCALE*))
+                        (itoa (if revView (1+ *PEB-PART-P*) (1- *PEB-PART-P*)))))
+      (if (if revView (> pi0 0) (< pi1 (1- pnTot)))
+        (peb-match-line (+ ox faceLen) (- base (* 700.0 *PEB-DIM-SCALE*))
+                        (+ base eaveH rise (* 700.0 *PEB-DIM-SCALE*))
+                        (itoa (if revView (1- *PEB-PART-P*) (1+ *PEB-PART-P*)))))))
+
   (setvar "CLAYER" "TEXT")
   (setvar "CECOLOR" "5")
   (setq hdTxt (strcat surf " - "
@@ -1035,7 +1064,7 @@
             ;; plots at 1.1 mm; the owner then asked for headings that MATCH across
             ;; sheets and are not too small.  One ladder entry now settles both.
             ;; capped against the wall's own width — see peb-head-h (owner 27-Aug)
-            (peb-head-h hdTxt faceLen) 0 hdTxt)
+            (peb-head-h (peb-part-title hdTxt) faceLen) 0 (peb-part-title hdTxt))
   (setvar "CECOLOR" "BYLAYER")
 
   ;; 9. eave-height dim (left) + bay/station dim chain (below the bubbles)
@@ -1228,6 +1257,7 @@
 (defun peb-draw-sheeting-elev (surf ox oy data / len wid slopeD stype rtype eaveH eaveHi eaveLo hiName hiSide
                               wallEave faceLen stations isEnd base rise ridgeRise i g x yTop pts cx prev lbl
                               bubGap bubR ov gbase owText sp sx cnt pre psurf pat pw noteY owU revView hdTxt
+                              prng pi0 pi1 px0 pOfs pnTot
                               rbOn rbFrom rbTo rbFloor rbBase nLen ewGrid ewRaised rx0 rx1 hasR gbaseR bc sbase sgb)
   (setq len (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
         wid (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
@@ -1259,6 +1289,19 @@
     (setq faceLen len
           stations (peb-fr-scaled-stations (peb-tb-or (MSPL-Get-Str data "BAYEXPR") "") len)))
   ;; viewed from OUTSIDE — same rule as the framing elevation, see the note there
+  ;; ── MATCH-LINE PART SLICE, BEFORE THE MIRROR (owner 27-Aug) ──────────────
+  ;; A 122 m x 6 m wall stacked two-up is about 4:1 once its annotation is counted, and
+  ;; a 1.1:1 drawing area cannot use the height — the same geometry that drove the roof
+  ;; plans to a match line.  The slice happens FIRST, in model order, so pi0/pi1 always
+  ;; mean the same physical bays; the mirror below then flips whichever part this is.
+  (setq pOfs 0 pnTot (length stations) prng (peb-part-range (length stations)))
+  (if prng
+    (progn
+      (setq pi0 (car prng) pi1 (cadr prng) pOfs pi0)
+      (setq stations (peb-sub-list stations pi0 pi1))
+      (setq px0 (car stations))
+      (setq stations (mapcar (function (lambda (ss) (- ss px0))) stations))
+      (setq faceLen (last stations))))
   (setq revView (and (member surf '("LEW" "FSW")) T))
   (if revView
     (progn
@@ -1394,20 +1437,35 @@
   (setq bubGap (+ (* 700.0 *PEB-TEXT-SCALE*) (* 2.2 bubR))
         i 0 ov *PEB-BUBRAD* *PEB-BUBRAD* bubR)
   (foreach g stations
-    (setq lbl (peb-fr-grid-label (if revView (- (length stations) 1 i) i)
-                                 (length stations) isEnd))
+    ;; pOfs keeps the numbers TRUE on a match-line part: part 2 starts at grid 9.
+    (setq lbl (peb-fr-grid-label
+                (+ pOfs (if revView (- (length stations) 1 i) i))
+                pnTot isEnd))
     (setvar "CLAYER" "GRID-LINES")
     (command "_.LINE" (list (+ ox g) base) (list (+ ox g) (- base (* bubGap 0.45))) "")
     (vl-catch-all-apply (function (lambda () (grid-bubble (+ ox g) (- base bubGap) lbl "U"))))
     (setq i (1+ i)))
   (setq *PEB-BUBRAD* ov)
   (setvar "CLAYER" "TEXT") (setvar "CECOLOR" "5")
+  ;; MATCH LINE on whichever DRAWN edge is a cut.  The mirror swaps them: on a reversed
+  ;; wall (LEW/FSW) the low-grid end is drawn on the RIGHT, so the cut edges swap too.
+  (if prng
+    (progn
+      (if (if revView (< pi1 (1- pnTot)) (> pi0 0))
+        (peb-match-line ox (- base (* 700.0 *PEB-DIM-SCALE*))
+                        (+ base eaveH rise (* 700.0 *PEB-DIM-SCALE*))
+                        (itoa (if revView (1+ *PEB-PART-P*) (1- *PEB-PART-P*)))))
+      (if (if revView (> pi0 0) (< pi1 (1- pnTot)))
+        (peb-match-line (+ ox faceLen) (- base (* 700.0 *PEB-DIM-SCALE*))
+                        (+ base eaveH rise (* 700.0 *PEB-DIM-SCALE*))
+                        (itoa (if revView (1- *PEB-PART-P*) (1+ *PEB-PART-P*)))))))
+
   (setq hdTxt (strcat surf " - "
                 (cond ((= surf "NSW") "NEAR SIDE WALL") ((= surf "FSW") "FAR SIDE WALL")
                       ((= surf "LEW") "LEFT END WALL") ((= surf "REW") "RIGHT END WALL") (T "WALL"))
                 " SHEETING"))
   (txt-bold "MC" (list (+ ox (/ faceLen 2.0)) (+ base eaveH rise (* 2600 *PEB-TEXT-SCALE*)))
-            (peb-head-h hdTxt faceLen) 0 hdTxt)
+            (peb-head-h (peb-part-title hdTxt) faceLen) 0 (peb-part-title hdTxt))
   (setvar "CECOLOR" "BYLAYER")
   ;; SHEETING MLEADER — the wall equivalent of the roof sheeting plan's (owner 26-Aug).
   ;; PN_WALL_OUTER_PROFILE is real BSF data; placed above the wall and off-centre so it
@@ -1465,6 +1523,12 @@
           ((not (vl-some (function (lambda (w) (member w '("LEW" "REW")))) walls)) len)
           (T (max len wid))))
   (if (<= faceMax 0.0) (setq faceMax (max len wid 1.0)))
+  ;; On a match-line part the sheet shows only its own slice, so the scale — and the
+  ;; stacking pitch derived from it — must follow the PART.  Sized from the whole wall it
+  ;; left every label on a half-sheet at full-wall size: the same mistake the roof plans
+  ;; made first time round.
+  (if (and *PEB-PART-N* (> *PEB-PART-N* 1))
+    (setq faceMax (/ faceMax (float *PEB-PART-N*))))
   (setq *PEB-TEXT-SCALE* (max 0.80 (min 4.00 (/ faceMax 45000.0)))
         *PEB-DIM-SCALE*  *PEB-TEXT-SCALE*)
   ;; VERTICAL PITCH between stacked elevations.  (* 9000 ts) was a guess, and it
@@ -1525,6 +1589,16 @@
 ;; the side/end split (big buildings) so each printed elevation stays large + legible.
 (defun peb-framing-from-file        (path) (peb-elev-from-file path 'peb-draw-all-framing))
 (defun peb-framing-sides-from-file  (path) (peb-elev-from-file path 'peb-draw-side-framing))
+;; PART-AWARE side-wall entry points — one A4 per match-line part.  Only the SIDE walls
+;; split: an end wall is the building's WIDTH, which already fits (owner 27-Aug).
+(defun peb-framing-sides-part-from-file (path p n)
+  (setq *PEB-PART-P* p *PEB-PART-N* n)
+  (peb-framing-sides-from-file path)
+  (setq *PEB-PART-P* nil *PEB-PART-N* nil) (princ))
+(defun peb-sheeting-sides-part-from-file (path p n)
+  (setq *PEB-PART-P* p *PEB-PART-N* n)
+  (peb-sheeting-sides-from-file path)
+  (setq *PEB-PART-P* nil *PEB-PART-N* nil) (princ))
 (defun peb-framing-ends-from-file   (path) (peb-elev-from-file path 'peb-draw-end-framing))
 (defun peb-sheeting-from-file       (path) (peb-elev-from-file path 'peb-draw-all-sheeting))
 (defun peb-sheeting-sides-from-file (path) (peb-elev-from-file path 'peb-draw-side-sheeting))

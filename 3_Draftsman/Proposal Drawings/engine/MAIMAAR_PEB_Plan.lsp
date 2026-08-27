@@ -2357,11 +2357,13 @@
   (vl-catch-all-apply (function (lambda () (setvar "CELTYPE" "DASHED"))))
   (command "_.LINE" (list x y0) (list x y1) "")
   (vl-catch-all-apply (function (lambda () (setvar "CELTYPE" ov))))
-  ;; the label reads ALONG the line, at mid-height.  Above the line it landed straight
-  ;; on the bay chain and the grid bubbles (owner 26-Aug).
+  ;; The label reads ALONG the line.  Above the line it landed on the bay chain and the
+  ;; bubbles (26-Aug); at mid-height on a WALL elevation it ran down through the grid
+  ;; bubbles instead (27-Aug).  Sitting it in the upper third clears both, and the text is
+  ;; kept short so a rotated 24-character string cannot overrun the line it labels.
   (setvar "CLAYER" "TEXT")
-  (txt "MC" (list (+ x (* 700.0 *PEB-TEXT-SCALE*)) (/ (+ y0 y1) 2.0)) (peb-th 'ANNOT) 90
-       (strcat "MATCH LINE - SEE SHEET " otherSheet))
+  (txt "MC" (list (+ x (* 700.0 *PEB-TEXT-SCALE*)) (+ y0 (* 0.72 (- y1 y0)))) (peb-th 'ANNOT) 90
+       (strcat "MATCH LINE - SHEET " otherSheet))
   (setvar "CLAYER" prev))
 
 ;; ── STANDARD PLOT SCALES ─────────────────────────────────────────────────────

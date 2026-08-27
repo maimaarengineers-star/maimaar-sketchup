@@ -461,6 +461,39 @@ carries 1, 2, 5 and 10; the sheet sets its own `*PEB-TEXT-SCALE*` (`1000/45000`)
 the usual `faceMax/45000` floored at 0.80 would put 660 mm lettering on a 1000 mm detail.
 Keep the whole sheet inside roughly 1000 × 900 so it plots at 1:10 or better.
 
+### 4B.17 A heading is capped by the drawing it titles
+
+`peb-th 'HEADING` is paper-constant (5.0 mm). That is right for a short title and says
+nothing about a long one: *"FSW – FAR SIDE WALL SHEETING"* is 28 characters and ran to
+roughly half the wall's own width, so the title competed with the drawing (owner 27-Aug:
+*"proportionally size is too much"*).
+
+Use **`peb-head-h text faceLen`** for any view heading. It keeps the paper size and caps
+it so the heading stays inside ~34% of the drawn width, with a floor at 45% of the ladder
+so it can never collapse. Short headings are untouched — `ROOF FRAMING PLAN` was already
+inside the cap. Same principle as 4B.10 for bubbles: **size for paper, cap for crowding.**
+
+### 4B.18 A long sheet is cut on a MATCH LINE — roof plans AND side walls
+
+Extends 4B.13. `parts` is computed per building from its own length/width — 1 under 3:1,
+2 up to 6:1, 3 beyond — and drives the **roof framing**, **roof sheeting**, **side wall
+framing** and **side wall sheeting** sheets. End walls are the building's WIDTH and
+already fit, so they stay whole.
+
+Three things the split must get right, each of which was got wrong first:
+
+1. **`*PEB-TEXT-SCALE*` follows the PART, not the building.** Sized from the whole thing,
+   a half-sheet carries full-size text; the heading then overhangs the drawing and, being
+   the widest thing on the sheet, drives the plot extents and throws away the scale the
+   split just won.
+2. **Slice BEFORE the mirror** (4B.15's outside-view rule). Slicing in model order keeps
+   `pi0`/`pi1` meaning the same physical bays whichever way the wall is later flipped.
+3. **Keep the FULL station count** (`pnTot`) before slicing. The "is this edge a cut?"
+   test needs the wall's total, not the part's — using the part's count silently drew no
+   match line at all.
+
+Measured on B-03: side-wall sheets 51%/54% blank → 20–40%, at 1:350 instead of ~1:600.
+
 ## 5. THE DOC SET (how the four files relate)
 | File | Holds | Read it when |
 |---|---|---|
