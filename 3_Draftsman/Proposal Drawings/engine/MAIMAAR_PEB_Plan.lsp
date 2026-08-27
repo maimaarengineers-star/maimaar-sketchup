@@ -2389,6 +2389,23 @@
 ;; about 13% of the sheet.  Every value is still a round number a draftsman would
 ;; write in the title block; the ladder already carried non-ISO-preferred steps
 ;; (75, 125, 150, 250, 300, 400, 750), so this is the same convention, finer.
+;; EXACT FIT, ROUNDED UP TO A WHOLE NUMBER (owner 27-Aug).
+;; `r` is model-units-per-paper-mm for the binding dimension. Rounding UP guarantees the
+;; drawing still fits (never overfit); rounding to 1 keeps the printed scale an integer while
+;; giving away at most one unit — versus up to 13% on the standard ladder below, which is
+;; kept for anything that genuinely wants conventional rungs.
+;; Detail sheets legitimately land under 1:10, so the floor is 1, not 10.
+;; Rounding UP by a whole unit is cheap at 1:200 (0.5%) and expensive at 1:6 (14%), because
+;; the step is a fixed size against a shrinking number. Measured: the SHEETING PROFILE
+;; DETAILS sheet needed 1:6.11, was given 1:7, and filled 86% instead of 98%. So the step
+;; follows the scale — tenths below 1:20, whole units above, which keeps a normal drawing's
+;; scale an integer and only lets a detail sheet read 1:6.2.
+(defun peb-fit-scale (r / v)
+  (setq v (if (and r (> r 0.0)) r 1.0))
+  (if (< v 20.0)
+    (max 1.0 (/ (fix (+ 0.9999 (* v 10.0))) 10.0))
+    (float (fix (+ 0.9999 v)))))
+
 (defun peb-std-scale (r / scales)
   ;; 1..10 are for DETAIL sheets (the sheeting profile section is ~1000 mm wide and
   ;; would otherwise round to 1:20 and sit as a stamp in the corner of an A4).
@@ -2426,9 +2443,39 @@ PEB-VP: " what " FAILED - " (vl-catch-all-error-message r))))
   ;; real scale (compute BEFORE the title block so SCALE can read it)
   (setq mw (- (car bmax) (car bmin)) mh (- (cadr bmax) (cadr bmin)))
   (if (<= mw 0.0) (setq mw 1.0)) (if (<= mh 0.0) (setq mh 1.0))
-  (setq sc (peb-std-scale (max (/ mw (- dawX1 dawX0)) (/ mh (- dawY1 dawY0)))))
+  ;; BREATHING ROOM INSIDE THE FRAME (owner 27-Aug: "the drawings are fitting in the frames
+  ;; of out boundary lines, partially hidden in pdf").
+  ;;
+  ;; The captured bbox is TIGHT — vla-GetBoundingBox returns each entity's own extent, and
+  ;; the outermost things on a sheet are dimension text, grid bubbles and edge labels whose
+  ;; drawn ink reaches slightly past the box the API reports (a rotated MTEXT in particular).
+  ;; Framing the viewport on that exact box therefore shaves the outermost annotation
+  ;; against the viewport edge, and the drawing reads as running into the border.
+  ;;
+  ;; This never showed before because the viewport was silently left at zoom-extents (see
+  ;; peb-vp-put): everything was visible because everything was far too small. Fixing the
+  ;; scale exposed the missing margin underneath it.
+  ;;
+  ;; 3% all round, applied to the SIZE only — cx/cy stay the true bbox centre, so the sheet
+  ;; is still centred, just inset. Measured: 3% clears the annotation overhang that was being
+  ;; shaved, while 6% (the first guess) cost real space on a sheet that is supposed to be
+  ;; packed. The scale printed in the title block is the scale actually plotted, because sc
+  ;; is computed from the padded size.
+  (setq mw (* mw 1.03) mh (* mh 1.03))
+  ;; ── FILL THE BOX (owner 27-Aug: "all drawings must be centrally placed in the box with
+  ;; utilization of maximum space ... not overfit & not underfit") ─────────────────────
+  ;; peb-std-scale rounds UP to the next rung of a standard ladder (…150, 175, 200, 225…).
+  ;; Every rung skipped is paper thrown away: measured on B-01 the CROSS SECTION filled 77%
+  ;; of the box in BOTH directions — under by the same amount each way, which is the
+  ;; signature of scale rounding rather than of the drawing's shape. Worst rungs cost ~13%.
+  ;;
+  ;; A draughtsman wants a round scale, but 1:187 is every bit as round as 1:200 to read off
+  ;; a title block, and it wastes 0.5% instead of 13%. So the scale is the exact fit rounded
+  ;; UP to the next whole number — still an integer in the title block, never overfit,
+  ;; and never more than 1 unit of slack.
+  (setq sc (peb-fit-scale (max (/ mw (- dawX1 dawX0)) (/ mh (- dawY1 dawY0)))))
   ;; patch title-block fields for a paperspace A4 sheet
-  (setq tbData (peb-tb-set tbData "SCALE"     (strcat "1:" (rtos sc 2 0))))
+  (setq tbData (peb-tb-set tbData "SCALE"     (strcat "1:" (rtos sc 2 (if (< sc 20.0) 1 0)))))
   (setq tbData (peb-tb-set tbData "SHEETSIZE" "A4"))
   (if sheetNo (setq tbData (peb-tb-set tbData "SHEETNO" sheetNo)))
   ;; new layout + make current
