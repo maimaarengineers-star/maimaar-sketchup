@@ -2404,6 +2404,17 @@
 
 ;; Create an A4 layout `lname` viewing the model region bmin..bmax at a real standard scale.
 ;; `tbData` = peb-build-tbdata alist; `sheetNo` overrides the SHEET NO. cell (nil = keep).  Returns 1:S.
+;; Apply ONE viewport property, announcing failure instead of swallowing it.  These calls
+;; are individually fragile (a fresh paperspace viewport rejects some puts until it is on
+;; and regenerated), and grouping them under one catch meant the first failure silently
+;; skipped every later one.
+(defun peb-vp-put (vp what fn / r)
+  (setq r (vl-catch-all-apply fn))
+  (if (vl-catch-all-error-p r)
+    (princ (strcat "
+PEB-VP: " what " FAILED - " (vl-catch-all-error-message r))))
+  r)
+
 (defun peb-add-layout (lname bmin bmax tbData sheetNo / paperW paperH margin tbW gap
                        dawX0 dawX1 dawY0 dawY1 mw mh sc lay vp cx cy pdw pdh cxp cyp)
   (setq paperW 297.0 paperH 210.0 margin 6.0 gap 3.0)   ; A4 landscape (owner: proposals always print on A4)
@@ -2464,15 +2475,30 @@
   (command "_.MVIEW" (list (- cxp (/ pdw 2.0)) (- cyp (/ pdh 2.0)))
                      (list (+ cxp (/ pdw 2.0)) (+ cyp (/ pdh 2.0))))
   (setq vp (vlax-ename->vla-object (entlast)))
-  (vl-catch-all-apply (function (lambda ()
-    (vla-put-ViewportOn vp :vlax-true)
-    (vla-put-ViewCenter vp (vlax-3d-point cx cy 0.0))
-    (vla-put-CustomScale vp (/ 1.0 (float sc))))))
-  ;; belt-and-suspenders for any build where the ActiveX put is a no-op: enter the viewport, ZOOM to the
-  ;; centre at the matching height (= mh), then leave paperspace.
-  (command "_.MSPACE")
-  (vl-catch-all-apply (function (lambda () (command "_.ZOOM" "_C" (list cx cy) mh))))
-  (command "_.PSPACE")
+  ;; SET THE VIEW ONCE, DETERMINISTICALLY (owner 27-Aug: "each Layout must have one page
+  ;; drawing").  This used to set ViewCenter + CustomScale by ActiveX and then follow it
+  ;; with a "belt-and-suspenders" MSPACE / ZOOM _C / PSPACE for builds where the ActiveX put
+  ;; might be a no-op.  Measured on B-01: the belt was breaking the suspenders.  Every
+  ;; viewport came out at CustomScale 0.00113 (1:883) when its own sheet needed 1:200 — and
+  ;; a 192 mm viewport at 1:883 shows 170 m of model, so each layout displayed its
+  ;; NEIGHBOURS: PRO-01 COLUMN LAYOUT PLAN framed the whole tiled row, section and every
+  ;; elevation, while its title block still printed the computed 1:225.
+  ;;
+  ;; MSPACE activates whichever viewport AutoCAD considers current, which in a freshly
+  ;; created layout is not reliably the one just made, so the ZOOM landed elsewhere and left
+  ;; this one at its default zoom-extents view.  ViewHeight IS the canonical property — set
+  ;; it and the scale follows — so set height, then centre, then assert the scale, and do
+  ;; not touch model space at all.  Nothing here depends on which viewport is "current".
+  ;; ONE GUARD PER CALL.  All four used to share a single vl-catch-all-apply, so the first
+  ;; one to throw silently skipped the rest — and vla-put-ViewCenter throws readily on a
+  ;; viewport that has not been turned on and regenerated yet.  That is how every sheet
+  ;; ended up at its default zoom-extents view while the cover, which goes through
+  ;; peb-add-plain-layout, came out correct.  Each result is announced so a failure shows in
+  ;; the AutoCAD log instead of vanishing.
+  (peb-vp-put vp "ViewportOn" (function (lambda () (vla-put-ViewportOn vp :vlax-true))))
+  (peb-vp-put vp "ViewHeight" (function (lambda () (vla-put-ViewHeight vp mh))))
+  (peb-vp-put vp "ViewCenter" (function (lambda () (vla-put-ViewCenter vp (vlax-3d-point cx cy 0.0)))))
+  (peb-vp-put vp "CustomScale" (function (lambda () (vla-put-CustomScale vp (/ 1.0 (float sc))))))
   (setvar "CLAYER" "0")
   sc)
 
