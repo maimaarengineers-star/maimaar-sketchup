@@ -2350,7 +2350,7 @@
 
 ;; The MATCH LINE itself: a heavy dashed line down the cut edge, running clear of the
 ;; drawing top and bottom, with the sheet it continues onto named beside it.
-(defun peb-match-line (x y0 y1 otherSheet / prev ov)
+(defun peb-match-line (x y0 y1 otherSheet / prev ov n hMx hLb)
   (setq prev (getvar "CLAYER"))
   (setvar "CLAYER" "GRID")
   (setq ov (getvar "CELTYPE"))
@@ -2359,10 +2359,19 @@
   (vl-catch-all-apply (function (lambda () (setvar "CELTYPE" ov))))
   ;; The label reads ALONG the line.  Above the line it landed on the bay chain and the
   ;; bubbles (26-Aug); at mid-height on a WALL elevation it ran down through the grid
-  ;; bubbles instead (27-Aug).  Sitting it in the upper third clears both, and the text is
-  ;; kept short so a rotated 24-character string cannot overrun the line it labels.
+  ;; bubbles instead (27-Aug); moving it to the upper third was still not enough, because
+  ;; the rotated string is sized for PAPER and a 6 m wall is only ~14 mm tall on the sheet,
+  ;; so a 20-character label is longer than the line it labels.
+  ;;
+  ;; So the label is now CLIPPED to the line: its height is capped so the whole string fits
+  ;; inside 80% of the span, and it is centred on that span.  On a tall drawing (a roof
+  ;; plan) nothing changes — the cap is not reached.  On a short one it shrinks to fit
+  ;; rather than running out into the bubbles.
+  (setq n   (strlen (strcat "MATCH LINE - SHEET " otherSheet))
+        hMx (/ (* 0.80 (- y1 y0)) (* n 0.62 (if (> *PEB-TEXT-SCALE* 0.01) *PEB-TEXT-SCALE* 1.0)))
+        hLb (max (* 0.40 (peb-th 'ANNOT)) (min (peb-th 'ANNOT) hMx)))
   (setvar "CLAYER" "TEXT")
-  (txt "MC" (list (+ x (* 700.0 *PEB-TEXT-SCALE*)) (+ y0 (* 0.72 (- y1 y0)))) (peb-th 'ANNOT) 90
+  (txt "MC" (list (+ x (* 700.0 *PEB-TEXT-SCALE*)) (/ (+ y0 y1) 2.0)) hLb 90
        (strcat "MATCH LINE - SHEET " otherSheet))
   (setvar "CLAYER" prev))
 
@@ -4119,6 +4128,7 @@
     tbTop tbBot tbW tbScale tbXShift
     maxSize areaM2
     borderL borderR borderB borderT bMarg bGap exmin exmax
+    prng pi0 pi1 px0 pOfs pnTot pFullLen pFullBays
     logoX logoY logoScale
     endBayL endBayR roofSlope
     mgGableW mgSpanW mgRidgePts mgValleyPts mgColumnPts mgSpans mgGables mgY loadValX
@@ -4287,6 +4297,32 @@
   (setq bays (1- (length bayPts)))
   (setq baysp (/ len bays))
 
+  ;; ── MATCH-LINE PART SLICE (owner 27-Aug) ─────────────────────────────────
+  ;; A 4:1 building cannot use the height of a 1.1:1 drawing area: B-03's plan was 57%
+  ;; blank at 1:800, the worst sheet in the set.  Same cut the roof plans and side walls
+  ;; already take (4B.18).  It happens HERE — after the bays are built and BEFORE
+  ;; *PEB-TEXT-SCALE* is derived from `len` further down — so the scale, the bubbles and
+  ;; every dimension follow the PART automatically.
+  ;;
+  ;; ONLY THE LENGTH IS SLICED.  The width grid is untouched, so peb-width-letter still
+  ;; sees the whole width list and the letters read A..F identically on both parts
+  ;; (a 4B.15 regression if it ever changed between sheets).
+  ;;
+  ;; pFullLen / pFullBays keep the WHOLE building's figures for the subtitle and the
+  ;; area: a part sheet must still say the building is 122 x 30 m with 15 bays, not
+  ;; report its own half as though that were the building.
+  (setq pFullLen len pFullBays bays pOfs 0 pnTot (length bayPts))
+  (setq prng (peb-part-range (length bayPts)))
+  (if prng
+    (progn
+      (setq pi0 (car prng) pi1 (cadr prng) pOfs pi0)
+      (setq bayPts (peb-sub-list bayPts pi0 pi1))
+      (setq px0 (car bayPts))
+      (setq bayPts (mapcar (function (lambda (ss) (- ss px0))) bayPts))
+      (setq len   (last bayPts)
+            bays  (1- (length bayPts)))
+      (setq baysp (/ len (max 1 bays)))))
+
   ;; ── Width points ─────────────────────────────────────────────
   (cond
     ((= stype "MG")
@@ -4454,7 +4490,8 @@
   ;; Set AFTER the merge, BEFORE peb-draw-components (~3866), so the drawer reads the final list.
   (setq *PEB-WGRID-YS* gridWpts)
 
-  (setq areaM2 (/ (* len wid) 1000000.0))
+  ;; the WHOLE building's area — a match-line part is not a smaller building
+  (setq areaM2 (/ (* pFullLen wid) 1000000.0))
   ;; Phase-2A v23: column placement so the OUTER FLANGE sits ON the grid line (Mammut convention).
   ;; Every inset is HALF THE DRAWN COLUMN DEPTH, so it tracks the section at any building size.
   ;;   side-wall  (draw-I-column-lengthwise, ~684): depth D  = *PEB-COL-WEB*        -> inset D/2
@@ -4593,7 +4630,11 @@
   ;; (3136 x 375 mm).  Verified with try_tagpos.py, which reproduces audit_textclash's verdicts exactly.
   (setq aEave (MSPL-Get-Num data "BP_EAVE_HEIGHT"))
   (if (and aEave (> aEave 0.0))
-    (txt-bold "MC" (list aCx (+ aCy aBh (* aTxH 0.80))) 400 0
+    ;; owner 27-Aug audit: at 0.80 the gap from the box top edge to the glyph tops was
+    ;; ~0.9 mm on the plotted A4 — a hairline that READS as a collision with the filled
+    ;; AREA band even though it never actually touches.  1.35 opens it to ~2.5 mm and is
+    ;; still well under the one-full-line rise that the note above warns lands on RAFTER.
+    (txt-bold "MC" (list aCx (+ aCy aBh (* aTxH 1.35))) 400 0
               (strcat (peb-height-tag-label (MSPL-Get-Str data "HEIGHT_REF")) " "
                       (peb-comma (rtos aEave 2 0)))))
 
@@ -4666,7 +4707,9 @@
           ;; yOvrDim) up to the inner side of the bubble — not through the building.
           (command "LINE" (list x (+ yOvrDim ovrTxtH)) (list x (- gridY2 bubStand)) "")   ; stop clear of the pointer apex (owner 10-Jul)
           (setvar "CLAYER" "GRID")
-          (grid-bubble x gridY2 (itoa (+ i (if *PEB-GRID-NUM-OFS* *PEB-GRID-NUM-OFS* 0))) "D")))   ; owner 5-Jul: number offset -> grid CONTINUES across side-by-side areas
+          ;; + pOfs keeps the numbers TRUE on a match-line part: part 2 starts at grid 9.
+          (grid-bubble x gridY2
+            (itoa (+ i pOfs (if *PEB-GRID-NUM-OFS* *PEB-GRID-NUM-OFS* 0))) "D")))   ; owner 5-Jul: number offset -> grid CONTINUES across side-by-side areas
       (setq i (1+ i))
     )
   )
@@ -5038,8 +5081,20 @@
           (peb-label-with-leader
             (if (= lewFrameLabel "MAIN FRAME") "MAIN FRAME\\P(HALF BAY LOADING)"
                 (strcat lewFrameLabel "\\PBOTH ENDS"))               ; owner 4-Jul: sync w/ IF, 2 rows
-            (list (- (* 1500 *PEB-DIM-SCALE*))                        ; owner 5-Jul: moved RIGHT (was -4500*DS)
-                  (+ wid (* 2200 *PEB-TEXT-SCALE*)))
+            ;; owner 5-Jul moved this RIGHT from -4500*DS to -1500*DS; at -1500 it still sat
+            ;; over the vertical BUILDING WIDTH dim text, which runs up the left margin.
+            ;; Moving it INSIDE (2600*DS, wid + 2200*TS) then put it straight on the TOP dim
+            ;; stack instead: yBayDim = wid + 1050*DS and yOvrDim = wid + 2100*DS, so
+            ;; wid + 2200*TS lands on the BUILDING LENGTH chain (owner 27-Aug audit, B-03
+            ;; sheet 1 of 2 — the label printed through "BUILDING LENGTH : 65,091").
+            ;;
+            ;; The dim chains are CENTRED on the building length, so their text never reaches
+            ;; the far LEFT; and the width chains live at y in [0,wid], so nothing but a
+            ;; witness line crosses y > wid out there.  That corner — outside-left, above the
+            ;; FSW line — is the one lane clear at every building size.  The leader still
+            ;; points at (0,wid), so it reads as belonging to the LEW frame.
+            (list (- (* 6000 *PEB-DIM-SCALE*))
+                  (+ wid (* 2600 *PEB-TEXT-SCALE*)))
             (list 0 wid)                                              ; arrow points AT the LEW frame
             "S" 430.0)))))                                            ; owner 5-Jul: smaller (was 600)
     ;; Different → TWO MLEADERs
@@ -5141,10 +5196,22 @@
   ;; FINALIZE pass (peb-draw-combined-frame) draws ONE title at the true combined top, so it's correct for
   ;; ANY direction (Below/Above/Left/Right), not only when the reference sits on top.  Each area still draws
   ;; its own AREA No. tag + dims.  (Single-area: *PEB-MULTI-MODE* nil, draws normally.)
+  ;; MATCH LINE on whichever edge of this part is a cut (owner 27-Aug).  The plan is not
+  ;; mirrored — grid 1 is always drawn on the left — so the low-grid end is the left edge
+  ;; and the high-grid end the right, with no view-direction swap to handle.
+  (if prng
+    (progn
+      (if (> pi0 0)
+        (peb-match-line 0.0 (- (* 900.0 *PEB-DIM-SCALE*)) (+ wid (* 900.0 *PEB-DIM-SCALE*))
+                        (itoa (1- *PEB-PART-P*))))
+      (if (< pi1 (1- pnTot))
+        (peb-match-line len (- (* 900.0 *PEB-DIM-SCALE*)) (+ wid (* 900.0 *PEB-DIM-SCALE*))
+                        (itoa (1+ *PEB-PART-P*))))))
+
   (if (not *PEB-MULTI-MODE*)
     (progn
       (setvar "CECOLOR" "5")   ; owner 7-Jul (Mammut mirror): the main title is BLUE
-      (txt-bold "MC" (list (/ len 2.0) yTtl) 870 0 "COLUMN LAY-OUT PLAN")
+      (txt-bold "MC" (list (/ len 2.0) yTtl) 870 0 (peb-part-title "COLUMN LAY-OUT PLAN"))
       (setvar "CECOLOR" "BYLAYER")
       ;; Subtitle drawn directly (not via txt) so the multiplication stays a SMALL "x": uppercase the whole
       ;; line per the owner rule, then restore the spaced "×" to a lowercase x. romand.shx has no × or ²
@@ -5159,10 +5226,10 @@
               ;; area, bays, slope — not a dimension on the drawing, so "122 x 30 m"
               ;; beside "3,716 m2" is the right register and reads far better than
               ;; "121,920 x 30,480".  Briefly converted to mm; reverted on the owner's call.
-              (strcat (rtos (/ len 1000.0) 2 0) " x "
+              (strcat (rtos (/ pFullLen 1000.0) 2 0) " x "
                       (rtos (/ wid 1000.0) 2 0) " m"
                       "  |  " (peb-comma (rtos areaM2 2 0)) " m2"
-                      "  |  " (itoa bays) " BAYS"
+                      "  |  " (itoa pFullBays) " BAYS"
                       "  |  SLOPE " roofSlope
                       (if (and clearH (> clearH 0))
                         (strcat "  |  C.H = " (peb-comma (rtos clearH 2 0)))   ; owner 5-Jul: comma-grouped (10,670)
@@ -5449,6 +5516,27 @@
       (peb-titleblock-mammut tbStripX borderB tbStripW (- borderT borderB) tbData)  ; fills full height
       (setq *PEB-TB-SIZEH* nil)
       (draw-border borderL borderB borderR borderT)))
+
+  ;; ── THE AREA TAG IS RE-ASSERTED LAST, MASKED (owner 27-Aug audit) ─────────────────
+  ;; The tag is drawn early (with its drop shadow and the corner diagonals), but the GRID
+  ;; and RIDGE lines are drawn AFTER it — and the tag sits at the exact centre of the plan,
+  ;; which is where the ridge line and a column line run.  "AREA No. 01" therefore printed
+  ;; with a line struck through it and column symbols sitting on the lettering.
+  ;;
+  ;; Masking it in place does nothing, because a WIPEOUT only hides what was drawn BEFORE
+  ;; it.  So the box is re-drawn here, at the very end: mask first (now covering the grid
+  ;; and ridge lines), then the box outline and the label on top.  The early copy stays
+  ;; where it is so the diagonals still terminate on real box corners; this pass only puts
+  ;; the same geometry back on top of what was laid over it.
+  ;; Same technique and same catch-guard as peb-fr-masked-label (owner 29-Jul).
+  (if (and aFL aFR aFB aFT aLbl)
+    (vl-catch-all-apply (function (lambda ()
+      (setvar "WIPEOUTFRAME" 0)
+      (command "_.WIPEOUT" (list aFL aFB) (list aFR aFB) (list aFR aFT) (list aFL aFT) "")
+      (aLn aFL aFB aFR aFB) (aLn aFR aFB aFR aFT)
+      (aLn aFR aFT aFL aFT) (aLn aFL aFT aFL aFB)
+      (setvar "CLAYER" "TEXT")
+      (txt-bold "MC" (list aCx aCy) 550 0 aLbl)))))
 
   (command "UNDO" "END")
   (setvar "GRIDMODE" 0)
@@ -6338,25 +6426,54 @@
 
 (defun peb-tile-gap () 5000.0)   ;; 5 m gap between tiled drawings
 
-(defun peb-plan-from-file (path / prev-last prev-max-x e new-set offset)
+;; PART-AWARE plan entry point — one A4 per match-line part.  Part 1 of 1 is exactly the
+;; old behaviour, so a building under the split threshold is unchanged.
+(defun peb-plan-part-from-file (path p n)
+  (setq *PEB-PART-P* p *PEB-PART-N* n)
+  (peb-plan-from-file path)
+  (setq *PEB-PART-P* nil *PEB-PART-N* nil)
+  (princ))
+
+(defun peb-plan-from-file (path / prev-last prev-max-x e new-set offset msSel)
+  ;; Enter in a KNOWN command state, exactly as peb-elev-from-file does.  C:PEB-PLAN exits
+  ;; with (setvar "CMDECHO" 1) and leaves OSMODE alone, so a SECOND plan sheet in the same
+  ;; acad session starts in a different state from the first — and the elevations, which do
+  ;; reset both, are the sheets that survive being drawn twice.  (owner 27-Aug)
+  (vl-load-com) (setvar "CMDECHO" 0) (setvar "OSMODE" 0)
   (setq prev-last (entlast))
   ;; the frame must wrap THIS sheet, not every sheet drawn so far (see
   ;; peb-frame-and-titleblock).  Same marker the tiler already uses.
   (setq *PEB-SHEET-MARK* prev-last)
-  (if prev-last
+  ;; ── TILE ONLY IF MODEL SPACE REALLY HOLDS A PREVIOUS SHEET (owner 27-Aug) ──────────
+  ;; (entlast) sees the WHOLE database, PAPER SPACE INCLUDED.  The PDF pipeline plots one
+  ;; sheet at a time: ERASE _ALL -> draw -> (peb-add-layout "PLn") -> plot -> -LAYOUT
+  ;; _Delete PLn.  The deleted layout can leave an entity behind, so (entlast) comes back
+  ;; NON-NIL on a model space that is in fact EMPTY.  EXTMAX is then still the PREVIOUS
+  ;; sheet's, and peb-tile-place shifts this sheet ~98 m to the right of nothing; the next
+  ;; peb-add-layout gets an impossible extent box and the whole acad session wedges with no
+  ;; error — the run dies on the 600 s timeout having plotted only the sheets before it.
+  ;;
+  ;; This stayed hidden until the COLUMN LAYOUT PLAN was split in two: part 2 is the first
+  ;; sheet ever to follow another sheet drawn by THIS function.  Test the space we actually
+  ;; tile in, not the database.
+  (setq msSel (ssget "_X" '((410 . "Model"))))
+  (if (and prev-last msSel)
     (progn
       (command "_.REGEN")
       (setq prev-max-x (car (getvar "EXTMAX")))
       (if (or (null prev-max-x) (< prev-max-x -1e10))
         (setq prev-max-x nil)))
     (setq prev-max-x nil))
+  (if (not msSel) (setq prev-last nil))     ; nothing to tile past -> draw at the origin
 
   (setq *PEB-DATA-FILE* path)
   (princ (strcat "\nPEB-PLAN using data file: " path))
   (C:PEB-PLAN)
   (setq *PEB-DATA-FILE* nil)
 
-  (peb-tile-place prev-last prev-max-x)   ; left→right tile, fixed gap, no box overlap
+  ;; guarded like every other *-from-file entry point: a tiling failure must not take the
+  ;; finished drawing down with it.
+  (vl-catch-all-apply (function (lambda () (peb-tile-place prev-last prev-max-x))))
   (princ))
 
 ;; ============================================================================

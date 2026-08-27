@@ -9542,7 +9542,8 @@
   (if (and brickH (> brickH 0) (/= stype "RC") (not (member stype '("BF" "CC" "PP"))))
     (progn
       (setq *PEB-DIM-TXT* 320.0)
-      (peb-dim-height-stretch hObjX dimX1 0.0 brickH "<>\\PBRICK MASONRY")
+      (peb-dim-height-stretch hObjX dimX1 0.0 brickH
+        (strcat (peb-dim-mft brickH) "\\PBRICK MASONRY"))
       (setq *PEB-DIM-TXT* nil)
       (peb-recolor-last-dim 0)))                  ; ByBlock
   (setq *PEB-DIM-TXT* 320.0)
@@ -9550,8 +9551,15 @@
   ;; purlin line (0 -> H, H being the top of the rafter at the haunch = the entered eave value after the
   ;; basis conversion above), NOT the CLEAR HEIGHT to the haunch (0 -> H-ht). Clear-basis is unchanged.
   (if eaveBasis
-    (peb-dim-height-stretch hObjX dimX2 0.0 H       "<>\\PEAVE HEIGHT")
-    (peb-dim-height-stretch hObjX dimX2 0.0 (- H ht) "<>\\PCLEAR HEIGHT"))
+    ;; "<>" is AutoCAD's MEASUREMENT placeholder, so these were formatted by the DIMSTYLE:
+    ;; DIMALTU 4 (architectural) suppresses the -0", and AutoCAD cannot comma-group a native
+    ;; dimension at all.  The section therefore printed 30480 [100'] next to the plan's
+    ;; 121,920 [400'-0"] — the same quantity in two formats in one document (owner 27-Aug).
+    ;; peb-dim-mft is the builder the plan and the elevations already use.
+    (peb-dim-height-stretch hObjX dimX2 0.0 H
+      (strcat (peb-dim-mft H) "\\PEAVE HEIGHT"))
+    (peb-dim-height-stretch hObjX dimX2 0.0 (- H ht)
+      (strcat (peb-dim-mft (- H ht)) "\\PCLEAR HEIGHT")))
   (setq *PEB-DIM-TXT* nil)
   (peb-recolor-last-dim 0)                        ; ByBlock
   ;; owner 16-Jul markup 14: arched frames — extend the CLEAR HEIGHT witness line UP to the eave gutter (H)
@@ -9613,7 +9621,7 @@
                              (+ (* 1500 *PEB-DIM-SCALE*) (peb-dim-text-spacing "horizontal"))
                              (* 1500 *PEB-DIM-SCALE*))
                            (* 450 *PEB-DIM-SCALE*)))   ; owner 14-Jul: drop the O/O dim clear of the FFL line + FFL text
-                     (strcat "<>\\P" wsfx))
+                     (strcat (peb-dim-mft (+ wid 470.0)) "\\P" wsfx))
   (setq *PEB-DIM-TXT* nil)
   (peb-recolor-last-dim 0)                    ; ByBlock for overall width dim
 
@@ -9666,14 +9674,22 @@
                  ((member stype '("PP" "FR")) "FLAT ROOF")
                  ;; SS / LT are SINGLE-SLOPE: no ridge -- the top height is the HIGH eave.
                  ((member stype '("SS" "LT"))
-                  (strcat "HIGH EAVE " (rtos (/ (+ H (/ wid slopeD)) 1000.0) 2 1) "m  |  SLOPE " slopeStr))
+                  (strcat "HIGH EAVE " (rtos (/ (+ H (peb-purlin-depth) (/ wid slopeD)) 1000.0) 2 1)
+                          "m  |  SLOPE " slopeStr))
                  ;; ACS / AMS are ARCHED: a curved roof has a CROWN, not a ridge, and no straight slope ratio.
                  ((member stype '("ACS" "AMS"))
                   (strcat "ARCHED ROOF  |  CROWN " (rtos (/ (+ H rise) 1000.0) 2 1) "m"))
                  ;; BF / CC are CANOPIES: a cantilever canopy has a drainage FALL, not a ridge.
                  ((member stype '("BF" "CC"))
                   (strcat "CANOPY  |  FALL " slopeStr))
-                 (T (strcat "RIDGE " (rtos (/ (+ H rise) 1000.0) 2 1) "m  |  SLOPE " slopeStr))))))
+                 ;; RIDGE ON THE SAME BASIS AS THE EAVE HEIGHT (owner 27-Aug).  The title
+                 ;; block's EAVE HEIGHT is clear + haunch + PURLIN (peb-tb-eave-height), and
+                 ;; this read H + rise — clear + haunch + rise, no purlin.  So the two heights
+                 ;; on one sheet were measured to different things: 7,173 and 8,497 on B-03.
+                 ;; Both now read to the top of the purlin, which is what the eave figure
+                 ;; already meant, so ridge = eave + rise exactly.
+                 (T (strcat "RIDGE " (rtos (/ (+ H (peb-purlin-depth) rise) 1000.0) 2 1)
+                            "m  |  SLOPE " slopeStr))))))
 
   ;; ── Title block (auto-widens for narrow buildings, scales uniformly for big) ──
   ;; Min: 35 m so small buildings still get readable cells.

@@ -494,6 +494,118 @@ Three things the split must get right, each of which was got wrong first:
 
 Measured on B-03: side-wall sheets 51%/54% blank → 20–40%, at 1:350 instead of ~1:600.
 
+### 4B.19 The COLUMN LAYOUT PLAN splits too — and the WIDTH grid never does
+
+4B.18 cut the roof plans and the side walls. The plan is the same 4:1-geometry problem
+(B-03 sat at **1:800 and 57% blank**, the worst main sheet in the set), so it takes the
+same cut — but it is the hardest of the three, because unlike the elevations it owns the
+width grid, the bracing bays, the area marks, the FALL glyphs, the north arrow and the
+load table.
+
+Two things are specific to the plan:
+
+1. **Only the LENGTH is sliced. The WIDTH grid is not.** `peb-width-letter` must still see
+   the full width station list or the letters change between parts — a 4B.15 regression
+   dressed up as a new bug. B-03 reads **A..G on both parts**.
+2. **The sub-title still describes the WHOLE building.** `pFullLen` / `pFullBays` are
+   captured before the slice, so part 1 of 2 still reads `122 x 30 M | 3,716 M2 | 15 BAYS`
+   while its own dimension line reads the part's `65,091 [213'-7"]`. The owner's ruling
+   (26-Aug): *"keep the plan sub-title same as before as it is not part of the drawings."*
+
+Grid NUMBERS stay TRUE across parts via `pOfs` — B-03 reads 1..9 then 9..16, sharing the
+cut station. Measured: **1:800 → 1:450**, and the set goes 14 sheets → 15.
+
+### 4B.20 Two labels that have to be told where the dimensions live
+
+Both were found by the 27-Aug audit, both are the same mistake: a label positioned by a
+constant that happened to be clear on the fixture it was tuned against.
+
+* **`BEARING FRAME / BOTH ENDS`** was moved inside the building to `(2600*DS, wid + 2200*TS)`
+  to get it off the vertical width dim — and landed on the TOP dim stack instead, because
+  `yBayDim = wid + 1050*DS` and `yOvrDim = wid + 2100*DS`. It now sits **outside-left and
+  above the FSW line**. That lane is clear at every size for a structural reason: the
+  length chains are CENTRED so their text never reaches the far left, and the width chains
+  live at `y ∈ [0,wid]`, so nothing but a witness line crosses `y > wid` out there.
+* **The `CLEAR HT.` area tag** cleared the filled AREA band by ~0.9 mm on the plotted A4 —
+  a hairline that reads as a collision. Raised from `0.80*aTxH` to `1.35*aTxH`. Do **not**
+  raise it a full line; that lands on `RAFTER` (the note at the tag says so, and it is
+  still true).
+
+**The rule:** before you place a label by constant, look up what the dimension ladder
+already put there — `dimGap`, `topGap`, `yBayDim`, `yOvrDim`, `gridY2` are all named and
+all derive from the scale. A constant that ignores them is a collision waiting for a
+different building size.
+
+### 4B.21 A finished drawing files itself into the project's folder
+
+Owner, 27-Aug: *"make the rule to copy the actual drawings of a real project at the
+location where I defined — like 271-26-MSPL in
+`D:\Sales Department\MSPL\Proposals\2026\271-29-MSPL_Mr. Waqar`."*
+
+`archiveToProposalFolder` (`services/drawingRender.ts`) writes the merged PDF and the
+combined DWG into that folder as well as returning them to the browser.
+
+**The folder name is NOT derivable from the proposal number, so it is never constructed.**
+`D:\Sales Department\MSPL\Proposals\2026\271-29-MSPL_Mr. Waqar`."*
+the middle number is not the year and the customer's name is appended by hand. The rule
+therefore SEARCHES `D:\Sales Department\<DIVISION>\Proposals\<YEAR>\` for a directory
+whose name starts with the serial followed by a **non-digit** (so `271` never matches
+`2710`), and writes only on **exactly one** match. Zero matches means the folder has not
+been made yet; several means the serial is ambiguous. In both cases it files nothing and
+returns `null`, because guessing here puts a customer's drawings in another customer's
+folder. Filing failure never fails the render. Base overridable via
+`PROPOSAL_ARCHIVE_BASE`.
+
+**Consequence worth knowing:** renumber an inquiry and the folder stops matching until it
+is renamed to the new serial.
+
+### 4B.22 ONE acad session cannot draw TWO Column Layout Plans
+
+Splitting the plan (4B.19) gave the set two plan sheets — and the render then came back
+with **only the cover and plan 1 in it**, no error anywhere. acad sat at ~5% CPU until the
+600 s timeout killed it, and the merged PDF was silently 2 pages instead of 15.
+
+Isolated to the minimum — two plan sheets back to back in one session, no `peb-add-layout`
+and no plot involved — and **the second `peb-plan-part-from-file` never returns**. What it
+is NOT, each ruled out by experiment:
+
+* not part 2's geometry — drawing **part 1 twice** wedges identically;
+* not the `UNDO BEGIN`/`END` group — commenting the pair out changes nothing;
+* not `CMDECHO` / `OSMODE` left dirty by `C:PEB-PLAN` (it exits with `CMDECHO 1`);
+* not a modal dialog — the process has no message box open;
+* not slowness — it is still wedged after **15 minutes**;
+* and plan part 2 **alone** in a fresh session draws in 27 s.
+
+The tail of `peb-plan-from-file` completes (traced), and then acad simply never returns to
+its `Command:` prompt, so script playback stops.
+
+This is the same accumulation `renderPdf` already guards against one level up: *"a single
+session that draws every sheet ... degrades badly as the drawing accumulates ... a fresh
+session per group never accumulates."* So the remedy is the one already proven here rather
+than a deeper hunt inside 5,000 lines of LISP: **`splitScrIntoSessions` starts a NEW acad
+session rather than draw a second plan in the current one**, with a 12-sheet cap per
+session as a general guard. The split is applied to the FINISHED script at sheet
+boundaries the emitters mark (`;;__SHEET__|<kind>`), so no sheet's content changes — a
+session boundary costs only an acad start.
+
+**If you add another sheet type that turns out not to survive repetition, mark its kind and
+add it to the same rule.** And note the shape of this failure: a wedged session produces a
+SHORT PDF, not an error. Always count the sheets.
+
+### 4B.23 Tile only against a model space that actually holds something
+
+`peb-plan-from-file` decided whether to tile the new sheet from `(entlast)` — which sees
+the WHOLE database, **paper space included**. The PDF pipeline plots one sheet at a time:
+`ERASE _ALL` → draw → `peb-add-layout "PLn"` → plot → `-LAYOUT _Delete PLn`. The deleted
+layout can leave an entity behind, so `(entlast)` came back non-nil on a model space that
+was in fact EMPTY, `EXTMAX` still described the PREVIOUS sheet, and part 2 was moved
+**98 m to the right of nothing**.
+
+Test the space you actually tile in — `(ssget "_X" '((410 . "Model")))` — not the database.
+`peb-tile-place` is now also wrapped in `vl-catch-all-apply` here, as it already was at
+every other `*-from-file` entry point: a tiling failure must not take the finished drawing
+down with it.
+
 ## 5. THE DOC SET (how the four files relate)
 | File | Holds | Read it when |
 |---|---|---|

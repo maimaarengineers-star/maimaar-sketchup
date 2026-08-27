@@ -1974,10 +1974,15 @@
   (princ))
 
 (defun peb-sd-title (lock data typeKey / ty)
+  ;; The shorthand in brackets is the SECTION's label for the same product — that sheet
+  ;; calls them "(S-Type)" and "(Seam-Lock)" (owner 14-Jul, because Maimaar runs both and
+  ;; the label must say which).  Carrying the shorthand here ties the two sheets together,
+  ;; so a reader meeting "(S-Type)" on the section can see on THIS sheet what it is,
+  ;; instead of meeting two names for one panel (owner 27-Aug).
   (setq ty (strcase (peb-tb-or (MSPL-Get-Str data typeKey) "")))
-  (cond (lock "LOCK SEAM PROFILE")
-        ((vl-string-search "SANDWICH" ty) "SANDWICH PANEL (S PROFILE OUTER SKIN)")
-        (T "STANDARD S PROFILE 35-250")))
+  (cond (lock "LOCK SEAM PROFILE (SEAM-LOCK)")
+        ((vl-string-search "SANDWICH" ty) "SANDWICH PANEL (S-TYPE OUTER SKIN)")
+        (T "STANDARD S PROFILE 35-250 (S-TYPE)")))
 
 (defun peb-draw-sheeting-details (data ox oy / prev rp wp lockR lockW y rSig wSig same)
   (setq prev (getvar "CLAYER"))
