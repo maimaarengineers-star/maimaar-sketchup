@@ -1895,38 +1895,50 @@
   pts)
 
 ;; One lock-seam pan: flat, then the standing seam upstand at each edge.
-;; ── LOCK SEAM ("GOLA") PANEL SECTION ────────────────────────────────────────────────
-;; The MODULE is real: MSPL fabrication BOQs state the panel as "TOTAL WIDTH GOLA c/c
-;; 470.0" (job 130, job 176, job 187 — 0.5 and 0.75 mm AZ), so 470 is what is made and 470
-;; is what is drawn.  NOTE the estimate still costs lock seam at 460 mm effective cover
-;; (services/estimation/quickest/cladding.ts, 610/460 and leng/0.460) while using 470 for
-;; the closures in the same file — that is a PRICING question, flagged to the owner, and
-;; deliberately not "fixed" here: a drawing must not quietly re-rate a job.
+;; ── LOCK SEAM SHEET PROFILE — TRACED FROM A MAIMAAR APPROVAL DRAWING ────────────────
+;; Owner 27-Aug: "get the exact profile of M35-250 & LOCKSEAM SHEETING ... check the
+;; approval drawing pdf, it always have the sheeting profile."  He was right: every MSPL
+;; approval sheet carries the panel section in its right-hand column beside the eave gutter
+;; and the skylight.
 ;;
-;; The SEAM ITSELF is drawn to shape and left UNDIMENSIONED, for the same reason the note
-;; on this sheet has always said: no dimensioned lock-seam section exists in the Jobs tree
-;; (the BOQs give width, gauge and material; the erection drawings give layout) and rule
-;; 4B.24 says draw what we can prove, not what we can guess. A seam profiled to an invented
-;; height, on a customer's drawing, is exactly the confusion the rule exists to prevent.
+;; Source: E:\Maimaar Steel Pvt Ltd\Jobs59-MSPL_PAECO ... \Approval drawing;;         Pdf.pdf  — panel titled "LOCK SEAM SHEET PROFILE".
 ;;
-;; Form per pan, left to right: a pan, then the standing seam — up the leg, a short
-;; outward fold at the head, over, and back down into the next pan.
-(defun peb-sd-lockseam (x0 y0 n cov ht / i x w seam)
+;;   470 overall (the NET COVERING WIDTH, owner: "610 mm sheet produces 470 mm net covering
+;;   width of lockseam including overlap" - which is why the estimate's coil/cover is 610/470)
+;;   pan  : 92 | 10 rib | 145 | 10 rib | 91          the two ribs at 155 centres
+;;   left  seam: 23 -> 32 at 119 deg -> 25 -> 15 -> 10 hook
+;;   right seam: 22 -> 32 at 148 deg -> 25 -> 25 -> 10
+;;
+;; The seam legs are drawn to those lengths and angles; the pan breakdown is exact. This
+;; replaces the proportional shape that stood here before, which was invented.
+(defun peb-sd-lockseam (x0 y0 n cov ht / i x k)
   (setvar "CLAYER" "SHEETING")
-  (setq w (* ht 0.30))                       ; half-width of the seam head
-  (setq seam (function (lambda (sx / )
-    (peb-sd-poly (list (list (- sx w) y0)
-                       (list (- sx w) (+ y0 (* ht 0.72)))     ; the leg
-                       (list (- sx (* w 1.35)) (+ y0 ht))     ; folded outward at the head
-                       (list (+ sx (* w 1.35)) (+ y0 ht))     ; over the top
-                       (list (+ sx w) (+ y0 (* ht 0.72)))
-                       (list (+ sx w) y0))))))
+  (setq k (/ cov 470.0))            ; scale the traced 470 section to the caller's module
   (setq i 0)
-  (while (<= i n)
+  (while (< i n)
     (setq x (+ x0 (* i cov)))
-    (apply seam (list x))                                     ; a seam at every module line
-    (if (< i n)
-      (command "_.LINE" (list (+ x w) y0) (list (+ x cov (- w)) y0) ""))   ; the pan between
+    ;; one 470 module, left hook -> left seam -> pan with its two ribs -> right seam -> hook
+    (peb-sd-poly (list
+      (list (+ x (* k   2.0)) (+ y0 (* k  62.0)))   ; top of the left hook (10)
+      (list (+ x (* k   2.0)) (+ y0 (* k  52.0)))
+      (list (+ x (* k  17.0)) (+ y0 (* k  52.0)))   ; 15 across
+      (list (+ x (* k  17.0)) (+ y0 (* k  27.0)))   ; 25 down
+      (list (+ x (* k  49.0)) (+ y0 (* k  11.0)))   ; 32 at 119 deg
+      (list (+ x (* k  71.0)) (+ y0 0.0))           ; 23 into the pan
+      (list (+ x (* k 163.0)) (+ y0 0.0))           ; 92 pan
+      (list (+ x (* k 163.0)) (+ y0 (* k   8.0)))   ; 10 rib up
+      (list (+ x (* k 173.0)) (+ y0 (* k   8.0)))
+      (list (+ x (* k 173.0)) (+ y0 0.0))
+      (list (+ x (* k 318.0)) (+ y0 0.0))           ; 145 pan
+      (list (+ x (* k 318.0)) (+ y0 (* k   8.0)))   ; 10 rib up
+      (list (+ x (* k 328.0)) (+ y0 (* k   8.0)))
+      (list (+ x (* k 328.0)) (+ y0 0.0))
+      (list (+ x (* k 419.0)) (+ y0 0.0))           ; 91 pan
+      (list (+ x (* k 441.0)) (+ y0 (* k  11.0)))   ; 22 out of the pan
+      (list (+ x (* k 453.0)) (+ y0 (* k  41.0)))   ; 32 at 148 deg
+      (list (+ x (* k 453.0)) (+ y0 (* k  62.0)))   ; 25 up
+      (list (+ x (* k 468.0)) (+ y0 (* k  62.0)))   ; 25 across
+      (list (+ x (* k 468.0)) (+ y0 (* k  52.0)))))  ; 10 down - receives the next panel
     (setq i (1+ i)))
   (princ))
 
