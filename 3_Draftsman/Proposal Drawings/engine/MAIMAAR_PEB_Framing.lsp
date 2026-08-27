@@ -1856,7 +1856,11 @@
 
 ;; tiled like the roof framing plan so it sits beside the other sheets.
 
-;; ── SHEETING PROFILE DETAILS (owner 26-Aug) ──────────────────────────────────
+;; ── DETAILS (owner 26-Aug as SHEETING PROFILE DETAILS; renamed DETAILS 27-Aug) ─
+;; The sheet stopped being about one thing: it is where the details this project
+;; actually buys are collected (rulebook 4B.24).  ONLY what the BSF declares appears —
+;; a lock-seam section only on a lock-seam roof, a sandwich section only on a sandwich
+;; panel — because a detail for something not in the offer is a scope argument later.
 ;; "There should be one page of detailed sheeting sections — in case of Standard S
 ;;  Profile its profile details should be shown; in case of seamlock, BOTH standard
 ;;  for walls and lockseam for roof shown in the same drawing ... for customer
@@ -1931,6 +1935,21 @@
                       (list (max x0 (- x thk)) (min (+ y0 thk) (+ y0 thk))) "")
     (setq i (1+ i)))
   (princ))
+
+;; IS THIS A PROFILE WE ACTUALLY KNOW HOW TO DRAW? (rulebook 4B.24)
+;; The shape is chosen by substring against the BSF's profile text, and the vocabulary is
+;; small and controlled today ("Standard S Profile" variants, "Lock Seam Profile (roof
+;; only)").  The danger is the day a new product is added to panelDefaults.js: an
+;; unrecognised name would fall through to the STANDARD S section and draw a definite,
+;; WRONG product.  Under the scope-of-work rule that is the worst available failure — the
+;; customer is holding our drawing.  So say so instead of guessing.
+(defun peb-sd-known-p (prof ptype thk)
+  (setq prof (strcase (if prof prof "")) ptype (strcase (if ptype ptype "")))
+  (or (vl-string-search "LOCK" prof) (vl-string-search "SEAM" prof)
+      (and (> thk 0.0) (vl-string-search "SANDWICH" ptype))
+      (vl-string-search "STANDARD" prof)
+      (vl-string-search "S PROFILE" prof)
+      (= prof "")))                       ; blank = the house standard, which we do know
 
 (defun peb-sd-panel (ox y lock ttl mat fin col ptype thk / pit ht cov panW gA sand dep)
   ;; ONE panel detail: the section, its rib/pitch dimensions, the cover dimension,
@@ -2010,6 +2029,15 @@
                      (peb-tb-or (MSPL-Get-Str data "PN_WALL_PIR_THK") "") "|"
                      (peb-tb-or (MSPL-Get-Str data "PN_WALL_OUTER_MAT") "")))
   (setq same (= (strcase rSig) (strcase wSig)))
+  ;; Refuse rather than guess: an unrecognised profile gets a stated line, not a section
+  ;; that would claim the wrong product (rulebook 4B.24).
+  (if (not (peb-sd-known-p rp (MSPL-Get-Str data "PN_ROOF_TYPE")
+                           (atof (peb-tb-or (MSPL-Get-Str data "PN_ROOF_PIR_THK") "0"))))
+    (progn (setvar "CLAYER" "TEXT")
+           (txt "ML" (list ox 0.0) (peb-th 'ANNOT) 0
+                (strcat "ROOF SHEETING - " rp))
+           (txt "ML" (list ox -180.0) (peb-th 'ANNOT) 0
+                "SECTION NOT SHOWN - PROFILE PER THE TECHNICAL & FINANCIAL PROPOSAL."))
   (peb-sd-panel ox 0.0 lockR
     (strcat (if same "ROOF & WALL SHEETING - " "ROOF SHEETING - ")
             (peb-sd-title lockR data "PN_ROOF_TYPE"))
@@ -2017,7 +2045,7 @@
     (peb-tb-or (MSPL-Get-Str data "PN_ROOF_OUTER_FINISH") "")
     (peb-tb-or (MSPL-Get-Str data "PN_ROOF_OUTER_COLOR") "")
     (peb-tb-or (MSPL-Get-Str data "PN_ROOF_TYPE") "")
-    (atof (peb-tb-or (MSPL-Get-Str data "PN_ROOF_PIR_THK") "0")))
+    (atof (peb-tb-or (MSPL-Get-Str data "PN_ROOF_PIR_THK") "0"))))
   ;; PITCH between the two details.  A panel occupies from (y + depth + title) down to
   ;; its two spec lines at y-250, so -380 put the WALL title straight through the ROOF's
   ;; specification (owner 27-Aug).  -520 clears the deepest case (a sandwich core).
@@ -2036,10 +2064,10 @@
        "PROFILE SHOWN INDICATIVE - PANEL SUPPLIED PER THE APPROVED DESIGN.")
   (setvar "CECOLOR" "5")
   (txt-bold "MC" (list (+ ox 500.0) (- y 120.0)) (peb-th 'HEADING) 0
-            "SHEETING PROFILE DETAILS")
+            "DETAILS")
   (setvar "CECOLOR" "BYLAYER")
   (setvar "CLAYER" prev)
-  (vl-catch-all-apply (function (lambda () (peb-frame-and-titleblock data "SHEETING PROFILE DETAILS")))))
+  (vl-catch-all-apply (function (lambda () (peb-frame-and-titleblock data "DETAILS")))))
 
 (defun C:PEB-SHEETING-DETAILS ( / data)
   (vl-load-com) (setvar "CMDECHO" 0) (setvar "OSMODE" 0)
