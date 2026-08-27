@@ -606,6 +606,42 @@ Test the space you actually tile in — `(ssget "_X" '((410 . "Model")))` — no
 every other `*-from-file` entry point: a tiling failure must not take the finished drawing
 down with it.
 
+### 4B.24 The DETAILS sheet shows ONLY what this project actually buys
+
+Owner, 27-Aug: *"only those details must be there which are being used for that particular
+project. For example show the profile of lockseam only if it is used in roof, similarly for
+sandwich panels — otherwise there will be confusion in scope of work."*
+
+This is a **commercial** rule, not a presentation one. A proposal drawing is part of an
+offer. A lock-seam section on a building quoted with standard sheeting, or a sandwich panel
+next to a single-skin price, is a scope argument waiting to happen at handover — and the
+customer will be holding our own drawing.
+
+**The rule:** every panel on the DETAILS sheet is switched on by a BSF field that says the
+thing is in this building. Nothing is drawn "for completeness", and nothing is drawn
+because it usually applies.
+
+Already enforced for the sheeting panels in `peb-draw-sheeting-details`:
+
+* `lockR` / `lockW` — a lock-seam section only where THAT face's profile is lock seam.
+* `sand` — a sandwich section needs `PN_*_TYPE` to say SANDWICH **and** a core thickness > 0.
+* a `profile|type|thickness|material` signature decides same-ness: when roof and wall are the
+  same product there is ONE panel titled "ROOF & WALL SHEETING", not two identical ones.
+
+**Extend it to every new panel.** Gutter and downpipe off `gutterType` / `downpipeType`;
+skylight off `skylight` / `RA_SKYLIGHTS`; ventilator off `turboVents`; louvre off
+`louverType`; liner + insulation off the liner fields. If the field is empty, the panel does
+not exist — and the remaining panels grow to fill the sheet (4B.23), rather than a gap being
+left where the customer can wonder what was removed.
+
+**The known hole — do not let a fallback become a claim.** The sheeting detail picks its
+shape by substring (`LOCK`, `SEAM`, `SANDWICH`) against the BSF's profile text. The
+vocabulary is small today (`Standard S Profile` variants and `Lock Seam Profile (roof
+only)`), so it works. But an unrecognised profile falls through to the STANDARD S section —
+i.e. it draws a definite, wrong product rather than nothing. Under this rule that is the
+worst possible failure. If a new profile is ever added to `panelDefaults.js`, either teach
+the detail its shape or make it refuse to draw; never let it guess.
+
 ## 5. THE DOC SET (how the four files relate)
 | File | Holds | Read it when |
 |---|---|---|
