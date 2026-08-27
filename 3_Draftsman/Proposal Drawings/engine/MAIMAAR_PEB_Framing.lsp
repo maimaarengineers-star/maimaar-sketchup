@@ -1895,22 +1895,39 @@
   pts)
 
 ;; One lock-seam pan: flat, then the standing seam upstand at each edge.
-(defun peb-sd-lockseam (x0 y0 n cov ht / i x)
+;; ── LOCK SEAM ("GOLA") PANEL SECTION ────────────────────────────────────────────────
+;; The MODULE is real: MSPL fabrication BOQs state the panel as "TOTAL WIDTH GOLA c/c
+;; 470.0" (job 130, job 176, job 187 — 0.5 and 0.75 mm AZ), so 470 is what is made and 470
+;; is what is drawn.  NOTE the estimate still costs lock seam at 460 mm effective cover
+;; (services/estimation/quickest/cladding.ts, 610/460 and leng/0.460) while using 470 for
+;; the closures in the same file — that is a PRICING question, flagged to the owner, and
+;; deliberately not "fixed" here: a drawing must not quietly re-rate a job.
+;;
+;; The SEAM ITSELF is drawn to shape and left UNDIMENSIONED, for the same reason the note
+;; on this sheet has always said: no dimensioned lock-seam section exists in the Jobs tree
+;; (the BOQs give width, gauge and material; the erection drawings give layout) and rule
+;; 4B.24 says draw what we can prove, not what we can guess. A seam profiled to an invented
+;; height, on a customer's drawing, is exactly the confusion the rule exists to prevent.
+;;
+;; Form per pan, left to right: a pan, then the standing seam — up the leg, a short
+;; outward fold at the head, over, and back down into the next pan.
+(defun peb-sd-lockseam (x0 y0 n cov ht / i x w seam)
   (setvar "CLAYER" "SHEETING")
+  (setq w (* ht 0.30))                       ; half-width of the seam head
+  (setq seam (function (lambda (sx / )
+    (peb-sd-poly (list (list (- sx w) y0)
+                       (list (- sx w) (+ y0 (* ht 0.72)))     ; the leg
+                       (list (- sx (* w 1.35)) (+ y0 ht))     ; folded outward at the head
+                       (list (+ sx (* w 1.35)) (+ y0 ht))     ; over the top
+                       (list (+ sx w) (+ y0 (* ht 0.72)))
+                       (list (+ sx w) y0))))))
   (setq i 0)
-  (while (< i n)
+  (while (<= i n)
     (setq x (+ x0 (* i cov)))
-    ;; the pan
-    (command "_.LINE" (list (+ x (* ht 0.55)) y0) (list (+ x cov (* ht -0.55)) y0) "")
-    ;; standing seam at the right-hand edge — up, folded over, back down
-    (command "_.LINE" (list (+ x cov (* ht -0.55)) y0) (list (+ x cov (* ht -0.30)) (+ y0 ht)) "")
-    (command "_.LINE" (list (+ x cov (* ht -0.30)) (+ y0 ht)) (list (+ x cov (* ht 0.30)) (+ y0 ht)) "")
-    (command "_.LINE" (list (+ x cov (* ht 0.30)) (+ y0 ht)) (list (+ x cov (* ht 0.55)) y0) "")
+    (apply seam (list x))                                     ; a seam at every module line
+    (if (< i n)
+      (command "_.LINE" (list (+ x w) y0) (list (+ x cov (- w)) y0) ""))   ; the pan between
     (setq i (1+ i)))
-  ;; the first seam (left edge of the run)
-  (command "_.LINE" (list (+ x0 (* ht 0.55)) y0) (list (+ x0 (* ht 0.30)) (+ y0 ht)) "")
-  (command "_.LINE" (list (+ x0 (* ht 0.30)) (+ y0 ht)) (list (+ x0 (* ht -0.30)) (+ y0 ht)) "")
-  (command "_.LINE" (list (+ x0 (* ht -0.30)) (+ y0 ht)) (list (+ x0 (* ht -0.55)) y0) "")
   (princ))
 
 (defun peb-sd-sandwich (x0 y0 n pit ht thk / i x)
@@ -1936,6 +1953,44 @@
     (setq i (1+ i)))
   (princ))
 
+;; ── EAVE GUTTER SECTION — TRACED FROM A REAL MAIMAAR TRIM (owner 27-Aug) ─────────────
+;; Owner: "there are a lot of jobs which have all the details of valley gutters, eave gutters
+;; etc, you may check there & develop similar details in proposal drawings ... you only get
+;; the details which are required at proposal stage."
+;;
+;; Source: E:\Maimaar Steel Pvt Ltd\Jobs59-MSPL_PAECO ... \Approval drawing;;         Eave Gutter9-MSPL_Eave Gutter.pdf  — a dimensioned trim development.
+;;
+;; WHY THIS ONE IS FAIR AT PROPOSAL STAGE while an installed gutter detail is not: this is a
+;; PRODUCT PROFILE, like the sheeting section beside it. Its shape and gauge are fixed by the
+;; roll/fold, not by design — no fall, no outlet spacing, no bracket centres, none of the
+;; things that are only settled at approval stage. Every number below is off that drawing.
+;;
+;; Section walked anti-clockwise from the inside base-left corner, x to the right, y up:
+;;   base 165 -> front leg 150 up -> 50 lip out at 84 deg
+;;   back:  103 up -> 42 sloped at 135 deg (30 rise) -> 70 up -> 20 lip out at 96 deg
+;;   overall depth 203, which the drawing dimensions as 103 + 30 + 70.
+(defun peb-sd-eave-gutter (x0 y0 sc / p)
+  (setvar "CLAYER" "SHEETING")
+  (setq p (list
+    (list (+ x0 (* sc -50.0))  (+ y0 (* sc 207.0)))   ; back top lip, 20 out at 96 deg
+    (list (+ x0 (* sc -30.0))  (+ y0 (* sc 203.0)))   ; top of back leg
+    (list (+ x0 (* sc -30.0))  (+ y0 (* sc 133.0)))   ; down 70
+    (list (+ x0 0.0)           (+ y0 (* sc 103.0)))   ; 42 sloped at 135 deg (30 rise)
+    (list (+ x0 0.0)           (+ y0 0.0))            ; down 103 to the base
+    (list (+ x0 (* sc 165.0))  (+ y0 0.0))            ; base 165
+    (list (+ x0 (* sc 165.0))  (+ y0 (* sc 150.0)))   ; front leg 150 up
+    (list (+ x0 (* sc 213.0))  (+ y0 (* sc 158.0)))))  ; 50 lip out at 84 deg
+  (peb-sd-poly p)
+  p)
+
+;; Draw an open polyline through a list of points.
+(defun peb-sd-poly (pts / i)
+  (setq i 0)
+  (while (< (1+ i) (length pts))
+    (command "_.LINE" (nth i pts) (nth (1+ i) pts) "")
+    (setq i (1+ i)))
+  (princ))
+
 ;; IS THIS A PROFILE WE ACTUALLY KNOW HOW TO DRAW? (rulebook 4B.24)
 ;; The shape is chosen by substring against the BSF's profile text, and the vocabulary is
 ;; small and controlled today ("Standard S Profile" variants, "Lock Seam Profile (roof
@@ -1954,7 +2009,7 @@
 (defun peb-sd-panel (ox y lock ttl mat fin col ptype thk / pit ht cov panW gA sand dep)
   ;; ONE panel detail: the section, its rib/pitch dimensions, the cover dimension,
   ;; and that panel's OWN specification off the BSF.
-  (setq pit 250.0 ht 35.0 cov 460.0 panW 1000.0)
+  (setq pit 250.0 ht 35.0 cov 470.0 panW 1000.0)   ; 470 = gola c/c per MSPL fabrication BOQs
   (setq sand (and (> thk 0.0) (vl-string-search "SANDWICH" (strcase ptype))))
   ;; The title clears the panel by its ACTUAL depth — a 50 mm sandwich core is deeper
   ;; than a 35 mm rib, and a fixed offset put the title straight through it.
@@ -2003,7 +2058,7 @@
         ((vl-string-search "SANDWICH" ty) "SANDWICH PANEL (S-TYPE OUTER SKIN)")
         (T "STANDARD S PROFILE 35-250 (S-TYPE)")))
 
-(defun peb-draw-sheeting-details (data ox oy / prev rp wp lockR lockW y rSig wSig same)
+(defun peb-draw-sheeting-details (data ox oy / prev rp wp lockR lockW y rSig wSig same et gx)
   (setq prev (getvar "CLAYER"))
   (setq rp (strcase (peb-tb-or (MSPL-Get-Str data "PN_ROOF_OUTER_PROFILE") "STANDARD PROFILE"))
         wp (strcase (peb-tb-or (MSPL-Get-Str data "PN_WALL_OUTER_PROFILE") "STANDARD PROFILE")))
@@ -2062,8 +2117,49 @@
   (setvar "CLAYER" "TEXT")
   (txt "ML" (list ox y) (peb-th 'ANNOT) 0
        "PROFILE SHOWN INDICATIVE - PANEL SUPPLIED PER THE APPROVED DESIGN.")
+
+  ;; ── EAVE GUTTER, ONLY WHERE THE BUILDING HAS ONE (owner 27-Aug, rulebook 4B.24) ─────
+  ;; BP_EAVE_TYPE is the building's own eave condition: "Eave Gutters & Downspouts",
+  ;; "Eave Trim", "Curved Eave with/without projection", or "Valley Gutter".  The gutter
+  ;; section is drawn ONLY for the gutter cases - an eave-trim or curved-eave building must
+  ;; not carry a gutter detail, because the drawing is part of the offer and a detail for
+  ;; something not sold is a scope argument at handover.
+  ;;
+  ;; VALLEY GUTTER IS NOT DRAWN YET, and is deliberately not substituted with the eave
+  ;; section: they are different products (owner: only multi-gable jobs get valley gutters),
+  ;; and no dimensioned valley profile exists in the Jobs tree - only a BOQ of valley trims
+  ;; (job 171).  A valley building gets the honest line instead of the wrong picture.
+  ;; SECOND COLUMN, not a third row.  Stacking the gutter under the panels made the sheet
+  ;; tall and narrow: the fit rule then scaled everything down to suit the height, the
+  ;; drawings shrank, and the DETAILS heading was stranded in the middle of the page.  Beside
+  ;; them the sheet stays close to the drawing box's own 1.10:1, which is what fills it.
+  (setq et (strcase (peb-tb-or (MSPL-Get-Str data "BP_EAVE_TYPE") "")))
+  (setq gx (+ ox 1500.0))
+  (setvar "CLAYER" "TEXT")
+  (cond
+    ((vl-string-search "VALLEY" et)
+      (setvar "CECOLOR" "5")
+      (txt-bold "ML" (list gx 170.0) (peb-th 'LABEL) 0 "VALLEY GUTTER")
+      (setvar "CECOLOR" "BYLAYER")
+      (txt "ML" (list gx 0.0) (peb-th 'ANNOT) 0 "SECTION PER THE APPROVAL DRAWING.")
+      (txt "ML" (list gx -160.0) (peb-th 'ANNOT) 0 "1.2 mm PPG.L  |  COLOUR AS SHEET"))
+    ((vl-string-search "GUTTER" et)
+      (setvar "CECOLOR" "5")
+      (txt-bold "ML" (list gx 170.0) (peb-th 'LABEL) 0 "EAVE GUTTER")
+      (setvar "CECOLOR" "BYLAYER")
+      ;; the trim is 203 deep; 0.55 gives it the same visual weight as a panel section
+      (vl-catch-all-apply (function (lambda ()
+        (peb-sd-eave-gutter (+ gx 120.0) 0.0 0.55))))
+      ;; kept short so the column does not run into the title strip
+      (txt "ML" (list gx -200.0) (peb-th 'ANNOT) 0 "165 BASE  |  203 DEEP")
+      (txt "ML" (list gx -360.0) (peb-th 'ANNOT) 0 "1.2 mm PPG.L  |  3 M")
+      (txt "ML" (list gx -520.0) (peb-th 'ANNOT) 0 "COLOUR AS SHEET")))
+
   (setvar "CECOLOR" "5")
-  (txt-bold "MC" (list (+ ox 500.0) (- y 120.0)) (peb-th 'HEADING) 0
+  ;; The heading sits BELOW everything on the sheet, at a fixed depth clear of both
+  ;; columns.  Hanging it off the panel column's own y put it in the middle of the page
+  ;; as soon as a second column was added beside it (owner 27-Aug).
+  (txt-bold "MC" (list (+ ox 900.0) -800.0) (peb-th 'HEADING) 0
             "DETAILS")
   (setvar "CECOLOR" "BYLAYER")
   (setvar "CLAYER" prev)
