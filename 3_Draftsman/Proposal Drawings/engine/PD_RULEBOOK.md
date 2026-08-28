@@ -795,6 +795,65 @@ view was 80 m wide.
 the scale actually plotted. `DisplayLocked` last, because the DWG goes to a customer who will
 scroll it.
 
+### 4B.29 Placement by size — the frame's aspect decides everything
+
+**Owner, 28-Aug:** *"make the universal rules for placement of Drawings based on the sizes."*
+
+**THE FRAME.** A4 landscape, minus 6 mm margin, minus the title strip (63.36 mm) and its
+3 mm gap, leaves a drawing box of **218.64 × 198 mm — aspect 1.104**. Every sheet is placed
+in that box and nothing else.
+
+**THE FOUR PLACEMENT RULES** (in the order they are applied):
+
+1. **Pad.** Take the drawn bounding box and add 3% all round. `vla-GetBoundingBox` reports
+   each entity's own extent, but rotated MTEXT, grid bubbles and edge labels put ink slightly
+   past it; without the pad the outermost annotation is shaved by the viewport edge.
+2. **Scale = exact fit, rounded UP.** `sc = ceil(max(padW/218.64, padH/198))` — tenths below
+   1:20, whole units above. Rounding up guarantees it never overfits; rounding to a whole
+   unit keeps a readable scale in the title block and gives away at most 0.5% at 1:200.
+3. **The viewport takes the DRAWING's aspect, not the box's** — `padW/sc × padH/sc`. A fixed
+   A4-shaped viewport would show extra model in the slack direction, and in the combined DWG
+   that means the neighbouring tiled sheet bleeds in.
+4. **Centre it.** The viewport is centred on the box centre (115.32, 105) and the view is
+   centred on the drawing's own bbox centre. Both, always — see 4B.28, which is about proving
+   the second one actually happened.
+
+**THE LAW THAT FOLLOWS — and this is the rule he asked for.**
+
+> How full a sheet looks is decided **entirely by how far the drawing's aspect sits from the
+> frame's 1.104**. Not by the building's size, and not by the scale.
+>
+> **weaker fill = min(A, 1.104) / max(A, 1.104)**,  where A = the padded drawing's width÷height.
+
+This is the fill at the **exact** fit, so it is a ceiling: rounding the scale up (rule 2) then
+costs a little more — 0.06% at 1:779, 0.8% at 1:98, most on a detail sheet at 1:9. Measured
+across all 27 engineering sheets of MSPL-26-270 (B-01, B-02, B-03) the two agree to within
+that rounding. B-03's plan has A = 2.21, so 1.104/2.21 = **49.9%**, which is what the DWG
+contains. The binding direction always reaches ~100%; the other one cannot be improved by
+rescaling, because scale moves both directions together.
+
+**SIZE BANDS.** With `r` = weaker fill:
+
+| `r` | drawing aspect A | verdict | action |
+|---|---|---|---|
+| ≥ 80% | 0.88 – 1.38 | good | one sheet |
+| 60–80% | 0.66 – 1.84 | acceptable | one sheet |
+| **< 60%** | **> 1.84 or < 0.66** | **more than a third of the sheet is empty, and the scale is needlessly small** | **split the drawing across sheets** |
+
+A long building loses twice over: half the paper AND half the scale. B-03's plan prints at
+1:779; split in two it would print near 1:390 — the same drawing at double the size.
+
+**THE SPLIT TRIGGER MUST BE MEASURED ON THE DRAWN EXTENT, NOT THE BUILDING.** The 400 ft rule
+(4B.19) tests the building's own length. But the sheet is sized by the *bbox*, and dimension
+strings, grid bubbles and wall labels sitting outside the steel add roughly a third to it —
+B-03's building is under 400 ft, so it never splits, yet its plan bbox is 165 m wide and the
+sheet fills 49.9%. Length is a proxy; aspect is the thing that actually governs the page.
+
+**Audit it:** `node scripts/auditSheetFill.js <bbox.log>` (CRM repo) prints aspect, scale and
+both fills for every sheet a render captured; feed it a `PEB_DEBUG_BBOX` log. Its arithmetic
+is the same as `peb-add-layout`'s and was checked against the viewport dimensions AutoCAD
+actually stored.
+
 ## 5. THE DOC SET (how the four files relate)
 | File | Holds | Read it when |
 |---|---|---|
