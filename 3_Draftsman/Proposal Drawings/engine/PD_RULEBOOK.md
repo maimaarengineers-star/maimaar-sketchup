@@ -934,6 +934,30 @@ bubbles and no title block. Use `peb-bub-row`, not `rem`. **Never call a built-i
 file also uses as a variable name** (see 4B.26: the failure has no error on the sheet, only
 in the log).
 
+### 4B.32 Mezzanine joists are FLUSH with the main beams, never stacked on them
+
+**Owner, 29-Aug:** *"Joists do not rest above the main beams, joists are flushed with Main
+beams. Joist top and main beams top is the same."*
+
+The joists sit **inside the main beam web**, their top flanges level with the main beam's top
+flange. One shared plane carries the decking; the corrugation trough lands on that plane.
+
+**THE CONSEQUENCE, and the reason this is worth a rule.** The structural floor zone is
+
+> **max(beam depth, joist depth) + slab**  — NOT beam + joist + slab.
+
+Get that wrong and you over-estimate the floor build-up by a whole joist depth, which reads
+as a clear height that will not fit and sends you back to the client to change a tender
+dimension that was never in trouble. Worked on MSPL-26-271 (Rainbow): an 8.33 m mezzanine
+beam at ~L/20 is ~415 mm, joists within that same depth, plus a 125 mm slab ≈ 540 mm — well
+inside the tender's 3 ft (914 mm) between the 16 ft clear height and the 19 ft top of slab.
+Summed as if stacked it comes to ~955 mm and looks like it does not fit.
+
+**Already built — do not "fix" it.** `draw-floor-buildup` in `MAIMAAR_PEB_Section.lsp`
+implements this: the joist top flange is drawn at the beam top flange line, the joist bottom
+flange 300 mm below it inside the web, and the 45 mm decking trough rests on the shared flush
+top. The comment there says so in as many words.
+
 ## 5. THE DOC SET (how the four files relate)
 | File | Holds | Read it when |
 |---|---|---|
