@@ -4416,10 +4416,10 @@
   ;; Use exactly that — places "10" JUST above sheeting.
   (setq labX (+ cx (/ (* upRight run) 2.0)))
   (setq labY (+ (- ay (* 190 s)) 50.0))
-  (txt "MC" (list labX labY) 220 0 (rtos slopeD 2 0))
+  (txt "MC" (list labX labY) (peb-th 'SMALL) 0 (rtos slopeD 2 0))
   ;; "1" label outside the vertical leg, vertically centred on its midpoint
   (setq labOne (+ bx (* upRight 220 s)))
-  (txt "MC" (list labOne (+ ay (/ rise 2.0))) 220 0 "1")
+  (txt "MC" (list labOne (+ ay (/ rise 2.0))) (peb-th 'SMALL) 0 "1")
 )
 
 (defun draw-rc-brick-hidden (W H / bw seg xo xi y)
@@ -4621,8 +4621,13 @@
   ;;   Line 2 (below bar): the spec (e.g. "50mm PIR SANDWICH PANEL")
   ;; Vertical leader drops from LEFT end of horizontal bar straight down to sheeting.
   (setq rParts (split-at-first-digit roofLbl))
-  (setq rLine1 (strcat (car rParts) ":"))
-  (setq rLine2 (cadr rParts))
+  ;; ALL DRAWING-BODY TEXT IS UPPERCASE (owner rule + Mammut master).  `txt` applies
+  ;; (strcase ...) itself, but this spec reaches paper through an MLEADER, which bypasses
+  ;; it - so "0.50 mm AZ150 PPGL (S-Type) + 50mm Fiberglass Insulation" printed in mixed
+  ;; case among all-caps labels and read as a different typeface (owner 28-Aug).
+  ;; Upper-cased where it is BUILT, so the MLEADER and txt paths cannot disagree.
+  (setq rLine1 (strcase (strcat (car rParts) ":")))
+  (setq rLine2 (strcase (cadr rParts)))
   ;; ROOF CLADDING label X: locked at 1/3 of the half-rafter span IN
   ;; FROM the right eave (per user clarification: "1/3 from right side
   ;; eave").  rWrapW sized to fit the remaining halfR/3 of available
@@ -4692,23 +4697,23 @@
       (cond
         ((vl-catch-all-error-p mlResult)
           ;; --- Fallback: hand-rolled heading + bar + drop + arrow --
-          (setq rHeadY (+ rBarY (* 220 *PEB-TEXT-SCALE*)))
+          (setq rHeadY (+ rBarY (* (peb-th 'SMALL) *PEB-TEXT-SCALE*)))
           (setq rSpecY (- rBarY (* 60  *PEB-TEXT-SCALE*)))
           ;; Heading bold above bar
           (setq mtResult
             (vl-catch-all-apply 'peb-make-mtext-line
               (list (list labRX rHeadY)
-                    (* 220.0 *PEB-TEXT-SCALE*) 0 "ML"
+                    (* (peb-th 'SMALL) *PEB-TEXT-SCALE*) 0 "ML"
                     (strcat "{\\Fromand.shx;" rLine1 "}"))))
           (if (vl-catch-all-error-p mtResult)
-            (txt "ML" (list labRX rHeadY) 220 0 rLine1))
+            (txt "ML" (list labRX rHeadY) (peb-th 'SMALL) 0 rLine1))
           ;; Spec regular below bar
           (setq mtResult
             (vl-catch-all-apply 'peb-make-mtext-line
               (list (list labRX rSpecY)
-                    (* 220.0 *PEB-TEXT-SCALE*) 0 "TL" rLine2_2L)))
+                    (* (peb-th 'SMALL) *PEB-TEXT-SCALE*) 0 "TL" rLine2_2L)))
           (if (vl-catch-all-error-p mtResult)
-            (setq nRSpec (txt-wrap "TL" (list labRX rSpecY) 220 0 rBarLen rLine2_2L)))
+            (setq nRSpec (txt-wrap "TL" (list labRX rSpecY) (peb-th 'SMALL) 0 rBarLen rLine2_2L)))
           (setvar "CLAYER" "ARROWS")
           (setvar "PLINEWID" 0.0)
           ;; Bar
@@ -4749,7 +4754,7 @@
     )
     (T
       ;; --- Single-line fallback ---
-      (txt "ML" (list labRX labRY) 220 0 roofLbl)
+      (txt "ML" (list labRX labRY) (peb-th 'SMALL) 0 roofLbl)
       (draw-l-leader (+ labRX (* 5000 *PEB-TEXT-SCALE*))
                      (- labRY (* 250 *PEB-TEXT-SCALE*))
                      (+ (/ W 2.0) (* 1500 *PEB-TEXT-SCALE*))
@@ -4769,8 +4774,8 @@
   ;; owner 15-Jul: ROOFING SYSTEM (RC) has full-height masonry walls — NO wall sheeting + NO wall M-Ladder.
   (if (not *PEB-NO-WALL-SHEET*) (progn
   (setq wParts (split-at-first-digit wallLbl))
-  (setq wLine1 (strcat (car wParts) ":"))
-  (setq wLine2 (cadr wParts))
+  (setq wLine1 (strcase (strcat (car wParts) ":")))
+  (setq wLine2 (strcase (cadr wParts)))
   (setq labWX (- 0 girtDepth cladThk))           ; -235 (sheet outer face)
   ;; Anchor labWY clear of the EAVE GUTTER label below it.  Eave gutter
   ;; sits at gyTopOut + 450·TS ≈ H + 681 + 450·TS.  Three wrapped lines
@@ -4823,7 +4828,17 @@
       ;;
       ;; Heading is rendered bold via inline MText format code
       ;; "{\\Fromand.shx; … }" so the surrounding spec text stays in
-      ;; regular weight at the same 220·TS body size.
+      ;; regular weight at the same body size, which is now (peb-th 'SMALL) - see below.
+;;
+;; TEXT SIZE COMES FROM THE LADDER, NOT FROM A NUMBER (owner 28-Aug: "make sure all
+;; the texts are based on the defined text only ... I have seen the deviation of
+;; FIBERGLASS INSULATION which have different text type").  He was right: this whole
+;; roof/wall sheeting spec block was drawn at a hard-coded 220, and txt multiplies by
+;; *PEB-TEXT-SCALE*, so it printed at about 0.8 mm on A4 - below every rung of
+;; *PEB-TEXT-HEIGHTS*, whose SMALLEST is SMALL 550 (2.0 mm).  Nothing else on any sheet
+;; was that small, which is exactly why the insulation line looked like a different
+;; typeface.  Heights AND the paired vertical offsets now both read (peb-th 'SMALL),
+;; so the block keeps its proportions and follows the ladder if the ladder moves.
       (setvar "CLAYER" "TEXT")
       ;; Force the spec text to AT MOST 2 lines via explicit paragraph
       ;; break.  Heading + spec then becomes a 3-line block
@@ -4863,23 +4878,23 @@
       (cond
         ((vl-catch-all-error-p mlResult)
           ;; --- Fallback: hand-rolled heading + Γ leader + spec -----
-          (setq wHeadY (+ wBarY (* 220 *PEB-TEXT-SCALE*)))
+          (setq wHeadY (+ wBarY (* (peb-th 'SMALL) *PEB-TEXT-SCALE*)))
           (setq wSpecY (- wBarY (* 60  *PEB-TEXT-SCALE*)))
           ;; Heading bold above bar
           (setq mtResult
             (vl-catch-all-apply 'peb-make-mtext-line
               (list (list labWX wHeadY)
-                    (* 220.0 *PEB-TEXT-SCALE*) 0 "ML"
+                    (* (peb-th 'SMALL) *PEB-TEXT-SCALE*) 0 "ML"
                     (strcat "{\\Fromand.shx;" wLine1 "}"))))
           (if (vl-catch-all-error-p mtResult)
-            (txt "ML" (list labWX wHeadY) 220 0 wLine1))
+            (txt "ML" (list labWX wHeadY) (peb-th 'SMALL) 0 wLine1))
           ;; Spec regular below bar
           (setq mtResult
             (vl-catch-all-apply 'peb-make-mtext-line
               (list (list labWX wSpecY)
-                    (* 220.0 *PEB-TEXT-SCALE*) 0 "TL" wLine2_2L)))
+                    (* (peb-th 'SMALL) *PEB-TEXT-SCALE*) 0 "TL" wLine2_2L)))
           (if (vl-catch-all-error-p mtResult)
-            (txt-wrap "TL" (list labWX wSpecY) 220 0 wBarLen wLine2_2L))
+            (txt-wrap "TL" (list labWX wSpecY) (peb-th 'SMALL) 0 wBarLen wLine2_2L))
           (setvar "CLAYER" "ARROWS")
           (setvar "PLINEWID" 0.0)
           ;; Apex bar - 300 mm long (Option B per user)
@@ -4915,7 +4930,7 @@
     )
     (T
       ;; --- Single-line fallback ---
-      (txt "ML" (list labWX labWY) 220 0 wallLbl)))
+      (txt "ML" (list labWX labWY) (peb-th 'SMALL) 0 wallLbl)))
   ;; owner 14-Jul: the SINGLE wall-sheeting M-Ladder arrowhead — a SMALL triangle (160×55) pointing RIGHT at
   ;; the sheeting line, SAME size as the eave-gutter / COLUMN / GIRT arrows.  (The per-branch overlays were
   ;; removed so there is exactly ONE arrow here.)
@@ -5097,8 +5112,13 @@
   (setq gxL_last  (* (1- numGab) gW))
   (setq ridgeX_last (+ gxL_last (/ gW 2.0)))   ; = W - gW/2
   (setq rParts (split-at-first-digit roofLbl))
-  (setq rLine1 (strcat (car rParts) ":"))
-  (setq rLine2 (cadr rParts))
+  ;; ALL DRAWING-BODY TEXT IS UPPERCASE (owner rule + Mammut master).  `txt` applies
+  ;; (strcase ...) itself, but this spec reaches paper through an MLEADER, which bypasses
+  ;; it - so "0.50 mm AZ150 PPGL (S-Type) + 50mm Fiberglass Insulation" printed in mixed
+  ;; case among all-caps labels and read as a different typeface (owner 28-Aug).
+  ;; Upper-cased where it is BUILT, so the MLEADER and txt paths cannot disagree.
+  (setq rLine1 (strcase (strcat (car rParts) ":")))
+  (setq rLine2 (strcase (cadr rParts)))
   ;; ROOF CLADDING label X: 1/3 of the LAST gable's half-span IN FROM
   ;; the right eave.
   (setq labRX  (- W (/ (/ gW 2.0) 3.0)))            ; W - (gW/2)/3 = W - gW/6
@@ -5138,17 +5158,17 @@
           ;; Fallback: hand-rolled
           (setq mtResult
             (vl-catch-all-apply 'peb-make-mtext-line
-              (list (list labRX (+ rBarY (* 220 *PEB-TEXT-SCALE*)))
-                    (* 220.0 *PEB-TEXT-SCALE*) 0 "ML"
+              (list (list labRX (+ rBarY (* (peb-th 'SMALL) *PEB-TEXT-SCALE*)))
+                    (* (peb-th 'SMALL) *PEB-TEXT-SCALE*) 0 "ML"
                     (strcat "{\\Fromand.shx;" rLine1 "}"))))
           (if (vl-catch-all-error-p mtResult)
-            (txt "ML" (list labRX (+ rBarY (* 220 *PEB-TEXT-SCALE*))) 220 0 rLine1))
+            (txt "ML" (list labRX (+ rBarY (* (peb-th 'SMALL) *PEB-TEXT-SCALE*))) (peb-th 'SMALL) 0 rLine1))
           (setq mtResult
             (vl-catch-all-apply 'peb-make-mtext-line
               (list (list labRX (- rBarY (* 60 *PEB-TEXT-SCALE*)))
-                    (* 220.0 *PEB-TEXT-SCALE*) 0 "TL" rLine2_2L)))
+                    (* (peb-th 'SMALL) *PEB-TEXT-SCALE*) 0 "TL" rLine2_2L)))
           (if (vl-catch-all-error-p mtResult)
-            (setq nRSpec (txt-wrap "TL" (list labRX (- rBarY (* 60 *PEB-TEXT-SCALE*))) 220 0 rBarLen rLine2_2L)))
+            (setq nRSpec (txt-wrap "TL" (list labRX (- rBarY (* 60 *PEB-TEXT-SCALE*))) (peb-th 'SMALL) 0 rBarLen rLine2_2L)))
           (setvar "CLAYER" "ARROWS")
           (setvar "PLINEWID" 0.0)
           (command "LINE"
@@ -5177,7 +5197,7 @@
     )
     (T
       ;; --- Single-line fallback -----------------------------------------
-      (txt "ML" (list labRX labRY) 220 0 roofLbl)
+      (txt "ML" (list labRX labRY) (peb-th 'SMALL) 0 roofLbl)
       (draw-l-leader (+ labRX (* 5000 *PEB-TEXT-SCALE*))
                      (- labRY (* 250 *PEB-TEXT-SCALE*))
                      ridgeX_last
@@ -5186,8 +5206,8 @@
 
   ;; === WALL SHEETING label: ONE 4-vertex MLEADER (matches CS) ===
   (setq wParts (split-at-first-digit wallLbl))
-  (setq wLine1 (strcat (car wParts) ":"))
-  (setq wLine2 (cadr wParts))
+  (setq wLine1 (strcase (strcat (car wParts) ":")))
+  (setq wLine2 (strcase (cadr wParts)))
   (setq labWX  (- 0.0 girtDepth cladThk))      ; -235 : outer face of wall sheet
   (setq labWY  (+ H (* 3800 *PEB-TEXT-SCALE*)))   ; owner 14-Jul: 3 rows up (match CS) for long sandwich specs
   ;; Arrow tip Y: 300 mm BELOW the clear-height line (same rule as CS).
@@ -5216,21 +5236,21 @@
       (cond
         ((vl-catch-all-error-p mlResult)
           ;; Hand-rolled fallback
-          (setq wHeadY (+ wBarY (* 220 *PEB-TEXT-SCALE*)))
+          (setq wHeadY (+ wBarY (* (peb-th 'SMALL) *PEB-TEXT-SCALE*)))
           (setq wSpecY (- wBarY (* 60  *PEB-TEXT-SCALE*)))
           (setq mtResult
             (vl-catch-all-apply 'peb-make-mtext-line
               (list (list labWX wHeadY)
-                    (* 220.0 *PEB-TEXT-SCALE*) 0 "ML"
+                    (* (peb-th 'SMALL) *PEB-TEXT-SCALE*) 0 "ML"
                     (strcat "{\\Fromand.shx;" wLine1 "}"))))
           (if (vl-catch-all-error-p mtResult)
-            (txt "ML" (list labWX wHeadY) 220 0 wLine1))
+            (txt "ML" (list labWX wHeadY) (peb-th 'SMALL) 0 wLine1))
           (setq mtResult
             (vl-catch-all-apply 'peb-make-mtext-line
               (list (list labWX wSpecY)
-                    (* 220.0 *PEB-TEXT-SCALE*) 0 "TL" wLine2_2L)))
+                    (* (peb-th 'SMALL) *PEB-TEXT-SCALE*) 0 "TL" wLine2_2L)))
           (if (vl-catch-all-error-p mtResult)
-            (txt-wrap "TL" (list labWX wSpecY) 220 0 wBarLen wLine2_2L))
+            (txt-wrap "TL" (list labWX wSpecY) (peb-th 'SMALL) 0 wBarLen wLine2_2L))
           (setvar "CLAYER" "ARROWS")
           (setvar "PLINEWID" 0.0)
           (command "LINE"
@@ -5261,7 +5281,7 @@
       )
     )
     (T
-      (txt "ML" (list labWX labWY) 220 0 wallLbl)))
+      (txt "ML" (list labWX labWY) (peb-th 'SMALL) 0 wallLbl)))
   (setvar "PLINEWID" 0.0)
 )
 
@@ -9055,7 +9075,7 @@
       ;; EXISTING WALL callout (right) — text RIGHT-justified so it sits to the LEFT of its own rightward
       ;; leader (no text/leader overlap); clean horizontal arrowhead at the wall face, no tail dot.
       (setq ltEwY (- H ht 700.0))
-      (peb-label-no-leader "EXISTING WALL" (list (- wid 2500.0) ltEwY) 220 0 "MR")
+      (peb-label-no-leader "EXISTING WALL" (list (- wid 2500.0) ltEwY) (peb-th 'SMALL) 0 "MR")
       (setvar "CLAYER" "ARROWS")
       (draw-l-leader (- wid 2500.0) ltEwY wid ltEwY "H"))
     ((member stype '("ACS" "AMS"))
