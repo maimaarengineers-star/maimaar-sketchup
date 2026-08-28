@@ -297,7 +297,7 @@
             (strcat (if isEnd "END WALL ELEVATION" "SIDE WALL ELEVATION")
                     "  ALONG GRID LINE- " gridId))
   (setvar "CECOLOR" "BYLAYER")
-  (txt "MC" (list (+ ox (/ faceLen 2.0)) (- oy (* 5400 su))) 320 0
+  (txt "MC" (list (+ ox (/ faceLen 2.0)) (- oy (* 5400 su))) (peb-th 'SMALL) 0
        (if wallOpen "OPEN FOR ACCESS"
          (if (= owncond "") "FULLY SHEETED" (strcase owncond))))
 

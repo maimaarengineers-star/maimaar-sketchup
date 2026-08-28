@@ -1382,7 +1382,16 @@
   ;;  changes the result.
   (setq dimtxt   (if (getvar "DIMTXT") (getvar "DIMTXT") 250.0))
   (setq dimscale (if (getvar "DIMSCALE") (getvar "DIMSCALE") 1.0))
-  (max 1200.0 (* 4.0 dimtxt dimscale))
+  ;; 4.0 -> 2.8 (owner 28-Aug: "in Section the gap b/w the dim of BW and Clear height is
+  ;; more"). The gap exists to clear two ROTATED 2-LINE dim texts - "3,048 [10'-0\"]" over
+  ;; "BRICK MASONRY", and "6,100 [20'-0\"]" over "CLEAR HEIGHT" - from each other. Rotated,
+  ;; a 2-line block occupies 2 x DIMTXT across, so the requirement is 2 lines plus a gap,
+  ;; about 2.8. At 4.0 it was 2,400 mm on a 13,720 building - 17% of the section's width
+  ;; spent on white space between two dimension columns.
+  ;;
+  ;; Same rule as the slope tag: the clearance is computed FROM the text it has to clear.
+  ;; 2.0 would touch, so the 0.8 is the visible gap and nothing more.
+  (max 1200.0 (* 2.8 dimtxt dimscale))
 )
 
 (defun peb-set-cell-text (tbl row col text height /)
@@ -2562,7 +2571,7 @@
           "")
         ;; "VALLEY GUTTER" label + M-Ladder DOWN-ARROW (owner 14-Jul): explicit shaft + SOLID arrowhead.
         (setvar "CLAYER" "TEXT")
-        (txt "MC" (list (/ (+ vXL vXR) 2.0) (+ H (* 1500 *PEB-TEXT-SCALE*))) 200 0 "VALLEY GUTTER")
+        (txt "MC" (list (/ (+ vXL vXR) 2.0) (+ H (* 1500 *PEB-TEXT-SCALE*))) (peb-th 'SMALL) 0 "VALLEY GUTTER")
         (setvar "CLAYER" "ARROWS")
         (command "LINE" (list (/ (+ vXL vXR) 2.0) (+ H (* 1150 *PEB-TEXT-SCALE*)))
                         (list (/ (+ vXL vXR) 2.0) (- H 100.0)) "")
@@ -2853,8 +2862,8 @@
   (peb-label-with-leader "STEEL JOIST @ 1.5m C/C" (fr-dp ox oy sc -880 -120) (fr-dp ox oy sc -300 -150) "H" 260)
   (peb-label-with-leader "CLIP ANGLE + BOLTS" (fr-dp ox oy sc -880 -320) (fr-dp ox oy sc -40 -150) "H" 260)
   (peb-label-with-leader "MAIN BEAM (550 DEEP)" (fr-dp ox oy sc 620 -430) (fr-dp ox oy sc 0 -400) "H" 260)
-  (txt-bold "MC" (fr-dp ox oy sc -180 -645) 320 0 "DETAIL - A")
-  (txt "MC" (fr-dp ox oy sc -180 -730) 240 0 "JOIST CONNECTION  (N.T.S.)")
+  (txt-bold "MC" (fr-dp ox oy sc -180 -645) (peb-th 'SMALL) 0 "DETAIL - A")
+  (txt "MC" (fr-dp ox oy sc -180 -730) (peb-th 'SMALL) 0 "JOIST CONNECTION  (N.T.S.)")
   (princ))
 
 (defun draw-fr-drainage (wid H ht / drnX topY frCT botY)
@@ -2933,8 +2942,8 @@
                          (fr-dp ox oy sc 820 40) (fr-dp ox oy sc 95 25) "H" 260)
   (peb-label-with-leader "DOWNSPOUT (BY OTHERS)"
                          (fr-dp ox oy sc 820 -360) (fr-dp ox oy sc 46 -360) "H" 260)
-  (txt-bold "MC" (fr-dp ox oy sc 0 -700) 320 0 "DETAIL - B")
-  (txt "MC" (fr-dp ox oy sc 0 -785) 240 0 "ROOF DRAINAGE  (N.T.S.)")
+  (txt-bold "MC" (fr-dp ox oy sc 0 -700) (peb-th 'SMALL) 0 "DETAIL - B")
+  (txt "MC" (fr-dp ox oy sc 0 -785) (peb-th 'SMALL) 0 "ROOF DRAINAGE  (N.T.S.)")
   (princ))
 
 (defun draw-petrol-frame (W H ht cb / ovh cx1 cx2 rt colw ppS mid)
@@ -4294,7 +4303,7 @@
   ;; ===== Title under the detail =====
   (setq tx cx)
   (setq ty (- cyBase 600.0))
-  (txt-bold "MC" (list tx ty) 280 0 "DETAIL-A: TYPICAL VALLEY DETAILS")
+  (txt-bold "MC" (list tx ty) (peb-th 'SMALL) 0 "DETAIL-A: TYPICAL VALLEY DETAILS")
   ;; Underline
   (command "LINE"
     (list (- cx 3500.0) (- ty 220.0))
@@ -4371,12 +4380,13 @@
   ;; vertical
   (command "LINE" (list bx ay) (list bx by) "")
   ;; Labels
-  (txt "MC" (list (+ cx (/ run 2.0)) (- ay (* 240 s))) 200 0 (rtos slopeD 2 0))
-  (txt "MC" (list (+ bx (* 240 s)) (+ ay (/ rise 2.0))) 200 0 "1")
-  (txt-bold "MC" (list (+ cx (/ run 2.0)) (+ by (* 350 s))) 240 0 (strcat "SLOPE " slopeStr))
+  ;; same rule as draw-slope-tag: the clearance is a function of the glyph, not a constant
+  (txt "MC" (list (+ cx (/ run 2.0)) (- ay (* (peb-th 'SMALL) s 0.85))) (peb-th 'SMALL) 0 (rtos slopeD 2 0))
+  (txt "MC" (list (+ bx (* 240 s)) (+ ay (/ rise 2.0))) (peb-th 'SMALL) 0 "1")
+  (txt-bold "MC" (list (+ cx (/ run 2.0)) (+ by (* 350 s))) (peb-th 'SMALL) 0 (strcat "SLOPE " slopeStr))
 )
 
-(defun draw-slope-tag (cx cy slopeD upRight / s run rise ax ay bx by labX labY labOne)
+(defun draw-slope-tag (cx cy slopeD upRight / s th run rise ax ay bx by labX labY labOne)
   ;;  Compact MAIMAAR-style slope tag: small right triangle showing the
   ;;  rise/run ratio.  Labels read "1" next to the vertical leg and the
   ;;  denominator (e.g. "10") below the horizontal leg.
@@ -4397,7 +4407,18 @@
   (if (not *PEB-TEXT-SCALE*) (setq *PEB-TEXT-SCALE* 1.0))
   (setq s *PEB-TEXT-SCALE*)
   (setvar "CLAYER" "ARROWS")
-  (setq run  (* 900 s))                  ; slightly larger run for visibility
+  ;; ── SIZE AND PLACEMENT BOTH FOLLOW THE LADDER (owner 28-Aug: "check the SLOPE 1:10
+  ;; text and fix its size and placement, must be as per the developed rule") ──────────
+  ;; The triangle was a fixed 900·s and the two labels were placed by offsets baked off the
+  ;; OLD hard-coded 220 text - 190·s, 220·s, 110·s are all echoes of that number. When the
+  ;; text moved onto the ladder the offsets stayed behind, so the digits overhung the
+  ;; horizontal leg and collided with the roof sheeting below.
+  ;;
+  ;; THE RULE: a placement offset that exists to clear TEXT must be computed FROM that
+  ;; text's height, never from a number that happened to suit one size. `th` below is the
+  ;; single source; change the rung and the whole tag re-proportions itself.
+  (setq th (* (peb-th 'SMALL) s))        ; the drawn height of the tag's digits
+  (setq run (max (* 900 s) (* th 2.6)))  ; triangle scales with its own labels
   (setq rise (/ run slopeD))
   (setq ax cx ay cy)
   ;; Triangle rises UP from cy by `rise`.
@@ -4414,12 +4435,19 @@
   ;;   labY ≥ sheetingTop + 50 + 110·s = cy - 300·s + 50 + 110·s
   ;;   labY ≥ cy - 190·s + 50
   ;; Use exactly that — places "10" JUST above sheeting.
+  ;; ONE CALLOUT, NOT TWO LOOSE DIGITS.
+  ;; The ratio used to be split - the denominator under the horizontal leg and a separate
+  ;; "1" beside the vertical leg. At a normal roof pitch that vertical leg is tiny: at 1:10
+  ;; the rise is a tenth of the run, so the "1" had nothing to sit against and landed on the
+  ;; roof sheeting, and the pair read as "110" rather than a ratio. Written as a single
+  ;; "1:10" under the leg it is unambiguous at ANY pitch, and there is only one thing to
+  ;; keep clear of the roof.
+  ;; ABOVE the triangle, not below it. The caller lifts the tag only 300·s clear of the
+  ;; sheeting, so anything placed under the horizontal leg lands ON the roof line - which is
+  ;; where the digits were sitting. Above the apex there is open air at every pitch.
   (setq labX (+ cx (/ (* upRight run) 2.0)))
-  (setq labY (+ (- ay (* 190 s)) 50.0))
-  (txt "MC" (list labX labY) (peb-th 'SMALL) 0 (rtos slopeD 2 0))
-  ;; "1" label outside the vertical leg, vertically centred on its midpoint
-  (setq labOne (+ bx (* upRight 220 s)))
-  (txt "MC" (list labOne (+ ay (/ rise 2.0))) (peb-th 'SMALL) 0 "1")
+  (setq labY (+ ay rise (* th 0.80)))
+  (txt "MC" (list labX labY) (peb-th 'SMALL) 0 (strcat "1:" (rtos slopeD 2 0)))
 )
 
 (defun draw-rc-brick-hidden (W H / bw seg xo xi y)
@@ -4621,7 +4649,13 @@
   ;;   Line 2 (below bar): the spec (e.g. "50mm PIR SANDWICH PANEL")
   ;; Vertical leader drops from LEFT end of horizontal bar straight down to sheeting.
   (setq rParts (split-at-first-digit roofLbl))
-  ;; ALL DRAWING-BODY TEXT IS UPPERCASE (owner rule + Mammut master).  `txt` applies
+  ;; HEADINGS ARE BOLD (owner 28-Aug: "wall and roof sheeting headings in sections must be
+;; BOLD, apply similar changes to other drawings for more professional look").
+;; "WALL SHEETING:" / "ROOF SHEETING:" are the heading line; the spec beneath stays
+;; regular. That contrast is what separates a callout from its body text on the page -
+;; drawn at one weight the two ran together and read as one grey block.
+;;
+;; ALL DRAWING-BODY TEXT IS UPPERCASE (owner rule + Mammut master).  `txt` applies
   ;; (strcase ...) itself, but this spec reaches paper through an MLEADER, which bypasses
   ;; it - so "0.50 mm AZ150 PPGL (S-Type) + 50mm Fiberglass Insulation" printed in mixed
   ;; case among all-caps labels and read as a different typeface (owner 28-Aug).
@@ -4706,7 +4740,7 @@
                     (* (peb-th 'SMALL) *PEB-TEXT-SCALE*) 0 "ML"
                     (strcat "{\\Fromand.shx;" rLine1 "}"))))
           (if (vl-catch-all-error-p mtResult)
-            (txt "ML" (list labRX rHeadY) (peb-th 'SMALL) 0 rLine1))
+            (txt-bold "ML" (list labRX rHeadY) (peb-th 'SMALL) 0 rLine1))
           ;; Spec regular below bar
           (setq mtResult
             (vl-catch-all-apply 'peb-make-mtext-line
@@ -4887,7 +4921,7 @@
                     (* (peb-th 'SMALL) *PEB-TEXT-SCALE*) 0 "ML"
                     (strcat "{\\Fromand.shx;" wLine1 "}"))))
           (if (vl-catch-all-error-p mtResult)
-            (txt "ML" (list labWX wHeadY) (peb-th 'SMALL) 0 wLine1))
+            (txt-bold "ML" (list labWX wHeadY) (peb-th 'SMALL) 0 wLine1))
           ;; Spec regular below bar
           (setq mtResult
             (vl-catch-all-apply 'peb-make-mtext-line
@@ -5162,7 +5196,7 @@
                     (* (peb-th 'SMALL) *PEB-TEXT-SCALE*) 0 "ML"
                     (strcat "{\\Fromand.shx;" rLine1 "}"))))
           (if (vl-catch-all-error-p mtResult)
-            (txt "ML" (list labRX (+ rBarY (* (peb-th 'SMALL) *PEB-TEXT-SCALE*))) (peb-th 'SMALL) 0 rLine1))
+            (txt-bold "ML" (list labRX (+ rBarY (* (peb-th 'SMALL) *PEB-TEXT-SCALE*))) (peb-th 'SMALL) 0 rLine1))
           (setq mtResult
             (vl-catch-all-apply 'peb-make-mtext-line
               (list (list labRX (- rBarY (* 60 *PEB-TEXT-SCALE*)))
@@ -5244,7 +5278,7 @@
                     (* (peb-th 'SMALL) *PEB-TEXT-SCALE*) 0 "ML"
                     (strcat "{\\Fromand.shx;" wLine1 "}"))))
           (if (vl-catch-all-error-p mtResult)
-            (txt "ML" (list labWX wHeadY) (peb-th 'SMALL) 0 wLine1))
+            (txt-bold "ML" (list labWX wHeadY) (peb-th 'SMALL) 0 wLine1))
           (setq mtResult
             (vl-catch-all-apply 'peb-make-mtext-line
               (list (list labWX wSpecY)
@@ -6819,7 +6853,7 @@
   ;; so it sits clearly outside the dim arrows and witness lines.
   (setvar "CLAYER" "TEXT")
   (setq txtX (+ dimX (* sideSign (* 450 *PEB-TEXT-SCALE*))))
-  (txt "MC" (list txtX midY) 220 90 label)
+  (txt "MC" (list txtX midY) (peb-th 'SMALL) 90 label)
 )
 
 ;; ============================================================================
@@ -7186,15 +7220,15 @@
         (draw-floor-buildup x0 x1 slabTop 700.0 700.0 thk nil)
         (setvar "CLAYER" "TEXT")
         (setq labX (/ (+ x0 x1) 2.0))
-        (txt "MC" (list labX (+ slabTop 260.0)) 240 0
+        (txt "MC" (list labX (+ slabTop 260.0)) (peb-th 'SMALL) 0
              (strcat (rtos thk 2 0) "mm R.C. SLAB ON 0.70mm PROFILED DECK PANEL"))
-        (txt "ML" (list (+ x1 200.0) slabTop) 240 0
+        (txt "ML" (list (+ x1 200.0) slabTop) (peb-th 'SMALL) 0
              (if (> numFloors 1) (strcat "F.F.L MEZZ-" (itoa f)) "F.F.L MEZZANINE"))
         (setq f (1+ f)))
       ;; existing-RCC host: one chemical-anchor callout
       (if mzRcc
         (progn (setvar "CLAYER" "TEXT")
-               (txt "MC" (list (/ (+ x0 x1) 2.0) (+ chBeam (/ beamD 2.0))) 220 0
+               (txt "MC" (list (/ (+ x0 x1) 2.0) (+ chBeam (/ beamD 2.0))) (peb-th 'SMALL) 0
                     "BEAMS CHEM. ANCHORED TO EXISTING RCC COLUMNS")))
       (setvar "CLAYER" prev)
       (princ))))
@@ -7220,7 +7254,7 @@
   (command "_.RECTANG" (list 0.0 H) (list wid (+ H slabT)))
   (command "_.LINE" (list 0.0 (+ H (* slabT 0.5))) (list wid (+ H (* slabT 0.5))) "")
   (setvar "CLAYER" "TEXT")
-  (txt "MC" (list (/ wid 2.0) (+ H slabT 500.0)) 300 0 "EXISTING RCC ROOF SLAB (BY OTHERS)")
+  (txt "MC" (list (/ wid 2.0) (+ H slabT 500.0)) (peb-th 'SMALL) 0 "EXISTING RCC ROOF SLAB (BY OTHERS)")
   (setvar "CLAYER" prev))
 
 ;; ============================================================================
@@ -8761,7 +8795,7 @@
         ;; Label + M-Ladder DOWN-ARROW to the valley trough (owner 14-Jul).  Explicit shaft + SOLID
         ;; arrowhead so the arrow always renders (the native MLEADER tip does not plot).
         (setvar "CLAYER" "TEXT")
-        (txt "MC" (list cx (+ vY0 200.0 (* 1500 *PEB-TEXT-SCALE*))) 200 0 "VALLEY GUTTER")
+        (txt "MC" (list cx (+ vY0 200.0 (* 1500 *PEB-TEXT-SCALE*))) (peb-th 'SMALL) 0 "VALLEY GUTTER")
         (setvar "CLAYER" "ARROWS")
         (command "LINE" (list cx (+ vY0 200.0 (* 1150 *PEB-TEXT-SCALE*)))
                         (list cx (+ vY0 200.0 (* 400  *PEB-TEXT-SCALE*))) "")
@@ -8831,8 +8865,8 @@
             (list (- wid 30.0) (- H 40.0))
             "")
           ;; FALL callouts on each wing (drain OUTWARD toward the tips)
-          (txt "MC" (list (* wid 0.22) (+ H (* rise 0.62) 700.0)) 240 0 "FALL")
-          (txt "MC" (list (* wid 0.78) (+ H (* rise 0.62) 700.0)) 240 0 "FALL")
+          (txt "MC" (list (* wid 0.22) (+ H (* rise 0.62) 700.0)) (peb-th 'SMALL) 0 "FALL")
+          (txt "MC" (list (* wid 0.78) (+ H (* rise 0.62) 700.0)) (peb-th 'SMALL) 0 "FALL")
           ;; TWO slope tags — left wing rises up-RIGHT to the peak (+1), right wing up-LEFT (-1)
           (draw-slope-tag (* bfcx 0.5) (+ H (* rise 0.5) 235.0 (* 300 *PEB-TEXT-SCALE*)) slopeD  1)
           (draw-slope-tag (* bfcx 1.5) (+ H (* rise 0.5) 235.0 (* 300 *PEB-TEXT-SCALE*)) slopeD -1)
@@ -8889,7 +8923,7 @@
             (list (+ bfcx 390.0) bfBrkY)                ; right lip — folded OUT
             "")
           (setvar "CLAYER" "TEXT")
-          (txt "MC" (list bfcx (+ H (max bfLR bfRR) (* 900 *PEB-TEXT-SCALE*))) 200 0 "VALLEY GUTTER")
+          (txt "MC" (list bfcx (+ H (max bfLR bfRR) (* 900 *PEB-TEXT-SCALE*))) (peb-th 'SMALL) 0 "VALLEY GUTTER")
           ;; M-Ladder DOWN-ARROW to the valley gutter: shaft + SOLID head.
           (setvar "CLAYER" "ARROWS")
           (setvar "PLINEWID" 0.0)
@@ -8927,8 +8961,8 @@
                                  (list (+ bfcx 60.0)   (* H 0.45))
                                  "H" 220)
           ;; FALL callouts on each wing (drain toward the valley), at each wing's mid-run + own height
-          (txt "MC" (list (* bfcx 0.45) (+ H (* bfLR 0.55) 700.0)) 240 0 "FALL")
-          (txt "MC" (list (+ bfcx (* (- wid bfcx) 0.55)) (+ H (* bfRR 0.55) 700.0)) 240 0 "FALL")
+          (txt "MC" (list (* bfcx 0.45) (+ H (* bfLR 0.55) 700.0)) (peb-th 'SMALL) 0 "FALL")
+          (txt "MC" (list (+ bfcx (* (- wid bfcx) 0.55)) (+ H (* bfRR 0.55) 700.0)) (peb-th 'SMALL) 0 "FALL")
           ;; TWO slope tags — left wing rises up-LEFT (upRight=-1), right wing up-RIGHT (upRight=+1)
           (draw-slope-tag (* bfcx 0.5) (+ H (* bfLR 0.5) 235.0 (* 300 *PEB-TEXT-SCALE*)) slopeD -1)
           (draw-slope-tag (/ (+ bfcx wid) 2.0) (+ H (* bfRR 0.5) 235.0 (* 300 *PEB-TEXT-SCALE*)) slopeD  1)
@@ -8996,7 +9030,7 @@
                       slopeD (if ccLow 1 -1))
       ;; FALL callout at mid-deck
       (setvar "CLAYER" "TEXT")
-      (txt "MC" (list (* wid 0.62) (+ ccEL (* ccS (* wid 0.62)) 900.0)) 260 0 "FALL")
+      (txt "MC" (list (* wid 0.62) (+ ccEL (* ccS (* wid 0.62)) 900.0)) (peb-th 'SMALL) 0 "FALL")
       ;; owner 18-Jul: EAVE GUTTER at the LOW (draining) eave + Ø100 dotted DOWN PIPE down the column to FFL.
       (setq ccLowY (if ccLow ccEL ccER) ccDir (if ccLow -1.0 1.0) ccLowX (if ccLow 0.0 wid))
       ;; G1 (owner 19-Jul, UNIVERSAL): a gutter belongs ONLY on a drained/SUPPORTED edge — the column eave.
@@ -9013,7 +9047,7 @@
             (list (+ ccLowX (* ccDir 270.0)) (+ ccLowY 235.0))        ; up the inner lip (at the sheet)
             "")
           (setvar "CLAYER" "TEXT")
-          (txt "MC" (list (+ ccLowX (* ccDir 900.0)) (+ ccLowY 950.0)) 240 0 "GUTTER")))
+          (txt "MC" (list (+ ccLowX (* ccDir 900.0)) (+ ccLowY 950.0)) (peb-th 'SMALL) 0 "GUTTER")))
       ;; DOWN PIPE (dotted, thin) down the column + DOWN SPOUT label — only when draining at the (back) column.
       (if ccLow
         (progn
@@ -9200,13 +9234,13 @@
         (peb-pipe-line (- ppx 70.0) (+ H 60.0) (- ppx 70.0) 300.0)
         (peb-pipe-line (+ ppx 70.0) (+ H 60.0) (+ ppx 70.0) 300.0))
       (setvar "CLAYER" "TEXT")
-      (txt "MC" (list ppCx1 (+ H 200.0 ppS (* 900 *PEB-TEXT-SCALE*))) 200 0 "VALLEY GUTTER")
-      (txt "MC" (list ppCx2 (+ H 200.0 ppS (* 900 *PEB-TEXT-SCALE*))) 200 0 "VALLEY GUTTER")
+      (txt "MC" (list ppCx1 (+ H 200.0 ppS (* 900 *PEB-TEXT-SCALE*))) (peb-th 'SMALL) 0 "VALLEY GUTTER")
+      (txt "MC" (list ppCx2 (+ H 200.0 ppS (* 900 *PEB-TEXT-SCALE*))) (peb-th 'SMALL) 0 "VALLEY GUTTER")
       ;; FALL callouts — roof falls toward the two valley gutters
-      (txt "MC" (list (* (+ 0.0   ppCx1) 0.5) (+ H ppS 520.0)) 200 0 "FALL")
-      (txt "MC" (list (* (+ ppCx1 ppMid) 0.5) (+ H ppS 520.0)) 200 0 "FALL")
-      (txt "MC" (list (* (+ ppMid ppCx2) 0.5) (+ H ppS 520.0)) 200 0 "FALL")
-      (txt "MC" (list (* (+ ppCx2 wid)   0.5) (+ H ppS 520.0)) 200 0 "FALL")
+      (txt "MC" (list (* (+ 0.0   ppCx1) 0.5) (+ H ppS 520.0)) (peb-th 'SMALL) 0 "FALL")
+      (txt "MC" (list (* (+ ppCx1 ppMid) 0.5) (+ H ppS 520.0)) (peb-th 'SMALL) 0 "FALL")
+      (txt "MC" (list (* (+ ppMid ppCx2) 0.5) (+ H ppS 520.0)) (peb-th 'SMALL) 0 "FALL")
+      (txt "MC" (list (* (+ ppCx2 wid)   0.5) (+ H ppS 520.0)) (peb-th 'SMALL) 0 "FALL")
       ;; DOWN PIPE + BOX COLUMN + CEILING/SOFFIT callouts (owner 18-Jul: NO fascia on canopy frames — the
       ;; FASCIA callout removed; the roof-slab edge itself stays as the structural edge).
       (peb-label-with-leader "DOWN PIPE (IN BOX COLUMN)"
@@ -9275,12 +9309,12 @@
       ;; ── Callout "A" around a joist-beam connection + the ZOOMED DETAIL (reduced, moved ABOVE the frame) ──
       (setvar "CLAYER" "TEXT")
       (command "CIRCLE" (list (* wid 0.5) (- H 350.0)) 650.0)
-      (txt "MC" (list (* wid 0.5) (- H 1550.0)) 320 0 "A")
+      (txt "MC" (list (* wid 0.5) (- H 1550.0)) (peb-th 'SMALL) 0 "A")
       (draw-fr-detail 27000.0 14600.0 6.5)
       ;; ── Callout "B" around the drainage outlet + the ZOOMED DRAINAGE DETAIL (top-LEFT corner) ──
       (setvar "CLAYER" "TEXT")
       (command "CIRCLE" (list (+ ht 550.0) (- H 250.0)) 620.0)
-      (txt "MC" (list (+ ht 2400.0) (- H 2050.0)) 320 0 "B")
+      (txt "MC" (list (+ ht 2400.0) (- H 2050.0)) (peb-th 'SMALL) 0 "B")
       (draw-fr-detb 1400.0 14900.0 4.3))
     ((= stype "F2")
       ;; DOUBLE-STOREY (G+1) FLAT ROOF (owner 15-Jul): TOP floor = the SAME flat roof (build-up + internal
@@ -9351,9 +9385,9 @@
       (setq *PEB-F2-HEAD-SUB* (+ H rise (* 5100.0 *PEB-TEXT-SCALE*)))
       (setvar "CLAYER" "TEXT")
       (command "CIRCLE" (list (* wid 0.5) (- H 350.0)) 650.0)          ; callout A (roof joist connection)
-      (txt "MC" (list (* wid 0.5) (- H 1550.0)) 320 0 "A")
+      (txt "MC" (list (* wid 0.5) (- H 1550.0)) (peb-th 'SMALL) 0 "A")
       (command "CIRCLE" (list (+ ht 550.0) (- H 250.0)) 620.0)         ; callout B (roof drainage)
-      (txt "MC" (list (+ ht 2400.0) (- H 2050.0)) 320 0 "B"))
+      (txt "MC" (list (+ ht 2400.0) (- H 2050.0)) (peb-th 'SMALL) 0 "B"))
     ((= stype "SS")
       ;; SINGLE SLOPE: low (left) eave = H, HIGH (right) eave = H + monoRise.  The RIGHT wall
       ;; sheeting + girts must climb to the HIGH eave (not the low H, which left the tall wall
@@ -9942,7 +9976,7 @@
   (setq *PEB-TEXT-SCALE* 1.0 *PEB-DIM-SCALE* 1.0)
   (setvar "CLAYER" "TEXT")
   ;; heading, centred over the details area (left of the title block)
-  (txt-bold "MC" (list 9000.0 22300.0) 650 0 "FLAT ROOF - CONSTRUCTION DETAILS")
+  (txt-bold "MC" (list 9000.0 22300.0) (peb-th 'DIM) 0 "FLAT ROOF - CONSTRUCTION DETAILS")
   (command "LINE" (list 3000.0 21650.0) (list 15000.0 21650.0) "")
   ;; DETAIL-A (joist connection) on TOP, DETAIL-B (roof drainage) BELOW — stacked so both keep the full left
   ;; width for their labels while the title block occupies the right.

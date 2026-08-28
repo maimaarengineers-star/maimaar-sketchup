@@ -444,11 +444,27 @@
   (command "TEXT" "J" just pt (* h *PEB-TEXT-SCALE*) rot str)
 )
 
-(defun txt-bold (just pt h rot str)
+;; BOLD IS A HEAVIER PEN, AND IT HAS TO ACTUALLY BE SET (owner 28-Aug: "wall and roof
+;; sheeting headings in sections must be BOLD ... for more professional look").
+;;
+;; MAIMAAR_PEB_Standard.lsp already states the rule - "Bold headings = heavier PEN on
+;; romand, not Arial-bold" - because the UNIVERSAL standing rule is that ALL drawing text is
+;; romand.shx, and an SHX font has no bold cut. But this helper only switched TEXTSTYLE to
+;; PEB-TITLE, and PEB-TITLE is romand.shx exactly like PEB-BODY. So it changed nothing:
+;; every "bold" heading on every sheet has been plotting at the same 0.13 mm as body text,
+;; and the headings never stood out from the notes under them.
+;;
+;; CELWEIGHT is the pen. 0.30 mm against the TEXT layer's 0.13 gives a heading that reads as
+;; a heading at A4 without changing the letterforms. Restored to ByLayer straight after, so
+;; nothing else inherits it.
+(defun txt-bold (just pt h rot str / prevLw)
   (if (not *PEB-TEXT-SCALE*) (setq *PEB-TEXT-SCALE* 1.0))
   (if str (setq str (strcase str)))
   (setvar "TEXTSTYLE" "PEB-TITLE")
+  (setq prevLw (getvar "CELWEIGHT"))
+  (vl-catch-all-apply (function (lambda () (setvar "CELWEIGHT" 30))))
   (command "TEXT" "J" just pt (* h *PEB-TEXT-SCALE*) rot str)
+  (vl-catch-all-apply (function (lambda () (setvar "CELWEIGHT" (if prevLw prevLw -1)))))
 )
 
 ;; ROMAND label (owner STANDING RULE: ALL drawing text = ROMAND / romand.shx, not Arial).
@@ -998,7 +1014,7 @@
       (peb-star cx (+ yy so) sr) (peb-star cx (- yy so) sr)
       (setq m (peb-brace-num btype))
       (setvar "CLAYER" "TEXT")
-      (txt "MC" (list cx (+ yy (* inward (+ d (* 420 *PEB-TEXT-SCALE*))))) 190.0 0
+      (txt "MC" (list cx (+ yy (* inward (+ d (* 420 *PEB-TEXT-SCALE*))))) (peb-th 'SMALL) 0
            (strcat (if m m "") " PORTAL"))
       T)
     ;; PORTAL (full-height goal-post) → plan symbol: cyan half-thick BEAM line on the web centre +
@@ -1008,7 +1024,7 @@
       (command "_.PLINE" (list xa yy) "_W" (* 60.0 *PEB-DIM-SCALE*) (* 60.0 *PEB-DIM-SCALE*) (list xb yy) "")
       (setvar "PLINEWID" 0.0)
       (setvar "CLAYER" "TEXT")
-      (txt "MC" (list cx (+ yy (* inward (+ d (* 420 *PEB-TEXT-SCALE*))))) 190.0 0 "PORTAL-FULL")
+      (txt "MC" (list cx (+ yy (* inward (+ d (* 420 *PEB-TEXT-SCALE*))))) (peb-th 'SMALL) 0 "PORTAL-FULL")
       T)
     (T nil)))
 
@@ -1046,14 +1062,14 @@
     (if drewX
       (progn
         (setvar "CLAYER" "DIMENSIONS")   ; magenta (exists)
-        (txt-bold "MC" (list cx ymid) 320.0 90 "BRACED BAY")
+        (txt-bold "MC" (list cx ymid) (peb-th 'SMALL) 90 "BRACED BAY")
         (if first
           (progn
             (setq first nil)
             ;; owner 4-Jul: SMALLER "CROSS BRACING (TYP.)" (was 260*scale which txt re-scaled -> huge) +
             ;; a leader ARROW that TOUCHES the NSW bracing bowtie.
             (setvar "CLAYER" "TEXT")
-            (txt "MC" (list cx (- oy (* 900.0 *PEB-TEXT-SCALE*))) 340.0 0 "CROSS BRACING (TYP.)")
+            (txt "MC" (list cx (- oy (* 900.0 *PEB-TEXT-SCALE*))) (peb-th 'SMALL) 0 "CROSS BRACING (TYP.)")
             (setvar "CLAYER" "CROSS")
             (command "_.PLINE"
                      (list cx (- oy (* 500.0 *PEB-TEXT-SCALE*)))              ; start above the text
@@ -1159,8 +1175,8 @@
     ;; MARK label just outside the wall
     (setvar "CLAYER" "TEXT")
     (if horiz
-      (txt "MC" (list px (- py (* inSign 600 *PEB-TEXT-SCALE*))) 280.0 0 mark)
-      (txt "MC" (list (- px (* inSign 600 *PEB-TEXT-SCALE*)) py) 280.0 0 mark))
+      (txt "MC" (list px (- py (* inSign 600 *PEB-TEXT-SCALE*))) (peb-th 'SMALL) 0 mark)
+      (txt "MC" (list (- px (* inSign 600 *PEB-TEXT-SCALE*)) py) (peb-th 'SMALL) 0 mark))
     ;; OFFSET dim from the nearest grid (so the draughtsman sees the location;
     ;; no cross-bracing may sit at an opening) — horizontal walls only (length axis).
     (if horiz
@@ -1654,7 +1670,7 @@
         ;; note lifted to wid*0.70: at 0.55 it sat on the mid-width row where the per-area CLEAR HT tag
         ;; (now drawn above the area box, ~16.5 k on a 30 m frame) and the vertical BRACED BAY text
         ;; (~12.8-17.2 k) both live.  0.70 clears the top of the braced-bay text and the tag.
-        (txt "MC" (list (* len 0.50) (* wid 0.70)) 600 0 "ROOF SLOPES TO CENTRE DRAIN"))
+        (txt "MC" (list (* len 0.50) (* wid 0.70)) (peb-th 'DIM) 0 "ROOF SLOPES TO CENTRE DRAIN"))
       ((= stype "SS")
         ;; single slope: ONE continuous fall high->low across the full width (no ridge). High side =
         ;; RA_MONO_HIGH (FSW default until the IF captures msHighSide). Full-width arrows + HIGH/LOW EAVE tags.
@@ -1664,10 +1680,10 @@
             (arrow-down-big sx (* wid 0.5) fallU)))   ; FSW high (default) -> fall toward NSW
         (setvar "CLAYER" "TEXT")
         (if (wcmatch (strcase (MSPL-Get-Str data "RA_MONO_HIGH")) "*NSW*")
-          (progn (txt "MC" (list (* len 0.5) (* wid 0.055)) 550 0 "HIGH EAVE")
-                 (txt "MC" (list (* len 0.5) (* wid 0.945)) 550 0 "LOW EAVE"))
-          (progn (txt "MC" (list (* len 0.5) (* wid 0.945)) 550 0 "HIGH EAVE")
-                 (txt "MC" (list (* len 0.5) (* wid 0.055)) 550 0 "LOW EAVE"))))
+          (progn (txt "MC" (list (* len 0.5) (* wid 0.055)) (peb-th 'SMALL) 0 "HIGH EAVE")
+                 (txt "MC" (list (* len 0.5) (* wid 0.945)) (peb-th 'SMALL) 0 "LOW EAVE"))
+          (progn (txt "MC" (list (* len 0.5) (* wid 0.945)) (peb-th 'SMALL) 0 "HIGH EAVE")
+                 (txt "MC" (list (* len 0.5) (* wid 0.055)) (peb-th 'SMALL) 0 "LOW EAVE"))))
       (T
         (foreach sx slopeXs
           (arrow-down-big sx (* wid 0.5) fallU)))))))
@@ -1682,7 +1698,7 @@
   (command "PLINE" (list cx (+ cy (* 550 s))) (list (- cx (* 180 s)) (- cy (* 150 s))) (list cx (- cy (* 50 s))) "C")
   (command "HATCH" "SOLID" "L" "")
   (command "PLINE" (list cx (- cy (* 550 s))) (list (+ cx (* 180 s)) (+ cy (* 150 s))) (list cx (- cy (* 50 s))) "C")
-  (txt-bold "MC" (list cx (+ cy (* 900 s))) 600 0 "N")
+  (txt-bold "MC" (list cx (+ cy (* 900 s))) (peb-th 'DIM) 0 "N")
 )
 
 (defun draw-border (x1 y1 x2 y2 / margin)
@@ -4678,7 +4694,7 @@ PEB-VP: " what " FAILED - " (vl-catch-all-error-message r))))
   (aLn 0.0  wid  (- aCx aBw) (+ aCy aBh))   ; NW corner -> NW box corner
   ;; centred area label inside the box (real number)
   (setvar "CLAYER" "TEXT")
-  (txt-bold "MC" (list aCx aCy) 550 0 aLbl)
+  (txt-bold "MC" (list aCx aCy) (peb-th 'SMALL) 0 aLbl)
   ;; HEIGHT tag just below the box so, at a glance, you see which area is high / low.
   ;; owner 10-Jul: "show the CLEAR height on each plan (not eave) ... on each area."
   ;; The IF carries ONE height number (BP_EAVE_HEIGHT) whose MEANING is declared by BP_HEIGHT_REF
@@ -4707,7 +4723,7 @@ PEB-VP: " what " FAILED - " (vl-catch-all-error-message r))))
     ;; ~0.9 mm on the plotted A4 — a hairline that READS as a collision with the filled
     ;; AREA band even though it never actually touches.  1.35 opens it to ~2.5 mm and is
     ;; still well under the one-full-line rise that the note above warns lands on RAFTER.
-    (txt-bold "MC" (list aCx (+ aCy aBh (* aTxH 1.35))) 400 0
+    (txt-bold "MC" (list aCx (+ aCy aBh (* aTxH 1.35))) (peb-th 'SMALL) 0
               (strcat (peb-height-tag-label (MSPL-Get-Str data "HEIGHT_REF")) " "
                       (peb-comma (rtos aEave 2 0)))))
 
@@ -4866,7 +4882,7 @@ PEB-VP: " what " FAILED - " (vl-catch-all-error-message r))))
                                      (list (* len 0.30) mgY)
                                      "S" 600.0)))))
         (setvar "CLAYER" "TEXT")
-        (txt "MC" (list (* len 0.50) (+ wid (* 700 *PEB-TEXT-SCALE*))) 300 0
+        (txt "MC" (list (* len 0.50) (+ wid (* 700 *PEB-TEXT-SCALE*))) (peb-th 'SMALL) 0
           (strcat "MULTI-GABLE ROOF | " (itoa mgGables) " GABLES | " mgSpanDesc))
       )
     )
@@ -4879,11 +4895,11 @@ PEB-VP: " what " FAILED - " (vl-catch-all-error-message r))))
     )
     ((= stype "FR")
       (progn (setvar "CLAYER" "TEXT")
-             (txt "MC" (list (* len 0.50) (- (* wid 0.50) (* 1300 *PEB-TEXT-SCALE*))) 400 0 "FLAT ROOF BUILDING"))   ; owner 5-Jul: below the AREA tag
+             (txt "MC" (list (* len 0.50) (- (* wid 0.50) (* 1300 *PEB-TEXT-SCALE*))) (peb-th 'SMALL) 0 "FLAT ROOF BUILDING"))   ; owner 5-Jul: below the AREA tag
     )
     (T
       (progn (setvar "CLAYER" "TEXT")
-             (txt "MC" (list (* len 0.50) (- (* wid 0.50) (* 1300 *PEB-TEXT-SCALE*))) 400 0 (peb-roof-label stype rooftype)))   ; owner 5-Jul: below the AREA tag
+             (txt "MC" (list (* len 0.50) (- (* wid 0.50) (* 1300 *PEB-TEXT-SCALE*))) (peb-th 'SMALL) 0 (peb-roof-label stype rooftype)))   ; owner 5-Jul: below the AREA tag
     )
   )
 
@@ -4945,8 +4961,8 @@ PEB-VP: " what " FAILED - " (vl-catch-all-error-message r))))
           (if (= x 0) (setq xdraw leftX) (if (> x (- len 1)) (setq xdraw rightX) (setq xdraw x)))
           (draw-I-column-lengthwise xdraw botY))
         (setvar "CLAYER" "TEXT")
-        (txt-bold "MC" (list (/ len 2.0) (* wid 0.86)) 600 0 "FRONT / CANTILEVER EDGE - NO COLUMNS")
-        (txt-bold "MC" (list (/ len 2.0) (* wid 0.14)) 600 0 "BACK SUPPORT COLUMN LINE")
+        (txt-bold "MC" (list (/ len 2.0) (* wid 0.86)) (peb-th 'DIM) 0 "FRONT / CANTILEVER EDGE - NO COLUMNS")
+        (txt-bold "MC" (list (/ len 2.0) (* wid 0.14)) (peb-th 'DIM) 0 "BACK SUPPORT COLUMN LINE")
       )
     )
     ((= stype "PP")
@@ -4960,8 +4976,8 @@ PEB-VP: " what " FAILED - " (vl-catch-all-error-message r))))
           (draw-I-column-lengthwise xdraw ppY1)
           (draw-I-column-lengthwise xdraw ppY2))
         (setvar "CLAYER" "TEXT")
-        (txt-bold "MC" (list (/ len 2.0) (* wid 0.95)) 600 0 "CANTILEVER OVERHANG - NO COLUMNS")
-        (txt-bold "MC" (list (/ len 2.0) (* wid 0.05)) 600 0 "CANTILEVER OVERHANG - NO COLUMNS")
+        (txt-bold "MC" (list (/ len 2.0) (* wid 0.95)) (peb-th 'DIM) 0 "CANTILEVER OVERHANG - NO COLUMNS")
+        (txt-bold "MC" (list (/ len 2.0) (* wid 0.05)) (peb-th 'DIM) 0 "CANTILEVER OVERHANG - NO COLUMNS")
       )
     )
     ((= stype "LT")
@@ -4976,8 +4992,8 @@ PEB-VP: " what " FAILED - " (vl-catch-all-error-message r))))
         ;; self-evident and the label only crowds an 8 m strip.  A STANDALONE lean-to still needs to say
         ;; what it leans on, because that building is not on the sheet.
         (if (not *PEB-MULTI-MODE*)
-          (txt-bold "MC" (list (/ len 2.0) (* wid 0.86)) 600 0 "ATTACHED SIDE / EXISTING BUILDING OR WALL"))
-        (txt-bold "MC" (list (/ len 2.0) (* wid 0.14)) 600 0 "OUTER STEEL COLUMN LINE")
+          (txt-bold "MC" (list (/ len 2.0) (* wid 0.86)) (peb-th 'DIM) 0 "ATTACHED SIDE / EXISTING BUILDING OR WALL"))
+        (txt-bold "MC" (list (/ len 2.0) (* wid 0.14)) (peb-th 'DIM) 0 "OUTER STEEL COLUMN LINE")
       )
     )
     ((= stype "BF")
@@ -4992,11 +5008,11 @@ PEB-VP: " what " FAILED - " (vl-catch-all-error-message r))))
         ;;   Falcon    -> wings fall OUTWARD, so the centre is a RIDGE PEAK and drains at the
         ;;                outer free edges; calling it a valley gutter is simply wrong.
         ;; *PEB-CANOPY-NAME* is set from CC_FALCON_PEAK when the sheet's data is read.
-        (txt-bold "MC" (list (/ len 2.0) (+ bfVy (* 1700 *PEB-TEXT-SCALE*))) 560 0
+        (txt-bold "MC" (list (/ len 2.0) (+ bfVy (* 1700 *PEB-TEXT-SCALE*))) (peb-th 'SMALL) 0
           (if (and *PEB-CANOPY-NAME* (wcmatch *PEB-CANOPY-NAME* "FALCON*"))
             "CENTER COLUMN LINE / RIDGE PEAK - FALCON"
             "CENTER COLUMN LINE / VALLEY GUTTER - BUTTERFLY"))
-        (txt-bold "MC" (list (/ len 2.0) (- bfVy (* 1700 *PEB-TEXT-SCALE*))) 560 0 "NO SIDE-WALL COLUMNS - ROOF CANTILEVERS BOTH SIDES")
+        (txt-bold "MC" (list (/ len 2.0) (- bfVy (* 1700 *PEB-TEXT-SCALE*))) (peb-th 'SMALL) 0 "NO SIDE-WALL COLUMNS - ROOF CANTILEVERS BOTH SIDES")
       )
     )
     (T
@@ -5108,12 +5124,12 @@ PEB-VP: " what " FAILED - " (vl-catch-all-error-message r))))
   ;; owner 5-Jul (multi-area): in multi-area mode NO area draws the outer wall labels — the FINALIZE draws
   ;; the four labels ONCE around the whole combined building, so they never repeat per stacked/side area.
   ;; owner 9-Jul: an OPEN CANOPY has no walls at all, so it gets none of the four wall labels.
-  (if (and (not *PEB-MULTI-MODE*) (not *PEB-OPEN-CANOPY*) (not (peb-hide-wall-label-p "FSW"))) (txt-bold "MC" (list (/ len 2.0) yFsw) 560 0 "FSW - FAR SIDE WALL"))
-  (if (and (not *PEB-MULTI-MODE*) (not *PEB-OPEN-CANOPY*) (not (peb-hide-wall-label-p "NSW"))) (txt-bold "MC" (list (/ len 2.0) (- (* 3000 *PEB-TEXT-SCALE*))) 560 0 "NSW - NEAR SIDE WALL"))
+  (if (and (not *PEB-MULTI-MODE*) (not *PEB-OPEN-CANOPY*) (not (peb-hide-wall-label-p "FSW"))) (txt-bold "MC" (list (/ len 2.0) yFsw) (peb-th 'SMALL) 0 "FSW - FAR SIDE WALL"))
+  (if (and (not *PEB-MULTI-MODE*) (not *PEB-OPEN-CANOPY*) (not (peb-hide-wall-label-p "NSW"))) (txt-bold "MC" (list (/ len 2.0) (- (* 3000 *PEB-TEXT-SCALE*))) (peb-th 'SMALL) 0 "NSW - NEAR SIDE WALL"))
   ;; owner 4-Jul: LEW label sits OUTSIDE the letter bubbles (was sandwiched between the width dims and
   ;; the bubbles -> overlapped the dim text). REW side has no dims/bubbles, so it stays close.
-  (if (and (not *PEB-MULTI-MODE*) (not *PEB-OPEN-CANOPY*) (not (peb-hide-wall-label-p "LEW"))) (txt-bold "MC" (list (- gridX1 (* 2200.0 *PEB-DIM-SCALE*)) (/ wid 2.0)) 560 90 "LEW - LEFT END WALL"))
-  (if (and (not *PEB-MULTI-MODE*) (not *PEB-OPEN-CANOPY*) (not (peb-hide-wall-label-p "REW"))) (txt-bold "MC" (list (+ len (* 3000 *PEB-DIM-SCALE*)) (/ wid 2.0)) 560 90 "REW - RIGHT END WALL"))
+  (if (and (not *PEB-MULTI-MODE*) (not *PEB-OPEN-CANOPY*) (not (peb-hide-wall-label-p "LEW"))) (txt-bold "MC" (list (- gridX1 (* 2200.0 *PEB-DIM-SCALE*)) (/ wid 2.0)) (peb-th 'SMALL) 90 "LEW - LEFT END WALL"))
+  (if (and (not *PEB-MULTI-MODE*) (not *PEB-OPEN-CANOPY*) (not (peb-hide-wall-label-p "REW"))) (txt-bold "MC" (list (+ len (* 3000 *PEB-DIM-SCALE*)) (/ wid 2.0)) (peb-th 'SMALL) 90 "REW - RIGHT END WALL"))
 
   ;; ── End-frame type MLEADERs (Phase-2A v12) ─────────────────────
   ;; Replaces the old "END FRAME" / "BEARING FRAME (TYP.)" txt labels.
@@ -5143,8 +5159,8 @@ PEB-VP: " what " FAILED - " (vl-catch-all-error-message r))))
   ;; repeat per stacked area and overprint the width dims.  (Single-area draws them normally.)
   ;; owner 9-Jul: an OPEN CANOPY has no end WALLS, so it has no end FRAMES to name either -- the
   ;; "(BEARING FRAME)" words and the "BEARING FRAME / BOTH ENDS" leader are suppressed for BF/CC/PP.
-  (if (and (not *PEB-MULTI-MODE*) (not *PEB-OPEN-CANOPY*) (not (peb-hide-wall-label-p "LEW"))) (txt-bold "MC" (list (- gridX1 (* 4400.0 *PEB-DIM-SCALE*)) (/ wid 2.0)) 430 90 (if (wcmatch lewFrameLabel "*(*") lewFrameLabel (strcat "(" lewFrameLabel ")"))))
-  (if (and (not *PEB-MULTI-MODE*) (not *PEB-OPEN-CANOPY*) (not (peb-hide-wall-label-p "REW"))) (txt-bold "MC" (list (+ len (* 4500 *PEB-DIM-SCALE*)) (/ wid 2.0)) 430 90 (if (wcmatch rewFrameLabel "*(*") rewFrameLabel (strcat "(" rewFrameLabel ")"))))
+  (if (and (not *PEB-MULTI-MODE*) (not *PEB-OPEN-CANOPY*) (not (peb-hide-wall-label-p "LEW"))) (txt-bold "MC" (list (- gridX1 (* 4400.0 *PEB-DIM-SCALE*)) (/ wid 2.0)) (peb-th 'SMALL) 90 (if (wcmatch lewFrameLabel "*(*") lewFrameLabel (strcat "(" lewFrameLabel ")"))))
+  (if (and (not *PEB-MULTI-MODE*) (not *PEB-OPEN-CANOPY*) (not (peb-hide-wall-label-p "REW"))) (txt-bold "MC" (list (+ len (* 4500 *PEB-DIM-SCALE*)) (/ wid 2.0)) (peb-th 'SMALL) 90 (if (wcmatch rewFrameLabel "*(*") rewFrameLabel (strcat "(" rewFrameLabel ")"))))
   (if (and (not *PEB-MULTI-MODE*) (not *PEB-OPEN-CANOPY*))
   (cond
     ;; Both ends same → ONE MLEADER, "BEARING FRAME / BOTH ENDS"
@@ -5284,7 +5300,7 @@ PEB-VP: " what " FAILED - " (vl-catch-all-error-message r))))
   (if (not *PEB-MULTI-MODE*)
     (progn
       (setvar "CECOLOR" "5")   ; owner 7-Jul (Mammut mirror): the main title is BLUE
-      (txt-bold "MC" (list (/ len 2.0) yTtl) 870 0 (peb-part-title "COLUMN LAY-OUT PLAN"))
+      (txt-bold "MC" (list (/ len 2.0) yTtl) (peb-th 'ANNOT) 0 (peb-part-title "COLUMN LAY-OUT PLAN"))
       (setvar "CECOLOR" "BYLAYER")
       ;; Subtitle drawn directly (not via txt) so the multiplication stays a SMALL "x": uppercase the whole
       ;; line per the owner rule, then restore the spaced "×" to a lowercase x. romand.shx has no × or ²
@@ -5609,7 +5625,7 @@ PEB-VP: " what " FAILED - " (vl-catch-all-error-message r))))
       (aLn aFL aFB aFR aFB) (aLn aFR aFB aFR aFT)
       (aLn aFR aFT aFL aFT) (aLn aFL aFT aFL aFB)
       (setvar "CLAYER" "TEXT")
-      (txt-bold "MC" (list aCx aCy) 550 0 aLbl)))))
+      (txt-bold "MC" (list aCx aCy) (peb-th 'SMALL) 0 aLbl)))))
 
   (command "UNDO" "END")
   (setvar "GRIDMODE" 0)

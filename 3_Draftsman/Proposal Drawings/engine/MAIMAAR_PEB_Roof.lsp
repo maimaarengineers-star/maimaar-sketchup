@@ -71,8 +71,8 @@
         (peb-roof-arrow x (* wid 0.44) x (* wid 0.14) "FALL" hl)     ; lower slope -> NSW eave
         (peb-roof-arrow x (* wid 0.56) x (* wid 0.86) "FALL" hl))    ; upper slope -> FSW eave
       (setvar "CLAYER" "FALL")
-      (txt "MC" (list (* len 0.5) (* wid 0.30)) 300 0 "FALL")
-      (txt "MC" (list (* len 0.5) (* wid 0.70)) 300 0 "FALL"))
+      (txt "MC" (list (* len 0.5) (* wid 0.30)) (peb-th 'SMALL) 0 "FALL")
+      (txt "MC" (list (* len 0.5) (* wid 0.70)) (peb-th 'SMALL) 0 "FALL"))
     ;; multi-gable: each ridge falls to the boundaries (valleys / outer eaves) either side
     ((= stype "MG")
       (setq bnds (append (list 0.0 wid) valleyYs))
@@ -88,7 +88,7 @@
         (setq x (* len xf))
         (peb-roof-arrow x (* wid 0.85) x (* wid 0.15) "FALL" hl))
       (setvar "CLAYER" "FALL")
-      (txt "MC" (list (* len 0.5) (* wid 0.5)) 320 0 "FALL"))
+      (txt "MC" (list (* len 0.5) (* wid 0.5)) (peb-th 'SMALL) 0 "FALL"))
     ;; flat roof / butterfly: drainage INWARD to the centre
     ((member stype '("FR" "BF"))
       (setq mid (list (* len 0.5) (* wid 0.5)))
@@ -97,7 +97,7 @@
       (peb-roof-arrow (* len 0.12) (* wid 0.5) (* len 0.40) (* wid 0.5) "FALL" hl)
       (peb-roof-arrow (* len 0.88) (* wid 0.5) (* len 0.60) (* wid 0.5) "FALL" hl)
       (setvar "CLAYER" "FALL")
-      (txt "MC" (list (* len 0.5) (* wid 0.5)) 300 0 "FALL TO DRAINS"))
+      (txt "MC" (list (* len 0.5) (* wid 0.5)) (peb-th 'SMALL) 0 "FALL TO DRAINS"))
     (T
       (foreach xf '(0.22 0.5 0.78)
         (setq x (* len xf))
@@ -132,7 +132,7 @@
       (entmake (list (cons 0 "LINE") (cons 8 "GUTTER") (list 10 (- 0.0 gof) 0.0 0.0) (list 11 (- 0.0 gof) wid 0.0)))
       (entmake (list (cons 0 "LINE") (cons 8 "GUTTER") (list 10 (+ len gof) 0.0 0.0) (list 11 (+ len gof) wid 0.0)))))
   (setvar "CLAYER" "GUTTER")
-  (txt "ML" (list (* len 0.02) (- 0.0 gof (* ds 1.6))) 300 0 "EAVE GUTTER")
+  (txt "ML" (list (* len 0.02) (- 0.0 gof (* ds 1.6))) (peb-th 'SMALL) 0 "EAVE GUTTER")
   (setvar "CLAYER" "0")
   (princ))
 
@@ -356,7 +356,7 @@
     (entmake (list (cons 0 "LINE") (cons 8 "ROOF-PURLIN") (list 10 x 0.0 0.0) (list 11 x wid 0.0)))
     (setq i (1+ i)))
   (setvar "CLAYER" "ROOF-PURLIN")
-  (txt "ML" (list (* len 0.02) (+ wid (* 300.0 ts))) 300 0
+  (txt "ML" (list (* len 0.02) (+ wid (* 300.0 ts))) (peb-th 'SMALL) 0
        (strcat "ROOF SHEETING (RIDGE -> EAVE) @ " (peb-comma (rtos psp 2 0)) " C/C"))
 
   ;; ── RIDGE / VALLEY lines (dash-dot) by structure type ────────────
@@ -376,24 +376,24 @@
         (entmake (list (cons 0 "LINE") (cons 8 "GRID-LINES") (list 10 0.0 mgY 0.0) (list 11 len mgY 0.0))))
       (setvar "CLAYER" "TEXT")
       (foreach mgY mgValleyPts
-        (txt "ML" (list (* len 0.72) (+ mgY (* 300.0 ts))) 280 0 "VALLEY GUTTER"))
+        (txt "ML" (list (* len 0.72) (+ mgY (* 300.0 ts))) (peb-th 'SMALL) 0 "VALLEY GUTTER"))
       (setvar "CLAYER" "TEXT")
-      (txt "MC" (list (* len 0.5) (+ wid (* 900.0 ts))) 320 0
+      (txt "MC" (list (* len 0.5) (+ wid (* 900.0 ts))) (peb-th 'SMALL) 0
            (strcat "MULTI-GABLE ROOF | " (itoa mgGables) " GABLES | " (itoa mgSpans) " SPAN(S) EACH")))
     ((= stype "BF")
       (setvar "CLAYER" "RIDGE")
       (entmake (list (cons 0 "LINE") (cons 8 "RIDGE") (list 10 0.0 (/ wid 2.0) 0.0) (list 11 len (/ wid 2.0) 0.0)))
       (setvar "CLAYER" "TEXT")
-      (txt "MC" (list (* len 0.5) (+ (/ wid 2.0) (* 500.0 ts))) 300 0 "CENTRAL VALLEY"))
+      (txt "MC" (list (* len 0.5) (+ (/ wid 2.0) (* 500.0 ts))) (peb-th 'SMALL) 0 "CENTRAL VALLEY"))
     ((= stype "FR")
       (setvar "CLAYER" "TEXT")
-      (txt "MC" (list (* len 0.5) (* wid 0.5)) 400 0 "FLAT ROOF"))
+      (txt "MC" (list (* len 0.5) (* wid 0.5)) (peb-th 'SMALL) 0 "FLAT ROOF"))
     ((member stype '("SS" "LT"))
       (setvar "CLAYER" "TEXT")
-      (txt "MC" (list (* len 0.5) (* wid 0.5)) 380 0 (if (= stype "LT") "LEAN-TO ROOF" "SINGLE SLOPE ROOF")))
+      (txt "MC" (list (* len 0.5) (* wid 0.5)) (peb-th 'SMALL) 0 (if (= stype "LT") "LEAN-TO ROOF" "SINGLE SLOPE ROOF")))
     (T
       (setvar "CLAYER" "TEXT")
-      (txt "MC" (list (* len 0.5) (* wid 0.5)) 380 0 (peb-roof-label stype rooftype))))
+      (txt "MC" (list (* len 0.5) (* wid 0.5)) (peb-th 'SMALL) 0 (peb-roof-label stype rooftype))))
 
   ;; ── FALL glyphs (owner 7-Jul: IDENTICAL to the Column Layout Plan) ──
   ;; Use the SHARED pentagon-glyph set (the better symbol) so the Roof Plan and CLP match exactly.
@@ -476,7 +476,7 @@
   (setq yTtl (+ gridY2 *PEB-BUBRAD* txtGap txtGap))
   (setvar "CLAYER" "TEXT")
   ;; owner 7-Jul: the sheet title now lives in the shared title block; keep only the AREA + panel-note band.
-  (txt "MC" (list (* len 0.5) yTtl) 380 0 (strcat aLbl "  |  " (peb-roof-panel-note data)))
+  (txt "MC" (list (* len 0.5) yTtl) (peb-th 'SMALL) 0 (strcat aLbl "  |  " (peb-roof-panel-note data)))
 
   ;; owner 7-Jul: shared title block + border — IDENTICAL to the Column Layout Plan (see peb-frame-and-titleblock).
   (vl-catch-all-apply (function (lambda () (peb-frame-and-titleblock data "ROOF PLAN"))))
