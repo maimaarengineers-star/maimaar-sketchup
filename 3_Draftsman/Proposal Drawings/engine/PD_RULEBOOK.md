@@ -705,6 +705,42 @@ the helper is absent. Anything **not** guarded that way is a real blank-sheet bu
 **And when replacing a span, anchor on the END of what you mean to replace, not on the
 start of the next thing you happen to see.**
 
+### 4B.27 Text: one ladder, real bold, and clearances derived from the text
+
+Owner, 28-Aug: *"correct the text issue as it is very important in aesthetic and
+professional look of the drawings."* Three separate faults sat behind that.
+
+**1. Every text height comes from `*PEB-TEXT-HEIGHTS*`.** 80 calls were hard-coded — Plan
+33, Section 33, Roof 13, Elevation 1 — mostly 190–430, i.e. **0.7–1.6 mm on A4** when the
+ladder's floor is `SMALL` 550 (2.0 mm). So `VALLEY GUTTER` and `FALL` printed at a third
+the size of `EAVE GUTTER` and `PURLIN` sitting beside them: same class of label, three
+different sizes on one sheet. Now 141 ladder-sized calls and **zero** hard-coded.
+`textaudit.js` measures it — run it after any text change.
+
+**2. `txt-bold` was a no-op.** `Standard.lsp` states the rule — *"Bold headings = heavier
+PEN on romand, not Arial-bold"* — because ALL drawing text is `romand.shx` and an SHX font
+has no bold cut. But `txt-bold` only switched TEXTSTYLE to `PEB-TITLE`, and **`PEB-TITLE`
+is `romand.shx`, exactly like `PEB-BODY`**. Every "bold" heading on every sheet had been
+plotting at the same 0.13 mm as its body text. It now sets `CELWEIGHT 30` and restores it.
+*If you add a heading, `txt-bold` is what makes it one.*
+
+**3. THE CLEARANCE RULE — this is the one that keeps biting.**
+
+> A gap that exists to clear TEXT must be computed **from that text's height**, never from
+> a number that happened to suit one size.
+
+Both slope drawers placed labels by offsets baked off the old 220 text — `190·s`, `220·s`,
+`240·s` are all echoes of it. The height moved onto the ladder; the offsets stayed behind;
+the digits landed on the roof sheeting. Same fault in the section's dim columns: the gap
+between `BRICK MASONRY` and `CLEAR HEIGHT` exists to clear two **rotated 2-line** texts, so
+it is `2.8 × DIMTXT` (two lines plus a gap) — not the `4.0` it was, which spent **2,400 mm,
+17% of a 13,720 building**, on white space.
+
+**And a symbol must survive its own geometry.** The slope was a denominator under the
+horizontal leg plus a loose `1` beside the vertical leg. At 1:10 that leg is a tenth of the
+run, so the `1` had nothing to sit against and the pair read `110`. It is now a single
+`1:10` callout placed **above** the triangle, where there is open air at any pitch.
+
 ## 5. THE DOC SET (how the four files relate)
 | File | Holds | Read it when |
 |---|---|---|
