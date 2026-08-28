@@ -564,6 +564,37 @@
     (setq i (1+ i)))
   m)
 
+;; Smallest real gap between consecutive grid stations (nil if there is only one).
+;; Duplicates and hair-splitting coincidences are ignored — two stations 0.5 mm apart are
+;; one line, not a gap the bubbles have to fit into.
+(defun peb-grid-min-gap (pts / prev m g)
+  (setq m nil prev nil)
+  (foreach p pts
+    (if prev (progn (setq g (- p prev))
+                    (if (and (> g 1.0) (or (null m) (< g m))) (setq m g))))
+    (setq prev p))
+  m)
+
+;; How many staggered rows the bubbles need so neighbours never touch.
+;; 1 = side by side, which is the normal case and the only one before B-03.
+;; Capped at 3: past that the row stack would cost more sheet than the crowding does, and
+;; the caller shrinks the bubble instead.
+(defun peb-bub-rows (pitch gap)
+  (if (or (null gap) (<= gap 0.0) (<= pitch gap))
+    1
+    (min 3 (fix (+ 0.9999 (/ pitch gap))))))
+
+;; Which stagger row an index falls in — our own modulo, deliberately NOT the built-in `rem`.
+;;
+;; peb-plan-from-file declares `rem` as a LOCAL (the length still to be divided among the
+;; bays, line ~4681), which shadows the function inside the whole defun. Calling (rem a b)
+;; there evaluates a NUMBER as a function: "; error: bad function: 15240.0", the plan unwinds
+;; silently, and the sheet comes out as a bare building outline with no dimensions, no
+;; bubbles and no title block. Measured, not theorised — that is exactly what B-03 produced.
+;; Never call a built-in this file also uses as a variable name.
+(defun peb-bub-row (idx rows)
+  (if (or (null rows) (< rows 2)) 0 (- idx (* rows (fix (/ idx rows))))))
+
 (defun grid-bubble (x y label dir / r h prev pc d tail apex p1 p2 L phi alpha)
   (if (not *PEB-TEXT-SCALE*) (setq *PEB-TEXT-SCALE* 1.0))
   (setq r (if *PEB-BUBRAD* *PEB-BUBRAD* (* 620 *PEB-TEXT-SCALE*)) prev (getvar "CLAYER") pc (getvar "CECOLOR"))
@@ -4380,6 +4411,7 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
     lewFrameRaw rewFrameRaw lewFrameLabel rewFrameLabel
     mainHalfY endHalfX sheetGap
     gridY1 gridY2 gridX1 gridX2 ovrTxtH bubR bubStand nWid
+    minSpX minSpY bubPitch bubRowsX bubRowsY bubStep bubFit bubOfs
   )
 
   ;; Initialize MAIMAAR-DIM dimstyle (Section-spec native dims).
@@ -4891,13 +4923,46 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   ;;    Each band is placed from the one below it + its height + a gap (all x scale), so
   ;;    overlap is impossible at any size.  Bubble radius is clamped so bubbles never touch
   ;;    sideways on narrow-bay buildings (the number keeps auto-fitting inside — G2).
-  (setq minSp len prevp nil)
-  (foreach p bayPts   (if prevp (setq minSp (min minSp (- p prevp)))) (setq prevp p))
-  (setq prevp nil)
-  (foreach p gridWpts (if prevp (setq minSp (min minSp (- p prevp)))) (setq prevp p))
-  ;; owner 4-Jul: bubbles must be big enough to READ. Floor 650, grow with the building (620*scale),
-  ;; only shrink if bays are tight (0.42*minSp so bubbles still never touch).
-  (setq *PEB-BUBRAD* (max 900.0 (min (* 720.0 *PEB-TEXT-SCALE*) (* 0.48 minSp))))
+  ;; ── RULE 4B.31 — GRID BUBBLES: SIZE TO READ, THEN STAGGER TO FIT ───────────────
+  ;; Owner 28-Aug: "Grid No.'s and Bubbles in B-03 are not coming in front of post columns
+  ;; and are more than columns."
+  ;;
+  ;; MEASURED on B-03. Its width grid is the frame lines MERGED with the end-wall posts:
+  ;; {0, 6096, 12192, 15240, 18288, 24384, 30480}. Every gap is 6096 except two of 3048,
+  ;; where the interior frame line at 15240 falls between two posts. The old rule shrank
+  ;; EVERY bubble to 0.48 of that tightest gap — radius 1463 where the building's own text
+  ;; scale asks for 1950 — and even then left 122 units between neighbours, which at 1:779
+  ;; is 0.16 mm of paper. C, D and E printed as one merged blob: unreadable, and impossible
+  ;; to count against the columns they belong to.
+  ;;
+  ;; Shrinking is the wrong lever twice over. It makes the letters smallest on exactly the
+  ;; big buildings whose sheets are already at 1:779, and it never actually buys clearance,
+  ;; because the bubble and the gap shrink together — 0.48 of a tight gap is still touching.
+  ;;
+  ;; So size the bubble for READING and, when the grid is too tight to hold them side by
+  ;; side, STAGGER alternate bubbles outward onto a second (or third) row. The stem still
+  ;; lands on the true grid line, so every bubble stays in front of its own column — which
+  ;; is what was asked for — while neighbours are a whole row apart.
+  ;;
+  ;; THE TWO DIRECTIONS ARE MEASURED SEPARATELY. They shared one minSp before, so a tight
+  ;; WIDTH grid shrank the bay numbers along the top as well, for no reason of their own.
+  (setq minSpX (peb-grid-min-gap bayPts)
+        minSpY (peb-grid-min-gap gridWpts))
+  ;; owner 4-Jul: bubbles must be big enough to READ — floor 900, growing with the building.
+  ;; No spacing term here any more; spacing is answered by the row count below.
+  (setq *PEB-BUBRAD* (max 900.0 (* 720.0 *PEB-TEXT-SCALE*)))
+  (setq bubPitch (+ (* 2.0 *PEB-BUBRAD*) (* 220.0 *PEB-TEXT-SCALE*)))   ; centre-to-centre needed
+  (setq bubRowsX (peb-bub-rows bubPitch minSpX)
+        bubRowsY (peb-bub-rows bubPitch minSpY))
+  ;; Row-to-row offset, measured from the pointer APEX (2.15r) so a staggered bubble's V
+  ;; cannot reach into the row in front of it.
+  (setq bubStep (+ (* 2.15 *PEB-BUBRAD*) (* 250.0 *PEB-TEXT-SCALE*)))
+  ;; Safety net for a pathological grid that even 3 rows cannot hold: fall back to the old
+  ;; behaviour and shrink, rather than print bubbles on top of each other.
+  (setq bubFit (/ (- (min (* bubRowsX (if minSpX minSpX bubPitch))
+                          (* bubRowsY (if minSpY minSpY bubPitch)))
+                     (* 220.0 *PEB-TEXT-SCALE*)) 2.0))
+  (if (< bubFit *PEB-BUBRAD*) (setq *PEB-BUBRAD* (max 700.0 bubFit)))
   (setq bubR (+ *PEB-BUBRAD* (* 60.0 *PEB-TEXT-SCALE*)))       ; circle edge (kept for reference)
   ;; owner 10-Jul: "the vertical dotted lines go INSIDE the bubble".  bubR only cleared the CIRCLE, but
   ;; grid-bubble also draws a tangent POINTER whose apex sits at (r + tail) = 2.15*r from the centre —
@@ -4919,7 +4984,8 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   ;; owner 10-Jul: push the number bubbles LIGHTLY upward (0.55*r) so the stem/pointer reads as a short
   ;; connector below the bubble instead of the dotted line crowding it.
   (setq gridY2  (+ yOvrDim ovrTxtH topGap *PEB-BUBRAD* (* 0.55 *PEB-BUBRAD*)))   ; grid bubble CENTRE
-  (setq yFsw    (+ gridY2 *PEB-BUBRAD* txtGap))                         ; FSW wall label
+  ;; 4B.31: clear the OUTERMOST staggered row, not just row 0, or the FSW label lands on it.
+  (setq yFsw    (+ gridY2 (* (- bubRowsX 1) bubStep) *PEB-BUBRAD* txtGap))   ; FSW wall label
   (setq ySub    (+ yFsw txtGap))                                        ; area-description banner
   (setq yTtl    (+ ySub txtGap))                                        ; COLUMN LAYOUT PLAN title
   (setq yFrmTop (+ yTtl txtGap))                                        ; frame / border top
@@ -4944,10 +5010,13 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
           (setvar "CLAYER" "GRID-LINES")
           ;; RULE (owner 4-Jul): grid marking line runs from the OUTER dimension line (overall length dim,
           ;; yOvrDim) up to the inner side of the bubble — not through the building.
-          (command "LINE" (list x (+ yOvrDim ovrTxtH)) (list x (- gridY2 bubStand)) "")   ; stop clear of the pointer apex (owner 10-Jul)
+          ;; 4B.31: this bubble's own row. The stem still runs to the TRUE grid line, so a
+          ;; staggered bubble is still in front of its own column — only further out.
+          (setq bubOfs (* (peb-bub-row (1- i) bubRowsX) bubStep))
+          (command "LINE" (list x (+ yOvrDim ovrTxtH)) (list x (- (+ gridY2 bubOfs) bubStand)) "")   ; stop clear of the pointer apex (owner 10-Jul)
           (setvar "CLAYER" "GRID")
           ;; + pOfs keeps the numbers TRUE on a match-line part: part 2 starts at grid 9.
-          (grid-bubble x gridY2
+          (grid-bubble x (+ gridY2 bubOfs)
             (itoa (+ i pOfs (if *PEB-GRID-NUM-OFS* *PEB-GRID-NUM-OFS* 0))) "D")))   ; owner 5-Jul: number offset -> grid CONTINUES across side-by-side areas
       (setq i (1+ i))
     )
@@ -4972,9 +5041,12 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
       (progn
         (setvar "CLAYER" "GRID-LINES")
         ;; RULE (owner 4-Jul): grid marking line from the OUTER width dimension line (-3*dimGap) to the bubble.
-        (command "LINE" (list (- (- 0.0 (* 3.0 dimGap)) ovrTxtH) y) (list (+ gridX1 bubStand) y) "")   ; stop clear of the pointer apex (owner 10-Jul)
+        ;; 4B.31: this bubble's own row — B-03's frame line at 15240 sits 3048 from the posts
+        ;; either side of it, too close to hold three readable bubbles in one column.
+        (setq bubOfs (* (peb-bub-row j bubRowsY) bubStep))
+        (command "LINE" (list (- (- 0.0 (* 3.0 dimGap)) ovrTxtH) y) (list (+ (- gridX1 bubOfs) bubStand) y) "")   ; stop clear of the pointer apex (owner 10-Jul)
         (setvar "CLAYER" "GRID")
-        (grid-bubble gridX1 y (peb-grid-letter (+ (- nWid 1 j) (if *PEB-GRID-LET-OFS* *PEB-GRID-LET-OFS* 0))) "R")))   ; owner 5-Jul: letter offset -> grid CONTINUES across stacked areas; skip-I via peb-grid-letter
+        (grid-bubble (- gridX1 bubOfs) y (peb-grid-letter (+ (- nWid 1 j) (if *PEB-GRID-LET-OFS* *PEB-GRID-LET-OFS* 0))) "R")))   ; owner 5-Jul: letter offset -> grid CONTINUES across stacked areas; skip-I via peb-grid-letter
     (setq j (1+ j))
   ))
 
@@ -5278,7 +5350,7 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   (if (and (not *PEB-MULTI-MODE*) (not *PEB-OPEN-CANOPY*) (not (peb-hide-wall-label-p "NSW"))) (txt-bold "MC" (list (/ len 2.0) (- (* 3000 *PEB-TEXT-SCALE*))) (peb-th 'SMALL) 0 "NSW - NEAR SIDE WALL"))
   ;; owner 4-Jul: LEW label sits OUTSIDE the letter bubbles (was sandwiched between the width dims and
   ;; the bubbles -> overlapped the dim text). REW side has no dims/bubbles, so it stays close.
-  (if (and (not *PEB-MULTI-MODE*) (not *PEB-OPEN-CANOPY*) (not (peb-hide-wall-label-p "LEW"))) (txt-bold "MC" (list (- gridX1 (* 2200.0 *PEB-DIM-SCALE*)) (/ wid 2.0)) (peb-th 'SMALL) 90 "LEW - LEFT END WALL"))
+  (if (and (not *PEB-MULTI-MODE*) (not *PEB-OPEN-CANOPY*) (not (peb-hide-wall-label-p "LEW"))) (txt-bold "MC" (list (- gridX1 (* (- bubRowsY 1) bubStep) (* 2200.0 *PEB-DIM-SCALE*)) (/ wid 2.0)) (peb-th 'SMALL) 90 "LEW - LEFT END WALL"))
   (if (and (not *PEB-MULTI-MODE*) (not *PEB-OPEN-CANOPY*) (not (peb-hide-wall-label-p "REW"))) (txt-bold "MC" (list (+ len (* 3000 *PEB-DIM-SCALE*)) (/ wid 2.0)) (peb-th 'SMALL) 90 "REW - RIGHT END WALL"))
 
   ;; ── End-frame type MLEADERs (Phase-2A v12) ─────────────────────
@@ -5309,7 +5381,7 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   ;; repeat per stacked area and overprint the width dims.  (Single-area draws them normally.)
   ;; owner 9-Jul: an OPEN CANOPY has no end WALLS, so it has no end FRAMES to name either -- the
   ;; "(BEARING FRAME)" words and the "BEARING FRAME / BOTH ENDS" leader are suppressed for BF/CC/PP.
-  (if (and (not *PEB-MULTI-MODE*) (not *PEB-OPEN-CANOPY*) (not (peb-hide-wall-label-p "LEW"))) (txt-bold "MC" (list (- gridX1 (* 4400.0 *PEB-DIM-SCALE*)) (/ wid 2.0)) (peb-th 'SMALL) 90 (if (wcmatch lewFrameLabel "*(*") lewFrameLabel (strcat "(" lewFrameLabel ")"))))
+  (if (and (not *PEB-MULTI-MODE*) (not *PEB-OPEN-CANOPY*) (not (peb-hide-wall-label-p "LEW"))) (txt-bold "MC" (list (- gridX1 (* (- bubRowsY 1) bubStep) (* 4400.0 *PEB-DIM-SCALE*)) (/ wid 2.0)) (peb-th 'SMALL) 90 (if (wcmatch lewFrameLabel "*(*") lewFrameLabel (strcat "(" lewFrameLabel ")"))))
   (if (and (not *PEB-MULTI-MODE*) (not *PEB-OPEN-CANOPY*) (not (peb-hide-wall-label-p "REW"))) (txt-bold "MC" (list (+ len (* 4500 *PEB-DIM-SCALE*)) (/ wid 2.0)) (peb-th 'SMALL) 90 (if (wcmatch rewFrameLabel "*(*") rewFrameLabel (strcat "(" rewFrameLabel ")"))))
   (if (and (not *PEB-MULTI-MODE*) (not *PEB-OPEN-CANOPY*))
   (cond
@@ -5525,7 +5597,9 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   ;; owner 4-Jul STRICT RULE: ALL drawings + labels MUST fit inside the border, and the plan is CENTRED
   ;; (equal side margins). bMarg = symmetric side margin, past the far LEW frame label (gridX1-3000*DS =
   ;; -(9000*DS + BUBRAD)); use 10500*DS + BUBRAD so there is a clear margin beyond it on BOTH sides.
-  (setq bMarg (+ (* 10500.0 *PEB-DIM-SCALE*) *PEB-BUBRAD*))
+  ;; 4B.31: the letter bubbles may be staggered outward, and the LEW labels move out with
+  ;; them, so the margin has to clear the WHOLE row stack — not just row 0.
+  (setq bMarg (+ (* 10500.0 *PEB-DIM-SCALE*) *PEB-BUBRAD* (* (- bubRowsY 1) bubStep)))
   (setq borderL (- 0.0 bMarg))
   (setq borderR (max (+ len bMarg) (+ c6 (* 800 *PEB-TEXT-SCALE*))))
   (setq borderT (+ yFrmTop (* 400.0 *PEB-TEXT-SCALE*)))

@@ -854,6 +854,86 @@ both fills for every sheet a render captured; feed it a `PEB_DEBUG_BBOX` log. It
 is the same as `peb-add-layout`'s and was checked against the viewport dimensions AutoCAD
 actually stored.
 
+### 4B.30 One frame is the goal — and splitting into one frame cannot beat it
+
+**Owner, 28-Aug:** *"Even if you split the plan, it should come in one frame (Try) to
+develop such rules."*
+
+Tried, and the geometry says it cannot help in the range that matters. Recorded so nobody
+spends a day rediscovering it.
+
+Take a drawing of aspect `A` and cut it into `N` equal strips **stacked inside one frame**.
+Each strip is `W/N` wide, the stack is `N·H` tall, so:
+
+> **stacked aspect = A / N²**
+
+The reachable aspects are therefore `A`, `A/4`, `A/9` — never anything between. For B-03's
+plan, `A = 2.21`: one frame gives 2.21 (fill 49.9%), stacking two strips gives 0.55
+(fill 50.1%). **Identical**, because 2.21 and 0.55 sit the same distance either side of the
+frame's 1.104 — their product is 1.22, and 1.104² = 1.219.
+
+So stacking only helps when `A/4` lands inside the good band, i.e. **A > 2.6**. Between
+1.84 and 2.6 there is a genuine dead zone that no single-frame arrangement improves.
+
+Unequal strips can hit any aspect between `A/2` and `A/4`, but that games the measurement
+rather than the sheet: making one strip nearly the whole length leaves the second row almost
+empty, so the *bounding box* reports a good aspect while the paper is still half blank.
+Fill must be judged on ink, not on the box.
+
+**What this leaves.** Three levers, and only three:
+
+| lever | fill on B-03's plan | cost |
+|---|---|---|
+| leave it | 49.9% at 1:799 | none |
+| two **pages** (each its own frame, aspect A/2) | ~99% at ~1:400 | one extra sheet per split drawing |
+| a **wider frame** — title strip along the bottom, box 285 × 135.6, aspect 2.10 | ~95% at ~1:390 | changes the sheet layout |
+
+Two pages and a wider frame are worth about the same. The owner has twice chosen fewer
+sheets (*"otherwise there will be too many drawings"*), so **the split trigger stays on
+building length at 400 ft (4B.19) and is NOT driven by aspect** — an aspect trigger would
+add pages, which is the thing being avoided. The wider frame is the only lever that both
+keeps one page and fills it; it is not built, because it changes the presentation standard.
+
+### 4B.31 Grid bubbles: size them to READ, then stagger — never shrink to fit
+
+**Owner, 28-Aug:** *"Grid No.'s and Bubbles in B-03 are not coming in front of post columns
+and are more than columns."*
+
+B-03's width grid is the frame lines merged with the end-wall posts:
+`{0, 6096, 12192, 15240, 18288, 24384, 30480}`. Every gap is 6096 except two of **3048**,
+where the interior frame line at 15240 falls between two posts.
+
+The old rule sized every bubble at `0.48 × the tightest gap in EITHER direction`. On B-03
+that is radius 1463 where the building's own text scale asks for 1950 — and it still left
+only 122 units between neighbours, **0.16 mm of paper at 1:779**. C, D and E printed as one
+merged blob: unreadable, and impossible to count against the columns they belong to.
+
+> **THE RULE.** A grid bubble is sized to be READ — `720 × TEXT-SCALE`, which plots at the
+> same size on every sheet because the sheet is auto-fitted. When the grid is too tight to
+> hold readable bubbles side by side, **stagger alternate bubbles outward onto a second (or
+> third) row**. The stem still runs to the true grid line, so every bubble stays in front of
+> its own column. Never shrink a bubble to make room.
+
+Shrinking is the wrong lever twice over: it makes the letters smallest on exactly the big
+buildings whose sheets are already at 1:800, and it never actually buys clearance, because
+the bubble and the gap shrink together — 48% of a tight gap is still touching.
+
+Two supporting rules fell out of it:
+
+* **Measure the two directions separately.** They shared one `minSp`, so a tight WIDTH grid
+  shrank the bay NUMBERS along the top as well, for no reason of their own.
+* **Everything outboard of the bubbles moves with the stack** — the FSW label, the LEW
+  labels and the symmetric side margin all clear `(rows-1) × step`, or the stagger simply
+  collides with the next thing out.
+
+**And a trap worth its own line.** `peb-plan-from-file` declares **`rem` as a local
+variable** (the length still to be divided among the bays). Inside that defun `(rem a b)`
+therefore evaluates a NUMBER as a function — `; error: bad function: 15240.0` — the plan
+unwinds silently, and the sheet comes out as a bare building outline with no dimensions, no
+bubbles and no title block. Use `peb-bub-row`, not `rem`. **Never call a built-in that this
+file also uses as a variable name** (see 4B.26: the failure has no error on the sheet, only
+in the log).
+
 ## 5. THE DOC SET (how the four files relate)
 | File | Holds | Read it when |
 |---|---|---|
