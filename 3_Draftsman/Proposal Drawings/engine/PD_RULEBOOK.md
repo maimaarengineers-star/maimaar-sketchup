@@ -642,6 +642,69 @@ i.e. it draws a definite, wrong product rather than nothing. Under this rule tha
 worst possible failure. If a new profile is ever added to `panelDefaults.js`, either teach
 the detail its shape or make it refuse to draw; never let it guess.
 
+### 4B.25 Where the DETAILS sections come from — trace, don't invent
+
+4B.24 says only draw what this project buys. Its twin: **draw it the shape it really is,
+or say that you haven't.** Every section on the DETAILS sheet now records its source.
+
+| section | source | status |
+|---|---|---|
+| Eave gutter | `Jobs59-MSPL_PAECO\Approval drawing\Eave Gutter9-MSPL_Eave Gutter.pdf` | **traced** — 165 base, 203 deep, 1.2 mm PPG.L, 3 m |
+| Lock seam | `Jobs59-MSPL_PAECO\…\Pdf.pdf`, panel "LOCK SEAM SHEET PROFILE" | **traced** — 470 cover, pan 92·10·145·10·91, seams at 119°/148° |
+| Sandwich panel | `Jobs584-MSPL_AZ Engineering\…\Pdf.pdf` (same on 202, 205) | **traced** — 920 = 5×184, rib 32×32, flat 106, 16 lap |
+| Standard S profile | — | **stylised shape, real dimensions** |
+| Valley gutter | — | **not drawn** — stated line only |
+
+**The owner's own filing is the reference library.** He said it: *"check the approval
+drawing pdf, it always have the sheeting profile."* Every MSPL approval sheet carries the
+panel sections in a right-hand column beside the eave gutter and the skylight — which is
+the column this DETAILS sheet is converging on. Look there before drawing anything.
+
+**Two things that are deliberately NOT traced, and why:**
+
+* **The S profile.** ~3,500 approval PDFs across 2024–25 were searched. The profile panels
+  that exist are SANDWICH (20), LINER (18), LOCK SEAM (16), SKYLIGHT (9) — the
+  **non-default** products. The standard S profile is only ever *named*, never sectioned,
+  because it is the house default. There is nothing to trace. Its dimensions (35 rib, 250
+  pitch, 1000 cover) are real and are what the sheet labels; only the rib shape is
+  stylised, and the code says so. A roll-former datasheet is the source if an exact
+  section is ever wanted.
+* **The valley gutter.** Only multi-gable jobs take one (owner), and no dimensioned valley
+  profile exists in the Jobs tree — only a BOQ of valley trims (job 171). A valley building
+  therefore gets an honest line, never the eave section substituted for it.
+
+**The rule:** a section is either traced from a real MSPL drawing, or it is stylised under
+correct dimensions and said to be, or it is not drawn. Never a confident guess — on a
+proposal drawing the customer is holding, a wrong shape reads as a commitment.
+
+### 4B.26 A balanced file is not a working one — check DEFINED vs CALLED
+
+Replacing a block of LISP by matching "from this defun to the next one" is how three
+helpers (`peb-sd-poly`, `peb-sd-eave-gutter`, `peb-sd-known-p`) were deleted on 28-Aug:
+they happened to sit between `peb-sd-sandwich` and `peb-sd-panel`, inside the span being
+swapped.
+
+**Nothing complained.** The paren-balance check passed — deleting whole `defun`s leaves a
+file perfectly balanced. AutoLISP then unwound silently at the first missing call and the
+DETAILS sheet plotted as an empty A4 with a correct title block. No error, no warning, a
+sheet that looks deliberate.
+
+So balance is necessary and not sufficient. The check that catches it is trivial: collect
+every `(defun peb-…)` and every `(peb-… ` call across the engine, and diff them. Run it
+after any structural edit:
+
+```
+node lispcheck.js MAIMAAR_PEB_*.lsp
+→ defined 511 peb-* functions, 283 distinct calls
+```
+
+One legitimate hit to expect: `peb-dim-v-native` is called in `MAIMAAR_PEB_Elevation.lsp`
+behind `(if (boundp 'peb-dim-v-native) …)` — a deliberate optional call that no-ops when
+the helper is absent. Anything **not** guarded that way is a real blank-sheet bug.
+
+**And when replacing a span, anchor on the END of what you mean to replace, not on the
+start of the next thing you happen to see.**
+
 ## 5. THE DOC SET (how the four files relate)
 | File | Holds | Read it when |
 |---|---|---|

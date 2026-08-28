@@ -1876,6 +1876,24 @@
 ;; The seam HEIGHT is not carried anywhere, so the seam is drawn to shape and left
 ;; undimensioned rather than given a made-up number.
 ;;
+;; ── THE S PROFILE IS THE ONE SECTION HERE THAT IS *NOT* TRACED ──────────────────────
+;; Its NUMBERS are real and come from the BSF - 35 rib height, 250 rib pitch, 1000 cover -
+;; and those are what the sheet dimensions and labels. Its RIB SHAPE is stylised: the
+;; proportions below are chosen to look like a trapezoidal sheet, not measured off a
+;; drawing.
+;;
+;; That is deliberate, and it is recorded here so nobody later mistakes it for measured
+;; geometry. Searched ~3,500 MSPL approval PDFs across 2024-2025 (owner 27-Aug: "check the
+;; approval drawing pdf, it always have the sheeting profile"). The profile panels that
+;; exist there are SANDWICH PANEL PROFILE (20), PROFILE LINER PANEL (18), LOCK SEAM SHEET
+;; PROFILE (16) and SKYLIGHT PROFILE (9) - the NON-DEFAULT products. The standard S profile
+;; is only ever NAMED on those drawings, never sectioned, because it is the house default.
+;; So there is nothing to trace; the roll-former's datasheet ("Lahore profile" in the BOQs)
+;; would be the source if an exact section is ever wanted.
+;;
+;; Drawing a stylised shape under CORRECT dimensions is honest; inventing dimensions would
+;; not be (rulebook 4B.24). The lock seam and the sandwich beside it ARE traced.
+;;
 ;; One pitch of the S profile, left to right, over `pit`:
 ;;   flat pan .68  |  web up .08  |  crown .16  |  web down .08   (of the pitch)
 (defun peb-sd-sprofile (x0 y0 n pit ht / i x pts)
@@ -1986,6 +2004,55 @@
                       (list (max x0 (- x thk)) top) "")
     (setq i (1+ i)))
   (princ))
+
+;; Draw an open polyline through a list of points.
+(defun peb-sd-poly (pts / i)
+  (setq i 0)
+  (while (< (1+ i) (length pts))
+    (command "_.LINE" (nth i pts) (nth (1+ i) pts) "")
+    (setq i (1+ i)))
+  (princ))
+
+;; ── EAVE GUTTER SECTION — TRACED FROM A REAL MAIMAAR TRIM (owner 27-Aug) ─────────────
+;; Source: Jobs59-MSPL_PAECO ... \Approval drawing\Eave Gutter;;         169-MSPL_Eave Gutter.pdf  — a dimensioned trim development.
+;;
+;; WHY THIS IS FAIR AT PROPOSAL STAGE while an installed gutter detail is not: it is a
+;; PRODUCT PROFILE, like the sheeting section beside it. Its shape and gauge are fixed by
+;; the fold, not by design — no fall, no outlet spacing, no bracket centres, which are the
+;; things only settled at approval stage. Every number below is off that drawing.
+;;
+;; Walked from the inside base-left corner, x right, y up:
+;;   base 165 -> front leg 150 up -> 50 lip out at 84 deg
+;;   back:  103 up -> 42 sloped at 135 deg (30 rise) -> 70 up -> 20 lip out at 96 deg
+;;   overall depth 203, which the drawing dimensions as 103 + 30 + 70.
+(defun peb-sd-eave-gutter (x0 y0 sc / p)
+  (setvar "CLAYER" "SHEETING")
+  (setq p (list
+    (list (+ x0 (* sc -50.0))  (+ y0 (* sc 207.0)))   ; back top lip, 20 out at 96 deg
+    (list (+ x0 (* sc -30.0))  (+ y0 (* sc 203.0)))   ; top of the back leg
+    (list (+ x0 (* sc -30.0))  (+ y0 (* sc 133.0)))   ; down 70
+    (list (+ x0 0.0)           (+ y0 (* sc 103.0)))   ; 42 sloped at 135 deg (30 rise)
+    (list (+ x0 0.0)           (+ y0 0.0))            ; down 103 to the base
+    (list (+ x0 (* sc 165.0))  (+ y0 0.0))            ; base 165
+    (list (+ x0 (* sc 165.0))  (+ y0 (* sc 150.0)))   ; front leg 150 up
+    (list (+ x0 (* sc 213.0))  (+ y0 (* sc 158.0)))))  ; 50 lip out at 84 deg
+  (peb-sd-poly p)
+  p)
+
+;; IS THIS A PROFILE WE ACTUALLY KNOW HOW TO DRAW? (rulebook 4B.24)
+;; The shape is chosen by substring against the BSF's profile text, and the vocabulary is
+;; small and controlled today ("Standard S Profile" variants, "Lock Seam Profile (roof
+;; only)").  The danger is the day a new product is added to panelDefaults.js: an
+;; unrecognised name would fall through to the STANDARD S section and draw a definite,
+;; WRONG product.  Under the scope-of-work rule that is the worst available failure — the
+;; customer is holding our drawing.  So say so instead of guessing.
+(defun peb-sd-known-p (prof ptype thk)
+  (setq prof (strcase (if prof prof "")) ptype (strcase (if ptype ptype "")))
+  (or (vl-string-search "LOCK" prof) (vl-string-search "SEAM" prof)
+      (and (> thk 0.0) (vl-string-search "SANDWICH" ptype))
+      (vl-string-search "STANDARD" prof)
+      (vl-string-search "S PROFILE" prof)
+      (= prof "")))                       ; blank = the house standard, which we do know
 
 (defun peb-sd-panel (ox y lock ttl mat fin col ptype thk / pit ht cov panW gA sand dep)
   ;; ONE panel detail: the section, its rib/pitch dimensions, the cover dimension,
