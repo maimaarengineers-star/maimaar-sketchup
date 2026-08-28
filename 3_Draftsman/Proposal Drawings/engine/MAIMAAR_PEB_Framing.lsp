@@ -2063,6 +2063,45 @@
   (peb-sd-poly p)
   p)
 
+;; ── FIBERGLASS INSULATION ROLL — AutoCAD's own INSUL batting symbol (owner 28-Aug) ───
+;; "Can you show the symbol of insulation rolls in the details? It is already in the AutoCAD
+;; system ... fiberglass insulation symbols you may say."
+;;
+;; AutoCAD ships the INSUL hatch pattern - the batting/roll symbol every draughtsman reads
+;; as glass wool - so the symbol is the standard one, not something drawn here. Same
+;; -HATCH call shape already proven in this file for AR-CONC / AR-B816 brick, including the
+;; MaxHatch bump and the catch-guard: if the pattern is unavailable the band is still drawn,
+;; just unhatched, and the sheet survives.
+;;
+;; Sized from the BSF, never assumed: PN_<KEY>_INSUL_THK is the roll thickness, _TYPE the
+;; material and _DENS the density. Drawn ONLY when a thickness is declared (rulebook 4B.24)
+;; - a building quoted without insulation must not carry an insulation detail.
+(defun peb-sd-insulation (ox y thk lbl / x1 y1 hEnt)
+  ;; The roll is drawn 6x its thickness long. A fixed 760 against a 50 mm thickness is a
+  ;; 15:1 sliver, and INSUL's batting cell is roughly square - at any scale that fills it,
+  ;; the loops end up wider than the band is tall and clip into straight dashes.
+  (setq x1 (+ ox (* thk 6.0)) y1 (+ y thk))
+  (setvar "CLAYER" "SHEETING")
+  (command "_.RECTANG" (list ox y) (list x1 y1))
+  (setq hEnt (entlast))
+  (setvar "CLAYER" "HATCH")
+  (vl-catch-all-apply (function (lambda () (setenv "MaxHatch" "50000000"))))
+  (vl-catch-all-apply (function (lambda ()
+    ;; The pattern scale must follow the BAND, not the sheet's text scale. This drawer sets
+    ;; *PEB-TEXT-SCALE* to about 0.022 (it sizes text for a 1,000 mm detail, not a building),
+    ;; so scaling INSUL by it made the batting microscopic and the band came out empty.
+    ;; INSUL's cell is about half a drawing unit, so the scale has to be of the order of the
+    ;; BAND THICKNESS for one batting loop to span the roll. thk/2.5 (=20 at 50 mm) packed
+    ;; the loops so tightly the band read as flat grey tone; 2x thk gives loops you can
+    ;; actually see are insulation.
+    ;; cell about half the thickness -> loops roughly as tall as they are wide
+    (command "_.-HATCH" "_P" "INSUL" (/ thk 2.0) 0.0 "_S" hEnt "" ""))))
+  (setvar "CLAYER" "TEXT") (setvar "CECOLOR" "5")
+  (txt-bold "ML" (list ox (+ y1 130.0)) (peb-th 'LABEL) 0 "INSULATION")
+  (setvar "CECOLOR" "BYLAYER")
+  (txt "ML" (list ox (- y 150.0)) (peb-th 'ANNOT) 0 lbl)
+  (princ))
+
 ;; IS THIS A PROFILE WE ACTUALLY KNOW HOW TO DRAW? (rulebook 4B.24)
 ;; The shape is chosen by substring against the BSF's profile text, and the vocabulary is
 ;; small and controlled today ("Standard S Profile" variants, "Lock Seam Profile (roof
@@ -2130,7 +2169,7 @@
         ((vl-string-search "SANDWICH" ty) "SANDWICH PANEL (S-TYPE OUTER SKIN)")
         (T "STANDARD S PROFILE 35-250 (S-TYPE)")))
 
-(defun peb-draw-sheeting-details (data ox oy / prev rp wp lockR lockW y rSig wSig same et gx)
+(defun peb-draw-sheeting-details (data ox oy / prev rp wp lockR lockW y rSig wSig same et gx iThk iTyp iDen)
   (setq prev (getvar "CLAYER"))
   (setq rp (strcase (peb-tb-or (MSPL-Get-Str data "PN_ROOF_OUTER_PROFILE") "STANDARD PROFILE"))
         wp (strcase (peb-tb-or (MSPL-Get-Str data "PN_WALL_OUTER_PROFILE") "STANDARD PROFILE")))
@@ -2201,6 +2240,21 @@
   ;; section: they are different products (owner: only multi-gable jobs get valley gutters),
   ;; and no dimensioned valley profile exists in the Jobs tree - only a BOQ of valley trims
   ;; (job 171).  A valley building gets the honest line instead of the wrong picture.
+  ;; ── INSULATION ROLL, under the panel column, ONLY where the BSF declares one ────────
+  (setq iThk (atof (peb-tb-or (MSPL-Get-Str data "PN_ROOF_INSUL_THK") "0")))
+  (if (<= iThk 0.0)
+    (setq iThk (atof (peb-tb-or (MSPL-Get-Str data "PN_WALL_INSUL_THK") "0"))))
+  (if (> iThk 0.0)
+    (progn
+      (setq iTyp (peb-tb-or (MSPL-Get-Str data "PN_ROOF_INSUL_TYPE")
+                            (peb-tb-or (MSPL-Get-Str data "PN_WALL_INSUL_TYPE") "FIBERGLASS")))
+      (setq iDen (peb-tb-or (MSPL-Get-Str data "PN_ROOF_INSUL_DENS")
+                            (peb-tb-or (MSPL-Get-Str data "PN_WALL_INSUL_DENS") "")))
+      (vl-catch-all-apply (function (lambda ()
+        (peb-sd-insulation ox -900.0 iThk
+          (strcat (rtos iThk 2 0) " MM  " (strcase iTyp)
+                  (if (/= iDen "") (strcat "  |  " iDen " KG/M3") ""))))))))
+
   ;; SECOND COLUMN, not a third row.  Stacking the gutter under the panels made the sheet
   ;; tall and narrow: the fit rule then scaled everything down to suit the height, the
   ;; drawings shrank, and the DETAILS heading was stranded in the middle of the page.  Beside
@@ -2231,7 +2285,7 @@
   ;; The heading sits BELOW everything on the sheet, at a fixed depth clear of both
   ;; columns.  Hanging it off the panel column's own y put it in the middle of the page
   ;; as soon as a second column was added beside it (owner 27-Aug).
-  (txt-bold "MC" (list (+ ox 900.0) -800.0) (peb-th 'HEADING) 0
+  (txt-bold "MC" (list (+ ox 900.0) -1450.0) (peb-th 'HEADING) 0
             "DETAILS")
   (setvar "CECOLOR" "BYLAYER")
   (setvar "CLAYER" prev)
