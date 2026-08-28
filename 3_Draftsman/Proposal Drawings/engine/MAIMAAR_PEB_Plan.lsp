@@ -2448,8 +2448,42 @@
 PEB-VP: " what " FAILED - " (vl-catch-all-error-message r))))
   r)
 
+;; Step INSIDE floating viewport `vp` (ename `vpe`) so a ZOOM will move ITS view and not
+;; paper space.  Returns T only if we really are inside it.
+;;
+;; Getting in is unreliable in headless acad and the failure is silent, so this verifies
+;; instead of assuming: CVPORT must end up equal to the viewport's own number (group 69).
+;; Measured on B-01, MSPACE succeeded on some layouts and refused on others in the SAME run
+;; ("variable setting rejected: CVPORT"), alternating rather than failing outright -- state
+;; left over from the previous layout, not anything about the sheet being framed.  A plain
+;; retry clears it, so retry, but never assume: a ZOOM fired while still in paper space
+;; zooms the A4 sheet out to model coordinates and the tab then opens apparently empty.
+;; REGENALL between attempts is what brings a fresh floating viewport on screen at all
+;; (group 68 goes -1 "fully off screen" -> 2); MSPACE will not enter one that is off screen.
+(defun peb-vp-enter (vp vpe / vpn tries)
+  (setq vpn (cdr (assoc 69 (entget vpe))) tries 0)
+  (while (and vpn (< tries 4) (/= (getvar "CVPORT") vpn))
+    (setq tries (1+ tries))
+    (vl-catch-all-apply (function (lambda () (vla-put-ViewportOn vp :vlax-true))))
+    (vl-catch-all-apply (function (lambda () (command "_.PSPACE"))))
+    (vl-catch-all-apply (function (lambda () (command "_.REGENALL"))))
+    (vl-catch-all-apply (function (lambda () (command "_.MSPACE"))))
+    (if (/= (getvar "CVPORT") vpn)
+      (vl-catch-all-apply (function (lambda () (setvar "CVPORT" vpn))))))
+  (if (and vpn (= (getvar "CVPORT") vpn))
+    T
+    (progn
+      (princ (strcat "
+PEB-VP: could not enter viewport " (vl-princ-to-string vpn)
+                     " after " (itoa tries) " tries"
+                     " (CTAB=" (getvar "CTAB")
+                     " TILEMODE=" (itoa (getvar "TILEMODE"))
+                     " CVPORT=" (itoa (getvar "CVPORT"))
+                     " status68=" (vl-princ-to-string (cdr (assoc 68 (entget vpe)))) ")"))
+      nil)))
+
 (defun peb-add-layout (lname bmin bmax tbData sheetNo / paperW paperH margin tbW gap
-                       dawX0 dawX1 dawY0 dawY1 mw mh sc lay vp cx cy pdw pdh cxp cyp)
+                       dawX0 dawX1 dawY0 dawY1 mw mh sc lay vp vpe vpn cx cy pdw pdh cxp cyp)
   (setq paperW 297.0 paperH 210.0 margin 6.0 gap 3.0)   ; A4 landscape (owner: proposals always print on A4)
   (setq tbW    (* (- paperH (* 2.0 margin)) 0.32)
         dawX0  margin
@@ -2533,6 +2567,17 @@ PEB-VP: " what " FAILED - " (vl-catch-all-error-message r))))
   ;; the sheet border the title block already draws.  Put the viewport on its own
   ;; no-plot layer: it still frames and scales the view, its outline just never
   ;; reaches the paper.  CLAYER is restored to 0 straight after.
+  ;; SHOW THE WHOLE A4 IN PAPER SPACE BEFORE THE VIEWPORT IS MADE.  This one line is the
+  ;; difference between a layout that frames its sheet and one that comes out blank.
+  ;; A viewport that falls outside the current paper-space view is flagged "on but FULLY OFF
+  ;; SCREEN" (group 68 = -1), and MSPACE will not step into an off-screen viewport -- so the
+  ;; ZOOM meant for the sheet lands on paper space instead and blows the A4 up to model
+  ;; coordinates, leaving a tab that opens empty.  Measured: with the paper view left wherever
+  ;; the previous layout happened to leave it, group 68 stayed -1 through four REGENALLs and
+  ;; the sheets alternated between framed and blank for no reason to do with their contents.
+  ;; Zoom the page into view first and group 68 becomes 2 on every sheet.
+  (vl-catch-all-apply (function (lambda ()
+    (command "_.ZOOM" "_W" (list 0.0 0.0) (list paperW paperH)))))
   (vl-catch-all-apply (function (lambda ()
     (command "_.-LAYER" "_Make" "PEB-VPORT" "_Plot" "_No" "PEB-VPORT" ""))))
   (command "_.MVIEW" (list (- cxp (/ pdw 2.0)) (- cyp (/ pdh 2.0)))
@@ -2558,10 +2603,57 @@ PEB-VP: " what " FAILED - " (vl-catch-all-error-message r))))
   ;; ended up at its default zoom-extents view while the cover, which goes through
   ;; peb-add-plain-layout, came out correct.  Each result is announced so a failure shows in
   ;; the AutoCAD log instead of vanishing.
-  (peb-vp-put vp "ViewportOn" (function (lambda () (vla-put-ViewportOn vp :vlax-true))))
-  (peb-vp-put vp "ViewHeight" (function (lambda () (vla-put-ViewHeight vp mh))))
-  (peb-vp-put vp "ViewCenter" (function (lambda () (vla-put-ViewCenter vp (vlax-3d-point cx cy 0.0)))))
-  (peb-vp-put vp "CustomScale" (function (lambda () (vla-put-CustomScale vp (/ 1.0 (float sc))))))
+  ;; ── RULE 4B.28 — EACH LAYOUT SHOWS ITS OWN SHEET, CENTRED (owner 28-Aug: "only few
+  ;; pages are placed in the layout ... the drawings are not centrally placed in the middle
+  ;; of layout box") ────────────────────────────────────────────────────────────
+  ;;
+  ;; THE ONE LINE THAT MATTERS IS THE REGENALL.  Everything else here is ordinary.
+  ;;
+  ;; Measured, not guessed.  Group 12 (view centre) read back from every viewport of a
+  ;; finished B-01 DWG was the SAME point on all ten tabs -- 229401,11763, the extents centre
+  ;; of the whole left-to-right tiled model -- while group 45 (view height) was correct and
+  ;; different on each.  So the height was landing and the centre never was, and every tab
+  ;; looked at one spot: the two or three sheets sitting near it showed something, the rest
+  ;; came out blank or half off the box.  Both of the owner's symptoms, one cause.
+  ;; IDENTICAL VIEW CENTRES ACROSS LAYOUTS IS THE SIGNATURE -- check it by number, because on
+  ;; screen it reads as missing pages, not as a bad view.
+  ;;
+  ;; A viewport's view can only be moved from INSIDE it, so the viewport has to be made
+  ;; current, and headless acad kept refusing: "There is no active modelspace viewport",
+  ;; "Error setting current viewport", "variable setting rejected: CVPORT".  Probing the
+  ;; entity said why -- group 68 was -1, "on but FULLY OFF SCREEN".  A fresh floating
+  ;; viewport is not drawn until something forces a display update, and MSPACE will not
+  ;; activate a viewport that is not on screen.  REGEN alone does not do it; REGENALL does:
+  ;; measured, group 68 goes -1 -> 2 and CVPORT then reports this viewport's own number.
+  ;;
+  ;; Worse, the failure was silent AND destructive: when MSPACE quietly does not switch, the
+  ;; ZOOM behind it lands on PAPER space and zooms the A4 sheet out to model coordinates, so
+  ;; the tab opens apparently empty.  That is the other half of "only a few pages are placed
+  ;; in the layout" -- the pages were there, the paper view was 80 m wide.
+  ;;
+  ;; Routes that CANNOT work here, so they are not worth trying again:
+  ;;   * vla-put-ViewCenter  -- throws even once the viewport is current.
+  ;;   * entmod of groups 12/45 -- returns nil; both are read-only on a viewport.
+  ;;   * vla-put-ActivePViewport / setvar CVPORT before the REGENALL -- both rejected.
+  ;; CustomScale IS writable without any of this, which is exactly why the height looked
+  ;; right while the centre stayed wrong, and why the fault was so easy to misread.
+  (setq vpe (vlax-vla-object->ename vp))
+  ;; Only zoom if we really are inside our own viewport -- a zoom fired from paper space
+  ;; wrecks the sheet, which is the failure this rule exists to stop.
+  (if (peb-vp-enter vp vpe)
+    (peb-vp-put vp "Zoom Centre" (function (lambda () (command "_.ZOOM" "_C" (list cx cy) mh))))
+    (princ (strcat "
+PEB-VP: view left unset for " lname)))
+  (peb-vp-put vp "PSpace" (function (lambda () (command "_.PSPACE"))))
+  ;; CustomScale after the centring: scaling about a centre keeps the centre, so the title
+  ;; block's 1:S is the scale actually plotted (ZOOM height alone drifts by the rounding
+  ;; peb-fit-scale applies).  DisplayLocked last -- the DWG goes to a customer who will
+  ;; scroll it, and a locked viewport cannot be knocked off its scale by a stray wheel-zoom.
+  (peb-vp-put vp "CustomScale"   (function (lambda () (vla-put-CustomScale vp (/ 1.0 (float sc))))))
+  (peb-vp-put vp "DisplayLocked" (function (lambda () (vla-put-DisplayLocked vp :vlax-true))))
+  ;; Leave PAPER space showing the A4 page, so opening the tab shows the sheet.
+  (vl-catch-all-apply (function (lambda ()
+    (command "_.ZOOM" "_W" (list 0.0 0.0) (list paperW paperH)))))
   (setvar "CLAYER" "0")
   sc)
 
@@ -2616,7 +2708,7 @@ PEB-VP: " what " FAILED - " (vl-catch-all-error-message r))))
 
 ;; A BARE A4 layout (no Mammut strip / border of its own) whose single full-page viewport frames
 ;; bmin..bmax — for the COVER sheet, which already carries its own complete A4 presentation frame.
-(defun peb-add-plain-layout (lname bmin bmax / paperW paperH lay)
+(defun peb-add-plain-layout (lname bmin bmax / paperW paperH lay vp vpe vpn)
   (setq paperW 297.0 paperH 210.0)
   (command "_.-LAYOUT" "_N" lname)
   (command "_.-LAYOUT" "_S" lname)
@@ -2628,10 +2720,68 @@ PEB-VP: " what " FAILED - " (vl-catch-all-error-message r))))
   (vl-catch-all-apply (function (lambda () (vla-put-PlotWithPlotStyles lay :vlax-true))))
   (vl-catch-all-apply (function (lambda () (vla-put-PlotRotation lay 0))))
   (setvar "TILEMODE" 0) (command "_.PSPACE") (command "_.ERASE" "_ALL" "")
-  (setvar "CLAYER" "0")
+  ;; SHOW THE WHOLE A4 IN PAPER SPACE BEFORE THE VIEWPORT IS MADE.  This one line is the
+  ;; difference between a layout that frames its sheet and one that comes out blank.
+  ;; A viewport that falls outside the current paper-space view is flagged "on but FULLY OFF
+  ;; SCREEN" (group 68 = -1), and MSPACE will not step into an off-screen viewport -- so the
+  ;; ZOOM meant for the sheet lands on paper space instead and blows the A4 up to model
+  ;; coordinates, leaving a tab that opens empty.  Measured: with the paper view left wherever
+  ;; the previous layout happened to leave it, group 68 stayed -1 through four REGENALLs and
+  ;; the sheets alternated between framed and blank for no reason to do with their contents.
+  ;; Zoom the page into view first and group 68 becomes 2 on every sheet.
+  (vl-catch-all-apply (function (lambda ()
+    (command "_.ZOOM" "_W" (list 0.0 0.0) (list paperW paperH)))))
+  (vl-catch-all-apply (function (lambda ()
+    (command "_.-LAYER" "_Make" "PEB-VPORT" "_Plot" "_No" "PEB-VPORT" ""))))
   (command "_.MVIEW" (list 0.0 0.0) (list paperW paperH))
-  (command "_.MSPACE") (command "_.ZOOM" "_W" bmin bmax) (command "_.PSPACE")
+  ;; Rule 4B.28 applies here too, and for the same reason: the viewport has to be on screen
+  ;; before MSPACE will step into it.  The cover survived the old MSPACE+ZOOM only because it
+  ;; is drawn first, when its viewport happens to be the current one -- luck, not design.
+  (setq vp  (vlax-ename->vla-object (entlast))
+        vpe (vlax-vla-object->ename vp))
+  (if (peb-vp-enter vp vpe)
+    (peb-vp-put vp "Zoom Window" (function (lambda () (command "_.ZOOM" "_W" bmin bmax))))
+    (princ (strcat "
+PEB-VP: view left unset for " lname)))
+  (peb-vp-put vp "PSpace"        (function (lambda () (command "_.PSPACE"))))
+  (peb-vp-put vp "DisplayLocked" (function (lambda () (vla-put-DisplayLocked vp :vlax-true))))
+  (vl-catch-all-apply (function (lambda ()
+    (command "_.ZOOM" "_W" (list 0.0 0.0) (list paperW paperH)))))
   (setvar "TILEMODE" 1) (setvar "CTAB" "Model")
+  (princ))
+
+;; ── RULE 4B.28, GUARD: NO SECOND VIEWPORT ON A SHEET ─────────────────────────────
+;; A layout is entitled to a default viewport of its own, created when the layout is first
+;; initialised -- which is not always before the ERASE in peb-add-layout runs.  If one ever
+;; survives, the tab holds two real viewports: ours framing the sheet, and a leftover at
+;; zoom-extents on the whole tiled model, drawn over it.
+;;
+;; This is a GUARD, not the fix for the 28-Aug fault: measured on B-01, no stray was
+;; actually present -- the second viewport in each layout was the paperspace pseudo-viewport
+;; (group 69 = 1), which is not a real viewport and must stay.  It costs nothing to run and
+;; it forecloses a failure that would look exactly like the one just fixed.
+;;
+;; Ours is the only viewport on layer PEB-VPORT (both layout builders create it there so its
+;; border never plots), which makes "not ours" a fact read off the entity rather than a guess
+;; from size or position.  Runs at the END, once every layout exists.
+;; Collect first, delete after: deleting inside a vlax-for skips entries.
+(defun peb-purge-stray-viewports ( / doc dead n)
+  (setq doc (vla-get-ActiveDocument (vlax-get-acad-object)) n 0)
+  (vlax-for lay (vla-get-Layouts doc)
+    (if (/= (strcase (vla-get-Name lay)) "MODEL")
+      (progn
+        (setq dead nil)
+        (vl-catch-all-apply (function (lambda ()
+          (vlax-for o (vla-get-Block lay)
+            (if (and (= (vla-get-ObjectName o) "AcDbViewport")
+                     (/= 1 (cdr (assoc 69 (entget (vlax-vla-object->ename o)))))
+                     (/= (strcase (vla-get-Layer o)) "PEB-VPORT"))
+              (setq dead (cons o dead)))))))
+        (foreach o dead
+          (if (not (vl-catch-all-error-p (vl-catch-all-apply (function (lambda () (vla-Delete o))))))
+            (setq n (1+ n)))))))
+  (princ (strcat "
+PEB-VP: swept " (itoa n) " stray viewport(s)"))
   (princ))
 
 ;; Frame the COVER (drawn since `mk`) on a bare full-page A4 tab.

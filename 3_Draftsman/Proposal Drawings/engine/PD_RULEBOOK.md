@@ -741,6 +741,60 @@ horizontal leg plus a loose `1` beside the vertical leg. At 1:10 that leg is a t
 run, so the `1` had nothing to sit against and the pair read `110`. It is now a single
 `1:10` callout placed **above** the triangle, where there is open air at any pitch.
 
+### 4B.28 Every sheet gets a layout, and the layout must be PROVEN to frame it
+
+**Owner, 28-Aug:** *"All Drawings are not placed each page in the layout — only few pages
+are placed in the layout. Also the Drawings are not centrally placed in the middle of
+layout box — Develop a Rule for It."*
+
+Both complaints were ONE fault, and neither was what it looked like. No sheet was missing:
+all ten layouts existed, each with its viewport, each viewport correctly sized and correctly
+positioned on the page. What was wrong was where the viewports were **looking**.
+
+**THE RULE**
+
+> A layout's viewport must be verified to be showing its OWN sheet — by number, after the
+> fact. Never assume the view was set, because in headless AutoCAD every way of setting it
+> fails silently, and one of them fails *destructively*.
+
+**The check.** Read DXF group 12 (view centre) from every layout's viewport. Each must equal
+its own sheet's bbox centre. **Identical view centres across layouts is the signature of the
+failure** — on B-01 all ten read `229401,11763`, the extents centre of the whole tiled model,
+so each tab showed whatever sat at that one spot: two or three sheets looked fine, the rest
+came out blank or half off the box. Group 45 (view height) was correct and different on every
+tab throughout, which is exactly why the fault was so easy to misread as "missing pages".
+
+**Why it is hard, and what does not work.** A viewport's view can only be changed from
+*inside* it, so the viewport must be made current. Headless acad refuses:
+
+| Route | Result |
+|---|---|
+| `vla-put-ViewCenter` | throws, even once the viewport is current |
+| `entmod` of groups 12 / 45 | returns `nil` — both are read-only on a viewport |
+| `vla-put-ActivePViewport`, `setvar CVPORT` | *"Error setting current viewport"*, *"variable setting rejected"* |
+| `vla-put-CustomScale` | **works** — which is why the height looked right while the centre stayed wrong |
+
+**The cause.** `MSPACE` will not enter a viewport that is flagged *on but fully off screen*
+(group 68 = `-1`), and a viewport is off screen when **paper space itself is not looking at
+it**. Layouts inherit whatever paper view the previous one left, so this alternated between
+sheets for no reason to do with their contents — which is what made it read as random.
+
+**The fix — one line, before the viewport is created:** zoom PAPER space to the whole A4
+(`ZOOM W (0,0)→(297,210)`) *before* `MVIEW`. Group 68 then comes up `2` on every sheet and
+`MSPACE` steps in. Only then is `ZOOM Center` safe.
+
+**And it must be a verified entry, not a hopeful one.** `peb-vp-enter` returns T only if
+`CVPORT` really equals the viewport's own group 69, and the caller zooms ONLY on T. This
+matters because the silent failure was also destructive: a `ZOOM` fired while still in paper
+space blows the A4 up to model coordinates, so the tab opens apparently empty — that was the
+second half of "only a few pages are placed in the layout". The pages were there; the paper
+view was 80 m wide.
+
+**Order of the view settings:** centre first (`ZOOM Center` sets centre and height together),
+`CustomScale` second — scaling about a centre keeps the centre, so the title block's 1:S is
+the scale actually plotted. `DisplayLocked` last, because the DWG goes to a customer who will
+scroll it.
+
 ## 5. THE DOC SET (how the four files relate)
 | File | Holds | Read it when |
 |---|---|---|
