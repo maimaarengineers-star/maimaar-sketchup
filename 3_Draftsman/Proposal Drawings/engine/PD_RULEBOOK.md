@@ -958,6 +958,31 @@ implements this: the joist top flange is drawn at the beam top flange line, the 
 flange 300 mm below it inside the web, and the 45 mm decking trough rests on the shared flush
 top. The comment there says so in as many words.
 
+### 4B.33 A canopy may end mid-bay — carry it on a beam between the two columns
+
+**Owner, 29-Aug:** *"in case there is no column at the position of canopies end, there will be
+a beam connecting b/w the [columns] and the canopy rafter will be cantilever & connected with
+beam b/w the both columns."*
+
+A canopy has no columns of its own — it cantilevers off the main frame rafters, with purlins
+running along it. So the obvious assumption is that a canopy must start and stop **on frames**,
+and that a run which does not divide by the bay spacing has to be squared up to whole bays.
+
+**That assumption is wrong, and it must not drive a canopy's length.** Where the end of a
+canopy falls between frames, a **beam spans between the two adjacent main-frame columns**, and
+the terminal canopy rafter cantilevers off that beam. The canopy is then free to be whatever
+length the architecture wants.
+
+**Consequences to carry:**
+
+* **Never round a canopy to whole bays to make it "fit".** The client's dimension governs.
+  MSPL-26-271 (Rainbow) has two entrance canopies at **62'-1" = 2.45 bays**; both keep that
+  length, and each has one mid-bay end.
+* **Each mid-bay end is a beam spanning one bay between columns** — real steel that no canopy
+  field captures, because the canopy component only carries projection, run and grid range.
+  Count them: one per mid-bay end, so a canopy landing on frames at both ends needs none, and
+  one floating in the middle of a wall needs two.
+
 ## 5. THE DOC SET (how the four files relate)
 | File | Holds | Read it when |
 |---|---|---|
