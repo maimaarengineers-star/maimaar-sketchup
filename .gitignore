@@ -1,12 +1,18 @@
 # Track only the SketchUp work; ignore the rest of the large tree.
 # (2_Sales CRM and 0_Master Plan have their own repos; proposals/DXF/data are not for this repo.)
 #
-# NOTE: files already tracked stay tracked even when a rule below would ignore them —
+# NOTE: files already tracked stay tracked even when a rule below would ignore them â€”
 # that is why 3_Draftsman engine files remain in the index. Ignore rules only affect
 # what git would ADD, never what it already has.
 /*
 !.gitignore
 !.gitattributes
+
+# Governance for the WHOLE tree - these two must be versioned even though this repo
+# otherwise tracks only 3_Draftsman. MASTER_RULES.md says which document rests where;
+# CLAUDE.md is the short enforcing copy that auto-loads for every session under this tree.
+!/MASTER_RULES.md
+!/CLAUDE.md
 
 # The SketchUp work now lives under its owning section folder (moved 2026-07-20 from
 # the repo root). Un-ignoring a nested path requires un-ignoring each parent first.
@@ -25,7 +31,7 @@
 !**/sketchup_generator/parts/*.skp         # real components placed by the generator
 !**/sketchup_study/components_lib/*.skp    # the extracted real-parts library
 
-# Local cold storage — archived old files, not part of the repo.
+# Local cold storage â€” archived old files, not part of the repo.
 # Lowercase to match the actual folder name; the old uppercase _ARCHIVE/ rule matched
 # on Windows by luck only and would have failed on a case-sensitive filesystem.
 _archive/
@@ -34,7 +40,7 @@ _render/
 _render_*/
 _generated_drawings/
 
-# AutoCAD session/plot logs — regenerated on every run, never source
+# AutoCAD session/plot logs â€” regenerated on every run, never source
 Drawing1_*.log
 plot.log
 _tunnel.log
