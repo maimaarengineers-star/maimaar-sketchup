@@ -1894,16 +1894,40 @@
 ;; Drawing a stylised shape under CORRECT dimensions is honest; inventing dimensions would
 ;; not be (rulebook 4B.24). The lock seam and the sandwich beside it ARE traced.
 ;;
-;; One pitch of the S profile, left to right, over `pit`:
-;;   flat pan .68  |  web up .08  |  crown .16  |  web down .08   (of the pitch)
-(defun peb-sd-sprofile (x0 y0 n pit ht / i x pts)
-  (setq i 0 pts (list (list x0 y0)))
-  (while (< i n)
-    (setq x (+ x0 (* i pit)))
-    (setq pts (append pts (list (list (+ x (* pit 0.68)) y0)
-                                (list (+ x (* pit 0.76)) (+ y0 ht))
-                                (list (+ x (* pit 0.92)) (+ y0 ht))
-                                (list (+ x pit)          y0))))
+;; BOTH EDGES ARE PROFILED LAPS — THE SECTION STARTS AND ENDS ON A RIB (owner 28-Aug:
+;; "both side laps are profiled and one sheet rest on the other while fixing ... left side
+;; straight side to be corrected").
+;;
+;; That is how the sheet actually goes on: the rib at one edge sits over the rib at the
+;; next sheet's edge, so a section of the panel shows a rib at BOTH ends, never a bare pan.
+;;
+;; It was drawn  flat .68 | up .08 | crown .16 | down .08  per pitch, i.e. the rib at the
+;; END of its pitch. Across n pitches that opened with a long flat (the "left side straight
+;; side") and closed on a rib foot — two different corners, and the left one showed a lap
+;; that does not exist.
+;;
+;; Now the ribs sit ON the pitch lines: n+1 of them at 0, pit, 2·pit … n·pit, with the pan
+;; spanning between. Both ends are the same rib.
+;;
+;; THE COIL MODEL, in the owner's words (28-Aug): "normally we have 1200 mm sheet which
+;; after profiling converts to 1100, in which almost 100 goes for overlap and net sheeting
+;; is 1000 mm — from GOLA TOP TO GOLA TOP is 1000 mm."
+;;
+;; So COVER IS MEASURED RIB CROWN TO RIB CROWN, and it is 1000 over four 250 pitches — which
+;; is exactly what the "1,000 COVER" dimension below spans, and why the run must carry a rib
+;; at each end rather than a pan: the end ribs ARE the 100 of overlap, one sheet resting on
+;; the next.
+;;
+;; One rib, centred on its pitch line c:
+;;   foot c-.16 | web up c-.08 | crown to c+.08 | web down to c+.16   (of the pitch)
+(defun peb-sd-sprofile (x0 y0 n pit ht / i c pts)
+  (setq i 0 pts '())
+  (while (<= i n)
+    (setq c (+ x0 (* i pit)))
+    (setq pts (append pts (list (list (- c (* pit 0.16)) y0)
+                                (list (- c (* pit 0.08)) (+ y0 ht))
+                                (list (+ c (* pit 0.08)) (+ y0 ht))
+                                (list (+ c (* pit 0.16)) y0))))
     (setq i (1+ i)))
   (setvar "CLAYER" "SHEETING")
   (setq i 0)
