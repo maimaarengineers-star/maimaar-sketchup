@@ -146,7 +146,16 @@
 ;;    almost every sheet anyway.  These are the sizes an approval drawing uses:
 ;; ---------------------------------------------------------------------------
 (setq *PEB-TEXT-HEIGHTS*
-  '((SMALL   .  550)      ; 2.0 mm - marks, leader tails, minor notes
+  '((MARK    .  400)      ; 1.45 mm - the smallest DEFINED size: slope tags and similar
+                          ;   marks that sit against a small symbol rather than stand alone.
+                          ;   Added 28-Aug: the text audit moved every hard-coded height onto
+                          ;   this ladder, and the slope tag landed on SMALL - "1:10 size is
+                          ;   more than it should be" (owner). It needed something below
+                          ;   SMALL, and a DEFINED rung is the answer, not a loose number:
+                          ;   the whole point of the audit was that no text picks its own size.
+                          ;   Use it sparingly - anything a customer must READ belongs at
+                          ;   SMALL or above.
+    (SMALL   .  550)      ; 2.0 mm - marks, leader tails, minor notes
     (DIM     .  700)      ; 2.5 mm - dimension text (ISO)
     (ANNOT   .  830)      ; 3.0 mm - nomenclature: RIDGE LINE, slope tags, member marks
     (LABEL   .  970)      ; 3.5 mm - sub-headings

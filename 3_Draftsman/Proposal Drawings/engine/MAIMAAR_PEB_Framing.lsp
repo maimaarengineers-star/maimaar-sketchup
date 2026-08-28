@@ -2063,43 +2063,65 @@
   (peb-sd-poly p)
   p)
 
-;; ── FIBERGLASS INSULATION ROLL — AutoCAD's own INSUL batting symbol (owner 28-Aug) ───
+;; ── FIBERGLASS INSULATION ROLL (owner 28-Aug) ────────────────────────────────────────
 ;; "Can you show the symbol of insulation rolls in the details? It is already in the AutoCAD
-;; system ... fiberglass insulation symbols you may say."
+;;  system ... normally we have been using the fiberglass insulation like the rolled wire,
+;;  and fiberglass is NOT the rigid but less density glass fiber, and bottom there is
+;;  lamination sheet. Also show the thickness as well."
 ;;
-;; AutoCAD ships the INSUL hatch pattern - the batting/roll symbol every draughtsman reads
-;; as glass wool - so the symbol is the standard one, not something drawn here. Same
-;; -HATCH call shape already proven in this file for AR-CONC / AR-B816 brick, including the
-;; MaxHatch bump and the catch-guard: if the pattern is unavailable the band is still drawn,
-;; just unhatched, and the sheet survives.
+;; So three things the drawing has to say, and they are the reasons for what is drawn:
+;;   * IT IS A SOFT BLANKET, NOT A BOARD.  A plain hatched rectangle reads as rigid board.
+;;     The top is drawn as a scalloped, slightly irregular edge - the "rolled wire" look -
+;;     so nobody reads it as PIR or a rigid slab.
+;;   * THE LAMINATION SHEET IS ON THE BOTTOM.  Drawn as its own solid line under the
+;;     blanket and named, because it is a separate supplied item, not part of the wool.
+;;   * THE THICKNESS IS DIMENSIONED, off the BSF (PN_<KEY>_INSUL_THK).
 ;;
-;; Sized from the BSF, never assumed: PN_<KEY>_INSUL_THK is the roll thickness, _TYPE the
-;; material and _DENS the density. Drawn ONLY when a thickness is declared (rulebook 4B.24)
-;; - a building quoted without insulation must not carry an insulation detail.
-(defun peb-sd-insulation (ox y thk lbl / x1 y1 hEnt)
-  ;; The roll is drawn 6x its thickness long. A fixed 760 against a 50 mm thickness is a
-  ;; 15:1 sliver, and INSUL's batting cell is roughly square - at any scale that fills it,
-  ;; the loops end up wider than the band is tall and clip into straight dashes.
+;; AutoCAD's own INSUL pattern fills the blanket - the owner asked for the system symbol,
+;; not a hand-drawn one - via the same -HATCH call already proven here for AR-CONC and
+;; AR-B816, with the MaxHatch bump and a catch-guard so a missing pattern still leaves a
+;; readable band. The roll is 6x its thickness long and the pattern cell is 2x the
+;; thickness: INSUL's cell is roughly square, so on a long thin band the loops clip into
+;; straight dashes, and on a short one an over-fine cell turns to flat grey tone.
+(defun peb-sd-insulation (ox y thk lbl / x1 y1 lam i k n stp px pts hEnt)
+  (setq lam (* thk 0.14))                    ; the lamination sheet on the underside
   (setq x1 (+ ox (* thk 6.0)) y1 (+ y thk))
+  ;; blanket body, hatched with the AutoCAD symbol
   (setvar "CLAYER" "SHEETING")
-  (command "_.RECTANG" (list ox y) (list x1 y1))
+  (command "_.RECTANG" (list ox (+ y lam)) (list x1 y1))
   (setq hEnt (entlast))
   (setvar "CLAYER" "HATCH")
   (vl-catch-all-apply (function (lambda () (setenv "MaxHatch" "50000000"))))
   (vl-catch-all-apply (function (lambda ()
-    ;; The pattern scale must follow the BAND, not the sheet's text scale. This drawer sets
-    ;; *PEB-TEXT-SCALE* to about 0.022 (it sizes text for a 1,000 mm detail, not a building),
-    ;; so scaling INSUL by it made the batting microscopic and the band came out empty.
-    ;; INSUL's cell is about half a drawing unit, so the scale has to be of the order of the
-    ;; BAND THICKNESS for one batting loop to span the roll. thk/2.5 (=20 at 50 mm) packed
-    ;; the loops so tightly the band read as flat grey tone; 2x thk gives loops you can
-    ;; actually see are insulation.
-    ;; cell about half the thickness -> loops roughly as tall as they are wide
-    (command "_.-HATCH" "_P" "INSUL" (/ thk 2.0) 0.0 "_S" hEnt "" ""))))
+    (command "_.-HATCH" "_P" "INSUL" (* thk 2.0) 0.0 "_S" hEnt "" ""))))
+  ;; SOFT TOP EDGE - scalloped, so the blanket cannot be mistaken for a rigid board
+  (setvar "CLAYER" "SHEETING")
+  ;; ROUNDED scallops, not sharp peaks. A triangular zigzag reads as a serrated edge on a
+  ;; rigid board; a rounded one reads as a soft blanket, which is the whole point of the
+  ;; owner's note ("fiberglass is NOT the rigid but less density glass fiber"). Each bump is
+  ;; a half-cosine sampled at 6 points - enough to look curved at plot size, cheap to draw.
+  (setq n 8 stp (/ (- x1 ox) n) i 0 pts (list (list ox y1)))
+  (while (< i n)
+    (setq px (+ ox (* i stp)) k 1)
+    (while (<= k 6)
+      (setq pts (append pts (list
+        (list (+ px (* stp (/ k 6.0)))
+              (+ y1 (* thk 0.18 (sin (* pi (/ k 6.0)))))))))
+      (setq k (1+ k)))
+    (setq i (1+ i)))
+  (peb-sd-poly pts)
+  ;; LAMINATION SHEET on the bottom, its own layer of the build-up
+  (command "_.RECTANG" (list ox y) (list x1 (+ y lam)))
+  ;; THICKNESS dimension, off the BSF
+  (vl-catch-all-apply (function (lambda ()
+    (peb-fr-overall-v (- ox (* thk 1.1)) y y1 (strcat (rtos thk 2 0))))))
   (setvar "CLAYER" "TEXT") (setvar "CECOLOR" "5")
-  (txt-bold "ML" (list ox (+ y1 130.0)) (peb-th 'LABEL) 0 "INSULATION")
+  (txt-bold "ML" (list ox (+ y1 (* thk 0.75))) (peb-th 'LABEL) 0 "INSULATION")
   (setvar "CECOLOR" "BYLAYER")
-  (txt "ML" (list ox (- y 150.0)) (peb-th 'ANNOT) 0 lbl)
+  (txt "ML" (list (+ x1 (* thk 0.5)) (+ y (* lam 0.5))) (peb-th 'MARK) 0 "LAMINATION SHEET")
+  (txt "ML" (list ox (- y (* thk 1.9))) (peb-th 'ANNOT) 0 lbl)
+  (txt "ML" (list ox (- y (* thk 3.1))) (peb-th 'MARK) 0
+       "SOFT BLANKET - NON-RIGID, LOW DENSITY GLASS FIBRE")
   (princ))
 
 ;; IS THIS A PROFILE WE ACTUALLY KNOW HOW TO DRAW? (rulebook 4B.24)

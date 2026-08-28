@@ -4381,7 +4381,7 @@
   (command "LINE" (list bx ay) (list bx by) "")
   ;; Labels
   ;; same rule as draw-slope-tag: the clearance is a function of the glyph, not a constant
-  (txt "MC" (list (+ cx (/ run 2.0)) (- ay (* (peb-th 'SMALL) s 0.85))) (peb-th 'SMALL) 0 (rtos slopeD 2 0))
+  (txt "MC" (list (+ cx (/ run 2.0)) (- ay (* (peb-th 'MARK) s 0.85))) (peb-th 'MARK) 0 (rtos slopeD 2 0))
   (txt "MC" (list (+ bx (* 240 s)) (+ ay (/ rise 2.0))) (peb-th 'SMALL) 0 "1")
   (txt-bold "MC" (list (+ cx (/ run 2.0)) (+ by (* 350 s))) (peb-th 'SMALL) 0 (strcat "SLOPE " slopeStr))
 )
@@ -4417,7 +4417,7 @@
   ;; THE RULE: a placement offset that exists to clear TEXT must be computed FROM that
   ;; text's height, never from a number that happened to suit one size. `th` below is the
   ;; single source; change the rung and the whole tag re-proportions itself.
-  (setq th (* (peb-th 'SMALL) s))        ; the drawn height of the tag's digits
+  (setq th (* (peb-th 'MARK) s))         ; the drawn height of the tag's digits
   (setq run (max (* 900 s) (* th 2.6)))  ; triangle scales with its own labels
   (setq rise (/ run slopeD))
   (setq ax cx ay cy)
@@ -4447,7 +4447,7 @@
   ;; where the digits were sitting. Above the apex there is open air at every pitch.
   (setq labX (+ cx (/ (* upRight run) 2.0)))
   (setq labY (+ ay rise (* th 0.80)))
-  (txt "MC" (list labX labY) (peb-th 'SMALL) 0 (strcat "1:" (rtos slopeD 2 0)))
+  (txt "MC" (list labX labY) (peb-th 'MARK) 0 (strcat "1:" (rtos slopeD 2 0)))
 )
 
 (defun draw-rc-brick-hidden (W H / bw seg xo xi y)
