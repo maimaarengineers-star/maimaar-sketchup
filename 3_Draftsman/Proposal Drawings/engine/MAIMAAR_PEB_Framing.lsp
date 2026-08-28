@@ -2083,33 +2083,42 @@
 ;; readable band. The roll is 6x its thickness long and the pattern cell is 2x the
 ;; thickness: INSUL's cell is roughly square, so on a long thin band the loops clip into
 ;; straight dashes, and on a short one an over-fine cell turns to flat grey tone.
-(defun peb-sd-insulation (ox y thk lbl / x1 y1 lam i k n stp px pts hEnt)
+(defun peb-sd-insulation (ox y thk lbl / x1 y1 lam stp px pts wTop wBot wMid wAmp wLen)
   (setq lam (* thk 0.14))                    ; the lamination sheet on the underside
   (setq x1 (+ ox (* thk 6.0)) y1 (+ y thk))
-  ;; blanket body, hatched with the AutoCAD symbol
-  (setvar "CLAYER" "SHEETING")
-  (command "_.RECTANG" (list ox (+ y lam)) (list x1 y1))
-  (setq hEnt (entlast))
+  ;; ── BATT INSULATION: ONE WAVY LINE SPANNING THE FULL THICKNESS (owner 28-Aug) ────
+  ;; "Complete thickness, show the glasswool lines 50 mm ... it is similar to the boundary
+  ;;  wall's wire mesh roll ... insulation CAD hatch, batt, wavy line."
+  ;;
+  ;; That names the standard: the CAD BATT symbol is a SINGLE continuous wave whose loops
+  ;; run face to face, so the wool visibly occupies the whole declared depth. It reads as
+  ;; coiled mesh, which is the comparison he drew.
+  ;;
+  ;; What was tried and was WRONG, recorded so it is not tried again:
+  ;;   * AutoCAD's INSUL hatch - lays ONE band of loops at its own cell height and leaves
+  ;;     the rest of the boundary empty. On a 50 mm band that is a thin textured strip
+  ;;     through the middle, which reads as a rigid board with a line in it. No cell size
+  ;;     fixes it: the pattern does not stretch to its boundary.
+  ;;   * Parallel fibre lines - they fill the depth, but parallel rules read as the
+  ;;     laminations of a rigid board, the opposite of loose fibre.
+  ;;
+  ;; Amplitude is the full wool thickness. Wavelength is ~0.55 x thickness (owner: "show the
+  ;; more dense wave") - at 1.15 the loops were round but sparse and the band read half
+  ;; empty; tighter reads as packed fibre, which is what a batt is. 14 samples a wave keeps
+  ;; it smooth at plot size.
   (setvar "CLAYER" "HATCH")
-  (vl-catch-all-apply (function (lambda () (setenv "MaxHatch" "50000000"))))
-  (vl-catch-all-apply (function (lambda ()
-    (command "_.-HATCH" "_P" "INSUL" (* thk 2.0) 0.0 "_S" hEnt "" ""))))
-  ;; SOFT TOP EDGE - scalloped, so the blanket cannot be mistaken for a rigid board
-  (setvar "CLAYER" "SHEETING")
-  ;; ROUNDED scallops, not sharp peaks. A triangular zigzag reads as a serrated edge on a
-  ;; rigid board; a rounded one reads as a soft blanket, which is the whole point of the
-  ;; owner's note ("fiberglass is NOT the rigid but less density glass fiber"). Each bump is
-  ;; a half-cosine sampled at 6 points - enough to look curved at plot size, cheap to draw.
-  (setq n 8 stp (/ (- x1 ox) n) i 0 pts (list (list ox y1)))
-  (while (< i n)
-    (setq px (+ ox (* i stp)) k 1)
-    (while (<= k 6)
-      (setq pts (append pts (list
-        (list (+ px (* stp (/ k 6.0)))
-              (+ y1 (* thk 0.18 (sin (* pi (/ k 6.0)))))))))
-      (setq k (1+ k)))
-    (setq i (1+ i)))
+  (setq wTop y1 wBot (+ y lam))
+  (setq wMid (* 0.5 (+ wTop wBot)) wAmp (* 0.5 (- wTop wBot)))
+  (setq wLen (* thk 0.55))
+  (setq stp (/ wLen 14.0) px ox pts '())
+  (while (<= px x1)
+    (setq pts (append pts (list
+      (list px (+ wMid (* wAmp (sin (* 2.0 pi (/ (- px ox) wLen)))))))))
+    (setq px (+ px stp)))
   (peb-sd-poly pts)
+  ;; blanket outline, drawn after the wave so the faces stay crisp
+  (setvar "CLAYER" "SHEETING")
+  (command "_.RECTANG" (list ox wBot) (list x1 wTop))
   ;; LAMINATION SHEET on the bottom, its own layer of the build-up
   (command "_.RECTANG" (list ox y) (list x1 (+ y lam)))
   ;; THICKNESS dimension, off the BSF
