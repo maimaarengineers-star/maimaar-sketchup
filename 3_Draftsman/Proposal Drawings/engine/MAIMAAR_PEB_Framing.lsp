@@ -1942,81 +1942,50 @@
     (setq i (1+ i)))
   (princ))
 
-(defun peb-sd-sandwich (x0 y0 n pit ht thk / i x)
-  ;; SANDWICH PANEL section (owner 27-Aug): the profiled OUTER skin sits ON the core,
-  ;; the flat liner closes the underside, and the CORE THICKNESS is whatever the BSF
-  ;; says (PN_*_PIR_THK) — the drawing follows the specification, it does not assume a
-  ;; standard panel.  The outer skin is the same S profile as a single-skin sheet,
-  ;; which is what a sandwich's outer face actually is.
-  (peb-sd-sprofile x0 (+ y0 thk) n pit ht)
+;; ── SANDWICH PANEL SECTION — TRACED FROM A MAIMAAR APPROVAL DRAWING ─────────────────
+;; Source: E:\Maimaar Steel Pvt Ltd\Jobs584-MSPL_AZ Engineering ... \Approval
+;;         Drawing\Rev-00\Pdf.pdf, panel "SANDWICH PANEL PROFILE" (the same section
+;;         appears on 202-MSPL and 205-MSPL, so it is the house panel, not a one-off).
+;;
+;;   920 cover = 5 modules of 184        rib 32 wide at the crown, 32 tall above the core
+;;   flat between ribs 106               16 at each end (the half-rib that laps the next panel)
+;;   core 50 on those jobs — but the CORE HERE IS WHATEVER THE BSF SAYS (PN_*_PIR_THK),
+;;   because the drawing follows the specification; only the profile is fixed.
+;;   skins 0.5 mm PPGL outer / 0.5 mm PPGI liner (0.45/0.5 Aluzinc on 202-MSPL).
+;;
+;; Replaces the previous version, which reused the single-skin S profile at 250 pitch and
+;; 35 rib on top of the core. A sandwich's outer face is NOT the S profile: it is this
+;; 184-module 32 rib, and the two look plainly different on the page.
+(defun peb-sd-sandwich (x0 y0 n pit ht thk / i x w mod rib crown flat lap top)
+  (setq mod 184.0 rib 32.0 crown 32.0 flat 106.0 lap 16.0)
+  (setq top (+ y0 thk))
+  (setq w (+ (* n mod) lap))                       ; n modules plus the closing lap
   (setvar "CLAYER" "SHEETING")
-  ;; flat inner liner
-  (command "_.LINE" (list x0 y0) (list (+ x0 (* n pit)) y0) "")
-  ;; close the core at both ends
-  (command "_.LINE" (list x0 y0) (list x0 (+ y0 thk)) "")
-  (command "_.LINE" (list (+ x0 (* n pit)) y0) (list (+ x0 (* n pit)) (+ y0 thk)) "")
+  ;; OUTER SKIN, left to right: the opening lap, then n × (flat, rib up, crown, rib down)
+  (setq i 0 x (+ x0 lap))
+  (peb-sd-poly (list (list x0 top) (list x top)))   ; 16 lap
+  (while (< i n)
+    (setq x (+ x0 lap (* i mod)))
+    (peb-sd-poly (list
+      (list x                         top)
+      (list (+ x (* rib 0.55))        (+ top rib))          ; up the rib
+      (list (+ x (* rib 0.55) crown)  (+ top rib))          ; 32 crown
+      (list (+ x (+ (* rib 1.10) crown)) top)               ; down the rib
+      (list (+ x mod)                 top)))                ; 106 flat to the next module
+    (setq i (1+ i)))
+  ;; FLAT INNER LINER, and the core closed at both ends
+  (peb-sd-poly (list (list x0 y0) (list (+ x0 w) y0)))
+  (peb-sd-poly (list (list x0 y0) (list x0 top)))
+  (peb-sd-poly (list (list (+ x0 w) y0) (list (+ x0 w) top)))
   ;; light core hatching, drawn as strokes so it cannot depend on a hatch pattern
   (setvar "CLAYER" "HATCH")
   (setq i 1)
-  (while (< (* i (/ thk 1.4)) (* n pit))
+  (while (< (* i (/ thk 1.4)) w)
     (setq x (+ x0 (* i (/ thk 1.4))))
-    (command "_.LINE" (list x y0)
-                      (list (max x0 (- x thk)) (min (+ y0 thk) (+ y0 thk))) "")
+    (command "_.LINE" (list (min x (+ x0 w)) y0)
+                      (list (max x0 (- x thk)) top) "")
     (setq i (1+ i)))
   (princ))
-
-;; ── EAVE GUTTER SECTION — TRACED FROM A REAL MAIMAAR TRIM (owner 27-Aug) ─────────────
-;; Owner: "there are a lot of jobs which have all the details of valley gutters, eave gutters
-;; etc, you may check there & develop similar details in proposal drawings ... you only get
-;; the details which are required at proposal stage."
-;;
-;; Source: E:\Maimaar Steel Pvt Ltd\Jobs59-MSPL_PAECO ... \Approval drawing;;         Eave Gutter9-MSPL_Eave Gutter.pdf  — a dimensioned trim development.
-;;
-;; WHY THIS ONE IS FAIR AT PROPOSAL STAGE while an installed gutter detail is not: this is a
-;; PRODUCT PROFILE, like the sheeting section beside it. Its shape and gauge are fixed by the
-;; roll/fold, not by design — no fall, no outlet spacing, no bracket centres, none of the
-;; things that are only settled at approval stage. Every number below is off that drawing.
-;;
-;; Section walked anti-clockwise from the inside base-left corner, x to the right, y up:
-;;   base 165 -> front leg 150 up -> 50 lip out at 84 deg
-;;   back:  103 up -> 42 sloped at 135 deg (30 rise) -> 70 up -> 20 lip out at 96 deg
-;;   overall depth 203, which the drawing dimensions as 103 + 30 + 70.
-(defun peb-sd-eave-gutter (x0 y0 sc / p)
-  (setvar "CLAYER" "SHEETING")
-  (setq p (list
-    (list (+ x0 (* sc -50.0))  (+ y0 (* sc 207.0)))   ; back top lip, 20 out at 96 deg
-    (list (+ x0 (* sc -30.0))  (+ y0 (* sc 203.0)))   ; top of back leg
-    (list (+ x0 (* sc -30.0))  (+ y0 (* sc 133.0)))   ; down 70
-    (list (+ x0 0.0)           (+ y0 (* sc 103.0)))   ; 42 sloped at 135 deg (30 rise)
-    (list (+ x0 0.0)           (+ y0 0.0))            ; down 103 to the base
-    (list (+ x0 (* sc 165.0))  (+ y0 0.0))            ; base 165
-    (list (+ x0 (* sc 165.0))  (+ y0 (* sc 150.0)))   ; front leg 150 up
-    (list (+ x0 (* sc 213.0))  (+ y0 (* sc 158.0)))))  ; 50 lip out at 84 deg
-  (peb-sd-poly p)
-  p)
-
-;; Draw an open polyline through a list of points.
-(defun peb-sd-poly (pts / i)
-  (setq i 0)
-  (while (< (1+ i) (length pts))
-    (command "_.LINE" (nth i pts) (nth (1+ i) pts) "")
-    (setq i (1+ i)))
-  (princ))
-
-;; IS THIS A PROFILE WE ACTUALLY KNOW HOW TO DRAW? (rulebook 4B.24)
-;; The shape is chosen by substring against the BSF's profile text, and the vocabulary is
-;; small and controlled today ("Standard S Profile" variants, "Lock Seam Profile (roof
-;; only)").  The danger is the day a new product is added to panelDefaults.js: an
-;; unrecognised name would fall through to the STANDARD S section and draw a definite,
-;; WRONG product.  Under the scope-of-work rule that is the worst available failure — the
-;; customer is holding our drawing.  So say so instead of guessing.
-(defun peb-sd-known-p (prof ptype thk)
-  (setq prof (strcase (if prof prof "")) ptype (strcase (if ptype ptype "")))
-  (or (vl-string-search "LOCK" prof) (vl-string-search "SEAM" prof)
-      (and (> thk 0.0) (vl-string-search "SANDWICH" ptype))
-      (vl-string-search "STANDARD" prof)
-      (vl-string-search "S PROFILE" prof)
-      (= prof "")))                       ; blank = the house standard, which we do know
 
 (defun peb-sd-panel (ox y lock ttl mat fin col ptype thk / pit ht cov panW gA sand dep)
   ;; ONE panel detail: the section, its rib/pitch dimensions, the cover dimension,
