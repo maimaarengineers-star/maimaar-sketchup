@@ -1203,6 +1203,20 @@
     ;; skip the side shared with an attached area (*PEB-OMIT-WALL*) so the common wall has no bracing.
     (if (and (not (peb-omit-wall-p "NSW")) (peb-brace-line x0 x1 (+ oy colOff) d 1.0 extType))          (setq drewX T))   ; NSW web
     (if (and (not (peb-omit-wall-p "FSW")) (peb-brace-line x0 x1 (+ oy (- wid colOff)) d -1.0 extType)) (setq drewX T))   ; FSW web
+    ;; -- RULE 4B.48 - MEZZANINE STUB COLUMNS ARE NOT BRACED, ON PURPOSE ---------------
+    ;; This loop runs over widthPts - the MAIN FRAME column lines.  The mezzanine's own stub
+    ;; stations are deliberately NOT in it (owner 29-Aug: "better not to provide the bracing for
+    ;; those columns which are coming till mezzanine as it may not even required").
+    ;;
+    ;; A stub stops at the beam soffit and carries only floor load: a GRAVITY (leaning) column,
+    ;; no part of the lateral system.  The slab is a rigid diaphragm and delivers the floor's
+    ;; inertia to the MAIN columns, so the load path is already complete - slab, main columns,
+    ;; the interior portals of 4B.41 across the width, wall bracing along the length.  Bracing a
+    ;; stub line would stiffen it, and what is stiffened attracts load away from the frames that
+    ;; were sized for it.
+    ;;
+    ;; The comment is here because this is an ABSENCE.  Without it the next reader sees an
+    ;; unbraced mezzanine column line and takes it for something the engine forgot.
     ;; interior column lines → INTERIOR bracing type
     (foreach yp widthPts
       (if (and (> yp 1.0) (< yp (- wid 1.0)))

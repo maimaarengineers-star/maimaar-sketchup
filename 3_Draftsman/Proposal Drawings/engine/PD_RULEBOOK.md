@@ -1373,6 +1373,47 @@ still not drawn — check the tick before hunting the engine.
 > like a broken loop and is not. Any harness that calls a drawer directly must run `peb-std-setup`
 > first.
 
+### 4B.48 A mezzanine stub column is NOT braced — and that is a decision, not an omission
+
+**Owner, 29-Aug:** *"I think better not to provide the bracing for those columns which are coming
+till mezzanine as it may not even required? what do you advise"* — and the advice was: **he is
+right, do not brace them.**
+
+**Why.** A mezzanine stub column stops at the beam soffit and carries only floor load. It is a
+**gravity column — a leaning column** — and takes no part in the lateral system. The RC slab on
+profiled deck is a genuine **rigid diaphragm**: it collects the floor's inertia and delivers it to
+whatever it is tied to, which is the main frame columns on the width grid. So there is already a
+complete load path without a single brace on a stub line:
+
+> slab → main frame columns → interior **portal** frames across the width (**4B.41**) and wall
+> bracing along the length → foundations.
+
+**Bracing them would be worse than redundant.** Steel you brace, you stiffen; steel you stiffen
+attracts load. Bracing the stub lines pulls the diaphragm's force distribution onto arbitrary
+interior lines that were never meant to carry it, away from the frames sized for it.
+
+**Three things must be true, and they are design-stage checks, not proposal-stage ones:**
+
+1. **The slab must actually tie to the main columns** — shear connectors or edge angles on the
+   width grid. A mezzanine detailed as a free-standing platform on its own columns needs its own
+   lateral system, and this rule reverses.
+2. **The main frames must carry the mezzanine's seismic mass.** On MSPL-26-271 that is roughly
+   4,500 m² at 3 kN/m² dead plus 6 kN/m² live, sitting 5.8 m up, in Zone 2B. That demand is
+   exactly what the interior portal frames under the deck exist to take.
+3. **Leaning-column P-Δ.** The stubs have axial load and no lateral stiffness, so their gravity
+   amplifies drift demand on the frames that do resist. SAP sizes for it. *Unbraced* is not *free*
+   — the load moves next door.
+
+**This is NOT a softening of 4B.41.** That rule is about the **full-height interior columns**,
+which ARE part of the lateral system and where a cross brace is physically impossible because the
+floor is in its plane. Different columns, different reason, both still true.
+
+**Implementation: nothing was removed, because nothing ever braced them.** The drawing braces
+`widthPts` — the main frame column lines — and the estimate loops `Nspans - 1`, the same set.
+Mezzanine stub stations are in neither. This rule therefore records an **absence**, which is
+precisely why it needs writing down: the next person to look at an unbraced mezzanine column line
+will otherwise read it as something the engine forgot.
+
 ## 5. THE DOC SET (how the four files relate)
 | File | Holds | Read it when |
 |---|---|---|
