@@ -938,6 +938,28 @@
     (command "_.CIRCLE" pt 42.0))
   (setvar "CLAYER" prev))
 
+;; -- RULE 4B.45 - A COLUMN SYMBOL AND ITS BUBBLE MUST BOTH READ (owner 29-Aug) --------
+;; "It is shown in the column layout plan but these are too small", and
+;; "appareantly we must see the I and there should be small gap and then bubble must come."
+;;
+;; The mezzanine stub column is sized off the MEZZANINE spacing (~8.3 m / 35 = ~240 mm deep),
+;; because that is its real section - lighter than the main frame, correctly.  But a 240 mm
+;; section on a 93 m building auto-fitted to A4 plots at about four tenths of a millimetre, and
+;; the bubble at 0.72 D lands INSIDE the linework: neither the I nor the gap survives.
+;;
+;; A member is drawn at its real size (rule 4B.42).  A SYMBOL - which is what this is, a mark
+;; saying "this column is new" - is drawn to READ, like a grid bubble (rule 4B.31).  So the stub
+;; gets a legibility FLOOR expressed in *PEB-TEXT-SCALE*, the engine's constant-on-paper unit,
+;; and is CAPPED at three quarters of the main column so the hierarchy never inverts: the stub
+;; must still look lighter than the frame column beside it.
+;;
+;; The bubble is then sized off the I it encircles, not off a constant: the I-section's half
+;; diagonal is 0.539 D (D deep x 0.40 D wide), so 0.78 D leaves a clear gap all the way round.
+(defun peb-mz-stub-depth (rawD wid)
+  (min (max rawD (* 650.0 (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)))
+       (max rawD (* 0.75 (peb-col-web-depth wid)))))
+(defun peb-mz-bubble-r (colD) (* colD 0.78))   ; I half-diagonal 0.539 D + a visible gap
+
 (defun draw-I-column-lengthwise (x y / D w tf tw br bx by hw ytop ybot prevLayer)
   ;; MAIN-FRAME column BODY — the Rule Book sample (owner 2-Jul). One flexible body: the section
   ;; DEPTH D = span/30 (*PEB-COL-WEB*) and everything follows its ratios, so the column scales with
@@ -3849,10 +3871,12 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                 (setq ys (peb-mezz-col-ys data wid fy0 fy1 (if spList (car spList) 6000.0)))
                 ;; mezzanine stub-column section depth — sized off the width module (lighter
                 ;; than the main frame); override the global col depth for the stub, then restore.
-                (setq colD     (peb-col-web-depth (apply 'max (cons 6000.0 spList)))
+                ;; rule 4B.45 — the stub is a SYMBOL here: floor it so the I reads, cap it so it
+                ;; still looks lighter than the main frame column, then size the bubble off the I.
+                (setq colD     (peb-mz-stub-depth (peb-col-web-depth (apply 'max (cons 6000.0 spList))) wid)
                       savedWeb  *PEB-COL-WEB*
                       *PEB-COL-WEB* colD
-                      circR     (* colD 0.72))
+                      circR     (peb-mz-bubble-r colD))
                 ;; column depiction (owner 8-Jul):
                 ;;  - MZ_RCC = Yes → mezzanine dropped inside a client's EXISTING RCC building:
                 ;;      draw the EXISTING RCC concrete pillars on their own grid (MZ_RCC_BAY along the
@@ -7767,13 +7791,21 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
       (foreach x rccXs
         (foreach y rccYs
           (vl-catch-all-apply (function (lambda () (peb-draw-rcc-pillar x y (* colD 1.40))))))))
-    ;; steel mezzanine columns drawn as TUBE (round) columns — a CIRCLE — to match the Mammut mezzanine
-    ;; plan (033: "MEZZ COLUMN" = circles), the design manual (mezz columns preferably tube), and the
-    ;; CLP overlay's encircled columns.  On COLUMNS (red), like the reference.
+    ;; -- RULE 4B.40/4B.45 - AN I-SECTION, A GAP, THEN THE BUBBLE (owner 29-Aug) ---------
+    ;; "Circle bubble will come on mezzanine columns on Ground Floor Plan & Mezzanine Floor Plan.
+    ;;  I symbol will be shown in the circle", "we must see the I and there should be small gap
+    ;;  and then bubble must come."
+    ;;
+    ;; This sheet drew every column as a plain tube CIRCLE, so it showed neither the section nor
+    ;; the distinction: a full-height main frame column and a stub that stops at the beam soffit
+    ;; were the same dot.  It now uses the SAME symbol as the Column Layout Plan overlay - the
+    ;; I-section body, encircled when the column exists only for the mezzanine - so a reader
+    ;; moving between the two sheets sees one convention, not two.
     (progn
       (peb-comp-layer "COLUMNS" 1)
       (setvar "CLAYER" "COLUMNS")
-      (setq colR (max 150.0 (* colD 0.45)))
+      ;; rule 4B.45 — floor the stub so the I reads at sheet scale, cap it under the main frame
+      (setq colD (peb-mz-stub-depth colD wid) *PEB-COL-WEB* colD)
       ;; -- RULE 4B.40 - AN ENCIRCLED COLUMN IS A MEZZANINE-ONLY COLUMN (owner 29-Aug) -----
       ;; "the internal columns of mezzanine which are coming till only mezzanine bottom will have
       ;;  a circle bubble around the columns ... It will differentiate b/w the columns of main
@@ -7792,11 +7824,11 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
       ;; encircle everything: an unmarked sheet is recoverable, a wrongly marked one is not.
       (setq mainYs (vl-catch-all-apply (function (lambda () (peb-main-column-ys data wid)))))
       (if (vl-catch-all-error-p mainYs) (setq mainYs nil))
-      (setq bubR2 (max (* colR 2.0) (* 520.0 sc)) mzOnly nil)
+      (setq bubR2 (peb-mz-bubble-r colD) mzOnly nil)
       (foreach x xs
         (foreach y ys
           (vl-catch-all-apply (function (lambda ()
-            (entmake (list (cons 0 "CIRCLE") (cons 8 "COLUMNS") (list 10 x y 0.0) (cons 40 colR)))
+            (draw-I-column-lengthwise x y)
             (if (and mainYs
                      (not (vl-some (function (lambda (my) (< (abs (- my y)) 250.0))) mainYs)))
               (progn

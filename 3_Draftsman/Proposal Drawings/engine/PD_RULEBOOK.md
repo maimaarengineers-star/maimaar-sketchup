@@ -1285,6 +1285,34 @@ Level comes from `CN_<W>_<n>_EAVE_HT` when entered; otherwise the canopy hangs o
 own eave. Length is honoured from the anchor (**4B.33**) rather than stretched across whatever
 grid range it happens to sit in.
 
+### 4B.45 A column symbol and its bubble must BOTH read
+
+**Owner, 29-Aug:** *"It is shown in the column layout plan but these are too small"*, and
+*"appareantly we must see the I and there should be small gap and then bubble must come"*, and
+*"Circle bubble will come on mezzanine columns on Ground Floor Plan & Mezzanine Floor Plan. I
+symbol will be shown in the circle."*
+
+The mezzanine stub column is sized off the **mezzanine** spacing — 8.3 m / 35 ≈ 240 mm deep —
+because that is its real section, correctly lighter than the main frame. But 240 mm on a 93 m
+building auto-fitted to A4 plots at about **four tenths of a millimetre**, and the bubble at
+0.72 D lands inside the linework. Neither the I nor the gap survives.
+
+**A member is drawn at its real size (4B.42). A SYMBOL is drawn to READ (4B.31).** This is a
+symbol — a mark saying *this column is new* — so it gets a legibility **floor** expressed in
+`*PEB-TEXT-SCALE*`, the engine's constant-on-paper unit, and a **cap at three quarters of the
+main column** so the hierarchy can never invert: the stub must still look lighter than the frame
+column beside it.
+
+**The bubble is sized off the I it encircles, not off a constant.** The I-section is `D` deep by
+`0.40 D` wide, so its half-diagonal is `0.539 D`; a radius of `0.78 D` leaves a clear gap all the
+way round — the "small gap" the owner asked for, at any building size.
+
+Both sheets now use the same symbol: `draw-I-column-lengthwise` for the body, encircled when the
+column exists only for the mezzanine. The Mezzanine Floor Plan previously drew every column as a
+plain tube circle, showing neither the section nor the distinction — a main frame column and a
+stub that stops at the beam soffit were the same dot. **One convention across both sheets**, so a
+reader moving between them is not learning two.
+
 ## 5. THE DOC SET (how the four files relate)
 | File | Holds | Read it when |
 |---|---|---|
