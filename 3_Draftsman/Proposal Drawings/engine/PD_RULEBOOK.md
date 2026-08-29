@@ -1463,10 +1463,23 @@ section is a **detail** — every fold dimensioned, both seam angles called out.
 one "470 COVER" bar tells a fabricator nothing he can roll from, and the DETAILS sheet exists to
 carry exactly that.
 
-**The drawn steel was changed so the dimensions measure it.** The pixel trace gave pan segments of
-93.9 / 7.4 / 147.5 / 7.9 / 94.1; the pan chain is now drawn at its **stated** 92 / 10 / 145 / 10 /
-91, because dimensioning a traced approximation with the stated figures is a 4B.7 contradiction on
-the one sheet whose whole purpose is to be exact.
+**SUPERSEDED SAME DAY — the owner sent `Drawing9.dxf`, his own section.** The geometry is now
+lifted straight out of it: the LWPOLYLINE's 35 vertices, a **closed outline carrying the sheet's
+own 0.5 mm material thickness** rather than a single centre line, which is why each run appears
+twice — once on each face.
+
+**Take the source, not a photograph of the source.** The pixel trace was good — 486.0 × 64.9 with
+rib centres at 155.1 against the actual 485.5 × 65.5 at exactly 155.000 — but "good" is not a
+basis for a fabrication detail. Ask for the CAD file.
+
+**The ribs are ARC BULGES, and ignoring them silently flattened the pan.** Vertices 17/19 carry
+`bulge = -0.5` (group 42) — a 10-wide arc rising 2.5 mm. The first pass read only the 10/20 pairs,
+so the profile drew with a dead-flat pan and no ribs at all: a valid-looking section of the wrong
+product. They are tessellated into chords, which plot identically at sheet scale and cannot break.
+
+**The dimensions are HIS roundings of HIS steel.** His pan measures 91.356 / 10.000 / 145.000 /
+10.000 / 91.356 and he dimensions it 92 / 10 / 145 / 10 / 91. Anchoring the bars on his vertices
+means each one spans the steel it labels (**4B.7**) with the number he uses for it.
 
 **The stated chain proves itself.** 92 + 10 + 145 lands the two rib **centres** exactly 155 apart —
 and 155 is the one dimension the owner's section calls out independently. Two figures from

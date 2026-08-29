@@ -2149,42 +2149,96 @@
 ;;
 ;;   470 cover  |  pan 92 | rib | 145 | rib | 91, ribs at 155 centres
 (defun peb-sd-lockseam (x0 y0 n cov ht / i x k)
+  ;; -- THE OWNER'S OWN SECTION, VERBATIM (owner 29-Aug: "Drawing9.dxf ... Please see the DXF") --
+  ;; Superseding the pixel trace of his PNG.  This is the LWPOLYLINE lifted straight out of his
+  ;; DXF: 35 vertices, a CLOSED outline carrying the sheet's own 0.5 mm material thickness rather
+  ;; than a single centre line, which is why the run appears twice - once on each face.
+  ;;
+  ;; It validates the trace it replaces and improves on it.  Traced: 486.0 x 64.9 with rib centres
+  ;; at 155.1.  Actual: 485.5 x 65.5 with the rib centres at EXACTLY 155.000 (174.0 and 329.0) and
+  ;; the ribs exactly 10.000 wide.  The pan reads 91.356 | 10 | 145.000 | 10 | 91.356 - dimensioned
+  ;; on his sheet as 92 | 10 | 145 | 10 | 91, so the DIMENSIONS ARE HIS ROUNDINGS OF HIS OWN STEEL,
+  ;; which is the only basis on which the drawing and its dimensions can agree (rule 4B.7).
+  ;;
+  ;; 485.5 wide on a 470 pitch leaves a 15.5 lap - and 15.5 is the hook's own width (0 -> 15.5),
+  ;; the same self-check the trace closed on.
   (setvar "CLAYER" "SHEETING")
-  (setq k (/ cov 470.0))            ; scale the traced section to the caller's module
+  (setq k (/ cov 470.0))            ; scale his section to the caller's module
   (setq i 0)
   (while (< i n)
     (setq x (+ x0 (* i cov)))
     (peb-sd-poly (list
-      (list (+ x (* k   0.0)) (+ y0 (* k 55.6)))    ; left hook lip, 10 down
-      (list (+ x (* k   0.0)) (+ y0 (* k 65.1)))
-      (list (+ x (* k  16.0)) (+ y0 (* k 65.1)))    ; 15 across the hook
-      (list (+ x (* k  16.0)) (+ y0 (* k 40.2)))    ; 25 down
-      (list (+ x (* k  42.8)) (+ y0 (* k 40.2)))    ; 25 along
-      (list (+ x (* k  58.6)) (+ y0 (* k 13.3)))    ; 32 leg, 119 deg to the pan
-      (list (+ x (* k  76.7)) (+ y0 0.0))           ; 23 into the pan
-      ;; PAN CHAIN AT ITS STATED LENGTHS - 92 | 10 | 145 | 10 | 91 - so the dimensions added
-      ;; below MEASURE what they print (rule 4B.7).  The pixel trace gave 93.9 / 7.4 / 147.5 /
-      ;; 7.9 / 94.1; the stated chain is self-proving, because 92 + 10 + 145 lands the two rib
-      ;; CENTRES exactly 155 apart, which is the one dimension the owner's section calls out.
-      (list (+ x (* k 168.7)) (+ y0 0.0))           ; 92 pan
-      (list (+ x (* k 170.6)) (+ y0 (* k  3.0)))    ; stiffener rib - 10 wide, 3 tall
-      (list (+ x (* k 176.8)) (+ y0 (* k  3.0)))
-      (list (+ x (* k 178.7)) (+ y0 0.0))
-      (list (+ x (* k 323.7)) (+ y0 0.0))           ; 145 pan
-      (list (+ x (* k 325.6)) (+ y0 (* k  3.0)))    ; second rib, centres 155 apart
-      (list (+ x (* k 331.8)) (+ y0 (* k  3.0)))
-      (list (+ x (* k 333.7)) (+ y0 0.0))
-      (list (+ x (* k 424.7)) (+ y0 0.0))           ; 91 pan
-      (list (+ x (* k 443.3)) (+ y0 (* k 13.3)))    ; 22 out of the pan
-      (list (+ x (* k 458.8)) (+ y0 (* k 39.8)))    ; 32 leg
-      (list (+ x (* k 476.0)) (+ y0 (* k 40.2)))    ; 25 across, into the male seam
-      ;; MALE SEAM BOX - 10 wide x 25 tall, sitting 470..486 so it laps EXACTLY over the next
-      ;; panel's 0..16 hook.  That 16 mm lap on a 470 pitch is the arithmetic proof the trace is
-      ;; right: two independent measurements - hook width and panel overhang - closing on each other.
-      (list (+ x (* k 486.0)) (+ y0 (* k 40.2)))
-      (list (+ x (* k 486.0)) (+ y0 (* k 64.9)))
-      (list (+ x (* k 476.0)) (+ y0 (* k 64.9)))
-      (list (+ x (* k 476.0)) (+ y0 (* k 40.2)))))
+      (list (+ x (* k  251.500)) (+ y0 (* k   0.000)))
+      (list (+ x (* k  178.743)) (+ y0 (* k   0.000)))
+      (list (+ x (* k  178.027)) (+ y0 (* k   0.854)))
+      (list (+ x (* k  177.161)) (+ y0 (* k   1.553)))
+      (list (+ x (* k  176.175)) (+ y0 (* k   2.072)))
+      (list (+ x (* k  175.109)) (+ y0 (* k   2.392)))
+      (list (+ x (* k  174.000)) (+ y0 (* k   2.500)))
+      (list (+ x (* k  172.891)) (+ y0 (* k   2.392)))
+      (list (+ x (* k  171.825)) (+ y0 (* k   2.072)))
+      (list (+ x (* k  170.839)) (+ y0 (* k   1.553)))
+      (list (+ x (* k  169.973)) (+ y0 (* k   0.854)))
+      (list (+ x (* k  169.257)) (+ y0 (* k   0.000)))
+      (list (+ x (* k   77.500)) (+ y0 (* k   0.000)))
+      (list (+ x (* k   58.223)) (+ y0 (* k  12.098)))
+      (list (+ x (* k   42.500)) (+ y0 (* k  40.000)))
+      (list (+ x (* k   15.500)) (+ y0 (* k  40.000)))
+      (list (+ x (* k   15.500)) (+ y0 (* k  65.000)))
+      (list (+ x (* k    0.500)) (+ y0 (* k  65.000)))
+      (list (+ x (* k    0.500)) (+ y0 (* k  55.000)))
+      (list (+ x (* k    0.000)) (+ y0 (* k  55.000)))
+      (list (+ x (* k    0.000)) (+ y0 (* k  65.500)))
+      (list (+ x (* k   16.000)) (+ y0 (* k  65.500)))
+      (list (+ x (* k   16.000)) (+ y0 (* k  40.500)))
+      (list (+ x (* k   42.792)) (+ y0 (* k  40.500)))
+      (list (+ x (* k   58.596)) (+ y0 (* k  12.454)))
+      (list (+ x (* k   77.644)) (+ y0 (* k   0.500)))
+      (list (+ x (* k  169.000)) (+ y0 (* k   0.500)))
+      (list (+ x (* k  169.777)) (+ y0 (* k   1.358)))
+      (list (+ x (* k  170.699)) (+ y0 (* k   2.057)))
+      (list (+ x (* k  171.735)) (+ y0 (* k   2.575)))
+      (list (+ x (* k  172.848)) (+ y0 (* k   2.893)))
+      (list (+ x (* k  174.000)) (+ y0 (* k   3.000)))
+      (list (+ x (* k  175.152)) (+ y0 (* k   2.893)))
+      (list (+ x (* k  176.265)) (+ y0 (* k   2.575)))
+      (list (+ x (* k  177.301)) (+ y0 (* k   2.057)))
+      (list (+ x (* k  178.223)) (+ y0 (* k   1.358)))
+      (list (+ x (* k  179.000)) (+ y0 (* k   0.500)))
+      (list (+ x (* k  324.000)) (+ y0 (* k   0.500)))
+      (list (+ x (* k  324.777)) (+ y0 (* k   1.358)))
+      (list (+ x (* k  325.699)) (+ y0 (* k   2.057)))
+      (list (+ x (* k  326.735)) (+ y0 (* k   2.575)))
+      (list (+ x (* k  327.848)) (+ y0 (* k   2.893)))
+      (list (+ x (* k  329.000)) (+ y0 (* k   3.000)))
+      (list (+ x (* k  330.152)) (+ y0 (* k   2.893)))
+      (list (+ x (* k  331.265)) (+ y0 (* k   2.575)))
+      (list (+ x (* k  332.301)) (+ y0 (* k   2.057)))
+      (list (+ x (* k  333.223)) (+ y0 (* k   1.358)))
+      (list (+ x (* k  334.000)) (+ y0 (* k   0.500)))
+      (list (+ x (* k  425.356)) (+ y0 (* k   0.500)))
+      (list (+ x (* k  444.404)) (+ y0 (* k  12.454)))
+      (list (+ x (* k  460.208)) (+ y0 (* k  40.500)))
+      (list (+ x (* k  485.000)) (+ y0 (* k  40.500)))
+      (list (+ x (* k  485.000)) (+ y0 (* k  64.500)))
+      (list (+ x (* k  475.500)) (+ y0 (* k  64.500)))
+      (list (+ x (* k  475.500)) (+ y0 (* k  65.000)))
+      (list (+ x (* k  485.500)) (+ y0 (* k  65.000)))
+      (list (+ x (* k  485.500)) (+ y0 (* k  40.000)))
+      (list (+ x (* k  460.500)) (+ y0 (* k  40.000)))
+      (list (+ x (* k  444.777)) (+ y0 (* k  12.098)))
+      (list (+ x (* k  425.500)) (+ y0 (* k   0.000)))
+      (list (+ x (* k  333.743)) (+ y0 (* k   0.000)))
+      (list (+ x (* k  333.027)) (+ y0 (* k   0.854)))
+      (list (+ x (* k  332.161)) (+ y0 (* k   1.553)))
+      (list (+ x (* k  331.175)) (+ y0 (* k   2.072)))
+      (list (+ x (* k  330.109)) (+ y0 (* k   2.392)))
+      (list (+ x (* k  329.000)) (+ y0 (* k   2.500)))
+      (list (+ x (* k  327.891)) (+ y0 (* k   2.392)))
+      (list (+ x (* k  326.825)) (+ y0 (* k   2.072)))
+      (list (+ x (* k  325.839)) (+ y0 (* k   1.553)))
+      (list (+ x (* k  324.973)) (+ y0 (* k   0.854)))
+      (list (+ x (* k  324.257)) (+ y0 (* k   0.000)))))
     (setq i (1+ i)))
   (princ))
 
@@ -2213,27 +2267,30 @@
             (vl-catch-all-apply (function (lambda ()
               (txt "MC" (list (+ ox (* k xx)) (+ y (* k yy))) (peb-th 'SMALL) 0 lab)))))))
   ;; pan chain, left to right
-  (apply sdH (list  76.7 168.7  "92"  yb))
-  (apply sdH (list 168.7 178.7  "10"  yb))
-  (apply sdH (list 178.7 323.7 "145"  yb))
-  (apply sdH (list 323.7 333.7  "10"  yb))
-  (apply sdH (list 333.7 424.7  "91"  yb))
-  ;; rib CENTRE to rib CENTRE — the dimension that proves the pan chain
-  (apply sdH (list 173.7 328.7 "155"  yt))
+  ;; Anchors are the OWNER'S OWN vertices out of Drawing9.dxf, so every bar spans the steel it
+  ;; measures.  His pan reads 91.356 | 10.000 | 145.000 | 10.000 | 91.356 and he dimensions it
+  ;; 92 | 10 | 145 | 10 | 91 — the labels are HIS roundings of HIS section, not ours of a trace.
+  (apply sdH (list  77.644 169.000  "92"  yb))
+  (apply sdH (list 169.000 179.000  "10"  yb))
+  (apply sdH (list 179.000 324.000 "145"  yb))
+  (apply sdH (list 324.000 334.000  "10"  yb))
+  (apply sdH (list 334.000 425.356  "91"  yb))
+  ;; rib CENTRE to rib CENTRE — 174.0 to 329.0 is EXACTLY 155, the figure that proves the chain
+  (apply sdH (list 174.000 329.000 "155"  yt))
   ;; left seam
-  (apply sdH (list   0.0  16.0  "15"  (+ y (* k 78.0))))
-  (apply sdV (list   0.0  55.6  65.1  "10"))
-  (apply sdV (list  16.0  40.2  65.1  "25"))
-  (apply sdT (list  46.0  27.0  "32"))
-  (apply sdT (list  70.0  10.0  "23"))
-  (apply sdT (list  95.0  30.0  "119%%d"))
+  (apply sdH (list   0.000  16.000  "15"  (+ y (* k 80.0))))
+  (apply sdV (list   0.000  55.000  65.500 "10"))
+  (apply sdV (list  16.000  40.500  65.500 "25"))
+  (apply sdT (list  46.000  27.000  "32"))
+  (apply sdT (list  70.000  10.000  "23"))
+  (apply sdT (list  96.000  30.000  "119%%d"))
   ;; right seam
-  (apply sdH (list 461.5 486.0  "25"  (+ y (* k 78.0))))
-  (apply sdV (list 486.0  40.2  64.9  "25"))
-  (apply sdT (list 481.0  72.0  "10"))
-  (apply sdT (list 455.0  28.0  "32"))
-  (apply sdT (list 432.0  10.0  "22"))
-  (apply sdT (list 408.0  30.0  "148%%d"))
+  (apply sdH (list 460.500 485.500  "25"  (+ y (* k 80.0))))
+  (apply sdV (list 485.500  40.000  65.000 "25"))
+  (apply sdT (list 480.500  72.000  "10"))
+  (apply sdT (list 455.000  28.000  "32"))
+  (apply sdT (list 432.000  10.000  "22"))
+  (apply sdT (list 407.000  30.000  "148%%d"))
   (princ))
 
 ;; ── SANDWICH PANEL SECTION — TRACED FROM A MAIMAAR APPROVAL DRAWING ─────────────────
@@ -2407,7 +2464,11 @@
   (setq sand (and (> thk 0.0) (vl-string-search "SANDWICH" (strcase ptype))))
   ;; The title clears the panel by its ACTUAL depth — a 50 mm sandwich core is deeper
   ;; than a 35 mm rib, and a fixed offset put the title straight through it.
-  (setq dep (cond (lock 38.0) (sand (+ thk ht)) (T ht)))
+  ;; The lock-seam panel is now a DIMENSIONED detail (rule 4B.50), so the title has to clear the
+  ;; dimension zone, not just the steel: the seam bars sit at +80 and the profile itself reaches
+  ;; 65.5, and a 38 clearance put "ROOF SHEETING - LOCK SEAM PROFILE" straight through the 15/10/25
+  ;; figures at both ends.  Measured off what is actually drawn above the pan.
+  (setq dep (cond (lock 105.0) (sand (+ thk ht)) (T ht)))
   (setvar "CLAYER" "TEXT") (setvar "CECOLOR" "5")
   (txt-bold "ML" (list ox (+ y dep 55.0)) (peb-th 'LABEL) 0 ttl)
   (setvar "CECOLOR" "BYLAYER")
