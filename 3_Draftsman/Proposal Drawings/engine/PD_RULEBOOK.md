@@ -1226,14 +1226,21 @@ exaggeration of an invented 200 / 150 / 100. That put the drawn ratio at **1.39 
 real one is close to **2 : 1**, so the beam read as a solid bar and the joist as a hairline beside
 it: the difference in the wrong place and the wrong size.
 
-Draw the owner's own numbers, mid-range — **main beam 325, joist 175, secondary 125** — so the
-sheet shows the steel that is quoted.
+**REVISED 29-Aug.** The first pass drew 325 / 175, read off *"300-350 … 150-200"*. The owner then
+settled the typical section: *"also make the size of main beams as 200 and joist 150 Typically."*
+So the drawn top flanges are **main beam 200, joist 150, secondary 100**.
 
-**The legibility floor is a rule, not a fudge.** Every sheet is auto-fitted to A4, so a fixed
-model width plots *smaller* the bigger the building; past ~93 m a 175 mm joist flange closes to a
+At 200 against 150 the two members are only 0.42 and 0.32 mm apart on the plotted sheet, so the
+**width can no longer carry the distinction on its own — the LINE WEIGHT does**, which is the house
+rule regardless ("material = line thickness"), set per layer in `PEB_LAYERS.csv`: beam 0.40, joist
+0.30, secondary 0.18.
+
+**The legibility floor is a rule, not a fudge.** Every sheet is auto-fitted to A4, so a fixed model
+width plots *smaller* the bigger the building, and past a point a 150 mm joist flange closes to a
 single line and stops reading as a member at all. The floor is expressed in `*PEB-TEXT-SCALE*` —
-the engine's existing "constant on paper" unit — and tuned to engage only ABOVE that size, so at
-93 m and below the members plot at TRUE width.
+the engine's "constant on paper" unit — and **tuned so the TRUE size wins at this building**
+(93 m, scale 2.07: floor 87 / 66 / 46 against true 100 / 75 / 50). It only takes over on buildings
+big enough that the true width would vanish.
 
 ### 4B.43 A detail too small to read at building scale belongs on the DETAILS sheet — PARKED
 
@@ -1413,6 +1420,38 @@ floor is in its plane. Different columns, different reason, both still true.
 Mezzanine stub stations are in neither. This rule therefore records an **absence**, which is
 precisely why it needs writing down: the next person to look at an unbraced mezzanine column line
 will otherwise read it as something the engine forgot.
+
+### 4B.49 Do not publish a number DESIGN will set — and LOAD the file to prove it parses
+
+**Two separate lessons from one change, 29-Aug.**
+
+**(a) The joist spacing comes off the sheet.** Owner: *"do not show the joist spacing, spacing
+remains as per design."* The joists are still **drawn** on a spacing — they have to be drawn
+somewhere — and the estimate still **prices** one. But the sheet must not **print** the number: a
+proposal drawing that states 1,250 c/c is read as a commitment, and the spacing is settled at
+design/SAP against the real floor loading. The notes now read *"SPACING AS PER DESIGN"* and the
+JOIST SPACING row is gone from the MEZZANINE DESIGN DATA panel (**4B.39**).
+
+Same reasoning already applied to the mezzanine column **section size** (owner 12-Jul). The
+principle: **what the drawing states, it owes.**
+
+**(b) `lispbalance` CANNOT prove a file parses — only AutoCAD can.**
+
+This edit dropped a `(strcat …)` wrapper from two labels but kept its closing paren, leaving two
+extra right parens in `MAIMAAR_PEB_Plan.lsp`. Every static check passed:
+
+* `lispcheck.js` — clean (it only compares defined vs called names);
+* `lispbalance.js` — reported a *positive* depth, because it counts parens inside string literals
+  and this file legitimately contains `"(TYP.)"`, `"[208'-8\"]"` and similar;
+* a hand-written string-and-comment-aware counter — also reported positive depth, and *"never
+  negative"*.
+
+AutoCAD said `extra right paren on input` and **refused to load the file at all**. Every drawer in
+it would have been undefined — which by **4B.26** renders as a blank sheet, silently.
+
+> **The check that counts is `(vl-catch-all-apply 'load (list "<file>"))` in a headless AutoCAD,
+> asserting the result is not `vl-catch-all-error-p`.** Run it after every engine edit, before any
+> render. A paren counter is a hint; a successful load is proof.
 
 ## 5. THE DOC SET (how the four files relate)
 | File | Holds | Read it when |

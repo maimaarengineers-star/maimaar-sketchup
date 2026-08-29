@@ -660,14 +660,24 @@
                                         (list (+ ox cx (/ dw  2.0)) dsy) "")
                       (setq di (1+ di)))))
                 (setvar "CLAYER" "TEXT")
-                (setq lab (strcat (if (wcmatch dtyp "*ROLL*")
-                                    (if (and dop (wcmatch (strcase dop) "*ELECTRIC*"))
-                                      "AUTO SHUTTER DOOR" "ROLL-UP SHUTTER DOOR")
-                                    dtyp)
-                                  "  " (peb-comma (rtos dw 2 0)) " x " (peb-comma (rtos dh 2 0))))
+                ;; -- THE LABEL GOES INSIDE THE DOOR ------------------------------------------
+                ;; Above the door it had nowhere to go: the canopy fascia label sits ~1,200 above
+                ;; the 3,658 soffit and the door label ~1,600 above its own 3,500 head, so the two
+                ;; landed within 255 mm of each other - and two doors in adjacent bays ran their
+                ;; labels together as well.  A 7,000 x 3,500 leaf has room for its own name, and a
+                ;; label inside the thing it names cannot collide with anything outside it.
+                ;; Two lines - what it is, then how big - each shrunk to fit the leaf (rule 4B.27).
+                (setq lab (if (wcmatch dtyp "*ROLL*")
+                            (if (and dop (wcmatch (strcase dop) "*ELECTRIC*"))
+                              "AUTO SHUTTER DOOR" "ROLL-UP SHUTTER DOOR")
+                            dtyp))
                 (vl-catch-all-apply (function (lambda ()
-                  (txt "MC" (list (+ ox cx) (+ base dh (* (peb-th 'SMALL) 1.4)))
-                       (peb-fit-txt-h lab (* dw 0.95) (peb-th 'SMALL)) 0 lab))))))))
+                  (txt "MC" (list (+ ox cx) (+ base (* dh 0.60)))
+                       (peb-fit-txt-h lab (* dw 0.80) (peb-th 'SMALL)) 0 lab))))
+                (setq lab (strcat (peb-comma (rtos dw 2 0)) " x " (peb-comma (rtos dh 2 0))))
+                (vl-catch-all-apply (function (lambda ()
+                  (txt "MC" (list (+ ox cx) (+ base (* dh 0.40)))
+                       (peb-fit-txt-h lab (* dw 0.55) (peb-th 'SMALL)) 0 lab))))))))
         (setq dk (1+ dk)))
       (setvar "CLAYER" prev)
       (princ))))

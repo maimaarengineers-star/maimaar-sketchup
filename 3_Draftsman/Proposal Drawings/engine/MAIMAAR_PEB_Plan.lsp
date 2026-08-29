@@ -2335,7 +2335,9 @@
            (list "F.F.L (FROM G.F.)"      (tb-get "MZ_FFL")     "MM")
            (list "C.H UNDER MEZZ. BEAM"   (tb-get "MZ_CHB")     "MM")
            (list "C.H OVER MEZZANINE"     (tb-get "MZ_CHR")     "MM")
-           (list "JOIST SPACING"          (tb-get "MZ_JOISTSP") "MM"))
+           ;; rule 4B.49 — JOIST SPACING deliberately absent: design sets it, so the sheet
+           ;; must not state it. The row was here; removing it is the point, not an omission.
+           (list "FLOOR SYSTEM"            ""                    ""))
         (setq rh (* s 0.0200) yCur (- yCur rh))
         (tb-mtext lx (+ yCur (* rh 0.5)) (tb-fith (car r) (* W 0.60) sm) 0 4 (car r) white)
         (tb-mtext (+ X0 (* W 0.80)) (+ yCur (* rh 0.5)) (tb-fith (cadr r) (* W 0.14) val) 0 6 (cadr r) green)
@@ -7720,14 +7722,25 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
   ;; the wrong place and the wrong size.  These are the owner's own numbers, mid-range:
   ;; main beam 325, joist 175, secondary 125 - so the sheet shows the steel that is quoted.
   ;;
+  ;; REVISED 29-Aug: "also make the size of main beams as 200 and joist 150 Typically."  The
+  ;; first pass used 325 / 175, read off the owner's earlier "300-350 ... 150-200"; he has since
+  ;; settled the typical section at MAIN BEAM 200 / JOIST 150 / SECONDARY 100 top flange.  Those
+  ;; are the numbers drawn - halved here because these are half-widths.
+  ;;
+  ;; At 200 vs 150 the two members are only 0.42 and 0.32 mm apart on the plotted sheet, so the
+  ;; WIDTH can no longer carry the distinction on its own: the LINE WEIGHT does, which is the
+  ;; house rule anyway ("material = line thickness") and is set per layer in PEB_LAYERS.csv -
+  ;; beam 0.40, joist 0.30, secondary 0.18.
+  ;;
   ;; The `max` is a LEGIBILITY FLOOR, not a fudge.  Every sheet is auto-fitted to A4, so a fixed
-  ;; model width plots smaller the bigger the building; past ~93 m a 175 mm joist flange closes
-  ;; to a single line and stops reading as a member at all.  The floor is expressed in
-  ;; *PEB-TEXT-SCALE* - the engine's existing "constant on paper" unit - and is tuned to engage
-  ;; only ABOVE this building's size, so at 93 m and below the members plot at TRUE width.
-  (setq beamHalf  (max 162.5 (* 78.0 sc))
-        joistHalf (max  87.5 (* 42.0 sc))
-        secHalf   (max  62.5 (* 30.0 sc)))
+  ;; model width plots smaller the bigger the building, and past a point a 150 mm joist flange
+  ;; closes to a single line and stops reading as a member at all.  The floor is expressed in
+  ;; *PEB-TEXT-SCALE* - the engine's "constant on paper" unit - and TUNED SO THE TRUE SIZE WINS
+  ;; at this building (93 m, scale 2.07: floor 87 / 66 / 46 against true 100 / 75 / 50).  It only
+  ;; takes over on buildings big enough that the true width would vanish.
+  (setq beamHalf  (max 100.0 (* 42.0 sc))
+        joistHalf (max  75.0 (* 32.0 sc))
+        secHalf   (max  50.0 (* 22.0 sc)))
   (setq isGrating (wcmatch floorSys "*GRAT*,*CHEQ*,*PLATE*"))
 
   ;; JOISTS — 150mm double-line flange ALONG THE LENGTH, spaced across the width at jspSys.  None for
@@ -7757,8 +7770,15 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
           (setq jbi (1+ jbi)))
         (setq jy (+ jy jspSys)))
       (vl-catch-all-apply (function (lambda ()
+        ;; -- RULE 4B.49 - DO NOT PUBLISH A SPACING DESIGN WILL SET (owner 29-Aug) --------
+        ;; "do not show the joist spacing, spacing remains as per design."
+        ;; The joists are still DRAWN on a spacing - they have to be drawn somewhere, and the
+        ;; estimate still prices that spacing - but the sheet must not PRINT the number. A
+        ;; proposal drawing that states 1,250 c/c is read as a commitment, and the spacing is
+        ;; settled at design/SAP against the real floor loading. Same reason the mezzanine
+        ;; column SECTION size is not shown (owner 12-Jul). What the drawing states, it owes.
         (txt "MC" (list (/ (+ fx0 fx1) 2.0) (+ (max fy1 wid) (* thS 1.2))) (peb-th 'SMALL) 0.0
-             (strcat "JOISTS ALONG LENGTH @ " (peb-comma (rtos jspSys 2 0)) " C/C, SPANNING BAY TO BAY")))))))
+             "JOISTS ALONG LENGTH, SPANNING BAY TO BAY - SPACING AS PER DESIGN"))))))
 
   ;; SECONDARY JOISTS — grating / chequered plate only: 100mm double-line flange PERPENDICULAR to the
   ;; joists (WIDTH direction), spaced along the length at HALF the joist spacing.  Shown in ONE
@@ -7772,8 +7792,9 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
         (vl-catch-all-apply (function (lambda () (peb-mezz-mainbeam sx fy0 sx fy1 secHalf))))
         (setq sx (+ sx secSp)))
       (vl-catch-all-apply (function (lambda ()
+        ;; rule 4B.49 — the secondary spacing is a design number too
         (txt "MC" (list (/ (+ bayA bayB) 2.0) (- 0.0 (* thS 1.2))) (peb-th 'SMALL) 0.0
-             (strcat "SECONDARY JOISTS @ " (peb-comma (rtos secSp 2 0)) " C/C (TYP.)")))))))
+             "SECONDARY JOISTS (TYP.) - SPACING AS PER DESIGN"))))))
 
   ;; MAIN BEAMS — 200mm double-line flange (heaviest), in the WIDTH direction, column to column, one at
   ;; each length column line (xs).  Drawn LAST so the heavy beams read on top of the joists + secondaries.
