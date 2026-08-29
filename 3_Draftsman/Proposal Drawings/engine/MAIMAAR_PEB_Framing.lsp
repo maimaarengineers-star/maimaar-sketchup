@@ -2032,50 +2032,62 @@
   pts)
 
 ;; One lock-seam pan: flat, then the standing seam upstand at each edge.
-;; ── LOCK SEAM SHEET PROFILE — TRACED FROM A MAIMAAR APPROVAL DRAWING ────────────────
-;; Owner 27-Aug: "get the exact profile of M35-250 & LOCKSEAM SHEETING ... check the
-;; approval drawing pdf, it always have the sheeting profile."  He was right: every MSPL
-;; approval sheet carries the panel section in its right-hand column beside the eave gutter
-;; and the skylight.
+;; -- LOCK SEAM SHEET PROFILE - MEASURED OFF THE OWNER'S OWN SECTION -----------------
+;; Owner 29-Aug: "SeamLock Sheet Profile.PNG, also update this."
 ;;
-;; Source: E:\Maimaar Steel Pvt Ltd\Jobs59-MSPL_PAECO ... \Approval drawing;;         Pdf.pdf  — panel titled "LOCK SEAM SHEET PROFILE".
+;; The shape that stood here carried the right DIMENSION SET but not the right shape: it had
+;; been reconstructed from the numbers on an approval drawing, and reconstruction is guesswork
+;; about which dimension belongs to which segment.  This version is TRACED - the green polyline
+;; was extracted from the owner's PNG pixel by pixel and scaled by the one dimension that cannot
+;; be misread, the 155 mm rib centres (333.5 px / 155 mm = 2.1516 px per mm).
 ;;
-;;   470 overall (the NET COVERING WIDTH, owner: "610 mm sheet produces 470 mm net covering
-;;   width of lockseam including overlap" - which is why the estimate's coil/cover is 610/470)
-;;   pan  : 92 | 10 rib | 145 | 10 rib | 91          the two ribs at 155 centres
-;;   left  seam: 23 -> 32 at 119 deg -> 25 -> 15 -> 10 hook
-;;   right seam: 22 -> 32 at 148 deg -> 25 -> 25 -> 10
+;; What the trace corrected:
+;;   * the pan RIBS are shallow stiffening bumps ~3 mm tall, not the 8 mm square ribs drawn
+;;     before - at 1:9 on the DETAILS sheet that is the difference between a lock seam and a
+;;     trapezoidal profile;
+;;   * the right-hand seam is a 10 wide x 25 tall CLOSED BOX (the male standing seam the next
+;;     panel's hook closes over), not a 15 mm return;
+;;   * the left seam carries TWO 25s - a vertical drop and a horizontal run - where only one
+;;     was drawn;
+;;   * the leg lengths now MEASURE what they are dimensioned: 32 and 23 on the left (119 deg
+;;     into the pan), 32 and 22 on the right.  The old vertices measured 35.8 and 24.6.
 ;;
-;; The seam legs are drawn to those lengths and angles; the pan breakdown is exact. This
-;; replaces the proportional shape that stood here before, which was invented.
+;; The traced panel is 486 wide and the module pitch is 470 - the 16 mm difference IS the lap,
+;; the right seam sitting over the next panel's left hook.  That is the arithmetic check that
+;; the trace is right, and it is why cover stays 470 (owner: "610 mm sheet produces 470 mm net
+;; covering width of lockseam including overlap").
+;;
+;;   470 cover  |  pan 92 | rib | 145 | rib | 91, ribs at 155 centres
 (defun peb-sd-lockseam (x0 y0 n cov ht / i x k)
   (setvar "CLAYER" "SHEETING")
-  (setq k (/ cov 470.0))            ; scale the traced 470 section to the caller's module
+  (setq k (/ cov 470.0))            ; scale the traced section to the caller's module
   (setq i 0)
   (while (< i n)
     (setq x (+ x0 (* i cov)))
-    ;; one 470 module, left hook -> left seam -> pan with its two ribs -> right seam -> hook
     (peb-sd-poly (list
-      (list (+ x (* k   2.0)) (+ y0 (* k  62.0)))   ; top of the left hook (10)
-      (list (+ x (* k   2.0)) (+ y0 (* k  52.0)))
-      (list (+ x (* k  17.0)) (+ y0 (* k  52.0)))   ; 15 across
-      (list (+ x (* k  17.0)) (+ y0 (* k  27.0)))   ; 25 down
-      (list (+ x (* k  49.0)) (+ y0 (* k  11.0)))   ; 32 at 119 deg
-      (list (+ x (* k  71.0)) (+ y0 0.0))           ; 23 into the pan
-      (list (+ x (* k 163.0)) (+ y0 0.0))           ; 92 pan
-      (list (+ x (* k 163.0)) (+ y0 (* k   8.0)))   ; 10 rib up
-      (list (+ x (* k 173.0)) (+ y0 (* k   8.0)))
-      (list (+ x (* k 173.0)) (+ y0 0.0))
-      (list (+ x (* k 318.0)) (+ y0 0.0))           ; 145 pan
-      (list (+ x (* k 318.0)) (+ y0 (* k   8.0)))   ; 10 rib up
-      (list (+ x (* k 328.0)) (+ y0 (* k   8.0)))
-      (list (+ x (* k 328.0)) (+ y0 0.0))
-      (list (+ x (* k 419.0)) (+ y0 0.0))           ; 91 pan
-      (list (+ x (* k 441.0)) (+ y0 (* k  11.0)))   ; 22 out of the pan
-      (list (+ x (* k 453.0)) (+ y0 (* k  41.0)))   ; 32 at 148 deg
-      (list (+ x (* k 453.0)) (+ y0 (* k  62.0)))   ; 25 up
-      (list (+ x (* k 468.0)) (+ y0 (* k  62.0)))   ; 25 across
-      (list (+ x (* k 468.0)) (+ y0 (* k  52.0)))))  ; 10 down - receives the next panel
+      (list (+ x (* k   0.0)) (+ y0 (* k 55.6)))    ; left hook lip, 10 down
+      (list (+ x (* k   0.0)) (+ y0 (* k 65.1)))
+      (list (+ x (* k  16.0)) (+ y0 (* k 65.1)))    ; 15 across the hook
+      (list (+ x (* k  16.0)) (+ y0 (* k 40.2)))    ; 25 down
+      (list (+ x (* k  42.8)) (+ y0 (* k 40.2)))    ; 25 along
+      (list (+ x (* k  58.6)) (+ y0 (* k 13.3)))    ; 32 leg, 119 deg to the pan
+      (list (+ x (* k  76.7)) (+ y0 0.0))           ; 23 into the pan
+      (list (+ x (* k 170.6)) (+ y0 0.0))           ; 92 pan
+      (list (+ x (* k 172.5)) (+ y0 (* k  3.0)))    ; stiffener rib - 10 wide, 3 tall
+      (list (+ x (* k 176.1)) (+ y0 (* k  3.0)))
+      (list (+ x (* k 178.0)) (+ y0 0.0))
+      (list (+ x (* k 325.5)) (+ y0 0.0))           ; 145 pan
+      (list (+ x (* k 327.4)) (+ y0 (* k  3.0)))    ; second rib, 155 centres
+      (list (+ x (* k 331.0)) (+ y0 (* k  3.0)))
+      (list (+ x (* k 333.4)) (+ y0 0.0))
+      (list (+ x (* k 427.5)) (+ y0 0.0))           ; 91 pan
+      (list (+ x (* k 446.1)) (+ y0 (* k 13.3)))    ; 22 out of the pan
+      (list (+ x (* k 461.5)) (+ y0 (* k 39.8)))    ; 32 leg
+      (list (+ x (* k 475.4)) (+ y0 (* k 40.2)))    ; 25 across, into the male seam
+      (list (+ x (* k 486.1)) (+ y0 (* k 40.2)))    ; male seam box - 10 wide x 25 tall,
+      (list (+ x (* k 486.1)) (+ y0 (* k 64.9)))    ;   closed over by the NEXT panel's hook,
+      (list (+ x (* k 476.3)) (+ y0 (* k 64.9)))    ;   which is why the panel is 486 on a
+      (list (+ x (* k 476.3)) (+ y0 (* k 40.2)))))   ;   470 pitch - the 16 mm lap
     (setq i (1+ i)))
   (princ))
 
