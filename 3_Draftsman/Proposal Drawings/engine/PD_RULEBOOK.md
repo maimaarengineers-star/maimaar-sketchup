@@ -983,34 +983,111 @@ length the architecture wants.
   Count them: one per mid-bay end, so a canopy landing on frames at both ends needs none, and
   one floating in the middle of a wall needs two.
 
-### 4B.34 The Width Module string runs NSW → FSW — the opposite way to how you read a plan
+### 4B.34 Width chains are written from grid A DOWNWARD — the engine reverses them
 
-A customer layout is read **top to bottom**. The engine builds `widthPts` by accumulating from
-**y = 0, which is the NSW (bottom)**, while grid letter **A is the TOP (FSW)**. So the first
-term of `BP_WIDTH_MOD` is the band against the NSW, and entering the chain in reading order
-puts the building in upside down.
+**Owner, 29-Aug:** *"we always measure the modules from A to downward"* — and, of his own
+entry, *"no my dimensions were correct."*
 
-**It fails quietly, which is why it needs a rule.** Nothing errors. The overall width still
-reconciles, every module is still present, and the Column Layout Plan looks plausible — the
-bands are simply in the wrong order. On MSPL-26-271 (Rainbow) the tender reads
-`54'-8" × 3 + 44'-7¾"` top-down, so the correct string is **`1@13.6081 + 3@16.6624`**, not the
-`3@16.6624 + 1@13.6081` it was first given.
+**THE CONVENTION.** Every width chain — the width module and both end-wall column chains — is
+written **from grid A downward**, and **A is the FAR side wall**, the top of the plan. That is
+how the tender is drawn, how the estimator measures, and how the BSF is filled.
 
-**What it broke, and how it showed up.** The mezzanine is placed by grid LETTER
-(`MZ_WIDTH_GRID_FROM/TO`), and letters are read off the plan's own width stations. Inverted,
-the letters landed on the wrong stations and the MEZZANINE FLOOR PLAN drew **21 m deep instead
-of 50 m** — a sheet that looks perfectly reasonable on its own. It was only caught by measuring
-the captured bbox against the mezzanine's known extent.
+**THE ENGINE DOES THE OPPOSITE**, and must reverse to match. `widthPts` starts at `0.0` and
+accumulates `MODULE1, MODULE2 …`, and `y = 0` is the **NEAR** side wall. So the first term of a
+written chain lands at the BOTTOM unless something turns it round.
 
-**Two things follow:**
+> Everything that builds stations across the width goes through **`peb-width-order`** (a list)
+> or **`peb-width-stations`** (an expression). LENGTH chains are untouched — grid 1 is the left
+> end in both conventions.
 
-* **Every across-the-width chain runs the same way** — width module AND the end-wall column
-  chains. Rainbow's end walls are `2@6.8040 + 6@8.3312`: the non-mezzanine band first, because
-  it sits at the NSW.
-* **Grid letters count the MERGED stations, not the modules.** `gridWpts` is the width module
-  UNION the end-wall column stations, deduped at 1 mm. Rainbow has 4 modules but **9** width
-  stations, so the mezzanine's lower edge is **G**, not D. Never guess a letter from the module
-  count — build the merged list.
+**WHAT IT LOOKED LIKE.** The building was drawn **mirrored across its width**: on
+MSPL-26-271 the mezzanine and both entrance canopies appeared against the wrong side wall.
+
+**WHY IT SURVIVED YEARS.** *A symmetric chain reversed is itself.* `2@15240` mirrors to
+`2@15240` and looks perfect. MSPL-26-271 is the first job with UNEQUAL width modules
+(`2@16662.40 + 16395.70 + 13874.12`), so it is the first time the mirror could be seen.
+
+**THE GUARD, and it is the cheap one:** re-render a SYMMETRIC building and require it to come
+back byte-identical. A correct reversal cannot change a symmetric building. Waqar's B-03 is
+the standing case.
+
+**MISSING ONE SITE IS WORSE THAN MISSING ALL OF THEM.** The plan's own end-wall stations were
+left unreversed at first, so the two width chains ran in OPPOSITE directions; their shared
+lines stopped coinciding and every one of them doubled into two grid letters — A..M for a
+nine-line grid. Sites that must reverse: the module branch, `peb-main-column-ys`,
+`peb-count-wgrid`, the multi-gable widths in **both** Plan and Section, the plan's end-wall
+stations, `peb-fr-ew-stations`, the end-wall elevation, and `peb-mezz-col-ys`
+(both `MZ_COL_SPACING` and its auto-divide `MODEXPR`).
+
+**Two companions found with it:**
+
+* **A BARE term must still be scaled.** `scaleSpacing` only matched `n@x`, so a single bay
+  written without the `n@` — `"2@16.6624 + 16.3957 + 13.87412"`, which the BSF accepts and the
+  owner typed — reached the engine in METRES: 13.87412 arrived as 13.87 mm. The engine then
+  rescales the chain to close on the width, so ONE unscaled term drags every station with it.
+  It printed `1@14 + 1@16396 + 1@16662 + 1@30523`.
+* **Merge grid stations at 5 mm, not 1 mm.** Two chains spanning the same width are entered
+  independently and each is rounded to whole millimetres on export, so the same physical line
+  can arrive a couple of mm apart. The test was `< 1.0`, which exactly 1 mm fails. No two real
+  columns are 5 mm apart.
+
+### 4B.35 A sheet shows a component where the PLAN puts it — never by its own heuristic
+
+**Owner, 29-Aug:** *"Section Must Match with Column Layout Plan"*, after
+*"Mezzanine Section is not matching with Plan"*.
+
+This is 4B.8 (*every sheet letters the same grid*) one level up: **placement, not just naming.**
+
+> A sheet that draws a placed component — mezzanine, canopy, crane, platform — derives its
+> extent from the SAME shared function the Column Layout Plan uses. It never re-derives one.
+
+`peb-draw-mezz-section` had its own: a flat 6% inset off each wall, narrowed only by `MZ1_WID`
+— a key the CRM has never emitted, so that branch was dead and the 6% always won. It drew ~88%
+of the width, centred, whatever the BSF said, while the plan placed the deck hard against the
+FSW. Its stub columns were re-derived too, by subdividing each frame gap at ~6 m, so they did
+not stand where the Mezzanine Floor Plan drew them either.
+
+Now: `peb-mz-width-band` for the extent and `peb-mezz-col-ys` for the columns — the plan's own
+functions.
+
+**A GLOBAL IS NOT A CHANNEL BETWEEN SHEETS.** `peb-mz-width-band` reads `*PEB-WGRID-YS*`, which
+only the PLAN drawer writes and nothing ever clears. `buildPdfScr` emits every area's plan
+before any section, so a multi-area job would resolve one area's section against ANOTHER
+area's grid — and silently. Seed it from the sheet's own `peb-fr-ew-stations` first, and
+unconditionally, so the band agrees with the letters printed beside it.
+
+### 4B.36 The mezzanine sheet shows the WHOLE floor plate — void crossed and named
+
+**Owner, 29-Aug:** *"where there is no mezzanine show the void with crosslines & text"*, and
+*"we need to Drawings Beams and Joist Layout Plan as well for Mezzanine Floor"*.
+
+The sheet used to draw only the deck, so a partial mezzanine came out as a rectangle floating
+on an empty page — nothing said how much of the building it covered or which end it sat at.
+MSPL-26-271's deck is 49.7 m of a 63.6 m width; the missing 13.9 m simply was not drawn.
+
+> Draw the building outline, then every part of it the mezzanine does NOT cover: crossed
+> diagonals plus a text label. Up to four bands — either side of the deck across the width,
+> either end along the length — each skipped when empty, so a full-footprint mezzanine draws
+> exactly as it always did.
+
+**Two placement traps, both found by looking at the sheet:**
+
+* **A minimum size, or the column inset becomes a "void".** The deck stops at the column FACE,
+  so between it and the wall line there is half a column web — ~350 mm on the sides the
+  mezzanine genuinely reaches. Crossed and labelled, that sliver reads as a missing strip of
+  floor that does not exist. The threshold is **1500 mm**: a real void is a bay, not a flange.
+* **The label goes near the BOTTOM of the band.** The two diagonals meet at the centre, so a
+  centred label is struck through by both. The top is no better — the sheet's own caption
+  ("MEZZANINE FLOOR-n LAYOUT PLAN (LEVEL …)") sits directly under the deck, i.e. across the
+  top of the void band.
+
+**ROMAND has no em-dash.** `"VOID — NO MEZZANINE"` plotted as `VOID ? NO MEZZANINE`. Use a
+plain hyphen in anything the SHX fonts render.
+
+**Beams and joists are already on this sheet** — `peb-draw-mezz-floor-plan` draws main beams,
+joists and secondary joists as their top flange to scale, each on its own layer, with the joist
+rule following the floor system. A separate Beams & Joist Layout sheet would duplicate them;
+if more is wanted it is member tags and spacing dimensions ON THIS SHEET, not a second sheet.
 
 ## 5. THE DOC SET (how the four files relate)
 | File | Holds | Read it when |

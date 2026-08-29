@@ -3008,7 +3008,7 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
     (setq cum (+ cum sp) pts (append pts (list cum)) i (1+ i)))
   pts)
 
-(defun peb-draw-canopy (data len wid / u proj alen bayPts wPts horiz stn gf gt ga0 ga1)
+(defun peb-draw-canopy (data len wid / u proj alen bayPts wPts horiz stn gf gt ga0 ga1 nOn k pfx off)
   (if (= (strcase (MSPL-Get-Str data "CN_TOGGLE")) "YES")
     (progn
       (setq u (max 400.0 (min 3000.0 (/ (max len wid) 70.0))))
@@ -3016,18 +3016,37 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
       (foreach w (list "NSW" "FSW" "LEW" "REW")
         (if (= (strcase (MSPL-Get-Str data (strcat "CN_" w "_TOGGLE"))) "YES")
           (progn
-            (setq proj (MSPL-Get-Num data (strcat "CN_" w "_WIDTH")))   ; projection from wall
-            (setq alen (MSPL-Get-Num data (strcat "CN_" w "_LEN")))     ; length along wall (0 = full)
-            (if (or (null proj) (<= proj 0.0)) (setq proj 1500.0))      ; std 1500 mm
-            ;; Grid-line placement (owner 11-Jul): position along the wall from CN_<w>_GRID_FROM/TO into the
-            ;; grid stations — bay points on a sidewall, width points on an endwall. nil -> full/centered.
-            (setq horiz (or (= w "NSW") (= w "FSW")) stn (if horiz bayPts wPts)
-                  gf (MSPL-Get-Int data (strcat "CN_" w "_GRID_FROM"))
-                  gt (MSPL-Get-Int data (strcat "CN_" w "_GRID_TO")))
-            (if (and gf gt (> gf 0) (> gt gf) stn (<= gt (length stn)))
-              (setq ga0 (nth (1- gf) stn) ga1 (nth (1- gt) stn))
-              (setq ga0 nil ga1 nil))
-            (vl-catch-all-apply (function (lambda () (peb-comp-canopy-one w proj alen len wid u ga0 ga1)))))))))
+            ;; EVERY canopy on this wall, not just one. The data now carries CN_<W>_N and
+            ;; CN_<W>_<n>_*; a file written before that has neither, so fall back to the single
+            ;; unindexed set and draw one, exactly as before (owner 29-Aug: two entrance canopies
+            ;; on the same wall, only one drawn).
+            (setq nOn (MSPL-Get-Int data (strcat "CN_" w "_N")))
+            (if (or (null nOn) (< nOn 1)) (setq nOn 1))
+            (setq k 1)
+            (while (<= k nOn)
+              (setq pfx (if (MSPL-Get-Int data (strcat "CN_" w "_N"))
+                          (strcat "CN_" w "_" (itoa k) "_")
+                          (strcat "CN_" w "_")))
+              (setq proj (MSPL-Get-Num data (strcat pfx "WIDTH")))      ; projection from wall
+              (setq alen (MSPL-Get-Num data (strcat pfx "LEN")))        ; length along wall (0 = full)
+              (setq off  (MSPL-Get-Num data (strcat pfx "OFF")))        ; mid-bay start, mm from GRID_FROM
+              (if (or (null proj) (<= proj 0.0)) (setq proj 1500.0))    ; std 1500 mm
+              ;; Grid-line placement (owner 11-Jul): position along the wall from GRID_FROM/TO into the
+              ;; grid stations — bay points on a sidewall, width points on an endwall. nil -> full/centered.
+              (setq horiz (or (= w "NSW") (= w "FSW")) stn (if horiz bayPts wPts)
+                    gf (MSPL-Get-Int data (strcat pfx "GRID_FROM"))
+                    gt (MSPL-Get-Int data (strcat pfx "GRID_TO")))
+              (if (and gf gt (> gf 0) (> gt gf) stn (<= gt (length stn)))
+                (setq ga0 (nth (1- gf) stn) ga1 (nth (1- gt) stn))
+                (setq ga0 nil ga1 nil))
+              ;; MID-BAY PLACEMENT (owner 29-Aug). An offset shifts the start off the grid line, and
+              ;; once a start is anchored the entered LENGTH governs the far end — it is no longer
+              ;; stretched to the grid range. That stretching is why a 62'-1" canopy at grids 1->4
+              ;; drew as the full three bays, 76'-10".
+              (if (and ga0 off (> off 0.0)) (setq ga0 (+ ga0 off)))
+              (if (and ga0 alen (> alen 0.0)) (setq ga1 (+ ga0 alen)))
+              (vl-catch-all-apply (function (lambda () (peb-comp-canopy-one w proj alen len wid u ga0 ga1))))
+              (setq k (1+ k))))))))
   (princ))
 
 ;; one canopy on wall w: outline extruded from the wall by proj, along the wall by
@@ -7404,6 +7423,40 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   (if (null spList) (setq spList (list 10000.0)))
   spList)
 
+;; ── THE MEZZANINE FLOOR PLAN MUST SHOW THE WHOLE FLOOR PLATE ────────────────────
+;; Owner 29-Aug: "where there is no mezzanine show the void with crosslines & text".
+;;
+;; The sheet used to draw ONLY the deck, so a partial mezzanine came out as a rectangle
+;; floating on an empty page — nothing said how much of the building it covered, or which end
+;; it sat at. On MSPL-26-271 the deck is 49.7 m of a 63.6 m width, and the missing 13.9 m
+;; simply was not on the drawing.
+;;
+;; One void band: the building outline round it, a crossed pair of diagonals through it, and a
+;; label. Drawn BEFORE the deck so the deck reads on top.
+(defun peb-mzfp-void (x0 y0 x1 y1 lbl / cx cy th)
+  ;; 1500 mm, not 1 mm. The deck stops at the COLUMN FACE, so the gap between it and the wall
+  ;; line is half a column web — ~350 mm — on the sides the mezzanine actually reaches. At a
+  ;; 1 mm threshold that sliver was crossed and labelled "VOID" hard against grid A, which reads
+  ;; as a missing strip of floor that does not exist. A real void is a bay, not a flange.
+  (if (and (> (- x1 x0) 1500.0) (> (- y1 y0) 1500.0))
+    (progn
+      (peb-comp-layer "COMP-MEZZ-VOID" 8)
+      (vl-catch-all-apply (function (lambda ()
+        (command "_.LINE" (list x0 y0) (list x1 y1) "")
+        (command "_.LINE" (list x0 y1) (list x1 y0) ""))))
+      ;; The label goes near the BOTTOM of the band. The two diagonals meet at the centre, so a
+      ;; centred label is struck through by both; near an edge the legs are still out by the
+      ;; corners and the middle is clear. Bottom rather than top because the sheet's own caption
+      ;; ("MEZZANINE FLOOR-n LAYOUT PLAN (LEVEL ...)") sits just under the deck, i.e. across the
+      ;; TOP of the void band — putting the label there simply swapped one collision for another.
+      (setq th (* (peb-th 'SMALL) (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)))
+      (setq cx (/ (+ x0 x1) 2.0) cy (+ y0 (* th 1.2)))
+      (if (> cy (- y1 (* th 0.6))) (setq cy (/ (+ y0 y1) 2.0)))   ; a shallow band: centre it
+      (setvar "CLAYER" "TEXT")
+      (vl-catch-all-apply (function (lambda ()
+        (txt-bold "MC" (list cx cy) (peb-th 'SMALL) 0 lbl))))))
+  (princ))
+
 (defun peb-draw-mezz-floor-plan (data len wid floorNum / spList bayPts glF glT offF offT fx0 fx1 fy0 fy1
                                  ys xs acc s2 x y colD savedWeb jx i gbr letterIdx sc band inset
                                  mzRcc rccXs rccYs floorSys jspSys lvl lvlStr specStr mzJoist
@@ -7441,6 +7494,17 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   (foreach x bayPts (if (and (>= x (- fx0 1.0)) (<= x (+ fx1 1.0))) (setq xs (append xs (list x)))))
   (if (null xs) (setq xs (list fx0 fx1)))
 
+  ;; THE WHOLE FLOOR PLATE FIRST (owner 29-Aug): the building outline, then every part of it the
+  ;; mezzanine does NOT cover, crossed and labelled. Up to four bands — below / above the deck
+  ;; across the width, and before / after it along the length. Each is skipped when empty, so a
+  ;; full-footprint mezzanine draws exactly as it always did.
+  (peb-comp-layer "COMP-MEZZ-VOID" 8)
+  (vl-catch-all-apply (function (lambda ()
+    (command "_.RECTANG" (list 0.0 0.0) (list len wid)))))
+  (peb-mzfp-void 0.0 0.0  len  fy0 "VOID - NO MEZZANINE")           ; below the deck (NSW side)
+  (peb-mzfp-void 0.0 fy1  len  wid "VOID - NO MEZZANINE")           ; above the deck (FSW side)
+  (peb-mzfp-void 0.0 fy0  fx0  fy1 "VOID")                         ; before it along the length
+  (peb-mzfp-void fx1 fy0  len  fy1 "VOID")                         ; after it along the length
   ;; light diagonal hatch first (owner 12-Jul), then the deck outline over it
   (vl-catch-all-apply (function (lambda () (peb-mezz-hatch fx0 fy0 fx1 fy1 1600.0))))
   ;; deck outline
