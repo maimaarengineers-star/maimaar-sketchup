@@ -2464,20 +2464,36 @@
   (setq sand (and (> thk 0.0) (vl-string-search "SANDWICH" (strcase ptype))))
   ;; The title clears the panel by its ACTUAL depth — a 50 mm sandwich core is deeper
   ;; than a 35 mm rib, and a fixed offset put the title straight through it.
-  ;; The lock-seam panel is now a DIMENSIONED detail (rule 4B.50), so the title has to clear the
-  ;; dimension zone, not just the steel: the seam bars sit at +80 and the profile itself reaches
-  ;; 65.5, and a 38 clearance put "ROOF SHEETING - LOCK SEAM PROFILE" straight through the 15/10/25
-  ;; figures at both ends.  Measured off what is actually drawn above the pan.
-  (setq dep (cond (lock 105.0) (sand (+ thk ht)) (T ht)))
+  ;; Clearance is measured off what is actually DRAWN above the pan.  The lock-seam section
+  ;; reaches 65.5 - its standing seam - where the old constant assumed 38, which put the title
+  ;; through the seam itself.  With the fold dimensions gone (4B.50) 75 clears the steel and
+  ;; keeps the title tight to it.
+  (setq dep (cond (lock 75.0) (sand (+ thk ht)) (T ht)))
   (setvar "CLAYER" "TEXT") (setvar "CECOLOR" "5")
   (txt-bold "ML" (list ox (+ y dep 55.0)) (peb-th 'LABEL) 0 ttl)
   (setvar "CECOLOR" "BYLAYER")
   (cond
-    (lock (peb-sd-lockseam ox y 2 cov 38.0)
-          ;; rule 4B.50 — the DIMENSIONED detail, on the FIRST module only.  Both modules are
-          ;; drawn so the seam joint reads, but dimensioning both would print every figure twice
-          ;; across a 940 mm strip: a detail is dimensioned once and repeated for context.
-          (vl-catch-all-apply (function (lambda () (peb-sd-lockseam-dims ox y 1.0))))
+    ;; ONE MODULE, matching the owner's own section (Drawing9.dxf).  Two were drawn so the seam
+    ;; JOINT read - the male box of one panel closed over the next panel's hook - but his sample
+    ;; shows a single module and the sheet must look like the thing he checks it against.  The
+    ;; panel is 485.5 wide on a 470 pitch, so the 15.5 lap is still visible at the right-hand
+    ;; seam without a second module to lap into.
+    (lock (peb-sd-lockseam ox y 1 cov 38.0)
+          ;; -- RULE 4B.50 REVISED - THE COVER WIDTH, AND NOTHING ELSE (owner 29-Aug) --------
+          ;; "do not show detailed dimensions but only the covered width of the sheet", and
+          ;; "just match the sample and only show the main main dimensions."
+          ;;
+          ;; The fold-by-fold set - 92/10/145/10/91, 155, the 15/10/25 seams, 32/23, 32/22,
+          ;; 119 and 148 degrees - was built and is correct, but it does not belong on a
+          ;; PROPOSAL drawing.  470 COVER is the figure a customer prices and a draughtsman
+          ;; lays out from; the folds are a ROLL-FORMING dimension, settled by the mill, and
+          ;; printing them here invites a discussion the proposal is not the place for.  Same
+          ;; judgement as the mezzanine column section size (owner 12-Jul) and the joist
+          ;; spacing (4B.49): what the drawing states, it owes.
+          ;;
+          ;; peb-sd-lockseam-dims is LEFT IN PLACE, not deleted - it is the approval-drawing
+          ;; detail, correct and traced from the owner's own DXF, waiting for the sheet that
+          ;; wants it.  Deleting it would just mean building it again.
           (setq gA "CONCEALED CLIP FIXING - NO FACE SCREWS"))
     (sand (peb-sd-sandwich ox y 4 pit ht thk)
           ;; the core thickness is dimensioned because it IS the specified value

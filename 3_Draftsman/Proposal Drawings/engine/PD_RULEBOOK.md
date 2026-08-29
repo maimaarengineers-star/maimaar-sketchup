@@ -1453,7 +1453,29 @@ it would have been undefined — which by **4B.26** renders as a blank sheet, si
 > asserting the result is not `vl-catch-all-error-p`.** Run it after every engine edit, before any
 > render. A paren counter is a hint; a successful load is proof.
 
-### 4B.50 A DETAIL is dimensioned — an outline is not a detail
+### 4B.50 The proposal sheet shows the COVER WIDTH — the folds belong to the approval drawing
+
+**Owner, 29-Aug, in order:** *"you have not developed the New Seam Lock Sheet - Details"* → the
+fold-by-fold detail was built → *"do not show detailed dimensions but only the covered width of the
+sheet"*, *"just match the sample and only show the main main dimensions"*, *"not much more"*.
+
+**The settled answer: profile matching his section, `470 COVER`, nothing else.**
+
+**Why the reversal is right.** 470 is the figure a customer prices and a draughtsman lays out from.
+The folds — 92/10/145/10/91, 155, the 15/10/25 seams, 32/23, 32/22, 119° and 148° — are
+**roll-forming** dimensions, settled by the mill. Printing them on a proposal invites a discussion
+the proposal is not the place for, and commits Maimaar to figures the mill owns. Same judgement
+already applied to the mezzanine column **section size** (owner 12-Jul) and the **joist spacing**
+(**4B.49**): *what the drawing states, it owes.*
+
+**`peb-sd-lockseam-dims` is left in place, not deleted.** It is correct, it is traced from the
+owner's own DXF, and it is the **approval-drawing** detail. It waits for the sheet that wants it;
+deleting it would only mean building it again. Everything below still applies when that sheet
+exists.
+
+---
+
+#### The detail itself (retained, currently not called)
 
 **Owner, 29-Aug:** *"SeamLock Sheet Profile.PNG, also update this"* … and then, after the outline
 was re-traced: *"you have not developed the New Seam Lock Sheet - Details."*
