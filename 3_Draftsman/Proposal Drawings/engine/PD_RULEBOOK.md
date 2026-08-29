@@ -983,6 +983,35 @@ length the architecture wants.
   Count them: one per mid-bay end, so a canopy landing on frames at both ends needs none, and
   one floating in the middle of a wall needs two.
 
+### 4B.34 The Width Module string runs NSW → FSW — the opposite way to how you read a plan
+
+A customer layout is read **top to bottom**. The engine builds `widthPts` by accumulating from
+**y = 0, which is the NSW (bottom)**, while grid letter **A is the TOP (FSW)**. So the first
+term of `BP_WIDTH_MOD` is the band against the NSW, and entering the chain in reading order
+puts the building in upside down.
+
+**It fails quietly, which is why it needs a rule.** Nothing errors. The overall width still
+reconciles, every module is still present, and the Column Layout Plan looks plausible — the
+bands are simply in the wrong order. On MSPL-26-271 (Rainbow) the tender reads
+`54'-8" × 3 + 44'-7¾"` top-down, so the correct string is **`1@13.6081 + 3@16.6624`**, not the
+`3@16.6624 + 1@13.6081` it was first given.
+
+**What it broke, and how it showed up.** The mezzanine is placed by grid LETTER
+(`MZ_WIDTH_GRID_FROM/TO`), and letters are read off the plan's own width stations. Inverted,
+the letters landed on the wrong stations and the MEZZANINE FLOOR PLAN drew **21 m deep instead
+of 50 m** — a sheet that looks perfectly reasonable on its own. It was only caught by measuring
+the captured bbox against the mezzanine's known extent.
+
+**Two things follow:**
+
+* **Every across-the-width chain runs the same way** — width module AND the end-wall column
+  chains. Rainbow's end walls are `2@6.8040 + 6@8.3312`: the non-mezzanine band first, because
+  it sits at the NSW.
+* **Grid letters count the MERGED stations, not the modules.** `gridWpts` is the width module
+  UNION the end-wall column stations, deduped at 1 mm. Rainbow has 4 modules but **9** width
+  stations, so the mezzanine's lower edge is **G**, not D. Never guess a letter from the module
+  count — build the merged list.
+
 ## 5. THE DOC SET (how the four files relate)
 | File | Holds | Read it when |
 |---|---|---|
