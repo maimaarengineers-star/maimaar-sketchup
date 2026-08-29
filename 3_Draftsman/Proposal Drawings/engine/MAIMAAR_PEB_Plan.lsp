@@ -3154,13 +3154,18 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
               ;; drew as the full three bays, 76'-10".
               (if (and ga0 off (> off 0.0)) (setq ga0 (+ ga0 off)))
               (if (and ga0 alen (> alen 0.0)) (setq ga1 (+ ga0 alen)))
-              (vl-catch-all-apply (function (lambda () (peb-comp-canopy-one w proj alen len wid u ga0 ga1))))
+              ;; rule 4B.46 — what the canopy is FOR, and how high it sits, both come off the BSF
+              (vl-catch-all-apply (function (lambda ()
+                (peb-comp-canopy-one w proj alen len wid u ga0 ga1
+                                     (MSPL-Get-Str data (strcat pfx "PURPOSE"))
+                                     (MSPL-Get-Num data (strcat pfx "EAVE_HT"))))))
               (setq k (1+ k))))))))
   (princ))
 
 ;; one canopy on wall w: outline extruded from the wall by proj, along the wall by
 ;; alen (default full), + outward FALL arrow + projection & coverage-length dims + label.
-(defun peb-comp-canopy-one (w proj alen len wid u ga0 ga1 / wl a0 a1 bx by ex ey nx ny mcx mcy lx ly horiz su full)
+(defun peb-comp-canopy-one (w proj alen len wid u ga0 ga1 purpose cnHt
+                            / wl a0 a1 bx by ex ey nx ny mcx mcy lx ly horiz su full lab)
   (setq horiz (member w '("NSW" "FSW")) wl (if horiz len wid))
   ;; Placement along the wall: grid range (owner 11-Jul) if given, else a partial coverage is centred, else full.
   (cond
@@ -3176,18 +3181,31 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   (setq mcx (+ (/ (+ bx ex) 2.0) (* nx proj 0.5)) mcy (+ (/ (+ by ey) 2.0) (* ny proj 0.5))
         su (max 300.0 (min u (* (abs proj) 0.30))))        ; annotation size scaled to the STRIP depth
   (peb-comp-layer "COMP-CANOPY" 3)                        ; green
-  ;; owner 11-Jul: on the CLP a canopy is shown LIGHT — just the outer DOTTED outline + the name.
-  ;; No FALL arrow, no projection/coverage dims (those belong on the canopy's own detail, not the
-  ;; column layout plan, which is about columns).
-  (peb-comp-poly-lt (list (list bx by) (list ex ey)
-                          (list (+ ex (* nx proj)) (+ ey (* ny proj)))
-                          (list (+ bx (* nx proj)) (+ by (* ny proj)))) "DOT" 1.0)
+  ;; -- RULE 4B.46 - ON THE PLAN A CANOPY IS A BOX WITH ITS NAME IN IT (owner 29-Aug) ----
+  ;; "Just show the rectangular box and write canopy ... that's all", and "you may write
+  ;;  height also of canopy in plan."
+  ;;
+  ;; It was a DOTTED outline with the word parked at 0.72 along the wall - dodging the CLP's other
+  ;; annotation rather than sitting in the thing it names.  A dotted line reads as "not built yet"
+  ;; next to the solid steel around it, and a label outside its own box belongs to nothing.  A
+  ;; SOLID rectangle with the name centred in it is unambiguous at any scale, and is all the
+  ;; column layout plan owes a canopy: no fall arrow, no projection or coverage dims - those are
+  ;; the canopy's own detail, and this sheet is about columns.
+  (peb-comp-poly (list (list bx by) (list ex ey)
+                       (list (+ ex (* nx proj)) (+ ey (* ny proj)))
+                       (list (+ bx (* nx proj)) (+ by (* ny proj)))))
   (setvar "CLAYER" "COMP-CANOPY")
-  ;; label centred along the wall, held at 0.72 (measured 513 mm overlap at 0.50 on 10-Jul against the
-  ;; CLP's own "CROSS BRACING (TYP.)" / "RAFTER" / "<wall> - ... WALL" text).
-  (setq lx (if horiz (+ bx (* (- ex bx) 0.72)) mcx)
-        ly (if horiz mcy (+ by (* (- ey by) 0.72))))
-  (txt-bold "MC" (list lx ly) (/ su (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) (if horiz 0.0 90.0) "CANOPY")
+  ;; PURPOSE comes from the BSF, never from the position.  A building can carry several canopies
+  ;; on one wall and they are not interchangeable to the reader - the entrance is the one the
+  ;; customer walks in through.  The engine cannot know which end is the front door, and a house
+  ;; rule like "grid 1 is always the entrance" would be wrong on the next job.
+  (setq lab (strcat "CANOPY"
+                    (if (and purpose (/= purpose "")) (strcat " (" (strcase purpose) ")") "")
+                    (if (and cnHt (> cnHt 0.0)) (strcat "  H=" (peb-comma (rtos cnHt 2 0))) "")))
+  ;; centred IN the box, along its length, so the label and its outline are one object to the eye
+  (setq lx (if horiz (/ (+ bx ex) 2.0) mcx)
+        ly (if horiz mcy (/ (+ by ey) 2.0)))
+  (txt-bold "MC" (list lx ly) (/ su (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) (if horiz 0.0 90.0) lab)
   (princ))
 
 

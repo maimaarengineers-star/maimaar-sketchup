@@ -1313,6 +1313,30 @@ plain tube circle, showing neither the section nor the distinction — a main fr
 stub that stops at the beam soffit were the same dot. **One convention across both sheets**, so a
 reader moving between them is not learning two.
 
+### 4B.46 On the plan a canopy is a BOX with its name in it
+
+**Owner, 29-Aug:** *"Just show the rectangular box and write canopy … that's all"*, and *"you may
+write height also of canopy in plan"*, and *"in plan 2 Canopies should be shown each of 18.92m one
+for Exit and one for Entrance"*.
+
+It was a **dotted** outline with the word parked at 0.72 along the wall — dodging the CLP's other
+annotation rather than sitting in the thing it names. A dotted line reads as *not built yet* next
+to the solid steel around it, and a label outside its own box belongs to nothing.
+
+A **solid rectangle with the name centred in it** is unambiguous at any scale, and is all the
+Column Layout Plan owes a canopy: no fall arrow, no projection or coverage dimensions — those are
+the canopy's own detail, and this sheet is about columns.
+
+**PURPOSE comes from the BSF, never from the position.** A building can carry several canopies on
+one wall and they are not interchangeable to the reader — the entrance is the one the customer
+walks in through. The engine cannot know which end is the front door, and a house rule like *grid
+1 is always the entrance* would be wrong on the next job. A `purpose` field on the canopy
+component (Entrance / Exit / Entrance & Exit / Loading / Shelter) is emitted as
+`CN_<W>_<n>_PURPOSE` and printed in brackets after the name; blank prints just "CANOPY".
+
+The height is `CN_<W>_<n>_EAVE_HT` — the same field the wall elevations place the fascia from
+(**4B.44**), so the plan and the elevation cannot quote different levels for the same canopy.
+
 ## 5. THE DOC SET (how the four files relate)
 | File | Holds | Read it when |
 |---|---|---|
