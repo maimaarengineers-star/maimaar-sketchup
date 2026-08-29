@@ -162,6 +162,28 @@
     (HEADING . 1400)      ; 5.0 mm - the view heading under each drawing
     (TITLE   . 1650)))    ; 6.0 mm - sheet title
 
+;; -- RULE 4B.27 - A LABEL MUST FIT THE THING IT LABELS ------------------------------
+;; peb-th returns a rung off the text ladder, and `txt` multiplies that AGAIN by
+;; *PEB-TEXT-SCALE* so the label plots at a constant size on paper whatever the building.
+;; That is right for a note standing in open space and wrong for a note that has to sit
+;; INSIDE a drawn feature: on a 93 m building 'SMALL plots ~1,140 mm a character, so a
+;; 44-character slab note drew ~30 m wide - straight through the columns either side of
+;; the mezzanine it was labelling (owner 29-Aug, cross section).
+;;
+;; The rung is a CAP, not a promise. Return the largest height at or below `cap` whose
+;; PLOTTED string fits `avail`, remembering the TEXT-SCALE multiply that txt applies.
+;; 0.62 is the ROMAND advance width as a fraction of cap height, measured off the SHX.
+;; Callers decide what to do when the answer is too small to read - usually drop the long
+;; note and keep the short one; a 200 mm caption is not a caption, it is a smudge.
+(defun peb-fit-txt-h (str avail cap / ts wPerCh h)
+  (setq ts (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0))
+  (if (or (null str) (= str "") (null avail) (<= avail 0.0))
+    cap
+    (progn
+      (setq wPerCh (* 0.62 ts (strlen str)))       ; plotted width per unit of PASSED height
+      (setq h (if (> wPerCh 0.0) (/ avail wPerCh) cap))
+      (min cap (max 0.0 h)))))
+
 (defun peb-th (sym / p)
   (if (setq p (assoc sym *PEB-TEXT-HEIGHTS*)) (cdr p) 300))
 

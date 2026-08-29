@@ -7154,6 +7154,7 @@
 ;; CONTINUOUSLY from the floor up to the top floor's beam — steel I (PEB) or concrete (existing RCC,
 ;; with a chemical-anchor note).  Extent is full-interior or partial (MZ1_WID width).
 (defun peb-draw-mezz-section (data wid frameCols / mzRcc chBeam thk beamD colW x0 x1 mm lst xs acc s prev cx band mzsp th
+                              pb0 pb1 ffl bD lblH
                               numFloors floorHt f lvl bTop sTop topLvl
                               beamBot beamTop jd joistTop deckTop slabTop jsp jw jx labX labY
                               fcs s0 s1 g nsub i j)
@@ -7200,7 +7201,12 @@
       (vl-catch-all-apply (function (lambda ()
         (setq *PEB-WGRID-YS* (peb-fr-ew-stations data wid "LEW")))))
       (setq band (peb-mz-width-band data wid (max 300.0 (min 1000.0 (* wid 0.10)))))
-      (setq x0 (car band) x1 (cadr band))
+      ;; Rule 4B.37: the band comes back in PLAN width coordinates; the section is drawn
+      ;; mirrored so grid A reads on the left, so carry the band across with it.  The two
+      ;; ends SWAP - the far edge of the band becomes its near edge.  pb0/pb1 keep the
+      ;; plan-space pair, because peb-mezz-col-ys below is a plan-space function too.
+      (setq pb0 (car band) pb1 (cadr band))
+      (setq x0 (- wid pb1) x1 (- wid pb0))
       ;; support-column stations MODULE-TO-MODULE (owner 12-Jul): subdivide each PEB frame-column gap
       ;; by ~6 m (economical mezz spacing) and place stubs ONLY at the intermediate points — NEVER at a
       ;; frame column, because the PEB column already carries the mezz beam there.  This stops two
@@ -7216,11 +7222,12 @@
       ;; coming at the same place"), and clipped to the mezzanine band.
       (setq fcs (vl-sort (if (and frameCols (> (length frameCols) 1)) frameCols (list 0.0 wid)) '<))
       (setq mzsp (vl-catch-all-apply
-                   (function (lambda () (peb-mezz-col-ys data wid x0 x1 6000.0)))))
+                   (function (lambda () (peb-mezz-col-ys data wid pb0 pb1 6000.0)))))
       (if (vl-catch-all-error-p mzsp) (setq mzsp nil))
       (setq xs '())
       (if mzsp
         (foreach acc mzsp
+          (setq acc (- wid acc))            ; plan space -> section space (rule 4B.37)
           (if (and (> acc (+ x0 1.0)) (< acc (- x1 1.0))
                    (not (vl-some (function (lambda (p) (< (abs (- p acc)) 5.0))) fcs)))
             (setq xs (append xs (list acc)))))
@@ -7255,7 +7262,25 @@
       (while (<= f numFloors)
         (setq lvl     (+ chBeam (* (1- f) floorHt))          ; MAIN BEAM BOTTOM (FFL -> under beam)
               slabTop (+ lvl 700.0 45.0 thk))                ; concrete TOP = beambot + 700 beam + 45 deck + thk
-        (draw-floor-buildup x0 x1 slabTop 700.0 700.0 thk nil)
+        ;; -- RULE 4B.7 - THE SLAB LANDS WHERE THE BSF SAYS IT DOES --------------------
+        ;; The build-up above ASSUMES a 700 mm main beam, so the slab top it computes is the
+        ;; engine's own guess. The BSF states the answer directly: MZ1_CH_FFL_SLAB is the
+        ;; mezzanine F.F.L, MZ1_CH_FFL_BEAM the beam soffit under it. On MSPL-26-271 those are
+        ;; 5,791 and 4,877, which imply a 744 mm beam, not 700 - so the drawn slab sat 44 mm
+        ;; below the level the title block and the estimate both quote, and the CLEAR HEIGHT
+        ;; OVER MEZZANINE dimension came out 4,313 against the BSF's own 4,267.
+        ;;
+        ;; Take the beam depth FROM the two stated levels instead of assuming it. The slab then
+        ;; lands exactly on the BSF F.F.L, the over-height closes on MZ1_CH_SLAB_RAFTER, and
+        ;; the drawing cannot contradict the data it was built from. Joist depth follows the
+        ;; beam (rule 4B.32 - joists are FLUSH with the main beams, never stacked on them).
+        ;; No BSF level, or one that cannot physically hold the deck + slab: keep the 700 guess.
+        (setq ffl (MSPL-Get-Num data (strcat "MZ" (itoa f) "_CH_FFL_SLAB")))
+        (if (and ffl (> ffl 0.0)) nil (setq ffl (MSPL-Get-Num data "MZ1_CH_FFL_SLAB")))
+        (setq bD 700.0)
+        (if (and ffl (> (- ffl lvl 45.0 thk) 150.0) (< (- ffl lvl 45.0 thk) 2500.0))
+          (setq bD (- ffl lvl 45.0 thk) slabTop ffl))
+        (draw-floor-buildup x0 x1 slabTop bD bD thk nil)
         (setvar "CLAYER" "TEXT")
         ;; ── RULE 4B.27 — A GAP THAT CLEARS TEXT IS COMPUTED FROM THE TEXT ─────────────
         ;; These two labels used baked offsets — 260 above the slab, 200 past x1. `txt` plots
@@ -7269,9 +7294,19 @@
         ;; slab band, stacked 1.3 text-heights apart so they cannot touch at any building size.
         (setq th (* (peb-th 'SMALL) (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)))
         (setq labX (/ (+ x0 x1) 2.0))
-        (txt "MC" (list labX (+ slabTop (* th 2.1))) (peb-th 'SMALL) 0
-             (strcat (rtos thk 2 0) "mm R.C. SLAB ON 0.70mm PROFILED DECK PANEL"))
-        (txt "MR" (list (- x1 (* th 0.4)) (+ slabTop (* th 0.8))) (peb-th 'SMALL) 0
+        ;; -- RULE 4B.27 - A LABEL MUST FIT THE THING IT LABELS ------------------------
+        ;; peb-th 'SMALL is a PLOTTED height, multiplied again by TEXT-SCALE inside txt - on a
+        ;; 93 m building that is ~1,140 mm a character-height, so this 44-character string drew
+        ;; ~30 m wide: half the building, straight through the frame columns either side of the
+        ;; mezzanine. The rung is a CAP, not a promise; shrink to whatever fits the band, and if
+        ;; even that is too small to read, drop the long note and keep the short one.
+        (setq lblH (peb-fit-txt-h (strcat (rtos thk 2 0) "mm R.C. SLAB ON 0.70mm PROFILED DECK PANEL")
+                                  (* (- x1 x0) 0.90) (peb-th 'SMALL)))
+        (if (> lblH (* (peb-th 'SMALL) 0.35))
+          (txt "MC" (list labX (+ slabTop (* th 2.1))) lblH 0
+               (strcat (rtos thk 2 0) "mm R.C. SLAB ON 0.70mm PROFILED DECK PANEL")))
+        (setq lblH (peb-fit-txt-h "F.F.L MEZZANINE" (* (- x1 x0) 0.45) (peb-th 'SMALL)))
+        (txt "MR" (list (- x1 (* th 0.4)) (+ slabTop (* th 0.8))) lblH 0
              (if (> numFloors 1) (strcat "F.F.L MEZZ-" (itoa f)) "F.F.L MEZZANINE"))
         (setq f (1+ f)))
       ;; existing-RCC host: one chemical-anchor callout
@@ -8129,6 +8164,7 @@
     maxSize areaM2
     c0 c1 c2 c3 c4 c5 c6
     tbTop tbBot tbW tbXShift
+    mzCH mzFFL mzOver dimX3 dimX4
     borderL borderR borderB borderT
     logoX logoY logoScale
     ext extY
@@ -8448,6 +8484,29 @@
   (setq layout (compute-section-layout data stype wid))
   (setq cols   (car  layout))
   (setq ridges (cadr layout))
+  ;; -- RULE 4B.37 - THE SECTION IS VIEWED FROM THE OTHER SIDE (owner 29-Aug) ----
+  ;; "Section should be shown from other side ... keep the Grid Line A on Left Side",
+  ;; "start the Grid from A to J then".
+  ;;
+  ;; The section is built in the PLAN's own width direction: x = 0 is the NEAR side
+  ;; wall.  But the plan letters the width from the FAR side wall (peb-width-letter,
+  ;; grid A = FSW), so the section came out lettered J..A left-to-right - back to
+  ;; front against every other sheet in the set.
+  ;;
+  ;; The fix is applied HERE, to cols/ridges, and nowhere else, because every piece
+  ;; of section geometry - frame outline, columns, purlins, the module dim chain, the
+  ;; bubbles - is derived from these two lists.  Mirroring the finished sheet instead
+  ;; would flip the title block and the data table with it, and mirroring at each
+  ;; drawer would be a dozen chances to miss one (which is exactly how the width
+  ;; chain came to be reversed in the first place - see rule 4B.34).
+  ;;
+  ;; Mirroring about the building's own centre leaves the bbox identical, so the
+  ;; frame, the tiling and the A4 viewport fit are all unaffected.
+  ;;
+  ;; From here down x is SECTION space.  Anything that consults a PLAN-space list
+  ;; (the merged width grid, the mezzanine band) un-mirrors at the point of use.
+  (setq cols   (vl-sort (mapcar (function (lambda (v) (- wid v))) cols)   '<))
+  (setq ridges (vl-sort (mapcar (function (lambda (v) (- wid v))) ridges) '<))
 
   ;; ── Floor / ground line ──────────────────────────────────────
   (draw-floor-line wid ext)
@@ -9601,7 +9660,10 @@
       ((= i 0)            (setq bubX (- cx 235.0)))   ; leftmost outer
       ((= i (1- nCols))   (setq bubX (+ cx 235.0)))   ; rightmost outer
       (T                  (setq bubX cx)))            ; interior
-    (draw-grid-bubble bubX bubY bubR (peb-sec-grid-letter cx wgrid i))   ; letters follow the PLAN grid
+    ;; cx is SECTION space (mirrored above); wgrid is PLAN space, so un-mirror to look
+    ;; the letter up.  peb-width-letter then still returns A for the far side wall -
+    ;; which the mirror has just placed on the LEFT.  Rule 4B.37.
+    (draw-grid-bubble bubX bubY bubR (peb-sec-grid-letter (- wid cx) wgrid i))   ; letters follow the PLAN grid
     ;; Connector tick - a single continuous vertical line from FFL all
     ;; the way down to the top of the bubble, passing through the dim
     ;; lines so the chain visually merges into one column.
@@ -9665,6 +9727,55 @@
       (strcat (peb-dim-mft (- H ht)) "\\PCLEAR HEIGHT")))
   (setq *PEB-DIM-TXT* nil)
   (peb-recolor-last-dim 0)                        ; ByBlock
+
+  ;; -- RULE 4B.38 - THE TWO HEIGHTS A MEZZANINE CREATES (owner 29-Aug) ---------------
+  ;; "Show the dimensions from FFL to Bottom of Mezzanine Beam (Clear Height) and Also
+  ;;  Show the Height from FFL of Mezzanine to Bttom of Rafter at Haunch as well."
+  ;;
+  ;; The sheet dimensions the BUILDING's clear height above; these are the two the
+  ;; MEZZANINE creates - the headroom under the deck and the headroom over it, which are
+  ;; the figures a customer actually reads a mezzanine on.
+  ;;
+  ;; THEY BELONG HERE, NOT IN THE MEZZANINE DRAWER. Drawn there they were placed at the
+  ;; mezzanine's free edge INSIDE the frame, and a rotated two-line dim label is far taller
+  ;; than the 4.9 m it annotates - both texts overran the frame, each other, the module
+  ;; chain and the rafter leader into one illegible stack (measured on MSPL-26-271).
+  ;; Out here they take the next columns in the SAME chain as BRICK MASONRY and CLEAR
+  ;; HEIGHT, spaced by peb-dim-text-spacing - the mechanism that already guarantees two
+  ;; rotated dim texts clear each other at any drawing scale - so overrun is harmless.
+  ;;
+  ;; VALUES COME FROM THE BSF, NOT FROM THE DRAWN GEOMETRY. MZ1_CH_FFL_BEAM and
+  ;; MZ1_CH_SLAB_RAFTER are stated fields; the estimate and the TFP quote them. The
+  ;; mezzanine drawer now lands its slab on MZ1_CH_FFL_SLAB (rule 4B.7) so the arrows
+  ;; measure exactly what these print. Only if the BSF omits the over-height is it
+  ;; derived, from H - ht - the same expression the CLEAR HEIGHT dimension above uses.
+  (if (= (strcase (peb-tb-or (MSPL-Get-Str data "MZ_TOGGLE") "")) "YES")
+    (progn
+      (setq mzCH   (MSPL-Get-Num data "MZ1_CH_FFL_BEAM")
+            mzFFL  (MSPL-Get-Num data "MZ1_CH_FFL_SLAB")
+            mzOver (MSPL-Get-Num data "MZ1_CH_SLAB_RAFTER"))
+      (if (and mzFFL (<= mzFFL 0.0)) (setq mzFFL nil))
+      (if (and mzFFL (or (null mzOver) (<= mzOver 0.0)))
+        (setq mzOver (- (- H ht) mzFFL)))
+      (setq dimX3 (if monoRise (- dimX2 (peb-dim-text-spacing "vertical"))
+                               (+ dimX2 (peb-dim-text-spacing "vertical"))))
+      (setq dimX4 (if monoRise (- dimX3 (peb-dim-text-spacing "vertical"))
+                               (+ dimX3 (peb-dim-text-spacing "vertical"))))
+      (setq *PEB-DIM-TXT* 320.0)
+      (if (and mzCH (> mzCH 300.0))
+        (progn
+          (peb-dim-height-stretch hObjX dimX3 0.0 mzCH
+            (strcat (peb-dim-mft mzCH) "\\PC.H UNDER MEZZ. BEAM"))
+          (peb-recolor-last-dim 0)))
+      ;; a deck close under the eave has no headroom worth printing, and a near-zero
+      ;; dimension with two arrowheads is noise, not information.
+      (if (and mzFFL mzOver (> mzOver 300.0))
+        (progn
+          (peb-dim-height-stretch hObjX dimX4 mzFFL (+ mzFFL mzOver)
+            (strcat (peb-dim-mft mzOver) "\\PC.H OVER MEZZANINE"))
+          (peb-recolor-last-dim 0)))
+      (setq *PEB-DIM-TXT* nil)))
+
   ;; owner 16-Jul markup 14: arched frames — extend the CLEAR HEIGHT witness line UP to the eave gutter (H)
   ;; so it references the top of the structure (the measured value stays 7000 = H-ht).  The extension runs
   ;; from the object face out to the dim line at the eave level.

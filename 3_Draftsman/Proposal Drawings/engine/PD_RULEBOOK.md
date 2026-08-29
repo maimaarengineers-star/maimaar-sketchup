@@ -1089,6 +1089,194 @@ joists and secondary joists as their top flange to scale, each on its own layer,
 rule following the floor system. A separate Beams & Joist Layout sheet would duplicate them;
 if more is wanted it is member tags and spacing dimensions ON THIS SHEET, not a second sheet.
 
+### 4B.37 The CROSS SECTION is viewed from the other side — grid A on the LEFT
+
+**Owner, 29-Aug:** *"Section should be shown from other side by rotating it and keep the Grid
+Line A on Left Side"*, *"start the Grid from A to J then"*.
+
+The section is built in the PLAN's own width direction: section `x = 0` is the NEAR side wall
+(plan `y = 0`, the NSW). But the plan letters the width from the FAR side wall — `peb-width-letter`
+maps station `i` to letter `nSt-1-i`, so **grid A is the FSW**. The section therefore came out
+lettered **J..A left-to-right**: the same building, read back to front against every other sheet
+in the set.
+
+**Mirror `cols` and `ridges`, once, at the `compute-section-layout` call site — nowhere else.**
+Every piece of section geometry is derived from those two lists: frame outline, interior columns,
+purlins, the module dimension chain, the grid bubbles. Mirroring there flips all of it together
+and nothing can be missed.
+
+The two alternatives are both worse:
+
+* **Mirroring the finished sheet** (a `MIRROR` on everything drawn since the sheet mark) flips
+  the title block and the section's data table with it, and `MIRRTEXT 0` keeps each string
+  readable but keeps its *handedness* — left-aligned notes walk back INTO the frame.
+* **Mirroring inside each drawer** is a dozen separate chances to miss one. That is exactly how
+  the width chain came to be half-reversed — see **4B.34**, where one un-reversed site produced
+  thirteen grid letters for a nine-line grid.
+
+**Mirroring about the building's own centre leaves the bounding box identical**, so the frame,
+the tiling (`peb-tile-place`) and the A4 viewport fit are all unaffected — the sheet fill does
+not move.
+
+**From that line down, x is SECTION space. Anything consulting a PLAN-space list un-mirrors at
+the point of use** — and there are exactly two:
+
+* **Grid letters.** `peb-sec-grid-letter` matches `cx` against the merged width grid
+  (`peb-fr-ew-stations`, plan space), so the call passes `(- wid cx)`. `peb-width-letter` then
+  still returns A for the far side wall — which the mirror has just placed on the left.
+* **The mezzanine band.** `peb-mz-width-band` and `peb-mezz-col-ys` both answer in plan
+  coordinates. Keep the plan-space pair (`pb0`/`pb1`) for the column-station call, and carry the
+  band across as `x0 = wid - pb1`, `x1 = wid - pb0` — **the two ends swap**: the far edge of the
+  band becomes its near edge.
+
+**The crane code was already written for this.** Its comment reads *"section grid letter A =
+LEFT col = cols[0]"* — it had assumed the corrected orientation all along, and was quietly wrong
+until this rule landed.
+
+### 4B.38 A mezzanine is read on TWO clear heights — under it and over it
+
+**Owner, 29-Aug:** *"Show the dimensions from FFL to Bottom of Mezzanine Beam (Clear Height) and
+Also Show the Height from FFL of Mezzanine to Bttom of Rafter at Haunch as well."*
+
+The section already dimensions the BUILDING's clear height on the outside. What it never showed
+is the pair the mezzanine itself creates, and those are the two figures a customer actually buys
+a mezzanine on: the headroom **under** the deck and the headroom **over** it.
+
+**Both are taken from geometry the mezzanine drawer has already built, never re-derived** — that
+is 4B.7 applied inside a single function:
+
+* **Under** = `MZ1_CH_FFL_BEAM`, the beam bottom the whole floor build-up was stacked from.
+* **Over** = top floor's slab top → `H - ht`. `H` is the rafter TOP at the haunch and `ht` the
+  haunch depth, so `H - ht` is the underside — **the same expression `C:PEB-SECTION`'s own CLEAR
+  HEIGHT dimension uses**. One definition of the haunch, used twice, so the two can never drift.
+  `peb-draw-mezz-section` takes `H` and `ht` as arguments for this reason rather than reading
+  the height keys again.
+
+**They stand on the mezzanine's FREE edge, inside the void the floor does not cover** — so they
+cross neither the floor build-up nor the outside dimension columns, which on this sheet already
+carry BRICK MASONRY and CLEAR HEIGHT. A mezzanine covering the full width leaves no void, so
+they fall back to just inside the band.
+
+The over-height is **suppressed below 300 mm** — a deck near the eave has no meaningful headroom
+to print, and a near-zero dimension with two arrowheads is noise.
+
+### 4B.39 The mezzanine sheet carries the MEZZANINE's data, not the building's
+
+**Owner, 29-Aug:** *"on Mezzanine Floor plan, title block have all the information related to
+Mezzanine like live load, & other load and details"*, *"as overall buildings are already at have
+the information and column layout plan."*
+
+The roof and frame live loads, wind, exposure, snow and seismic belong to the **building**, and
+the Column Layout Plan and the Cross Section already print them. Repeating them on the mezzanine
+sheet told the reader nothing about the floor the sheet is about.
+
+`peb-titleblock-mammut` dispatches on `tbKind`, derived from the drawing title. A **MEZZ** kind
+now sits between SECTION and FRAMING and prints **MEZZANINE DESIGN DATA**: floor area, dead /
+live / collateral load, slab thickness, F.F.L, the two clear heights (4B.38), joist spacing, and
+the floor system spelled out. Every row is a stated BSF field (`MZ1_*`), so the panel quotes the
+estimate rather than restating the roof.
+
+### 4B.40 An encircled column is a MEZZANINE-ONLY column
+
+**Owner, 29-Aug:** *"the internal columns of mezzanine which are coming till only mezzanine
+bottom will have a circle bubble around the columns"*, *"It will differentiate b/w the columns of
+main building and additional columns which are only required for mezzanine."*
+
+The Mezzanine Floor Plan drew **every** column as the same tube circle, so a full-height main
+frame column and a stub that stops at the beam soffit were indistinguishable — and the count of
+NEW steel is the whole point of the sheet.
+
+A column is MAIN when its **width station** is one the main frame already stands on: `x` is always
+a bay line on this sheet, so the width station decides. `peb-main-column-ys` is the same list the
+mezzanine stub placer uses to avoid doubling a column, so the two cannot disagree about which
+columns are new. Same convention the Column Layout Plan overlay already uses (owner 10-Jul).
+
+**With no main list, encircle nothing rather than everything.** An unmarked sheet is recoverable;
+a wrongly marked one is quoted from. And the circle gets a legend row — an unexplained symbol is
+decoration.
+
+### 4B.41 Inside a mezzanine, interior bracing is FULL-HEIGHT PORTAL
+
+**Owner, 29-Aug:** *"in the Mezzanine Area, all internal bracings will be Full height Portal"*,
+and on seeing the sheet: *"internal bracing is still showing cross … should be full height
+portal."*
+
+**This is physics, not preference**, which is why it overrides the entered bracing type rather
+than asking for a second field: a cross brace on an interior column line runs its diagonals
+through the plane of the mezzanine floor. The floor is there; the diagonal cannot be. A portal
+frame carries the same load in the plane of the columns and leaves the floor clear.
+
+**Derived from the BSF, never stored.** The footprint is already stated — `MZ_WIDTH_GRID_FROM/TO`
+through `peb-mz-width-band` (the same function the plan, the section and the mezzanine sheet place
+the deck with) plus `MZ_GRID_BAY_FROM/TO`. An "interior bracing = portal" field would be a second
+place to say what `MZ_TOGGLE` already says, and the two would drift.
+
+**It is per column line, not per building.** On MSPL-26-271 the mezzanine is the full length but
+only A→G of a nine-line width grid, so lines out in the void bay keep the entered type. A blanket
+override would portal bracing that has no floor anywhere near it.
+
+### 4B.42 Members are drawn at their REAL flange width
+
+**Owner, 29-Aug:** *"Main Beams top flanges are shown very thick and Joist are shown very very
+thin … But actually there small difference - For Example if the Main Flange is 300mm-350mm,
+joists are 150-200mm normally"*, and *"Main Beams Flanges & Joists i meant to say."*
+
+The mezzanine floor plan drew its members at half-widths of 250 / 180 / 120 — an invented ~2.5×
+exaggeration of an invented 200 / 150 / 100. That put the drawn ratio at **1.39 : 1** where the
+real one is close to **2 : 1**, so the beam read as a solid bar and the joist as a hairline beside
+it: the difference in the wrong place and the wrong size.
+
+Draw the owner's own numbers, mid-range — **main beam 325, joist 175, secondary 125** — so the
+sheet shows the steel that is quoted.
+
+**The legibility floor is a rule, not a fudge.** Every sheet is auto-fitted to A4, so a fixed
+model width plots *smaller* the bigger the building; past ~93 m a 175 mm joist flange closes to a
+single line and stops reading as a member at all. The floor is expressed in `*PEB-TEXT-SCALE*` —
+the engine's existing "constant on paper" unit — and tuned to engage only ABOVE that size, so at
+93 m and below the members plot at TRUE width.
+
+### 4B.43 A detail too small to read at building scale belongs on the DETAILS sheet
+
+**Owner, 29-Aug:** *"Also we developed the Sectional Details of Mezzanine Floor Showing the
+Concrete Etc."*
+
+It had been developed — inside the cross section, at building scale, where a 125 mm slab on a
+45 mm deck plots at a third of a millimetre. Drawn, and unreadable. The DETAILS sheet is where a
+thing too small to read at building scale gets shown at its own scale, and half of that sheet was
+empty.
+
+The cut runs **across the joists**, so joists appear as cut I-sections and the main beam — which
+runs perpendicular to them — as the deeper section at the left. Joist tops are FLUSH with the beam
+top (**4B.32**).
+
+**Every dimension is the BSF's, not a house constant:** slab from `MZ<n>_FLOOR_THK`, beam depth
+from the two stated levels exactly as the cross section derives it (**4B.7**), so the detail, the
+section and the mezzanine sheet cannot disagree about the same floor. The sheet heading drops to
+clear it, for the same reason the second column made it drop before.
+
+### 4B.44 A canopy appears on the WALL ELEVATION, not only on the plan
+
+**Owner, 29-Aug:** *"Also pls draw the canopies"*.
+
+Canopies reached the Column Layout Plan and stopped there — `Framing.lsp`, `Elevation.lsp` and
+`Section.lsp` had no canopy handling at all. On MSPL-26-271 that meant two 62'-1" entrance
+canopies over the customer's front door were absent from the very sheet a customer looks at to
+see the front of their building.
+
+In elevation a canopy is its **fascia**: a band at the canopy level running the canopy's length,
+with its soffit line under it. The projection is toward the viewer and cannot be drawn, so it is
+stated in the label — that is what "PROJ." means.
+
+**The view is from outside, so the station list has already been mirrored for FSW and LEW**
+before the canopy is placed (4B.-mirror note in `peb-draw-framing-elev`). A plan grid `g` sits at
+position `n-g` in the mirrored list, and an offset measured from the start grid runs the other
+way. Getting this wrong puts a canopy over the wrong door on exactly the two walls that carry
+them.
+
+Level comes from `CN_<W>_<n>_EAVE_HT` when entered; otherwise the canopy hangs off that wall's
+own eave. Length is honoured from the anchor (**4B.33**) rather than stretched across whatever
+grid range it happens to sit in.
+
 ## 5. THE DOC SET (how the four files relate)
 | File | Holds | Read it when |
 |---|---|---|

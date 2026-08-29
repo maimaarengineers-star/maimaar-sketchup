@@ -580,6 +580,81 @@
              (peb-comma (rtos (- (nth (1+ i) stations) (nth i stations)) 2 0)))
         (setq i (1+ i))))))
 
+
+;; ============================================================================
+;;  CANOPIES ON A WALL ELEVATION  (rule 4B.44, owner 29-Aug: "Also pls draw the canopies")
+;;
+;;  The canopies reached the Column Layout Plan and stopped there - Framing.lsp, Elevation.lsp
+;;  and Section.lsp had no canopy handling at all.  On MSPL-26-271 that means two 62'-1"
+;;  entrance canopies over the customer's front door are absent from the very sheet a customer
+;;  looks at to see the front of their building.
+;;
+;;  In elevation a canopy is its FASCIA: a band at the canopy level running the canopy's length,
+;;  with its soffit line under it.  The projection is toward the viewer and cannot be drawn, so
+;;  it is stated in the label - that is what "PROJ." means.
+;;
+;;  THE VIEW IS FROM OUTSIDE, so `stations` has already been mirrored for FSW/LEW before this is
+;;  called (see the mirror note above).  A plan grid g therefore sits at position n-g in the
+;;  mirrored list, and an offset measured from the start grid runs the other way.  Getting this
+;;  wrong puts a canopy over the wrong door on exactly the two walls that carry them.
+;; ============================================================================
+(defun peb-fr-canopy (data surf ox base faceLen stations revView wallEave
+                      / nSt k qty gf gt off cnLen proj hC x0 x1 pa pb fd prev lab)
+  (if (or (null stations) (< (length stations) 2)
+          (/= (strcase (peb-tb-or (MSPL-Get-Str data "CN_TOGGLE") "")) "YES")
+          (/= (strcase (peb-tb-or (MSPL-Get-Str data (strcat "CN_" surf "_TOGGLE")) "")) "YES"))
+    (princ)
+    (progn
+      (setq prev (getvar "CLAYER") nSt (length stations))
+      (setq qty (MSPL-Get-Num data (strcat "CN_" surf "_N")))
+      (setq qty (if (and qty (>= qty 1)) (fix qty) 1))
+      (if (> qty 12) (setq qty 12))
+      (setq k 1)
+      (while (<= k qty)
+        (setq gf     (MSPL-Get-Int data (strcat "CN_" surf "_" (itoa k) "_GRID_FROM"))
+              gt     (MSPL-Get-Int data (strcat "CN_" surf "_" (itoa k) "_GRID_TO"))
+              off    (MSPL-Get-Num data (strcat "CN_" surf "_" (itoa k) "_OFF"))
+              cnLen  (MSPL-Get-Num data (strcat "CN_" surf "_" (itoa k) "_LEN"))
+              proj   (MSPL-Get-Num data (strcat "CN_" surf "_" (itoa k) "_WIDTH")))
+        (if (null off) (setq off 0.0))
+        ;; grid anchors -> along-wall positions IN THIS VIEW's direction
+        (if (and gf gt (> gf 0) (> gt 0) (<= gf nSt) (<= gt nSt))
+          (progn
+            (if revView
+              (setq pa (nth (- nSt gt) stations) pb (nth (- nSt gf) stations))
+              (setq pa (nth (1- gf) stations)    pb (nth (1- gt) stations)))
+            ;; honour the entered LENGTH from the anchor (rule 4B.33) rather than stretching
+            ;; the canopy across the whole grid range it happens to sit in.
+            (if (and cnLen (> cnLen 0.0) (< cnLen (- pb pa)))
+              (if revView
+                (setq x1 (- pb off) x0 (- x1 cnLen))
+                (setq x0 (+ pa off) x1 (+ x0 cnLen)))
+              (setq x0 pa x1 pb))
+            (setq x0 (max 0.0 (min x0 faceLen)) x1 (max 0.0 (min x1 faceLen)))
+            (if (> (- x1 x0) 100.0)
+              (progn
+                ;; level: the entered eave height if given, else hung off this wall's own eave
+                (setq hC (MSPL-Get-Num data (strcat "CN_" surf "_" (itoa k) "_EAVE_HT")))
+                (if (or (null hC) (<= hC 0.0)) (setq hC wallEave))
+                ;; Fascia depth. 3% of the eave plotted at ~0.6 mm on the A4 - drawn, and
+                ;; indistinguishable from the wall's own top line. A canopy fascia with its
+                ;; gutter is genuinely ~600 deep, so 5.5% both reads and is true.
+                (setq fd (max 300.0 (* wallEave 0.055)))
+                (peb-comp-layer "COMP-CANOPY" 6)
+                (setvar "CLAYER" "COMP-CANOPY")
+                (command "_.RECTANG" (list (+ ox x0) (- (+ base hC) fd)) (list (+ ox x1) (+ base hC)))
+                (command "_.LINE" (list (+ ox x0) (- (+ base hC) fd (* fd 0.55)))
+                                  (list (+ ox x1) (- (+ base hC) fd (* fd 0.55))) "")
+                (setvar "CLAYER" "TEXT")
+                (setq lab (strcat "CANOPY" (if (and proj (> proj 0.0))
+                                             (strcat "  -  " (peb-comma (rtos proj 2 0)) " PROJ.") "")))
+                (vl-catch-all-apply (function (lambda ()
+                  (txt "MC" (list (+ ox (/ (+ x0 x1) 2.0)) (+ base hC (* fd 1.9)))
+                       (peb-th 'SMALL) 0 lab))))))))
+        (setq k (1+ k)))
+      (setvar "CLAYER" prev)
+      (princ))))
+
 (defun peb-draw-framing-elev (surf ox oy data / len wid slopeD stype rtype
                               eaveH clrH eaveHi eaveLo brickH hiName hiSide wallEave
                               faceLen stations isEnd base colhw rise ridgeRise
@@ -1092,6 +1167,9 @@
   (vl-catch-all-apply (function (lambda ()
     (peb-fr-overall-h ox (+ ox faceLen) (- noteY (* 2600.0 *PEB-DIM-SCALE*))
                       (peb-dim-mft faceLen)))))
+  ;; rule 4B.44 - canopies on this wall, drawn last so the fascia reads over the framing
+  (vl-catch-all-apply (function (lambda ()
+    (peb-fr-canopy data surf ox base faceLen stations revView wallEave))))
   (setvar "CLAYER" prev)
   (princ))
 
@@ -1506,6 +1584,9 @@
   (vl-catch-all-apply (function (lambda ()
     (peb-fr-overall-h ox (+ ox faceLen) (- noteY (* 2600.0 *PEB-DIM-SCALE*))
                       (peb-dim-mft faceLen)))))
+  ;; rule 4B.44 - canopies on this wall
+  (vl-catch-all-apply (function (lambda ()
+    (peb-fr-canopy data surf ox base faceLen stations revView wallEave))))
   (setvar "CLAYER" prev)
   (princ))
 
@@ -2214,7 +2295,7 @@
         ((vl-string-search "SANDWICH" ty) "SANDWICH PANEL (S-TYPE OUTER SKIN)")
         (T "STANDARD S PROFILE 35-250 (S-TYPE)")))
 
-(defun peb-draw-sheeting-details (data ox oy / prev rp wp lockR lockW y rSig wSig same et gx iThk iTyp iDen)
+(defun peb-draw-sheeting-details (data ox oy / prev rp wp lockR lockW y rSig wSig same et gx iThk iTyp iDen mzOnSd)
   (setq prev (getvar "CLAYER"))
   (setq rp (strcase (peb-tb-or (MSPL-Get-Str data "PN_ROOF_OUTER_PROFILE") "STANDARD PROFILE"))
         wp (strcase (peb-tb-or (MSPL-Get-Str data "PN_WALL_OUTER_PROFILE") "STANDARD PROFILE")))
@@ -2326,15 +2407,98 @@
       (txt "ML" (list gx -360.0) (peb-th 'ANNOT) 0 "1.2 mm PPG.L  |  3 M")
       (txt "ML" (list gx -520.0) (peb-th 'ANNOT) 0 "COLOUR AS SHEET")))
 
+  ;; rule 4B.43 — the mezzanine floor build-up, at its own scale, under the two panel columns.
+  ;; Only when there IS a mezzanine; otherwise the sheet is exactly as it was.
+  (setq mzOnSd (= (strcase (peb-tb-or (MSPL-Get-Str data "MZ_TOGGLE") "")) "YES"))
+  (if mzOnSd
+    (vl-catch-all-apply (function (lambda () (peb-sd-mezz-floor ox -1500.0 data)))))
+
   (setvar "CECOLOR" "5")
   ;; The heading sits BELOW everything on the sheet, at a fixed depth clear of both
   ;; columns.  Hanging it off the panel column's own y put it in the middle of the page
-  ;; as soon as a second column was added beside it (owner 27-Aug).
-  (txt-bold "MC" (list (+ ox 900.0) -1450.0) (peb-th 'HEADING) 0
+  ;; as soon as a second column was added beside it (owner 27-Aug).  With the mezzanine
+  ;; detail present it drops again, for the same reason.
+  (txt-bold "MC" (list (+ ox 900.0) (if mzOnSd -3150.0 -1450.0)) (peb-th 'HEADING) 0
             "DETAILS")
   (setvar "CECOLOR" "BYLAYER")
   (setvar "CLAYER" prev)
   (vl-catch-all-apply (function (lambda () (peb-frame-and-titleblock data "DETAILS")))))
+
+
+;; ============================================================================
+;;  MEZZANINE FLOOR - SECTIONAL DETAIL  (rule 4B.43, owner 29-Aug)
+;;  "Also we developed the Sectional Details of Mezzanine Floor Showing the Concrete Etc."
+;;
+;;  The build-up existed only INSIDE the cross section, at building scale, where a 125 mm slab
+;;  on a 45 mm deck plots at a third of a millimetre - drawn, and unreadable.  The DETAILS sheet
+;;  is where a thing too small to read at building scale gets shown at its own scale, and half
+;;  of that sheet was empty.
+;;
+;;  The cut runs ACROSS the joists, so joists appear as cut I-sections and the main beam - which
+;;  runs perpendicular to them - as the deeper section at the left.  Joist tops are FLUSH with
+;;  the beam top (rule 4B.32: joists never sit ON the main beams).
+;;
+;;  Every dimension is the BSF's, not a house constant: slab from MZ<n>_FLOOR_THK, and the beam
+;;  depth from the two stated levels exactly as the cross section derives it (rule 4B.7), so the
+;;  detail, the section and the mezzanine sheet cannot disagree about the same floor.
+;; ============================================================================
+(defun peb-sd-mezz-floor (ox oy data / thk bd jd ffl chb W deckT top bot i jx n lab prev)
+  (setq prev (getvar "CLAYER"))
+  (setq thk (MSPL-Get-Num data "MZ1_FLOOR_THK"))
+  (if (or (null thk) (<= thk 0.0)) (setq thk 150.0))
+  (setq ffl (MSPL-Get-Num data "MZ1_CH_FFL_SLAB")
+        chb (MSPL-Get-Num data "MZ1_CH_FFL_BEAM")
+        deckT 45.0 bd 700.0)
+  (if (and ffl chb (> (- ffl chb deckT thk) 150.0) (< (- ffl chb deckT thk) 2500.0))
+    (setq bd (- ffl chb deckT thk)))
+  (setq jd (* bd 0.55) W 2600.0 top oy bot (- oy deckT))
+  ;; --- concrete slab, with a light stipple so it reads as concrete, not as a void ---
+  (setvar "CLAYER" "COMP-MEZZ")
+  (command "_.RECTANG" (list ox top) (list (+ ox W) (+ top thk)))
+  (setq i 0)
+  (while (< i 13)
+    (setq jx (+ ox 90.0 (* i (/ W 13.0))))
+    (command "_.LINE" (list jx (+ top (* thk 0.25))) (list (+ jx (* thk 0.5)) (+ top (* thk 0.75))) "")
+    (setq i (1+ i)))
+  ;; --- 0.70 mm profiled deck: a ribbed line carrying the slab ---
+  (setvar "CLAYER" "COMP-MEZZ-JOIST")
+  (setq i 0)
+  (while (< i 10)
+    (setq jx (+ ox (* i (/ W 10.0))))
+    (command "_.PLINE" (list jx top) (list (+ jx 50.0) bot)
+             (list (+ jx 145.0) bot) (list (+ jx 195.0) top) (list (+ jx (/ W 10.0)) top) "")
+    (setq i (1+ i)))
+  ;; --- MAIN BEAM at the left: cut I-section, 350 flange ---
+  (setvar "CLAYER" "COMP-MEZZ-BEAM")
+  (command "_.RECTANG" (list (- (+ ox 260.0) 175.0) (- bot 60.0)) (list (+ ox 260.0 175.0) bot))
+  (command "_.RECTANG" (list (- (+ ox 260.0) 30.0) (- bot bd -60.0)) (list (+ ox 260.0 30.0) (- bot 60.0)))
+  (command "_.RECTANG" (list (- (+ ox 260.0) 175.0) (- bot bd)) (list (+ ox 260.0 175.0) (- bot bd -60.0)))
+  ;; --- JOISTS: cut I-sections, 175 flange, tops FLUSH with the beam (rule 4B.32) ---
+  (setvar "CLAYER" "COMP-MEZZ-JOIST")
+  (setq n 1)
+  (while (<= n 2)
+    (setq jx (+ ox 260.0 (* n 1050.0)))
+    (command "_.RECTANG" (list (- jx 87.5) (- bot 45.0)) (list (+ jx 87.5) bot))
+    (command "_.RECTANG" (list (- jx 20.0) (- bot jd -45.0)) (list (+ jx 20.0) (- bot 45.0)))
+    (command "_.RECTANG" (list (- jx 87.5) (- bot jd)) (list (+ jx 87.5) (- bot jd -45.0)))
+    (setq n (1+ n)))
+  ;; --- notes.  ANNOT is the rung the rest of this sheet's notes use. ---
+  (setvar "CLAYER" "TEXT")
+  (setvar "CECOLOR" "5")
+  (txt-bold "ML" (list ox (+ top thk 420.0)) (peb-th 'LABEL) 0 "MEZZANINE FLOOR - SECTIONAL DETAIL")
+  (setvar "CECOLOR" "BYLAYER")
+  (txt "ML" (list (+ ox W 220.0) (+ top (* thk 0.5))) (peb-th 'ANNOT) 0
+       (strcat (rtos thk 2 0) " mm R.C. SLAB"))
+  (txt "ML" (list (+ ox W 220.0) (- top 230.0)) (peb-th 'ANNOT) 0
+       "0.70 mm PROFILED STEEL DECK")
+  (txt "ML" (list (+ ox W 220.0) (- bot (* bd 0.55))) (peb-th 'ANNOT) 0
+       (strcat "MAIN BEAM  " (rtos bd 2 0) " DEEP  |  350 FLANGE"))
+  (txt "ML" (list (+ ox W 220.0) (- bot (* bd 0.55) 260.0)) (peb-th 'ANNOT) 0
+       (strcat "JOISTS  " (rtos jd 2 0) " DEEP  |  175 FLANGE, TOPS FLUSH"))
+  (txt "ML" (list ox (- bot bd 320.0)) (peb-th 'ANNOT) 0
+       "SLAB, DECK & REINFORCEMENT PER THE APPROVAL DRAWING.")
+  (setvar "CLAYER" prev)
+  (princ))
 
 (defun C:PEB-SHEETING-DETAILS ( / data)
   (vl-load-com) (setvar "CMDECHO" 0) (setvar "OSMODE" 0)

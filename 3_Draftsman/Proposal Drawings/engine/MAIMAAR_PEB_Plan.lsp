@@ -1123,8 +1123,9 @@
       T)
     (T nil)))
 
-(defun peb-draw-bracing (bayPts widthPts wid ox oy lewBrace rewBrace extType intType
-                         / braced prevLayer x0 x1 cx ymid first nB drewX yp d colOff)
+(defun peb-draw-bracing (bayPts widthPts wid ox oy lewBrace rewBrace extType intType data
+                         / braced prevLayer x0 x1 cx ymid first nB drewX yp d colOff
+                           mzOn mzB0 mzB1 mzX0 mzX1 glF glT bType bnd)
   ;; Cross-bracing on the COLUMN LAYOUT PLAN. Each braced column LINE carries the symbol for its
   ;; bracing TYPE (owner spec 2-Jul): sidewalls (NSW+FSW) use BP_BRACING_EXT; interior column lines
   ;; use BP_BRACING_INT (so when interior is N/A the middle columns get NOTHING). Symbols per line
@@ -1139,6 +1140,36 @@
   (if (or (null widthPts) (< (length widthPts) 2)) (setq widthPts (list 0.0 wid)))
   (setq braced (peb-braced-bays bayPts))
   (setq nB (1- (length bayPts)))
+  ;; -- RULE 4B.41 - INSIDE A MEZZANINE, INTERIOR BRACING IS FULL-HEIGHT PORTAL --------
+  ;; Owner 29-Aug: "in the Mezzanine Area, all internal bracings will be Full height Portal",
+  ;; and on seeing the sheet: "internal bracing is still showing cross ... should be full
+  ;; height portal."
+  ;;
+  ;; This is PHYSICS, not preference, which is why it overrides the entered type rather than
+  ;; asking for a second field: a cross brace on an interior column line runs its diagonals
+  ;; through the plane of the mezzanine floor.  The floor is there; the diagonal cannot be.
+  ;; A portal frame carries the same load in the plane of the columns and leaves the floor clear.
+  ;;
+  ;; DERIVED FROM THE BSF, NEVER STORED (standing rule: consumers derive).  The footprint is
+  ;; already stated - MZ_WIDTH_GRID_FROM/TO through peb-mz-width-band, the same function the
+  ;; plan, the section and the mezzanine sheet place the deck with, plus MZ_GRID_BAY_FROM/TO
+  ;; along the length.  An "interior bracing = portal" field would be a second place to say what
+  ;; MZ_TOGGLE already says, and the two would drift.
+  ;;
+  ;; IT IS PER COLUMN LINE, NOT PER BUILDING.  On MSPL-26-271 the mezzanine is the full length
+  ;; but only A->G of a nine-line width grid, so lines out in the void bay keep the entered type.
+  ;; A blanket override would portal bracing that has no floor anywhere near it.
+  (setq mzOn (= (strcase (peb-tb-or (MSPL-Get-Str data "MZ_TOGGLE") "")) "YES"))
+  (if mzOn
+    (progn
+      (setq bnd (vl-catch-all-apply (function (lambda () (peb-mz-width-band data wid 1000.0)))))
+      (if (or (vl-catch-all-error-p bnd) (not (listp bnd)))
+        (setq mzOn nil)
+        (setq mzB0 (car bnd) mzB1 (cadr bnd)))
+      (setq glF (MSPL-Get-Int data "MZ_GRID_BAY_FROM") glT (MSPL-Get-Int data "MZ_GRID_BAY_TO"))
+      (if (and glF glT (> glF 0) (> glT glF) (<= glT (length bayPts)))
+        (setq mzX0 (nth (1- glF) bayPts) mzX1 (nth (1- glT) bayPts))
+        (setq mzX0 0.0 mzX1 (last bayPts)))))
   ;; END BAYS ARE NEVER BRACED (owner 3-Jul) — the By-Framed end-bay bracing was against the rule; removed.
   ;; (lewBrace / rewBrace kept in the signature but no longer force the end bays.)
   (setq prevLayer (getvar "CLAYER") ymid (+ oy (/ wid 2.0)) first T
@@ -1153,7 +1184,14 @@
     ;; interior column lines → INTERIOR bracing type
     (foreach yp widthPts
       (if (and (> yp 1.0) (< yp (- wid 1.0)))
-        (if (peb-brace-line x0 x1 (+ oy yp) d 1.0 intType) (setq drewX T))))
+        (progn
+          ;; rule 4B.41 - a line under the mezzanine deck is portalled whatever was entered
+          (setq bType intType)
+          (if (and mzOn
+                   (>= yp (- mzB0 1.0)) (<= yp (+ mzB1 1.0))
+                   (>= (- x0 ox) (- mzX0 1.0)) (<= (- x1 ox) (+ mzX1 1.0)))
+            (setq bType "Portal (full height)"))
+          (if (peb-brace-line x0 x1 (+ oy yp) d 1.0 bType) (setq drewX T)))))
     (if drewX
       (progn
         (setvar "CLAYER" "DIMENSIONS")   ; magenta (exists)
@@ -2071,6 +2109,23 @@
     (cons "BLDGNO"    tbBno)
     (cons "BLDGNAME"  tbBname)
     (cons "IDENTICAL" (peb-tb-or (MSPL-Get-Str data "IDENTICAL") "1"))
+    ;; -- RULE 4B.39 - THE MEZZANINE SHEET CARRIES THE MEZZANINE'S OWN DATA (owner 29-Aug) --
+    ;; "on Mezzanine Floor plan, title block have all the information related to Mezzanine like
+    ;;  live load, & other load and details ... as overall buildings are already at have the
+    ;;  information and column layout plan."
+    ;; Every one of these is a stated BSF field, so the panel quotes the estimate rather than
+    ;; restating the roof loads the Column Layout Plan already carries.
+    (cons "MZ_AREA"   (peb-tb-comma (MSPL-Get-Str data "MZ1_AREA")))
+    (cons "MZ_DL"     (peb-tb-or (MSPL-Get-Str data "MZ1_DL")   "-"))
+    (cons "MZ_LL"     (peb-tb-or (MSPL-Get-Str data "MZ1_LL")   "-"))
+    (cons "MZ_CL"     (peb-tb-or (MSPL-Get-Str data "MZ1_CL")   "-"))
+    (cons "MZ_FLOOR"  (peb-tb-or (MSPL-Get-Str data "MZ1_FLOOR_MAT")
+                                 (peb-tb-or (MSPL-Get-Str data "MZ1_FLOOR") "-")))
+    (cons "MZ_THK"    (peb-tb-or (MSPL-Get-Str data "MZ1_FLOOR_THK") "-"))
+    (cons "MZ_FFL"    (peb-tb-comma (MSPL-Get-Str data "MZ1_CH_FFL_SLAB")))
+    (cons "MZ_CHB"    (peb-tb-comma (MSPL-Get-Str data "MZ1_CH_FFL_BEAM")))
+    (cons "MZ_CHR"    (peb-tb-comma (MSPL-Get-Str data "MZ1_CH_SLAB_RAFTER")))
+    (cons "MZ_JOISTSP" (peb-tb-comma (MSPL-Get-Str data "MZ_JOIST")))
     (cons "DRGTITLE"  drgTitle)
     (cons "SCALE"     "N.T.S.")
     (cons "SHEETSIZE" "A1")
@@ -2188,6 +2243,7 @@
   (setq lx (+ X0 (* W 0.05)) vx (+ X0 (* W 0.70)) ux (+ X0 (* W 0.865)))   ; owner 7-Jul: value+unit cols
   (setq dt (strcase (tb-get "DRGTITLE"))
         tbKind (cond ((wcmatch dt "*SECTION*")             "SECTION")
+                     ((wcmatch dt "*MEZZANINE*")           "MEZZ")   ; rule 4B.39
                      ((wcmatch dt "*FRAMING*")             "FRAMING")
                      ((wcmatch dt "*SHEETING*,*CLADDING*") "SHEETING")
                      (T                                    "PLAN"))
@@ -2223,6 +2279,37 @@
                  (* cw 1.02) (* s 0.0092)) cw 1
         (strcat "{\\Fromand.shx;AS PER " (tb-get "CODE")
                 " METAL BUILDING SYSTEMS MANUAL}") green))
+    ;; ==== MEZZANINE FLOOR PLAN : the MEZZANINE's own design data (owner 29-Aug) ====
+    ;; Rule 4B.39.  The roof/frame live loads, wind, exposure, snow and seismic belong to the
+    ;; BUILDING and are already printed on the Column Layout Plan and the Cross Section; repeating
+    ;; them here told the reader nothing about the floor the sheet is actually about.  A mezzanine
+    ;; is bought on its own numbers: what it costs to hold up (dead + live + collateral), what it
+    ;; is made of, and the two clear heights it creates.  Every row is a stated BSF field.
+    ((= tbKind "MEZZ")
+      (setq rh (* s 0.052) bt yCur yCur (- yCur rh))
+      (tb-mtext-bold (+ X0 (* W 0.035)) (- bt (* s 0.0130))
+        (tb-fith "MEZZANINE DESIGN DATA" (* cw 0.85) (* s 0.0120)) (* W 0.93) 1
+        "MEZZANINE DESIGN DATA" green)
+      (foreach r (list
+           (list "FLOOR AREA"             (tb-get "MZ_AREA")    "SQ.M.")
+           (list "DEAD LOAD"              (tb-get "MZ_DL")      "KN/SQ.M.")
+           (list "LIVE LOAD"              (tb-get "MZ_LL")      "KN/SQ.M.")
+           (list "COLLATERAL LOAD"        (tb-get "MZ_CL")      "KN/SQ.M.")
+           (list "SLAB THICKNESS"         (tb-get "MZ_THK")     "MM")
+           (list "F.F.L (FROM G.F.)"      (tb-get "MZ_FFL")     "MM")
+           (list "C.H UNDER MEZZ. BEAM"   (tb-get "MZ_CHB")     "MM")
+           (list "C.H OVER MEZZANINE"     (tb-get "MZ_CHR")     "MM")
+           (list "JOIST SPACING"          (tb-get "MZ_JOISTSP") "MM"))
+        (setq rh (* s 0.0200) yCur (- yCur rh))
+        (tb-mtext lx (+ yCur (* rh 0.5)) (tb-fith (car r) (* W 0.60) sm) 0 4 (car r) white)
+        (tb-mtext (+ X0 (* W 0.80)) (+ yCur (* rh 0.5)) (tb-fith (cadr r) (* W 0.14) val) 0 6 (cadr r) green)
+        (if (/= (caddr r) "")
+          (tb-mtext (+ X0 (* W 0.82)) (+ yCur (* rh 0.5)) (tb-fith (caddr r) (* W 0.155) (* sm 0.90)) 0 4 (caddr r) grey)))
+      ;; the floor system spelled out, on its own line - it is a sentence, not a number
+      (setq rh (* s 0.044) yCur (- yCur rh))
+      (tb-mtext (+ X0 (* W 0.04)) (+ yCur (* rh 0.74))
+        (tb-fith (strcat "FLOOR SYSTEM: " (tb-get "MZ_FLOOR")) (* cw 1.02) (* s 0.0092)) cw 1
+        (strcat "{\\Fromand.shx;FLOOR SYSTEM: " (tb-get "MZ_FLOOR") "}") green))
     ;; ==== SECTION : KEY BUILDING DATA (dimensions in MM — NEVER member sections/thk) ====
     ((= tbKind "SECTION")
       (setq rh (* s 0.052) bt yCur yCur (- yCur rh))
@@ -3524,7 +3611,22 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
            (or (< (abs (- sumSp span)) (* 0.12 span))
                (< (abs (- sumSp wid))  (* 0.12 wid))))
     (progn
-      (setq sc2 (/ span sumSp) out (list fy0) acc fy0)
+      ;; -- RULE 4B.8 - BOTH SHEETS PRINT THE ESTIMATOR'S OWN SPACING ------------------
+      ;; This always rescaled the chain to close exactly on the band it was handed.  The band
+      ;; is the DECK, whose edges sit at the column faces, so it runs ~365 mm short of the grid
+      ;; the chain was written against - and every station moved with it.  On MSPL-26-271 the
+      ;; Column Layout Plan printed the entered "5@8331 + 1@8065" while the Mezzanine Floor
+      ;; Plan printed "5@8270 + 1@8006": the same six columns, two sets of numbers, in one set
+      ;; of drawings.  The reader has no way to know which is the quote.
+      ;;
+      ;; When the chain already agrees with the span to within 2%, WALK IT RAW.  The estimator's
+      ;; figures print verbatim on every sheet and the columns stand at the spacing that was
+      ;; priced; the sub-1% residual is absorbed at the deck edge, which is a drawn edge nobody
+      ;; dimensions, rather than smeared across six dimensions that everybody reads.
+      ;; A chain that genuinely does not fit (>2% out) is still scaled to close - that is a data
+      ;; problem, and silently leaving the deck short would hide it.
+      (setq sc2 (if (< (abs (- sumSp span)) (* 0.02 span)) 1.0 (/ span sumSp)))
+      (setq out (list fy0) acc fy0)
       (foreach s sp2 (setq acc (+ acc (* s sc2))) (if (< acc (- fy1 1.0)) (setq out (append out (list acc)))))
       (append out (list fy1)))
     ;; else AUTO-DIVIDE each MAIN width module (the default) — columns between the main PEB columns
@@ -5413,7 +5515,7 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   ;; An OPEN CANOPY (BF/CC/PP) has no side walls and no end walls, so there is nothing to brace.
   (if (not *PEB-OPEN-CANOPY*)
     (progn
-      (vl-catch-all-apply (function (lambda () (peb-draw-bracing bayPts widthPts wid 0.0 0.0 lewBrace rewBrace extType intType))))
+      (vl-catch-all-apply (function (lambda () (peb-draw-bracing bayPts widthPts wid 0.0 0.0 lewBrace rewBrace extType intType data))))
       ;; End-wall column bracing (owner 5-Jul): X-bracing between the end-wall columns in the LEW/REW planes,
       ;; same braced-panel rule as the bays, gated by lewBrace/rewBrace, exterior type.
       (vl-catch-all-apply (function (lambda () (peb-draw-endwall-bracing ewStations leftX rightX lewBrace rewBrace extType))))))
@@ -7461,8 +7563,19 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                                  ys xs acc s2 x y colD savedWeb jx i gbr letterIdx sc band inset
                                  mzRcc rccXs rccYs floorSys jspSys lvl lvlStr specStr mzJoist
                                  dimX yprev yy jy beamHalf joistHalf secHalf secSp sx isGrating
-                                 bayA bayB legX legY rowH sampleLen L colR)
+                                 bayA bayB legX legY rowH sampleLen L colR
+                                 jbi jxa jxb thS mzThk fflLvl mainYs mzOnly bubR2)
   (setq sc (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0))
+  ;; -- RULE 4B.26 - EVERY NOTE ON THIS SHEET IS SIZED FROM THE LADDER (owner 29-Aug) --
+  ;; "Floors Details are Also Missing ... We had already developed it."  They were not missing.
+  ;; The legend, the member names and the deck spec note were all drawn at (/ NNN sc), and `txt`
+  ;; multiplies by *PEB-TEXT-SCALE* again - so they plotted at a FIXED ~300 mm whatever the
+  ;; building, against a ladder whose smallest rung ('SMALL) plots at 550*scale = ~1,140 mm here.
+  ;; Nearly four times under the ladder floor, they came out as an unreadable smudge in the corner
+  ;; of the A4 sheet: developed, drawn, and invisible.
+  ;; thS is that plotted height in MODEL units, so every offset below is expressed in text-heights
+  ;; and the block stays proportioned at any building size.
+  (setq thS (* (peb-th 'SMALL) sc))
   (setq inset (max 300.0 (min 1000.0 (* (min len wid) 0.10))))
   (setq spList (peb-mzfp-splist data) bayPts (peb-mzfp-bays data len))
 
@@ -7472,6 +7585,11 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   (if (not (and (boundp '*PEB-WGRID-YS*) *PEB-WGRID-YS*))
     (setq *PEB-WGRID-YS* (vl-sort (peb-main-column-ys data wid) '<)))
   (setq band (peb-mz-width-band data wid inset) fy0 (car band) fy1 (cadr band))
+  (princ (strcat "
+PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
+                 " span=" (rtos (- fy1 fy0) 2 1)
+                 " wgridN=" (itoa (length *PEB-WGRID-YS*))
+                 " wgrid=" (vl-princ-to-string (mapcar (function (lambda (v) (fix v))) *PEB-WGRID-YS*))))
 
   ;; LENGTH footprint — grid bays + offsets (mirror the CLP), else a 6% inset.
   (setq glF (MSPL-Get-Int data "MZ_GRID_BAY_FROM") glT (MSPL-Get-Int data "MZ_GRID_BAY_TO")
@@ -7505,14 +7623,9 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   (peb-mzfp-void 0.0 fy1  len  wid "VOID - NO MEZZANINE")           ; above the deck (FSW side)
   (peb-mzfp-void 0.0 fy0  fx0  fy1 "VOID")                         ; before it along the length
   (peb-mzfp-void fx1 fy0  len  fy1 "VOID")                         ; after it along the length
-  ;; light diagonal hatch first (owner 12-Jul), then the deck outline over it
-  (vl-catch-all-apply (function (lambda () (peb-mezz-hatch fx0 fy0 fx1 fy1 1600.0))))
-  ;; deck outline
-  (peb-comp-layer "COMP-MEZZ" 6)
-  (peb-comp-poly (list (list fx0 fy0) (list fx1 fy0) (list fx1 fy1) (list fx0 fy1)))
-
   ;; floor system -> joist rule (owner 11-Jul): PRECAST / HOLLOW-CORE = beams only (no joists);
   ;; GRATING / CHEQUERED PLATE = closer joists at 1220 mm (4 ft); DECK + SLAB = joists at MZ_JOIST.
+  ;; DECIDED BEFORE THE HATCH, because the hatch now depends on it (see below).
   (setq floorSys (strcase (peb-tb-or (MSPL-Get-Str data (strcat "MZ" (itoa floorNum) "_FLOOR"))
                                      (MSPL-Get-Str data "MZ1_FLOOR"))))
   (setq mzJoist (MSPL-Get-Num data "MZ_JOIST"))
@@ -7521,6 +7634,18 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
         ((wcmatch floorSys "*GRAT*,*PLATE*,*CHEQ*")     (setq jspSys 1220.0))
         (T                                              (setq jspSys mzJoist)))
 
+  ;; -- THE DECK HATCH IS A LAST RESORT, NOT A BACKGROUND (owner 29-Aug) ----------------
+  ;; "Joists are not Shown Properly."  A diagonal hatch at 1600 c/c UNDER 39 joist rows at
+  ;; 1,250 c/c is two overlapping line fields at almost the same pitch; on the A4 sheet they
+  ;; read as one grey mat with the beams lost inside it.  The hatch exists to say "there is a
+  ;; floor here" - which is exactly what the joists say, better.  So hatch ONLY when there are
+  ;; no joists to draw (precast / hollow-core), where it is the only thing marking the deck.
+  (if (null jspSys)
+    (vl-catch-all-apply (function (lambda () (peb-mezz-hatch fx0 fy0 fx1 fy1 1600.0)))))
+  ;; deck outline
+  (peb-comp-layer "COMP-MEZZ" 6)
+  (peb-comp-poly (list (list fx0 fy0) (list fx1 fy0) (list fx1 fy1) (list fx0 fy1)))
+
   ;; ---- FRAMING MEMBERS drawn as their TOP FLANGE to scale (owner 12-Jul): main beam 200mm, joist
   ;; 150mm, secondary joist 100mm top flange.  Each on its own layer so COLOUR + LINE-THICKNESS come
   ;; BYLAYER (beam blue/0.50, joist grey/0.25, sec-joist grey/0.13 — the "material" line-weight standard).
@@ -7528,7 +7653,25 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   ;; grating/chequered plate -> beams + joists + SECONDARY joists. ----
   ;; flange HALF-widths, exaggerated ~2.5x from the true 200/150/100mm so the I-profiles READ at plan
   ;; scale (owner 12-Jul: "draw as real steel profiles ... visibly exaggerated") — proportions kept.
-  (setq beamHalf 250.0 joistHalf 180.0 secHalf 120.0)
+  ;; -- RULE 4B.42 - MEMBERS ARE DRAWN AT THEIR REAL FLANGE WIDTH (owner 29-Aug) -------
+  ;; "Main Beams top flanges are shown very thick and Joist are shown very very thin ...
+  ;;  But actually there small difference - For Example if the Main Flange is 300mm-350mm,
+  ;;  joists are 150-200mm normally."
+  ;;
+  ;; The old half-widths (250 / 180 / 120) were an invented ~2.5x exaggeration of an invented
+  ;; 200 / 150 / 100.  That made the drawn ratio 1.39 : 1 where the real one is close to 2 : 1,
+  ;; so the beam read as a solid bar and the joist as a hairline beside it - the difference in
+  ;; the wrong place and the wrong size.  These are the owner's own numbers, mid-range:
+  ;; main beam 325, joist 175, secondary 125 - so the sheet shows the steel that is quoted.
+  ;;
+  ;; The `max` is a LEGIBILITY FLOOR, not a fudge.  Every sheet is auto-fitted to A4, so a fixed
+  ;; model width plots smaller the bigger the building; past ~93 m a 175 mm joist flange closes
+  ;; to a single line and stops reading as a member at all.  The floor is expressed in
+  ;; *PEB-TEXT-SCALE* - the engine's existing "constant on paper" unit - and is tuned to engage
+  ;; only ABOVE this building's size, so at 93 m and below the members plot at TRUE width.
+  (setq beamHalf  (max 162.5 (* 78.0 sc))
+        joistHalf (max  87.5 (* 42.0 sc))
+        secHalf   (max  62.5 (* 30.0 sc)))
   (setq isGrating (wcmatch floorSys "*GRAT*,*CHEQ*,*PLATE*"))
 
   ;; JOISTS — 150mm double-line flange ALONG THE LENGTH, spaced across the width at jspSys.  None for
@@ -7537,13 +7680,29 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
     (progn
       (peb-comp-layer "COMP-MEZZ-JOIST" 8)
       (setvar "CLAYER" "COMP-MEZZ-JOIST")
+      ;; -- A JOIST SPANS ONE BAY, BETWEEN TWO BEAMS (owner 29-Aug) ---------------------
+      ;; "Joists are not Shown Properly."  Each joist was ONE line the full 93 m length of the
+      ;; building, running straight over all thirteen main beams.  A joist does not do that - the
+      ;; main beams run across the width at every bay line, and the joists span BETWEEN them, one
+      ;; bay (7.7 m) at a time.  Drawn continuous they read as ribs of the deck rather than as
+      ;; members, and they bury the very beams they land on.
+      ;;
+      ;; Draw each joist bay by bay, stopping a beam half-flange short at both ends so it visibly
+      ;; frames INTO the beam.  The bays come from xs - the same beam lines drawn below - so a
+      ;; joist can never cross a beam.  A bay too short to hold a readable segment is skipped
+      ;; rather than drawn as a stub.
       (setq jy (+ fy0 jspSys))
       (while (< jy (- fy1 100.0))
-        (vl-catch-all-apply (function (lambda () (peb-mezz-mainbeam fx0 jy fx1 jy joistHalf))))
+        (setq jbi 0)
+        (while (< jbi (1- (length xs)))
+          (setq jxa (+ (nth jbi xs) beamHalf) jxb (- (nth (1+ jbi) xs) beamHalf))
+          (if (> (- jxb jxa) beamHalf)
+            (vl-catch-all-apply (function (lambda () (peb-mezz-mainbeam jxa jy jxb jy joistHalf)))))
+          (setq jbi (1+ jbi)))
         (setq jy (+ jy jspSys)))
       (vl-catch-all-apply (function (lambda ()
-        (txt "MC" (list (/ (+ fx0 fx1) 2.0) (+ fy1 (/ 900.0 sc))) (/ 300.0 sc) 0.0
-             (strcat "JOISTS ALONG LENGTH @ " (peb-comma (rtos jspSys 2 0)) " C/C")))))))
+        (txt "MC" (list (/ (+ fx0 fx1) 2.0) (+ (max fy1 wid) (* thS 1.2))) (peb-th 'SMALL) 0.0
+             (strcat "JOISTS ALONG LENGTH @ " (peb-comma (rtos jspSys 2 0)) " C/C, SPANNING BAY TO BAY")))))))
 
   ;; SECONDARY JOISTS — grating / chequered plate only: 100mm double-line flange PERPENDICULAR to the
   ;; joists (WIDTH direction), spaced along the length at HALF the joist spacing.  Shown in ONE
@@ -7557,7 +7716,7 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
         (vl-catch-all-apply (function (lambda () (peb-mezz-mainbeam sx fy0 sx fy1 secHalf))))
         (setq sx (+ sx secSp)))
       (vl-catch-all-apply (function (lambda ()
-        (txt "MC" (list (/ (+ bayA bayB) 2.0) (- fy0 (/ 900.0 sc))) (/ 280.0 sc) 0.0
+        (txt "MC" (list (/ (+ bayA bayB) 2.0) (- 0.0 (* thS 1.2))) (peb-th 'SMALL) 0.0
              (strcat "SECONDARY JOISTS @ " (peb-comma (rtos secSp 2 0)) " C/C (TYP.)")))))))
 
   ;; MAIN BEAMS — 200mm double-line flange (heaviest), in the WIDTH direction, column to column, one at
@@ -7565,16 +7724,24 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   (peb-comp-layer "COMP-MEZZ-BEAM" 5)
   (setvar "CLAYER" "COMP-MEZZ-BEAM")
   (foreach x xs (vl-catch-all-apply (function (lambda () (peb-mezz-mainbeam x fy0 x fy1 beamHalf)))))
-  (if (> (length xs) 1)
-    (vl-catch-all-apply (function (lambda ()
-      (txt-bold "MC" (list (+ (nth 1 xs) (+ beamHalf (/ 260.0 sc))) (/ (+ fy0 fy1) 2.0)) (/ 300.0 sc) 90.0 "MAIN BEAM (TYP.)")))))
+  ;; The rotated "MAIN BEAM (TYP.)" tag that used to stand here is GONE (owner 29-Aug,
+  ;; "austhetic is not good").  It named a member the legend below already names, and it stood
+  ;; ON the second beam, crossing every joist in that bay - a label obscuring the thing it
+  ;; labels.  One naming of each member, in the legend, off the drawing.
 
   ;; ---- LEGEND / KEY (owner 12-Jul "beautiful") — the framing members, each sample drawn on its own
   ;; layer so it shows the real colour + line-thickness + top-flange width, with its NAME.  Lower-left,
   ;; below the plan (secondary joist row only when this floor system has secondaries). ----
+  ;; -- THE CAPTION BLOCK HANGS OFF THE BUILDING, NOT OFF THE DECK (owner 29-Aug) ------
+  ;; fy0 is the DECK's lower edge; the void band runs from the building edge up to it.  Hanging
+  ;; the legend, the spec note and the sheet title off fy0 dropped all three INSIDE that void
+  ;; band - straight across its crossed diagonals and its "VOID - NO MEZZANINE" label, four
+  ;; pieces of text in one strip (measured on MSPL-26-271, where the void is a 13.9 m band).
+  ;; The whole floor plate starts at y = 0, so that is what the block hangs from.  A mezzanine
+  ;; covering the full width has fy0 = 0 and is unaffected.
   (setq legX fx0
-        legY (- fy0 (/ 1300.0 sc))
-        rowH (/ 640.0 sc)
+        legY (- 0.0 (* thS 1.7))
+        rowH (* thS 1.5)
         sampleLen (max 2000.0 (* (- fx1 fx0) 0.05)))
   (foreach L (list (list "COMP-MEZZ-BEAM"      5 beamHalf  "MAIN BEAM"       T)
                    (list "COMP-MEZZ-JOIST"     8 joistHalf "JOIST"           (if jspSys T nil))
@@ -7586,7 +7753,7 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
         (vl-catch-all-apply (function (lambda () (peb-mezz-mainbeam legX legY (+ legX sampleLen) legY (nth 2 L)))))
         (setvar "CLAYER" "TEXT")
         (vl-catch-all-apply (function (lambda ()
-          (txt "ML" (list (+ legX sampleLen (/ 500.0 sc)) legY) (/ 300.0 sc) 0.0 (nth 3 L)))))
+          (txt "ML" (list (+ legX sampleLen (* thS 0.5)) legY) (peb-th 'SMALL) 0.0 (nth 3 L)))))
         (setq legY (- legY rowH)))))
 
   ;; columns — RCC host draws the existing concrete pillars; else steel mezzanine columns
@@ -7607,10 +7774,47 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
       (peb-comp-layer "COLUMNS" 1)
       (setvar "CLAYER" "COLUMNS")
       (setq colR (max 150.0 (* colD 0.45)))
+      ;; -- RULE 4B.40 - AN ENCIRCLED COLUMN IS A MEZZANINE-ONLY COLUMN (owner 29-Aug) -----
+      ;; "the internal columns of mezzanine which are coming till only mezzanine bottom will have
+      ;;  a circle bubble around the columns ... It will differentiate b/w the columns of main
+      ;;  building and additional columns which are only required for mezzanine."
+      ;;
+      ;; This sheet drew EVERY column as the same tube circle, so a full-height main frame column
+      ;; and a stub that stops at the beam soffit were indistinguishable - and the count of NEW
+      ;; steel is the whole point of the sheet.  Same convention the Column Layout Plan overlay
+      ;; already uses (owner 10-Jul: "existing columns as-is; NEW columns encircled"), so the two
+      ;; sheets now read the same way.
+      ;;
+      ;; A column is MAIN when its width station is one the main frame already stands on - x is
+      ;; always a bay line here, so the width station is what decides.  peb-main-column-ys is the
+      ;; same list the mezzanine stub placer uses to avoid doubling a column, so the two cannot
+      ;; disagree about which columns are new.  With no main list we encircle nothing rather than
+      ;; encircle everything: an unmarked sheet is recoverable, a wrongly marked one is not.
+      (setq mainYs (vl-catch-all-apply (function (lambda () (peb-main-column-ys data wid)))))
+      (if (vl-catch-all-error-p mainYs) (setq mainYs nil))
+      (setq bubR2 (max (* colR 2.0) (* 520.0 sc)) mzOnly nil)
       (foreach x xs
         (foreach y ys
           (vl-catch-all-apply (function (lambda ()
-            (entmake (list (cons 0 "CIRCLE") (cons 8 "COLUMNS") (list 10 x y 0.0) (cons 40 colR))))))))))
+            (entmake (list (cons 0 "CIRCLE") (cons 8 "COLUMNS") (list 10 x y 0.0) (cons 40 colR)))
+            (if (and mainYs
+                     (not (vl-some (function (lambda (my) (< (abs (- my y)) 250.0))) mainYs)))
+              (progn
+                (setq mzOnly T)
+                (entmake (list (cons 0 "CIRCLE") (cons 8 "COMP-MEZZ")
+                               (list 10 x y 0.0) (cons 40 bubR2))))))))))
+      ;; say what the circle MEANS, or it is just a decoration
+      (if mzOnly
+        (progn
+          (peb-comp-layer "COMP-MEZZ" 6)
+          (setvar "CLAYER" "COMP-MEZZ")
+          (vl-catch-all-apply (function (lambda ()
+            (entmake (list (cons 0 "CIRCLE") (cons 8 "COMP-MEZZ")
+                           (list 10 (+ fx0 (* thS 0.7)) (- 0.0 (* thS 5.2)) 0.0) (cons 40 bubR2))))))
+          (setvar "CLAYER" "TEXT")
+          (vl-catch-all-apply (function (lambda ()
+            (txt "ML" (list (+ fx0 (* thS 0.7) bubR2 (* thS 0.5)) (- 0.0 (* thS 5.2))) (peb-th 'SMALL) 0.0
+                 "COLUMN REQUIRED FOR MEZZANINE ONLY (STOPS AT BEAM SOFFIT)"))))))))
   (setq *PEB-COL-WEB* savedWeb)
 
   ;; SHOW THE MEZZANINE COLUMN SPACING (owner 11-Jul) — a vertical dim chain of the column lines, just
@@ -7643,23 +7847,40 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   ;; deck spec note (what the floor IS).  The members are distinguished by their flange width + BYLAYER
   ;; line-weight ("material" = line thickness, owner 12-Jul) and are NAMED on the plan (MAIN BEAM / JOISTS
   ;; / SECONDARY JOISTS); no steel-section text and no mezzanine column SIZE are shown here.
+  ;; -- RULE 4B.7 - THE NOTE QUOTES THE BSF, NOT A CONSTANT (owner 29-Aug) -------------
+  ;; This note read "100mm CONCRETE SLAB" on every drawing ever produced, hard-coded, while
+  ;; MZ<n>_FLOOR_THK on this job says 125 and the CROSS SECTION - built from the same field -
+  ;; correctly printed "125MM R.C. SLAB".  Two sheets in one set, contradicting each other on
+  ;; the thickness of the same slab.  Read the field.
+  (setq mzThk (MSPL-Get-Num data (strcat "MZ" (itoa floorNum) "_FLOOR_THK")))
+  (if (or (null mzThk) (<= mzThk 0.0)) (setq mzThk (MSPL-Get-Num data "MZ1_FLOOR_THK")))
+  (if (or (null mzThk) (<= mzThk 0.0)) (setq mzThk 150.0))
   (setq specStr (cond ((wcmatch floorSys "*PRECAST*,*HOLLOW*")    "PRECAST / HOLLOW-CORE SLAB (BY OTHERS)")
                       ((wcmatch floorSys "*GRAT*,*CHEQ*,*PLATE*") "STEEL GRATING / CHEQUERED PLATE ON JOISTS")
-                      (T                                          "0.7mm DECKING PANEL + 100mm CONCRETE SLAB")))
+                      (T  (strcat "0.7mm DECKING PANEL + " (rtos mzThk 2 0) "mm CONCRETE SLAB"))))
   (setvar "CLAYER" "TEXT")
   (vl-catch-all-apply (function (lambda ()
-    (txt "MC" (list (/ (+ fx0 fx1) 2.0) (- fy0 (/ 1600.0 sc))) (/ 320.0 sc) 0.0 specStr))))
+    (txt "MC" (list (/ (+ fx0 fx1) 2.0) (- 0.0 (* thS 7.0))) (peb-th 'SMALL) 0.0 specStr))))
 
   ;; blue floor TITLE + LEVEL tag below the plan.
   ;; BUGFIX (owner note): txt-bold already multiplies by *PEB-TEXT-SCALE*, so pass (/ H sc) — the old
   ;; (* 450 sc) rendered the title at H*sc^2, which blew up on large buildings.
-  (setq lvl (MSPL-Get-Num data "MZ_FLOOR_HT"))
-  (if (null lvl) (setq lvl 0.0))
-  (setq lvlStr (if (> lvl 0.0)
-                 (strcat "  (LEVEL approx. +" (peb-comma (rtos (* lvl floorNum) 2 0)) " MM, BOTTOM OF BEAM)")
+  ;; -- RULE 4B.7 - THE TAG NAMES THE LEVEL IT IS QUOTING (owner 29-Aug) ---------------
+  ;; This printed "(LEVEL approx. +5,791 MM, BOTTOM OF BEAM)".  5,791 is MZ_FLOOR_HT, the
+  ;; floor-to-floor height, which the BSF also states as MZ1_CH_FFL_SLAB - the mezzanine
+  ;; F.F.L.  The bottom of the beam is MZ1_CH_FFL_BEAM = 4,877.  So the sheet put the right
+  ;; number under the wrong name, 914 mm out, and disagreed with the cross section's own
+  ;; F.F.L MEZZANINE mark.  Quote the stated F.F.L and call it the F.F.L.
+  (setq fflLvl (MSPL-Get-Num data (strcat "MZ" (itoa floorNum) "_CH_FFL_SLAB")))
+  (if (or (null fflLvl) (<= fflLvl 0.0))
+    (progn (setq lvl (MSPL-Get-Num data "MZ_FLOOR_HT"))
+           (if (null lvl) (setq lvl 0.0))
+           (setq fflLvl (* lvl floorNum))))
+  (setq lvlStr (if (> fflLvl 0.0)
+                 (strcat "  (F.F.L approx. +" (peb-comma (rtos fflLvl 2 0)) " MM)")
                  ""))
   (setvar "CLAYER" "TEXT") (setvar "CECOLOR" "5")
-  (txt-bold "MC" (list (/ (+ fx0 fx1) 2.0) (- fy0 (/ 3200.0 sc))) (/ 700.0 sc) 0
+  (txt-bold "MC" (list (/ (+ fx0 fx1) 2.0) (- 0.0 (* thS 8.7))) (peb-th 'ANNOT) 0
             (strcat "MEZZANINE FLOOR-" (itoa floorNum) " LAYOUT PLAN" lvlStr))
   (setvar "CECOLOR" "BYLAYER")
   (princ))
