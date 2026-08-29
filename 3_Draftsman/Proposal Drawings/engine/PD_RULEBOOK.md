@@ -1337,6 +1337,42 @@ component (Entrance / Exit / Entrance & Exit / Loading / Shelter) is emitted as
 The height is `CN_<W>_<n>_EAVE_HT` — the same field the wall elevations place the fascia from
 (**4B.44**), so the plan and the elevation cannot quote different levels for the same canopy.
 
+### 4B.47 Doors are DRAWN, not only quoted — one shutter per bay
+
+**Owner, 29-Aug:** *"Show the Sutter Doors b/w the Columns"*, *"Auto-Shutter Door"*, *"one shutter
+per bay, 7m x 3.5m, both entrance and exit"*.
+
+Doors reached the **proposal** (`proposalData`) and the **estimate** (`mapComponents`) but never
+the drawing — there was not one door key in `drawingData.ts`. A building could be quoted with four
+auto shutters across its front and drawn with a blank wall, and nothing in the set would show the
+disagreement.
+
+**One door per BAY**, centred between its two columns, because a shutter spans column to column: a
+three-bay doorway is three shutters, not one 23 m door. The CRM expands the grid range to one
+indexed instance per bay (`DR_<W>_<n>_GRID_FROM/TO`), so the engine never guesses how many leaves
+a range means.
+
+**`placeGridFrom` accepts a LIST of ranges** — `"1-3, 11-13"` is two doorways, one at each end of
+the wall, which is exactly the shape a Cash & Carry has and cannot be said with a single from/to
+pair.
+
+**The width is CLAMPED to the clear bay.** An entered 7,000 in a 7,734 bay is a real door; the same
+7,000 typed against a 6 m bay is a typo, and drawing it would put a door through the columns either
+side. Clamping shows the mistake at its true size instead of hiding it.
+
+**The view is from outside**, so the station list is already mirrored for FSW/LEW — plan grid `g`
+sits at position `n-g`. Getting that wrong puts the entrance door at the far end of the building.
+
+**Doors are gated by `sec1:acc`** like every other accessory (the standing rule: only what is
+ticked reaches the draughtsman). An untickd accessories section is why a door can be specified and
+still not drawn — check the tick before hunting the engine.
+
+> **Debugging note, worth keeping.** A probe that loads the engine but never calls `peb-std-setup`
+> has no standard layers, so the first `(setvar "CLAYER" "TEXT")` throws and the enclosing loop
+> silently stops after ONE iteration — with correct geometry for that one item. It looks exactly
+> like a broken loop and is not. Any harness that calls a drawer directly must run `peb-std-setup`
+> first.
+
 ## 5. THE DOC SET (how the four files relate)
 | File | Holds | Read it when |
 |---|---|---|

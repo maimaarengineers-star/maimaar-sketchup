@@ -598,6 +598,80 @@
 ;;  mirrored list, and an offset measured from the start grid runs the other way.  Getting this
 ;;  wrong puts a canopy over the wrong door on exactly the two walls that carry them.
 ;; ============================================================================
+
+;; ============================================================================
+;;  DOORS ON A WALL ELEVATION  (rule 4B.47, owner 29-Aug)
+;;  "Show the Sutter Doors b/w the Columns", "Auto-Shutter Door",
+;;  "one shutter per bay, 7m x 3.5m, both entrance and exit".
+;;
+;;  Doors reached the PROPOSAL and the ESTIMATE but never the drawing - there was not one door
+;;  key in drawingData.ts.  A building could be quoted with four auto shutters across its front
+;;  and drawn with a blank wall, and nothing in the set would show the disagreement.
+;;
+;;  ONE DOOR PER BAY, centred between its two columns, because a shutter spans column to column:
+;;  a three-bay doorway is three shutters, not one 23 m door.  The CRM expands the grid range to
+;;  one indexed instance per bay (DR_<W>_<n>_GRID_FROM/TO), so the engine never has to guess how
+;;  many leaves a range means.
+;;
+;;  The width is CLAMPED to the clear bay.  An entered 7,000 in a 7,734 bay is a real door; the
+;;  same 7,000 typed against a 6 m bay is a typo, and drawing it would put a door through the
+;;  columns either side.  Clamping shows the mistake at its true size instead of hiding it.
+;;
+;;  THE VIEW IS FROM OUTSIDE, so `stations` is already mirrored for FSW/LEW: plan grid g sits at
+;;  position n-g.  Getting that wrong puts the entrance door at the far end of the building.
+;; ============================================================================
+(defun peb-fr-doors (data surf ox base faceLen stations revView
+                     / nSt dk qty gf gt dw dh dtyp dop x0 x1 cx bayClear di dsy lab prev)
+  (setq qty (MSPL-Get-Int data (strcat "DR_" surf "_N")))
+  (if (or (null stations) (< (length stations) 2) (null qty) (< qty 1))
+    (princ)
+    (progn
+      (setq prev (getvar "CLAYER") nSt (length stations))
+      (if (> qty 40) (setq qty 40))
+      (setq dk 1)
+      (while (<= dk qty)
+        (setq gf   (MSPL-Get-Int data (strcat "DR_" surf "_" (itoa dk) "_GRID_FROM"))
+              gt   (MSPL-Get-Int data (strcat "DR_" surf "_" (itoa dk) "_GRID_TO"))
+              dw   (MSPL-Get-Num data (strcat "DR_" surf "_" (itoa dk) "_W"))
+              dh   (MSPL-Get-Num data (strcat "DR_" surf "_" (itoa dk) "_H"))
+              dtyp (strcase (peb-tb-or (MSPL-Get-Str data (strcat "DR_" surf "_" (itoa dk) "_TYPE")) "DOOR"))
+              dop  (MSPL-Get-Str data (strcat "DR_" surf "_" (itoa dk) "_OPERATION")))
+        (if (and gf gt (> gf 0) (> gt gf) (<= gt nSt) dw dh (> dw 0.0) (> dh 0.0))
+          (progn
+            (if revView
+              (setq x0 (nth (- nSt gt) stations) x1 (nth (- nSt gf) stations))
+              (setq x0 (nth (1- gf) stations)    x1 (nth (1- gt) stations)))
+            (setq bayClear (abs (- x1 x0)) cx (/ (+ x0 x1) 2.0))
+            ;; leave a column's face either side rather than butting the door into the steel
+            (if (> dw (* bayClear 0.92)) (setq dw (* bayClear 0.92)))
+            (if (> (- dw 100.0) 0.0)
+              (progn
+                (peb-comp-layer "COMP-DOOR" 4)
+                (setvar "CLAYER" "COMP-DOOR")
+                (command "_.RECTANG" (list (+ ox cx (/ dw -2.0)) base)
+                                     (list (+ ox cx (/ dw  2.0)) (+ base dh)))
+                ;; a roll-up reads by its slats; a swing door does not have them
+                (if (wcmatch dtyp "*ROLL*")
+                  (progn
+                    (setq di 1)
+                    (while (< di 6)
+                      (setq dsy (+ base (* dh (/ di 6.0))))
+                      (command "_.LINE" (list (+ ox cx (/ dw -2.0)) dsy)
+                                        (list (+ ox cx (/ dw  2.0)) dsy) "")
+                      (setq di (1+ di)))))
+                (setvar "CLAYER" "TEXT")
+                (setq lab (strcat (if (wcmatch dtyp "*ROLL*")
+                                    (if (and dop (wcmatch (strcase dop) "*ELECTRIC*"))
+                                      "AUTO SHUTTER DOOR" "ROLL-UP SHUTTER DOOR")
+                                    dtyp)
+                                  "  " (peb-comma (rtos dw 2 0)) " x " (peb-comma (rtos dh 2 0))))
+                (vl-catch-all-apply (function (lambda ()
+                  (txt "MC" (list (+ ox cx) (+ base dh (* (peb-th 'SMALL) 1.4)))
+                       (peb-fit-txt-h lab (* dw 0.95) (peb-th 'SMALL)) 0 lab))))))))
+        (setq dk (1+ dk)))
+      (setvar "CLAYER" prev)
+      (princ))))
+
 (defun peb-fr-canopy (data surf ox base faceLen stations revView wallEave
                       / nSt k qty gf gt off cnLen proj hC x0 x1 pa pb fd prev lab)
   (if (or (null stations) (< (length stations) 2)
@@ -1170,6 +1244,9 @@
   ;; rule 4B.44 - canopies on this wall, drawn last so the fascia reads over the framing
   (vl-catch-all-apply (function (lambda ()
     (peb-fr-canopy data surf ox base faceLen stations revView wallEave))))
+  ;; rule 4B.47 - shutter / personnel doors, one per bay
+  (vl-catch-all-apply (function (lambda ()
+    (peb-fr-doors data surf ox base faceLen stations revView))))
   (setvar "CLAYER" prev)
   (princ))
 
@@ -1587,6 +1664,9 @@
   ;; rule 4B.44 - canopies on this wall
   (vl-catch-all-apply (function (lambda ()
     (peb-fr-canopy data surf ox base faceLen stations revView wallEave))))
+  ;; rule 4B.47 - shutter / personnel doors, one per bay
+  (vl-catch-all-apply (function (lambda ()
+    (peb-fr-doors data surf ox base faceLen stations revView))))
   (setvar "CLAYER" prev)
   (princ))
 
