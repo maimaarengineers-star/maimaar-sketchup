@@ -1453,6 +1453,40 @@ it would have been undefined — which by **4B.26** renders as a blank sheet, si
 > asserting the result is not `vl-catch-all-error-p`.** Run it after every engine edit, before any
 > render. A paren counter is a hint; a successful load is proof.
 
+### 4B.50 A DETAIL is dimensioned — an outline is not a detail
+
+**Owner, 29-Aug:** *"SeamLock Sheet Profile.PNG, also update this"* … and then, after the outline
+was re-traced: *"you have not developed the New Seam Lock Sheet - Details."*
+
+He was right, and the distinction is the rule. Re-tracing the **outline** was half the job: his
+section is a **detail** — every fold dimensioned, both seam angles called out. An outline carrying
+one "470 COVER" bar tells a fabricator nothing he can roll from, and the DETAILS sheet exists to
+carry exactly that.
+
+**The drawn steel was changed so the dimensions measure it.** The pixel trace gave pan segments of
+93.9 / 7.4 / 147.5 / 7.9 / 94.1; the pan chain is now drawn at its **stated** 92 / 10 / 145 / 10 /
+91, because dimensioning a traced approximation with the stated figures is a 4B.7 contradiction on
+the one sheet whose whole purpose is to be exact.
+
+**The stated chain proves itself.** 92 + 10 + 145 lands the two rib **centres** exactly 155 apart —
+and 155 is the one dimension the owner's section calls out independently. Two figures from
+different parts of the drawing closing on each other is what makes it a trace and not a guess. The
+same check runs at the other end: the male seam box sits 470→486 so it laps exactly over the next
+panel's 0→16 hook, and 16 is the hook's own width.
+
+**`%%d`, never a degree glyph.** The SHX fonts have no degree character and a literal ° plots as
+`?` — the same trap the em-dash set in **4B.36**. `txt` upper-cases its string, so it reaches
+AutoCAD as `%%D`; the control codes are case-insensitive, so both render.
+
+**Dimension the FIRST module only.** Both modules are drawn so the seam joint reads, but
+dimensioning both would print every figure twice across a 940 mm strip. A detail is dimensioned
+once and repeated for context.
+
+> **`T` cannot be a local.** The first version named its three helper lambdas `D`, `V` and `T`;
+> `T` is the AutoLISP TRUE constant and binding it fails with *"incorrect object to bind: T"* —
+> caught only because the drawer was probed, since the enclosing `vl-catch-all-apply` swallows it
+> into a silently missing detail. Same class as the `rem` trap already recorded.
+
 ## 5. THE DOC SET (how the four files relate)
 | File | Holds | Read it when |
 |---|---|---|

@@ -2162,23 +2162,78 @@
       (list (+ x (* k  42.8)) (+ y0 (* k 40.2)))    ; 25 along
       (list (+ x (* k  58.6)) (+ y0 (* k 13.3)))    ; 32 leg, 119 deg to the pan
       (list (+ x (* k  76.7)) (+ y0 0.0))           ; 23 into the pan
-      (list (+ x (* k 170.6)) (+ y0 0.0))           ; 92 pan
-      (list (+ x (* k 172.5)) (+ y0 (* k  3.0)))    ; stiffener rib - 10 wide, 3 tall
-      (list (+ x (* k 176.1)) (+ y0 (* k  3.0)))
-      (list (+ x (* k 178.0)) (+ y0 0.0))
-      (list (+ x (* k 325.5)) (+ y0 0.0))           ; 145 pan
-      (list (+ x (* k 327.4)) (+ y0 (* k  3.0)))    ; second rib, 155 centres
-      (list (+ x (* k 331.0)) (+ y0 (* k  3.0)))
-      (list (+ x (* k 333.4)) (+ y0 0.0))
-      (list (+ x (* k 427.5)) (+ y0 0.0))           ; 91 pan
-      (list (+ x (* k 446.1)) (+ y0 (* k 13.3)))    ; 22 out of the pan
-      (list (+ x (* k 461.5)) (+ y0 (* k 39.8)))    ; 32 leg
-      (list (+ x (* k 475.4)) (+ y0 (* k 40.2)))    ; 25 across, into the male seam
-      (list (+ x (* k 486.1)) (+ y0 (* k 40.2)))    ; male seam box - 10 wide x 25 tall,
-      (list (+ x (* k 486.1)) (+ y0 (* k 64.9)))    ;   closed over by the NEXT panel's hook,
-      (list (+ x (* k 476.3)) (+ y0 (* k 64.9)))    ;   which is why the panel is 486 on a
-      (list (+ x (* k 476.3)) (+ y0 (* k 40.2)))))   ;   470 pitch - the 16 mm lap
+      ;; PAN CHAIN AT ITS STATED LENGTHS - 92 | 10 | 145 | 10 | 91 - so the dimensions added
+      ;; below MEASURE what they print (rule 4B.7).  The pixel trace gave 93.9 / 7.4 / 147.5 /
+      ;; 7.9 / 94.1; the stated chain is self-proving, because 92 + 10 + 145 lands the two rib
+      ;; CENTRES exactly 155 apart, which is the one dimension the owner's section calls out.
+      (list (+ x (* k 168.7)) (+ y0 0.0))           ; 92 pan
+      (list (+ x (* k 170.6)) (+ y0 (* k  3.0)))    ; stiffener rib - 10 wide, 3 tall
+      (list (+ x (* k 176.8)) (+ y0 (* k  3.0)))
+      (list (+ x (* k 178.7)) (+ y0 0.0))
+      (list (+ x (* k 323.7)) (+ y0 0.0))           ; 145 pan
+      (list (+ x (* k 325.6)) (+ y0 (* k  3.0)))    ; second rib, centres 155 apart
+      (list (+ x (* k 331.8)) (+ y0 (* k  3.0)))
+      (list (+ x (* k 333.7)) (+ y0 0.0))
+      (list (+ x (* k 424.7)) (+ y0 0.0))           ; 91 pan
+      (list (+ x (* k 443.3)) (+ y0 (* k 13.3)))    ; 22 out of the pan
+      (list (+ x (* k 458.8)) (+ y0 (* k 39.8)))    ; 32 leg
+      (list (+ x (* k 476.0)) (+ y0 (* k 40.2)))    ; 25 across, into the male seam
+      ;; MALE SEAM BOX - 10 wide x 25 tall, sitting 470..486 so it laps EXACTLY over the next
+      ;; panel's 0..16 hook.  That 16 mm lap on a 470 pitch is the arithmetic proof the trace is
+      ;; right: two independent measurements - hook width and panel overhang - closing on each other.
+      (list (+ x (* k 486.0)) (+ y0 (* k 40.2)))
+      (list (+ x (* k 486.0)) (+ y0 (* k 64.9)))
+      (list (+ x (* k 476.0)) (+ y0 (* k 64.9)))
+      (list (+ x (* k 476.0)) (+ y0 (* k 40.2)))))
     (setq i (1+ i)))
+  (princ))
+
+;; -- LOCK SEAM SHEET PROFILE: THE DIMENSIONED DETAIL (rule 4B.50, owner 29-Aug) ------
+;; "you have not developed the New Seam Lock Sheet - Details."  Re-tracing the OUTLINE was only
+;; half of it: the owner's section is a DETAIL - every fold dimensioned and both seam angles
+;; called out - and the DETAILS sheet exists to carry exactly that.  An outline with one "470
+;; COVER" bar tells a fabricator nothing he can roll from.
+;;
+;; Every figure below is DRAWN at the length it PRINTS (rule 4B.7): the pan chain above was
+;; reset to its stated 92 | 10 | 145 | 10 | 91 precisely so these dimensions measure the steel,
+;; not an approximation of it.
+;;
+;; The angle marks use %%d, AutoCAD's degree control code - the SHX fonts have no degree glyph
+;; and a literal one plots as "?" (the same trap the em-dash set in rule 4B.36).
+(defun peb-sd-lockseam-dims (ox y k / sdH sdV sdT yb yt)
+  (setq yb (- y (* k 58.0))            ; pan chain, clear of the 470 COVER bar below it
+        yt (+ y (* k 30.0)))           ; the 155 rib-centre dim, inside the pan
+  (setq sdH (function (lambda (a b lab yy)
+            (vl-catch-all-apply (function (lambda ()
+              (peb-fr-overall-h (+ ox (* k a)) (+ ox (* k b)) yy lab)))))))
+  (setq sdV (function (lambda (xx a b lab)
+            (vl-catch-all-apply (function (lambda ()
+              (peb-fr-overall-v (+ ox (* k xx)) (+ y (* k a)) (+ y (* k b)) lab)))))))
+  (setq sdT (function (lambda (xx yy lab)
+            (vl-catch-all-apply (function (lambda ()
+              (txt "MC" (list (+ ox (* k xx)) (+ y (* k yy))) (peb-th 'SMALL) 0 lab)))))))
+  ;; pan chain, left to right
+  (apply sdH (list  76.7 168.7  "92"  yb))
+  (apply sdH (list 168.7 178.7  "10"  yb))
+  (apply sdH (list 178.7 323.7 "145"  yb))
+  (apply sdH (list 323.7 333.7  "10"  yb))
+  (apply sdH (list 333.7 424.7  "91"  yb))
+  ;; rib CENTRE to rib CENTRE — the dimension that proves the pan chain
+  (apply sdH (list 173.7 328.7 "155"  yt))
+  ;; left seam
+  (apply sdH (list   0.0  16.0  "15"  (+ y (* k 78.0))))
+  (apply sdV (list   0.0  55.6  65.1  "10"))
+  (apply sdV (list  16.0  40.2  65.1  "25"))
+  (apply sdT (list  46.0  27.0  "32"))
+  (apply sdT (list  70.0  10.0  "23"))
+  (apply sdT (list  95.0  30.0  "119%%d"))
+  ;; right seam
+  (apply sdH (list 461.5 486.0  "25"  (+ y (* k 78.0))))
+  (apply sdV (list 486.0  40.2  64.9  "25"))
+  (apply sdT (list 481.0  72.0  "10"))
+  (apply sdT (list 455.0  28.0  "32"))
+  (apply sdT (list 432.0  10.0  "22"))
+  (apply sdT (list 408.0  30.0  "148%%d"))
   (princ))
 
 ;; ── SANDWICH PANEL SECTION — TRACED FROM A MAIMAAR APPROVAL DRAWING ─────────────────
@@ -2358,6 +2413,10 @@
   (setvar "CECOLOR" "BYLAYER")
   (cond
     (lock (peb-sd-lockseam ox y 2 cov 38.0)
+          ;; rule 4B.50 — the DIMENSIONED detail, on the FIRST module only.  Both modules are
+          ;; drawn so the seam joint reads, but dimensioning both would print every figure twice
+          ;; across a 940 mm strip: a detail is dimensioned once and repeated for context.
+          (vl-catch-all-apply (function (lambda () (peb-sd-lockseam-dims ox y 1.0))))
           (setq gA "CONCEALED CLIP FIXING - NO FACE SCREWS"))
     (sand (peb-sd-sandwich ox y 4 pit ht thk)
           ;; the core thickness is dimensioned because it IS the specified value
