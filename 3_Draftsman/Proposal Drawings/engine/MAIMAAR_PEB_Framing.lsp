@@ -2407,11 +2407,15 @@
       (txt "ML" (list gx -360.0) (peb-th 'ANNOT) 0 "1.2 mm PPG.L  |  3 M")
       (txt "ML" (list gx -520.0) (peb-th 'ANNOT) 0 "COLOUR AS SHEET")))
 
-  ;; rule 4B.43 — the mezzanine floor build-up, at its own scale, under the two panel columns.
-  ;; Only when there IS a mezzanine; otherwise the sheet is exactly as it was.
-  (setq mzOnSd (= (strcase (peb-tb-or (MSPL-Get-Str data "MZ_TOGGLE") "")) "YES"))
-  (if mzOnSd
-    (vl-catch-all-apply (function (lambda () (peb-sd-mezz-floor ox -1500.0 data)))))
+  ;; -- RULE 4B.43 IS PARKED, NOT DELETED (owner 29-Aug) -------------------------------
+  ;; "Mezzanine Floor Detail is not the one we developed last time. for the time being
+  ;;  remove it."  The build-up drawn here was reconstructed from the cross section's own
+  ;;  layering; it is NOT the detail already developed for this, which we have not found.
+  ;;  Rather than ship a second, different detail of the same floor - which is the exact
+  ;;  contradiction rule 4B.7 exists to prevent - the call is switched off and the drawer
+  ;;  (peb-sd-mezz-floor) left in place, ready for the real geometry.
+  ;;  The sheet therefore reverts to exactly what it was, heading included.
+  (setq mzOnSd nil)
 
   (setvar "CECOLOR" "5")
   ;; The heading sits BELOW everything on the sheet, at a fixed depth clear of both

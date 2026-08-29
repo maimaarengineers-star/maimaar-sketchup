@@ -1235,7 +1235,15 @@ single line and stops reading as a member at all. The floor is expressed in `*PE
 the engine's existing "constant on paper" unit — and tuned to engage only ABOVE that size, so at
 93 m and below the members plot at TRUE width.
 
-### 4B.43 A detail too small to read at building scale belongs on the DETAILS sheet
+### 4B.43 A detail too small to read at building scale belongs on the DETAILS sheet — PARKED
+
+> **PARKED 29-Aug.** *"Mezzanine Floor Detail is not the one we developed last time. for the
+> time being remove it."* The build-up below was reconstructed from the cross section's own
+> layering; it is **not** the detail already developed for this floor, which has not been found.
+> Shipping a second, different detail of the same floor is the exact contradiction **4B.7**
+> exists to prevent, so the call is switched off (`mzOnSd nil`) and `peb-sd-mezz-floor` left in
+> place, ready for the real geometry. The DETAILS sheet reverts to what it was. **The rule below
+> still stands** — it is the placement that is right and the drawing that is wrong.
 
 **Owner, 29-Aug:** *"Also we developed the Sectional Details of Mezzanine Floor Showing the
 Concrete Etc."*
