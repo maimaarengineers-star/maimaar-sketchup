@@ -207,7 +207,7 @@
       ;; Legacy gable WIDTHS from the width modules (each module = a gable, UNEQUAL) — matches the
       ;; plan (owner decision T1.2: Section MG follows the modules, not an equal split).  Fall back
       ;; to an equal NUMGABLES split only when the IF gives no usable module string.
-      (setq mws (peb-parse-mod-expression (MSPL-Get-Str data "MODEXPR")))
+      (setq mws (peb-width-order (peb-parse-mod-expression (MSPL-Get-Str data "MODEXPR"))))   ; rule 4B.34 — width chain, written A downward
       (if (not (and mws (> (length mws) 1)))
         (progn
           (setq numGab (MSPL-Get-Int data "NUMGABLES"))

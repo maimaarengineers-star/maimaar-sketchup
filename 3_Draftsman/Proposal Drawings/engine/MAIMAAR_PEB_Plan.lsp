@@ -131,6 +131,37 @@
   (setq pos (vl-string-search ":" s))
   (if pos (vl-string-trim " " (substr s (+ pos 2))) s))
 
+;; ── RULE 4B.34 — A WIDTH CHAIN IS WRITTEN FROM GRID A DOWNWARD ──────────────────
+;; The house convention, on every layout and tender: a width chain is measured from grid A
+;; downward, and A is the FAR side wall — the TOP of the plan. Owner 29-Aug: "we always
+;; measure the modules from A to downward."
+;;
+;; The engine lays width stations out from y = 0, which is the NEAR side wall. So the FIRST
+;; term of a written width chain belongs at the TOP, i.e. it is the LAST station the engine
+;; accumulates. A width chain must therefore be REVERSED before it is accumulated, or the
+;; whole building is drawn MIRRORED across its width.
+;;
+;; LENGTH chains are untouched — grid 1 is the left end in both conventions.
+;;
+;; WHY THIS SURVIVED SO LONG: a symmetric chain reversed is itself. 2@15240 mirrors to
+;; 2@15240 and looks perfect. MSPL-26-271 (Rainbow) is the first job with UNEQUAL width
+;; modules — 2@16662.40 + 16395.70 + 13874.12 — so it is the first time the mirror shows.
+;; Anything that builds stations across the WIDTH must go through here.
+(defun peb-width-order (lst) (reverse lst))
+
+;; Width-chain stations: parse, REVERSE (above), scale to close exactly on `total`, then
+;; accumulate from 0. The width counterpart of peb-fr-scaled-stations / peb-elev-stations,
+;; which stay as they are because they also serve LENGTH chains.
+(defun peb-width-stations (expr total / lst sum sc acc out)
+  (setq lst (peb-width-order (peb-parse-mod-expression expr)))
+  (if (or (null lst) (= (length lst) 0))
+    (list 0.0 total)
+    (progn
+      (setq sum 0.0) (foreach s lst (setq sum (+ sum s)))
+      (setq sc (if (> sum 0.0) (/ total sum) 1.0) acc 0.0 out (list 0.0))
+      (foreach s lst (setq acc (+ acc (* s sc))) (setq out (append out (list acc))))
+      out)))
+
 (defun peb-parse-mod-expression (expr / parts seg out atPos cnt sp i)
   (setq expr (vl-string-trim " " expr) out '())
   (if (= expr "") nil
@@ -241,7 +272,11 @@
   (if (= brick "") (setq brick "0"))
   (setq out (cons (cons "BRICKHEIGHT" brick) out))
   (setq modExpr (peb-alist-get v3 "BP_WIDTH_MOD"))
-  (setq modList (peb-parse-mod-expression modExpr))
+  ;; Rule 4B.34: reverse here, once, so MODULE1..N are in GEOMETRY order (NSW -> FSW).
+  ;; Everything that reads the MODULE keys — widthPts, peb-comp-width-pts — then
+  ;; accumulates them from y=0 correctly. MODEXPR below stays VERBATIM: it is printed on
+  ;; the plan and must read the way the owner wrote it, A downward.
+  (setq modList (peb-width-order (peb-parse-mod-expression modExpr)))
   (setq numMod (length modList))
   (setq out (cons (cons "NUMMODULES" (itoa numMod)) out))
   (setq i 1)
@@ -3408,7 +3443,9 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   (setq expr (MSPL-Get-Str data "MODEXPR"))
   (if (and expr (/= expr ""))
     (progn
-      (setq spans (peb-parse-mod-expression expr) acc 0.0)
+      ;; Rule 4B.34 — MODEXPR is stored verbatim (A downward); reverse it to lay the
+      ;; interior column lines out from the NSW.
+      (setq spans (peb-width-order (peb-parse-mod-expression expr)) acc 0.0)
       (foreach s spans
         (setq acc (+ acc s))
         (if (and (> acc 1.0) (< acc (- wid 1.0))) (setq out (append out (list acc)))))))
@@ -4614,7 +4651,7 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
         (if (> mgSpans 4) (setq mgSpans 4))
         (if (null mgGrid)
           (progn                                    ; legacy → synthesise a grid from MODEXPR + uniform mgSpans
-            (setq mgWs (peb-parse-mod-expression (MSPL-Get-Str data "MODEXPR")))
+            (setq mgWs (peb-width-order (peb-parse-mod-expression (MSPL-Get-Str data "MODEXPR"))))   ; rule 4B.34 — width chain, written A downward
             (if (not (and mgWs (> (length mgWs) 1)))
               (progn
                 (setq mgGables (MSPL-Get-Int data "NUMGABLES"))
@@ -4740,7 +4777,11 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   ;; intermediate end-wall column (e.g. the red one between A & B) is gridded too.
   ;; End-wall stations STRICTLY from the IF (BP_EW_LEFT_SPACING) if provided; else the auto rule.
   (setq ewExpr (MSPL-Get-Str data "EWLEXPR"))
-  (setq ewSpans (if (and ewExpr (/= ewExpr "")) (peb-parse-mod-expression ewExpr) nil))
+  ;; Rule 4B.34 — the end-wall chain runs ACROSS THE WIDTH, so it is written from grid A
+  ;; downward and must be reversed, exactly like the width module above. Missing it here
+  ;; leaves the two width chains running in OPPOSITE directions, so their shared lines
+  ;; stop coinciding and every one of them doubles into two grid letters.
+  (setq ewSpans (if (and ewExpr (/= ewExpr "")) (peb-width-order (peb-parse-mod-expression ewExpr)) nil))
   (if ewSpans
     (progn                                             ; positions from the IF spans, scaled to close exactly on wid
       (setq ewSum 0.0) (foreach s ewSpans (setq ewSum (+ ewSum s)))
@@ -4753,7 +4794,14 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   (setq ewcols (1- (length ewStations)))               ; keep ewcols in step with the IF stations
   (setq gridWpts widthPts)
   (foreach s ewStations
-    (if (not (vl-some '(lambda (p) (< (abs (- p s)) 1.0)) gridWpts))
+  ;; Rule 4B.34 / grid merge tolerance: 5 mm, not 1 mm. Two chains across the SAME width
+  ;; (the width module and the end-wall columns) are entered independently and each is
+  ;; rounded to whole millimetres on export, so the same physical line can arrive from the
+  ;; two chains up to a couple of mm apart. At 1.0 mm — and the test is "<", so exactly
+  ;; 1 mm FAILED — those survived as separate stations and the sheet grew duplicate grid
+  ;; letters printed on top of each other (MSPL-26-271 came out A..M for a 9-line grid).
+  ;; No two real columns are 5 mm apart, so this cannot merge lines that differ.
+    (if (not (vl-some '(lambda (p) (< (abs (- p s)) 5.0)) gridWpts))
       (setq gridWpts (append gridWpts (list s)))))
   (setq gridWpts (vl-sort gridWpts '<))
   ;; owner 11-Jul: stash the width-letter stations so the mezzanine WIDTH-GRID placement
@@ -6830,12 +6878,12 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   (if (or (null wid) (<= wid 0.0)) (setq wid 30000.0))
   (setq sts (list 0.0 wid))
   ;; module (interior-column) stations
-  (setq mdE (MSPL-Get-Str d "MODEXPR") spans (if (/= mdE "") (peb-parse-mod-expression mdE) nil))
+  (setq mdE (MSPL-Get-Str d "MODEXPR") spans (if (/= mdE "") (peb-width-order (peb-parse-mod-expression mdE)) nil))   ; rule 4B.34 — width chain, written A downward
   (if spans
     (progn (setq acc 0.0)
       (foreach s spans (setq acc (+ acc s)) (if (< acc (- wid 1.0)) (setq sts (cons acc sts))))))
   ;; end-wall stations, scaled to close on wid
-  (setq ewE (MSPL-Get-Str d "EWLEXPR") spans (if (/= ewE "") (peb-parse-mod-expression ewE) nil))
+  (setq ewE (MSPL-Get-Str d "EWLEXPR") spans (if (/= ewE "") (peb-width-order (peb-parse-mod-expression ewE)) nil))   ; rule 4B.34 — width chain, written A downward
   (if spans
     (progn (setq sum 0.0) (foreach s spans (setq sum (+ sum s)))
       (if (> sum 0.0)
@@ -6845,7 +6893,7 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   ;; unique within 1 mm
   (setq acc nil)
   (foreach s (vl-sort sts '<)
-    (if (not (vl-some '(lambda (p) (< (abs (- p s)) 1.0)) acc)) (setq acc (cons s acc))))
+    (if (not (vl-some '(lambda (p) (< (abs (- p s)) 5.0)) acc)) (setq acc (cons s acc))))   ; 5 mm — see the grid-merge note above
   (length acc))
 
 (defun peb-count-lgrid (d / spans)

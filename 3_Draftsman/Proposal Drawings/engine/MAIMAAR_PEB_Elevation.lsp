@@ -133,8 +133,10 @@
 
   ;; face length + column stations
   (if isEnd
+    ;; Rule 4B.34 — an END wall runs across the WIDTH, so its chain is written A downward
+    ;; and must be reversed; peb-elev-stations stays unreversed for the LENGTH walls below.
     (setq faceLen wid
-          stations (peb-elev-stations
+          stations (peb-width-stations
                      (MSPL-Get-Str data (if (= surf "LEW") "EWLEXPR" "EWREXPR")) wid))
     (setq faceLen len
           stations (peb-elev-stations (MSPL-Get-Str data "BAYEXPR") len)))

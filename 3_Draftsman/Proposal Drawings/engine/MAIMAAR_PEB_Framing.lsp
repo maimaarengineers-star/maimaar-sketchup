@@ -455,15 +455,25 @@
                  (cons 10 (list x0 y0 0.0)) (cons 11 (list x1 y1 0.0)))))
 
 (defun peb-fr-ew-stations (data wid surf / expr st ew out)
-  (setq st (peb-fr-scaled-stations (peb-tb-or (MSPL-Get-Str data "MODEXPR") "") wid))
+  ;; Rule 4B.34 — BOTH of these run ACROSS THE WIDTH and are written from grid A downward,
+  ;; so they go through peb-width-stations (which reverses) rather than the plain
+  ;; peb-fr-scaled-stations, which also serves LENGTH chains and must not reverse.
+  (setq st (peb-width-stations (peb-tb-or (MSPL-Get-Str data "MODEXPR") "") wid))
   (setq expr (peb-tb-or (if (= surf "LEW") (MSPL-Get-Str data "EWLEXPR")
                                            (MSPL-Get-Str data "EWREXPR")) ""))
   (setq ew (if (/= expr "")
-             (peb-fr-scaled-stations expr wid)
+             (peb-width-stations expr wid)
              (if (boundp 'peb-ew-auto-stations) (peb-ew-auto-stations wid) nil)))
   (setq out st)
   (foreach s ew
-    (if (not (vl-some (function (lambda (p) (< (abs (- p s)) 1.0))) out))
+  ;; Rule 4B.34 / grid merge tolerance: 5 mm, not 1 mm. Two chains across the SAME width
+  ;; (the width module and the end-wall columns) are entered independently and each is
+  ;; rounded to whole millimetres on export, so the same physical line can arrive from the
+  ;; two chains up to a couple of mm apart. At 1.0 mm — and the test is "<", so exactly
+  ;; 1 mm FAILED — those survived as separate stations and the sheet grew duplicate grid
+  ;; letters printed on top of each other (MSPL-26-271 came out A..M for a 9-line grid).
+  ;; No two real columns are 5 mm apart, so this cannot merge lines that differ.
+    (if (not (vl-some (function (lambda (p) (< (abs (- p s)) 5.0))) out))
       (setq out (append out (list s)))))
   (vl-sort out '<))
 
