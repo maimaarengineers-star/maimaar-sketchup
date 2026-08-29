@@ -7153,7 +7153,7 @@
 ;; a "MEZZANINE FLOOR-n" label, at level = MZ1_CH_FFL_BEAM + (n-1)*MZ_FLOOR_HT.  Support columns run
 ;; CONTINUOUSLY from the floor up to the top floor's beam — steel I (PEB) or concrete (existing RCC,
 ;; with a chemical-anchor note).  Extent is full-interior or partial (MZ1_WID width).
-(defun peb-draw-mezz-section (data wid frameCols / mzRcc chBeam thk beamD colW x0 x1 mm lst xs acc s prev cx
+(defun peb-draw-mezz-section (data wid frameCols / mzRcc chBeam thk beamD colW x0 x1 mm lst xs acc s prev cx band mzsp th
                               numFloors floorHt f lvl bTop sTop topLvl
                               beamBot beamTop jd joistTop deckTop slabTop jsp jw jx labX labY
                               fcs s0 s1 g nsub i j)
@@ -7177,27 +7177,65 @@
       (if (> numFloors 30) (setq numFloors 30))
       (setq floorHt (MSPL-Get-Num data "MZ_FLOOR_HT"))
       (if (or (null floorHt) (<= floorHt 0.0)) (setq floorHt (+ chBeam beamD thk 300.0)))
-      ;; extent — full interior, or partial from MZ1_WID
-      (setq x0 (* wid 0.06) x1 (- wid (* wid 0.06)))
-      (setq mm (MSPL-Get-Num data "MZ1_WID"))
-      (if (and mm (> mm 0.0)) (setq x1 (min (- wid (* wid 0.04)) (+ x0 mm))))
+      ;; ── RULE 4B.35 — A SHEET USES THE SAME PLACEMENT THE PLAN USES ───────────────
+      ;; Owner 29-Aug: "Section Must Match with Column Layout Plan" — and before that,
+      ;; "Mezzanine Section is not matching with Plan".
+      ;;
+      ;; This used to invent its own extent: a flat 6% inset off each side wall, narrowed
+      ;; only by MZ1_WID — a key the CRM has never emitted, so that line was dead and the 6%
+      ;; always won. The mezzanine therefore drew ~88% of the width, centred, whatever the
+      ;; BSF actually said. On MSPL-26-271 the plan places it A→G, 49,721 mm hard against the
+      ;; FSW; the section drew 56,000 mm floating in the middle. Two sheets, one building.
+      ;;
+      ;; peb-mz-width-band is the SAME function the Column Layout Plan and the Mezzanine
+      ;; Floor Plan use, so all three sheets cannot disagree. It resolves MZ_WIDTH_GRID_FROM/TO
+      ;; against the width-grid stations, falling back to MZ_WIDTH_ANCHOR + MZ_WIDTH_EXTENT.
+      ;;
+      ;; SEED THE STATION LIST FIRST, AND UNCONDITIONALLY. peb-mz-width-band reads the global
+      ;; *PEB-WGRID-YS*, which only the PLAN drawer writes and nothing ever clears. In a
+      ;; multi-area building every plan is emitted before any section, so the section would
+      ;; otherwise resolve its grid letters against ANOTHER AREA's grid. peb-fr-ew-stations is
+      ;; the list this sheet already letters its own bubbles from, so seeding from it makes the
+      ;; band agree with the letters printed beside it — rule 4B.8.
+      (vl-catch-all-apply (function (lambda ()
+        (setq *PEB-WGRID-YS* (peb-fr-ew-stations data wid "LEW")))))
+      (setq band (peb-mz-width-band data wid (max 300.0 (min 1000.0 (* wid 0.10)))))
+      (setq x0 (car band) x1 (cadr band))
       ;; support-column stations MODULE-TO-MODULE (owner 12-Jul): subdivide each PEB frame-column gap
       ;; by ~6 m (economical mezz spacing) and place stubs ONLY at the intermediate points — NEVER at a
       ;; frame column, because the PEB column already carries the mezz beam there.  This stops two
       ;; columns (the full-height PEB column + a mezz stub) landing in the same place (owner: "2 columns
       ;; coming at the same place").  A clear span (frame cols only at the two ends) gets evenly-spaced
       ;; intermediate stubs.  Falls back to the two walls if no frame cols were passed.
+      ;; Rule 4B.35 again: take the stub stations from peb-mezz-col-ys — the SAME function the
+      ;; Mezzanine Floor Plan uses — so the columns in the section stand where the plan draws
+      ;; them. It honours the estimator's own MZ_COL_SPACING ("5@8331+1@8065" here); the old
+      ;; local ~6000 mm subdivision below ignored that entirely, so the two sheets showed
+      ;; columns in different places on the same building.
+      ;; A stub is dropped wherever a PEB frame column already stands (owner 12-Jul: "2 columns
+      ;; coming at the same place"), and clipped to the mezzanine band.
       (setq fcs (vl-sort (if (and frameCols (> (length frameCols) 1)) frameCols (list 0.0 wid)) '<))
-      (setq xs '() i 0)
-      (while (< i (1- (length fcs)))
-        (setq s0 (nth i fcs) s1 (nth (1+ i) fcs) g (- s1 s0))
-        (setq nsub (max 1 (fix (+ 0.5 (/ g 6000.0)))))
-        (setq j 1)
-        (while (< j nsub)
-          (setq acc (+ s0 (* (/ g (float nsub)) j)))
-          (if (and (> acc (+ x0 1.0)) (< acc (- x1 1.0))) (setq xs (append xs (list acc))))
-          (setq j (1+ j)))
-        (setq i (1+ i)))
+      (setq mzsp (vl-catch-all-apply
+                   (function (lambda () (peb-mezz-col-ys data wid x0 x1 6000.0)))))
+      (if (vl-catch-all-error-p mzsp) (setq mzsp nil))
+      (setq xs '())
+      (if mzsp
+        (foreach acc mzsp
+          (if (and (> acc (+ x0 1.0)) (< acc (- x1 1.0))
+                   (not (vl-some (function (lambda (p) (< (abs (- p acc)) 5.0))) fcs)))
+            (setq xs (append xs (list acc)))))
+        ;; fallback, unchanged: subdivide each frame-column gap by ~6 m
+        (progn
+          (setq i 0)
+          (while (< i (1- (length fcs)))
+            (setq s0 (nth i fcs) s1 (nth (1+ i) fcs) g (- s1 s0))
+            (setq nsub (max 1 (fix (+ 0.5 (/ g 6000.0)))))
+            (setq j 1)
+            (while (< j nsub)
+              (setq acc (+ s0 (* (/ g (float nsub)) j)))
+              (if (and (> acc (+ x0 1.0)) (< acc (- x1 1.0))) (setq xs (append xs (list acc))))
+              (setq j (1+ j)))
+            (setq i (1+ i)))))
       (setq topLvl (+ chBeam (* (1- numFloors) floorHt)))    ; beam-bottom of the TOP floor
       ;; ── continuous support columns FFL → top floor beam (steel PEB / concrete RCC) ──
       (foreach cx xs
@@ -7219,10 +7257,21 @@
               slabTop (+ lvl 700.0 45.0 thk))                ; concrete TOP = beambot + 700 beam + 45 deck + thk
         (draw-floor-buildup x0 x1 slabTop 700.0 700.0 thk nil)
         (setvar "CLAYER" "TEXT")
+        ;; ── RULE 4B.27 — A GAP THAT CLEARS TEXT IS COMPUTED FROM THE TEXT ─────────────
+        ;; These two labels used baked offsets — 260 above the slab, 200 past x1. `txt` plots
+        ;; (peb-th 'SMALL) MULTIPLIED by *PEB-TEXT-SCALE*, which on a 93 m building is ~1,140 mm,
+        ;; so a 260 offset on a middle-centred string put nearly half the glyph height THROUGH
+        ;; the slab it was labelling. And "F.F.L MEZZANINE" at x1+200 sat OUTSIDE the building,
+        ;; in the column the CLEAR HEIGHT and BRICK MASONRY dimensions occupy — all three
+        ;; overprinted each other.
+        ;;
+        ;; Both offsets now come from the plotted text height, and both labels stay INSIDE the
+        ;; slab band, stacked 1.3 text-heights apart so they cannot touch at any building size.
+        (setq th (* (peb-th 'SMALL) (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)))
         (setq labX (/ (+ x0 x1) 2.0))
-        (txt "MC" (list labX (+ slabTop 260.0)) (peb-th 'SMALL) 0
+        (txt "MC" (list labX (+ slabTop (* th 2.1))) (peb-th 'SMALL) 0
              (strcat (rtos thk 2 0) "mm R.C. SLAB ON 0.70mm PROFILED DECK PANEL"))
-        (txt "ML" (list (+ x1 200.0) slabTop) (peb-th 'SMALL) 0
+        (txt "MR" (list (- x1 (* th 0.4)) (+ slabTop (* th 0.8))) (peb-th 'SMALL) 0
              (if (> numFloors 1) (strcat "F.F.L MEZZ-" (itoa f)) "F.F.L MEZZANINE"))
         (setq f (1+ f)))
       ;; existing-RCC host: one chemical-anchor callout

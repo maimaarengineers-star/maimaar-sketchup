@@ -853,6 +853,35 @@
 ;; Purlin depth — the engine draws a 200-deep Z everywhere (draw-purlins, cladding).
 (defun peb-purlin-depth () 200.0)
 
+;; ── RULE 4B.7 — ONE HEIGHT NUMBER, AND WHAT IT MEANS ─────────────────────────
+;; The BSF carries ONE height, CLEARHEIGHT, whose MEANING is declared by HEIGHT_REF. These two
+;; helpers are the single place that turns it into the two numbers a drawing actually needs:
+;; the CLEAR height (what a height dimension measures, FFL to the underside of the haunch) and
+;; the ADD between it and the drawn eave.
+;;
+;; They exist because the elevations had neither. Framing.lsp read the number into a variable
+;; called `eaveH` and used that ONE variable as BOTH the frame top and the dimension text — so
+;; the wall was drawn 1,300 mm short and the dimension was labelled with the clear height while
+;; spanning the whole (short) wall. Meanwhile the title block ON THE SAME SHEET printed
+;; EAVE HEIGHT = clear + haunch + purlin. The sheet contradicted itself: rule 4B.7.
+(defun peb-eave-add (data / wid ng)
+  (setq wid (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
+        ng  (atoi (peb-tb-or (MSPL-Get-Str data "NUMGABLES") "1")))
+  (if (< ng 1) (setq ng 1))
+  (+ (peb-haunch-depth (if (> wid 0.0) (/ wid ng) 0.0)) (peb-purlin-depth)))
+
+;; The CLEAR height, whatever basis the number was entered on. An EAVE-basis figure has the
+;; haunch + purlin backed out of it, exactly as the section does (peb-section basis block).
+(defun peb-clear-height (data / h ref ht)
+  (setq h (atof (peb-tb-or (MSPL-Get-Str data "CLEARHEIGHT")
+                  (peb-tb-or (MSPL-Get-Str data "EAVE_HEIGHT")
+                    (peb-tb-or (MSPL-Get-Str data "BP_EAVE_HEIGHT") "6000")))))
+  (if (<= h 0.0) (setq h 6000.0))
+  (setq ref (strcase (peb-tb-or (MSPL-Get-Str data "HEIGHT_REF") "")) ht (peb-eave-add data))
+  (if (and (not (wcmatch ref "*CLEAR*")) (wcmatch ref "*EAVE*") (> h (+ ht 1.0)))
+    (- h ht)
+    h))
+
 ;; TRUE EAVE HEIGHT for the title block (owner 26-Aug).
 ;;   clear height (underside of the haunch, what the section dimensions)
 ;; + haunch depth  (the rafter at the eave)
@@ -3470,7 +3499,7 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   ;; NOT want the width module by auto-division").  If MZ_COL_SPACING is a multi-bay expression summing
   ;; to ~ the mezzanine width (or the building width), WALK it directly across the footprint (scaled to
   ;; close exactly) — the estimator's own grid, no auto-subdivision.
-  (setq sp2 (peb-parse-mod-expression (peb-tb-or (MSPL-Get-Str data "MZ_COL_SPACING") "")))
+  (setq sp2 (peb-width-order (peb-parse-mod-expression (peb-tb-or (MSPL-Get-Str data "MZ_COL_SPACING") ""))))   ; rule 4B.34 — width chain, written A downward
   (setq sumSp 0.0) (foreach s sp2 (setq sumSp (+ sumSp s)))
   (if (and sp2 (> (length sp2) 1) (> sumSp 0.0)
            (or (< (abs (- sumSp span)) (* 0.12 span))
@@ -3483,7 +3512,7 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
     (progn
       (setq expr (MSPL-Get-Str data "MODEXPR") bnds (list 0.0) acc 0.0)
       (if (and expr (/= expr ""))
-        (foreach s (peb-parse-mod-expression expr)
+        (foreach s (peb-width-order (peb-parse-mod-expression expr))   ; rule 4B.34
           (setq acc (+ acc s)) (if (< acc (- wid 1.0)) (setq bnds (append bnds (list acc))))))
       (setq bnds (append bnds (list wid)))
       (setq out '() b0 (car bnds))

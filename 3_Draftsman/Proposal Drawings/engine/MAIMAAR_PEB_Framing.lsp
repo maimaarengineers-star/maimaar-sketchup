@@ -581,7 +581,7 @@
         (setq i (1+ i))))))
 
 (defun peb-draw-framing-elev (surf ox oy data / len wid slopeD stype rtype
-                              eaveH eaveHi eaveLo brickH hiName hiSide wallEave
+                              eaveH clrH eaveHi eaveLo brickH hiName hiSide wallEave
                               faceLen stations isEnd base colhw rise ridgeRise
                               i x g yTop pts cx prev braced b x0 x1 y0 y1 lbl bubGap bubR revView hdTxt
                               prng pi0 pi1 px0 pOfs pnTot
@@ -596,9 +596,12 @@
         slopeD (slope-denom (peb-tb-or (MSPL-Get-Str data "SLOPE") "10"))
         stype  (strcase (peb-tb-or (MSPL-Get-Str data "STYPE") "CS"))
         brickH (atof (peb-tb-or (MSPL-Get-Str data "BRICKHEIGHT") "0")))
-  (setq eaveH (atof (peb-tb-or (MSPL-Get-Str data "CLEARHEIGHT")
-                      (peb-tb-or (MSPL-Get-Str data "EAVE_HEIGHT")
-                        (peb-tb-or (MSPL-Get-Str data "BP_EAVE_HEIGHT") "6000")))))
+  (setq clrH (peb-clear-height data))
+  ;; Rule 4B.7 — the entered number is the CLEAR height (peb-clear-height backs out an
+  ;; eave-basis figure). The DRAWN eave is that plus the haunch and the purlin, which is
+  ;; exactly what the title block on this very sheet prints. Holding both in one variable
+  ;; is what drew the wall 1,300 mm short and then dimensioned it as the full height.
+  (setq eaveH (+ clrH (peb-eave-add data)))
   (if (<= slopeD 0.0) (setq slopeD 10.0))
   (if (<= eaveH 0.0)  (setq eaveH 6000.0))
   (if (= stype "ACS") (setq stype "CS"))     ; arched plans mirror straight geometry
@@ -1079,8 +1082,8 @@
 
   ;; 9. eave-height dim (left) + bay/station dim chain (below the bubbles)
   (vl-catch-all-apply (function (lambda ()
-    (peb-fr-overall-v (- ox (* 1500 *PEB-DIM-SCALE*)) base (+ base eaveH)
-                      (peb-dim-mft eaveH)))))
+    (peb-fr-overall-v (- ox (* 1500 *PEB-DIM-SCALE*)) base (+ base clrH)
+                      (peb-dim-mft clrH)))))   ; rule 4B.7 — spans AND prints the clear height
   ;; the dim chain clears the bubble by its ACTUAL radius, not a fixed drop
   (setq noteY (- base bubGap bubR (* 600.0 *PEB-DIM-SCALE*)))
   (vl-catch-all-apply (function (lambda () (peb-fr-dimchain ox noteY stations))))
@@ -1273,9 +1276,12 @@
         wid (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
         slopeD (slope-denom (peb-tb-or (MSPL-Get-Str data "SLOPE") "10"))
         stype (strcase (peb-tb-or (MSPL-Get-Str data "STYPE") "CS")))
-  (setq eaveH (atof (peb-tb-or (MSPL-Get-Str data "CLEARHEIGHT")
-                     (peb-tb-or (MSPL-Get-Str data "EAVE_HEIGHT")
-                       (peb-tb-or (MSPL-Get-Str data "BP_EAVE_HEIGHT") "6000")))))
+  (setq clrH (peb-clear-height data))
+  ;; Rule 4B.7 — the entered number is the CLEAR height (peb-clear-height backs out an
+  ;; eave-basis figure). The DRAWN eave is that plus the haunch and the purlin, which is
+  ;; exactly what the title block on this very sheet prints. Holding both in one variable
+  ;; is what drew the wall 1,300 mm short and then dimensioned it as the full height.
+  (setq eaveH (+ clrH (peb-eave-add data)))
   (if (<= slopeD 0.0) (setq slopeD 10.0))
   (if (<= eaveH 0.0) (setq eaveH 6000.0))
   (if (= stype "ACS") (setq stype "CS"))
@@ -1490,8 +1496,8 @@
   ;; OVERALL HEIGHT — the sheeting sheet never carried one; the framing sheet beside
   ;; it did, so the pair disagreed about what the wall measured (owner 26-Aug).
   (vl-catch-all-apply (function (lambda ()
-    (peb-fr-overall-v (- ox (* 1500 *PEB-DIM-SCALE*)) base (+ base eaveH)
-                      (peb-dim-mft eaveH)))))
+    (peb-fr-overall-v (- ox (* 1500 *PEB-DIM-SCALE*)) base (+ base clrH)
+                      (peb-dim-mft clrH)))))   ; rule 4B.7 — spans AND prints the clear height
   ;; the dim chain clears the bubble by its ACTUAL radius, not a fixed drop
   (setq noteY (- base bubGap bubR (* 600.0 *PEB-DIM-SCALE*)))
   (vl-catch-all-apply (function (lambda () (peb-fr-dimchain ox noteY stations))))
@@ -1510,9 +1516,7 @@
   (setq len    (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
         wid    (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
         slopeD (slope-denom (peb-tb-or (MSPL-Get-Str data "SLOPE") "10"))
-        eaveH  (atof (peb-tb-or (MSPL-Get-Str data "CLEARHEIGHT")
-                       (peb-tb-or (MSPL-Get-Str data "EAVE_HEIGHT")
-                         (peb-tb-or (MSPL-Get-Str data "BP_EAVE_HEIGHT") "6000")))))
+        eaveH  (+ (peb-clear-height data) (peb-eave-add data)))   ; rule 4B.7 — the DRAWN eave
   (if (<= slopeD 0.0) (setq slopeD 10.0))
   (if (<= eaveH 0.0)  (setq eaveH 6000.0))
   ;; ── TEXT / DIM / BUBBLE SCALE RULE (owner 26-Aug) ─────────────────────────
