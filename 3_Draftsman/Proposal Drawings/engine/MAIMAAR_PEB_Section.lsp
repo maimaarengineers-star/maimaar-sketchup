@@ -3732,6 +3732,51 @@
   T
 )
 
+;; ── RULE 4B.52 - A COLUMN IN THE MIDDLE OF THE FRAME TAKES THE CONNECTION ────────────
+;;
+;;   "Whenever the Column is in the Middle of the Frame - then Remove the Connection Plates
+;;    b/w the Rafters & Give Connection Plate b/w top of the column to Bottom of the Rafter"
+;;                                                                     - owner, 30-Aug-2026
+;;
+;; The column-top connection ALREADY existed (draw-ms-interior-plates, draw-mg-ridge-col-plates).
+;; What was missing is the other half of the sentence: the rafter-to-rafter plate must GO.
+;;
+;; It survived because draw-rafter-stiffeners places its plates by DISTANCE ALONG THE RAFTER -
+;; knee end, ridge start, apex, 12 m splices - and knows nothing about columns. The apex pair was
+;; suppressed only by `apexHasCol`, a flag set by testing whether an interior column sits within
+;; 1 mm of wid/2. On MSPL-26-278 (Multi-Span, one interior column) that test could not succeed:
+;;
+;;     building width   30480      <- what wid/2 was measured against
+;;     STEEL width      30010      <- BP_WIDTH_MOD_REF is "Out to out of Steel Column"
+;;     ridge/apex       15005      <- centre of the STEEL width
+;;     interior column  14770      <- grid D
+;;
+;; Three different numbers, so the flag was nil and a rafter-to-rafter pair was drawn 235 mm from
+;; the middle column's centreline - the exact condition the owner is banning.
+;;
+;; The fix is not a better wid/2 test. It is to stop asking "is this the apex?" and ask the
+;; question the rule actually asks: IS THERE A COLUMN UNDER THIS PLATE? Each entry is
+;; (x clearance), where clearance = half the column web + the plate extension - i.e. the plate is
+;; suppressed exactly when it would land on the column's own connection zone.
+(defun peb-plate-over-column-p (kxL noPlateXs / p found)
+  (setq found nil)
+  (foreach p noPlateXs
+    (if (and (car p) (cadr p) (< (abs (- kxL (car p))) (cadr p))) (setq found T)))
+  found
+)
+
+;; The interior members of a column list, each paired with its own no-plate clearance.
+;; webFn is called with the column's index so Multi-Span can use its per-module web width
+;; (ms-col-web-at); pass nil for a fixed width.
+(defun peb-interior-col-clearances (cols webFn fixedWeb / out i n w)
+  (setq out '() n (length cols) i 1)
+  (while (< i (1- n))
+    (setq w (if webFn (apply webFn (list cols i)) fixedWeb))
+    (setq out (cons (list (nth i cols) (+ (/ w 2.0) *PEB-CP-EXT*)) out))
+    (setq i (1+ i)))
+  (reverse out)
+)
+
 (defun draw-rafter-plate-pair (kxL kyBot kyTop plateThk plateExt slopeL slopeR vShift /
                                  thk gap ext gw lxo lxi rxi rxo pB pT yb yt)
   ;;  CP RULE: draw a pair of SOLID splice plates centred on the seam at (kxL), a *PEB-CP-GAP* hairline
@@ -3757,7 +3802,7 @@
   (draw-rc-gusset rxo yb (- yb ext) gw  1 slopeR)
 )
 
-(defun draw-rafter-stiffeners (cols ridges H rise ht rd apexHasCol /
+(defun draw-rafter-stiffeners (cols ridges H rise ht rd apexHasCol noPlateXs /
                                  midD kneeL ridgeL stiffSize plateExt plateThk boltR
                                  slL slLnL slR slLnR slopeL slopeR splCaL splSaL splCaR splSaR
                                  midSecLen splDist nSpl spcLen splI
@@ -3821,7 +3866,7 @@
     (setq kyTop (+ kyBot midD))
     ;; Skip the WHOLE transition site (plates + bolts + stiffeners) if we
     ;; already drew a plate pair within tolerance at this (kxL, kyBot).
-    (if (not (peb-plate-already-drawn kxL kyBot))
+    (if (not (or (peb-plate-already-drawn kxL kyBot) (peb-plate-over-column-p kxL noPlateXs)))
       (progn
         (peb-record-plate-drawn kxL kyBot)
     ;; LEFT KNEE END: standard plate detail (2 plates + 3 bolts + 2 stiffeners)
@@ -3834,7 +3879,7 @@
     (setq kxL (car (nth 1 rPts)))
     (setq kyBot (cadr (nth 1 rPts)))
     (setq kyTop (+ kyBot midD))
-    (if (not (peb-plate-already-drawn kxL kyBot))
+    (if (not (or (peb-plate-already-drawn kxL kyBot) (peb-plate-over-column-p kxL noPlateXs)))
       (progn
         (peb-record-plate-drawn kxL kyBot)
     (draw-rafter-plate-pair kxL kyBot kyTop plateThk plateExt slopeL slopeL 0.0)
@@ -3850,7 +3895,7 @@
     (setq kxL (car (nth 2 rPts)))
     (setq kyBot (cadr (nth 2 rPts)))
     (setq kyTop (+ H rise))
-    (if (not (peb-plate-already-drawn kxL kyBot))
+    (if (not (or (peb-plate-already-drawn kxL kyBot) (peb-plate-over-column-p kxL noPlateXs)))
       (progn
         (peb-record-plate-drawn kxL kyBot)
     ;; Apex: LEFT plate is in LEFT half (slope=+tanA), RIGHT plate in RIGHT half (slope=-tanA)
@@ -3863,7 +3908,7 @@
     (setq kxL (car (nth 3 rPts)))
     (setq kyBot (cadr (nth 3 rPts)))
     (setq kyTop (+ kyBot midD))
-    (if (not (peb-plate-already-drawn kxL kyBot))
+    (if (not (or (peb-plate-already-drawn kxL kyBot) (peb-plate-over-column-p kxL noPlateXs)))
       (progn
         (peb-record-plate-drawn kxL kyBot)
     (draw-rafter-plate-pair kxL kyBot kyTop plateThk plateExt slopeR slopeR 0.0)
@@ -3873,7 +3918,7 @@
     (setq kxL (car (nth 4 rPts)))
     (setq kyBot (cadr (nth 4 rPts)))
     (setq kyTop (+ kyBot midD))
-    (if (not (peb-plate-already-drawn kxL kyBot))
+    (if (not (or (peb-plate-already-drawn kxL kyBot) (peb-plate-over-column-p kxL noPlateXs)))
       (progn
         (peb-record-plate-drawn kxL kyBot)
     (draw-rafter-plate-pair kxL kyBot kyTop plateThk plateExt slopeR slopeR 0.0)
@@ -3897,7 +3942,7 @@
             (setq kxL   (+ hEave (* hDir (* splDist hCa))))
             (setq kyBot (- (+ H (* splDist hSa)) midD))
             (setq kyTop (+ kyBot midD))
-            (if (not (peb-plate-already-drawn kxL kyBot))
+            (if (not (or (peb-plate-already-drawn kxL kyBot) (peb-plate-over-column-p kxL noPlateXs)))
               (progn
                 (peb-record-plate-drawn kxL kyBot)
                 (draw-rafter-plate-pair kxL kyBot kyTop plateThk plateExt hSlope hSlope 0.0)))
@@ -8171,7 +8216,7 @@
     dimX1 dimX2 d y
     loadValX bubR
     layout cols ridges i rx cx prevCol curCol modw wgrid
-    numGab effSpan slopeRise spanPerGab gWmg haunchCols msApexX msWidths
+    numGab effSpan slopeRise spanPerGab gWmg haunchCols msApexX msRidgeX peakClr msWidths
     bubY tbShift tbScale cxL cyL cxR cyR tagRun
     dimX1 dimX2 dimX3 dimX4
     leftCol rightCol halfL halfR midLX midRX midLY midRY
@@ -8636,7 +8681,8 @@
         (draw-base-plates-multi haunchCols cb ep 400.0)
         ;; Standard knee-haunch + valley-seam plates at the gable boundaries (4-vertical-plate valley).
         (draw-haunch-plates haunchCols H ht ep T nil nil)
-        (draw-rafter-stiffeners haunchCols mgRidgeXs H rise ht rd nil)
+        (draw-rafter-stiffeners haunchCols mgRidgeXs H rise ht rd nil
+          (peb-interior-col-clearances haunchCols nil 400.0))
         ;; Ridge-column plates only where a gable's centre coincides with an interior sub-span
         ;; column (its centre is a sub-module boundary — e.g. a 2-sub-module gable).
         (setq cum 0.0)
@@ -8664,10 +8710,16 @@
         ;; plate detail (4 horizontal plates + 4 bolts + outer-end stiffeners).
         ;; The simple horizontal haunch-stack at column-top elevation H-ht
         ;; would be wrong here because the actual column top is H+rise-rd.
+        ;; Against the REAL ridge, not wid/2: with BP_WIDTH_MOD_REF = "Out to out of Steel
+        ;; Column" the ridge sits at the centre of the STEEL width, which is not wid/2, and with
+        ;; BP_RIDGE_OFFSET it is nowhere near it. Testing wid/2 meant a column genuinely under
+        ;; the apex was missed - it then got the generic interior detail instead of the
+        ;; ridge-column one, and (before 4B.52) kept a rafter plate over its head as well.
         (setq msApexX nil)
+        (setq msRidgeX (if ridges (car ridges) (/ wid 2.0)))
         (setq i 1)
         (while (< i (1- (length cols)))
-          (if (< (abs (- (nth i cols) (/ wid 2.0))) 1.0)
+          (if (< (abs (- (nth i cols) msRidgeX)) 1.0)
             (setq msApexX (nth i cols)))
           (setq i (1+ i)))
         ;; END-column haunch plates ONLY — pass (0, wid) so draw-haunch-plates
@@ -8683,7 +8735,10 @@
         ;; first module.  Without this, transition X positions and the
         ;; 12 m piece-rule are computed against a tiny sub-segment.
         (draw-rafter-stiffeners (list 0.0 wid) ridges H rise ht rd
-          (if msApexX T nil))                            ; suppress apex if ridge col
+          (if msApexX T nil)                             ; suppress apex if ridge col
+          ;; …and suppress ANY rafter-to-rafter plate that lands on an interior column,
+          ;; whether or not that column happens to sit under the apex (rule 4B.52).
+          (peb-interior-col-clearances cols (function ms-col-web-at) 400.0))
         ;; Interior MS column connection plates — cigar-aware Y, web-sized.
         (draw-ms-interior-plates cols wid H rise ht rd ep msApexX)
         (if msApexX
@@ -8850,7 +8905,8 @@
         ;; CS = steel (two-plate knee).
         (draw-haunch-plates cols H ht ep nil nil nil)
         (if (= stype "CS")
-          (draw-rafter-stiffeners cols ridges H rise ht rd nil)))))
+          (draw-rafter-stiffeners cols ridges H rise ht rd nil
+            (peb-interior-col-clearances cols nil 400.0))))))
 
   ;; ── Valley gutter (between adjacent gables in MG) ───────────
   ;; Valley positions: i * (W / numGab) for i = 1 .. numGab-1
@@ -9590,10 +9646,27 @@
       (if (and (> cx rx) (< cx rightCol)) (setq rightCol cx)))
     (setq halfL (- rx leftCol))
     (setq halfR (- rightCol rx))
-    ;; X position: middle of each half-rafter span (50% from eave column,
-    ;; 50% from ridge).  Per user request — was 75% from eave previously.
-    (setq midLX (+ leftCol  (* halfL 0.5)))
-    (setq midRX (- rightCol (* halfR 0.5)))
+    ;; ── RULE 4B.53: "Alway keep away from the Peakline" (owner 30-Aug) ────────────────
+    ;; The X and the Y of this tag used to be measured from DIFFERENT things: the Y already
+    ;; knew that a Multi-Span rafter is CONTINUOUS over its interior columns and so rises from
+    ;; the OUTER eave (hLref/hRref, below), but the X took its midpoint between the nearest
+    ;; COLUMNS. On MSPL-26-278 the interior column sits at 14770 and the ridge at 15005, so the
+    ;; "half rafter" the X used was 235 mm long and the 1:10 callout was planted 41 mm from the
+    ;; peak line. With two interior columns it is 2.5 m; with three, 1.9 m.
+    ;; ONE reference for both: the same outer stations the height uses. MG keeps its valleys,
+    ;; where the rafter really does start.
+    (setq hLref (if (= stype "MG") leftCol  0.0))
+    (setq hRref (if (= stype "MG") rightCol wid))
+    ;; X position: middle of each half-rafter span (50% from eave, 50% from ridge).
+    (setq midLX (+ hLref (* (- rx hLref) 0.5)))
+    (setq midRX (- hRref (* (- hRref rx) 0.5)))
+    ;; …and a hard floor on the clearance, so no future change to the midpoint can walk the
+    ;; callout back onto the ridge. A quarter of the half-span, and never less than a glyph and
+    ;; a half — expressed in TEXT-SCALE units so it holds at any sheet scale.
+    (setq peakClr (max (* 1800 *PEB-TEXT-SCALE*) (* 0.25 (- rx hLref))))
+    (if (> midLX (- rx peakClr)) (setq midLX (- rx peakClr)))
+    (setq peakClr (max (* 1800 *PEB-TEXT-SCALE*) (* 0.25 (- hRref rx))))
+    (if (< midRX (+ rx peakClr)) (setq midRX (+ rx peakClr)))
     ;; The tag is a right triangle that RISES from cy by `rise`.  Place
     ;; cx so that the tag is visually centred at midLX/midRX, and place
     ;; cy at sheeting_top_at_cx + clearance so the BOTTOM of the tag
@@ -9618,8 +9691,6 @@
     ;; (leftCol/rightCol).  For MULTI-SPAN the interior columns sit UNDER a CONTINUOUS rafter, so the rise
     ;; must be measured from the OUTER eave (0 / wid) — using leftCol there put the tag BELOW the sheeting
     ;; (owner 14-Jul: slope symbol must sit ABOVE the sheeting line, same as Clear Span).
-    (setq hLref (if (= stype "MG") leftCol  0.0))
-    (setq hRref (if (= stype "MG") rightCol wid))
     (setq cxL (- midLX (/ tagRun 2.0)))
     (setq cyL (+ H (* rise (/ (- cxL hLref) (- rx hLref)))
                   235.0 (* 300 *PEB-TEXT-SCALE*)))   ; slope symbol 50mm ABOVE the sheeting line (owner 14-Jul)

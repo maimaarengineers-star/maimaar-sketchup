@@ -42,6 +42,25 @@ data files, no second serialiser. *(drawingData.ts:1-4, 676-991)*
 Commercial header fields (currency, payment, validity, delivery, sales rep) ride the data
 bundle as title-block text but PD does not draw them. *(drawingData.ts:179-186)*
 
+**1.6 — GOLDEN RULE: every drawing in its OWN layout frame, and CENTRED in it.**
+
+> *"Primary Rules: Golden Rule — Each Drawing Must come in the Relevant Layout Frame & Also It
+> Should be in The Center of Each Layout Frame."* — owner, 30-Aug-2026
+
+Stated by the owner as a **primary rule**, so it sits here and not among the drafting rules: it
+outranks them, and it is the acceptance test every sheet must pass before anyone looks at the
+drawing on it. Two halves, and the first is the one that keeps breaking:
+
+* **ITS OWN.** A layout may show its own sheet and NOTHING ELSE. Sheets share one model space,
+  tiled side by side, so a viewport is a *window* — it cannot exclude a neighbour that overlaps
+  it. On MSPL-26-278 the COVER appeared inside `PRO-01 COLUMN LAYOUT PLAN`.
+* **CENTRED.** The view centre equals the sheet's own bbox centre, and the viewport rectangle
+  sits at the paper box centre. Both, always.
+
+4B.28 says how to PROVE it and 4B.29 gives the placement arithmetic. What was missing is that
+nobody ran the proof — so it is now a tool, `scripts/auditLayoutViews.js`, and a render that
+fails it is a render that did not happen.
+
 **1.5 — One area = one file; one building = one drawing.** Serialiser emits
 `PEB_Data_B<building>_A<area>.txt`; a building's areas tile into one drawing; each building
 is its own DXF/DWG. Identity lives in the filename + `[META]`. *(drawingData.ts:734-778)*
@@ -145,7 +164,7 @@ dot 0.18, working line 0.09. Hatch: RCC→AR-CONC, brick→AR-B816, existing/fut
 
 **3.10 — Connections = two solid plates, no bolt circles.** Each plate 30 mm, 1.5 mm seam,
 extending 100 mm past both flanges (length ≥ web+200); gussets solid-filled within that
-100 mm. *(*PEB-CP-THK/GAP/EXT*, Section.lsp:3609-3611)*
+100 mm. *(*PEB-CP-THK/GAP/EXT*, Section.lsp:3665-3667; see 4B.52 for a column in the middle of the frame)*
 
 **3.11 — Purlins and sheeting follow the real rafter line — never flat.** A purlin at each
 eave and under every gutter; interior purlins 1.25–1.50 m; canopy/arched purlins full 200Z15.
@@ -649,7 +668,7 @@ or say that you haven't.** Every section on the DETAILS sheet now records its so
 
 | section | source | status |
 |---|---|---|
-| Eave gutter | `Jobs59-MSPL_PAECO\Approval drawing\Eave Gutter9-MSPL_Eave Gutter.pdf` | **traced** — 165 base, 203 deep, 1.2 mm PPG.L, 3 m |
+| Eave gutter | `Jobs59-MSPL_PAECO\Approval drawing\Eave Gutter9-MSPL_Eave Gutter.pdf` | **traced** — 165 base, 203 deep, 3 m. **Thickness is 0.50 mm, NOT the 1.2 on that sheet — see 4B.51.** |
 | Lock seam | `Jobs59-MSPL_PAECO\…\Pdf.pdf`, panel "LOCK SEAM SHEET PROFILE" | **traced** — 470 cover, pan 92·10·145·10·91, seams at 119°/148° |
 | Sandwich panel | `Jobs584-MSPL_AZ Engineering\…\Pdf.pdf` (same on 202, 205) | **traced** — 920 = 5×184, rib 32×32, flat 106, 16 lap |
 | Standard S profile | — | **stylised shape, real dimensions** |
@@ -1529,3 +1548,111 @@ once and repeated for context.
 | **PD_MASTER_REFERENCE.md** | LSP code/function index · full per-key trigger matrix · coverage ledger | You need to know what a specific field/key does end-to-end |
 | **PD_BSF_SYNC_MECHANISM.md** | The zero-conflict mechanism: key contract · drift guard · shared core · default policy · realtime · gap register | You want to guarantee BSF and PD can never drift, or to fill a gap |
 | **DRAWING_CONTENT_RULES.md** | Per-sheet element-ownership matrix | You need to know which sheet owns an element |
+
+
+### 4B.51 The gutter is 0.50 mm — a traced sheet gives you the SHAPE, not the house spec
+
+> *"Gutters thickness is 0.50mm by default"* — *"not 1.20mm"* — owner, 30-Aug-2026
+
+The DETAILS sheet printed **`1.2 mm PPG.L`** under both the eave gutter and the valley
+gutter. That number was never a Maimaar standard: it was read off the ONE approval drawing
+the profile was traced from (job 59, PAECO) and carried onto every proposal since, which is
+how a single job's detail becomes a company-wide claim nobody chose.
+
+**The house default is 0.50 mm PPG.L**, and it is now printed on both gutters
+(`peb-draw-sheeting-detail`, `MAIMAAR_PEB_Framing.lsp`).
+
+**The rule this is an instance of:** 4B.25 says trace the section rather than invent it —
+and it is right about GEOMETRY. Geometry is what a traced drawing proves: 165 base, 203
+deep, the fold angles. **Material and gauge are a commercial standard, not a shape**, and
+they do not travel with the trace. When a traced source carries a spec figure, take the
+shape and check the figure against the house standard before printing it — a proposal
+drawing is an offer, so a gauge on it is a price commitment (4B.7: the sheet must not
+contradict what is being sold).
+
+There is no BSF field for gutter gauge, so 0.50 is a literal in the engine. If a job ever
+needs a heavier gutter, that is the moment to add the field — not to edit this string,
+which would silently re-commit every other proposal to that job's gauge.
+
+
+### 4B.52 A column in the middle of the frame TAKES the connection — the rafter does not
+
+> *"Whenever the Column is in the Middle of the Frame — then Remove the Connection Plates b/w the
+> Rafters & Give Connection Plate b/w top of the column to Bottom of the Rafter"*
+> — owner, 30-Aug-2026, with `Multi-Span_Middle Column.PNG`
+
+**THE RULE**
+
+> Where a column stands under the rafter, the connection is **column-top → rafter-soffit** — the
+> two solid 30 mm plates of 3.10. There is **no rafter-to-rafter plate** over that column. The
+> rafter runs continuous across it.
+
+**Half of this already worked, which is why it was missed.** `draw-ms-interior-plates` and
+`draw-mg-ridge-col-plates` have drawn the column-top pair for a long time. What no one had done
+is the *other* half of the sentence — remove the rafter plate — because
+`draw-rafter-stiffeners` places its plates **by distance along the rafter** (knee end, ridge
+start, apex, a splice every 12 m) and knows nothing about columns. Only the apex pair was
+suppressed, by a flag `apexHasCol` set from `(< (abs (- col (/ wid 2.0))) 1.0)`.
+
+**On MSPL-26-278 that flag could not possibly be true.** Measured off the sheet:
+
+| | |
+|---|---|
+| building width (`BP_WIDTH`) | 30,480 ← what `wid/2` was tested against |
+| **steel** width | 30,010 ← `BP_WIDTH_MOD_REF` = *Out to out of Steel Column* |
+| ridge / apex | **15,005** = centre of the *steel* width |
+| interior column (grid D) | **14,770** |
+
+Three different numbers. So a rafter-to-rafter pair was planted at 15,005 — **235 mm from the
+middle column's centreline** — with its four gussets, which is what he photographed.
+
+**THE FIX IS THE QUESTION, NOT THE TOLERANCE.** Stop asking *"is this the apex?"* and ask what
+the rule asks: **is there a column under this plate?** `peb-plate-over-column-p` tests each plate
+station against the interior columns, each carrying its own clearance = *half its web +
+`*PEB-CP-EXT*`* — so a plate is dropped exactly when it would land inside that column's own
+connection zone, at the apex or anywhere else. `peb-interior-col-clearances` builds the list from
+the SAME column list the plates are drawn from (Multi-Gable re-derives `haunchCols` un-mirrored —
+mixing the two spaces would silently suppress nothing; see 4B.37).
+
+`msApexX` still exists, because a column truly under the apex takes the *ridge-column* detail
+rather than the generic one — but it now tests against the real ridge, not `wid/2`.
+
+**Verified by measurement, not by eye** (`scripts/renderOneSheet.js … --dump`): the pair at
+14,974.3/15,005.8 × 5,770.5–6,742.0 and its four gussets are gone; the column-top pair at
+14,518.2–15,021.8 (column + 100 mm each side, immediately under the soffit at 5,867.2) remains;
+the eave knee plates and the 12 m mid-span splices at 4,478 and 10,510 are untouched — 60
+plate entities became 54, and only those six moved.
+
+### 4B.53 The slope callout keeps clear of the PEAK LINE
+
+> *"Also Fix the Slope Location Issue as well."* · **"Alway keep away from the Peakline"**
+> — owner, 30-Aug-2026
+
+**THE RULE**
+
+> The `1:NN` slope tag sits at the middle of its half-rafter and **never near the ridge**. Its
+> clearance from the peak line is a quarter of the half-span, and never less than a glyph and a
+> half — a floor, not a suggestion.
+
+**The cause was two references for one tag.** The tag's **Y** already knew that a Multi-Span
+rafter is continuous over its interior columns and therefore rises from the OUTER eave — its own
+comment says so. The tag's **X** took the midpoint between the nearest **columns**. On 278 the
+interior column is at 14,770 and the ridge at 15,005, so the "half rafter" the X measured was
+**235 mm** long and the callout landed **41 mm from the peak line**.
+
+It gets worse with more columns, and this is why it is a rule and not a nudge:
+
+| interior columns | tag distance from the ridge (30.5 m wide) |
+|---|---|
+| 2 | 2.5 m |
+| 3 | 1.9 m |
+| 1, with a ridge offset | on the peak |
+
+**Fixed by giving the tag ONE reference** — the same outer stations its height already used
+(Multi-Gable keeps its valleys, where the rafter really does start) — **plus a hard clearance
+floor** in `*PEB-TEXT-SCALE*` units, so no future change to the midpoint rule can walk it back.
+Measured on 278: from 14,963.7 (41 mm off the peak) to **7,578.7 and 22,431.3 — 7.4 m clear on
+both sides**, symmetric.
+
+This is the third pass over this callout: 4B.27 fixed the glyph that read `110`, then 75 %-from-
+eave became 50 %-of-half. Both were placements. This one is a *clearance*, which is why it holds.

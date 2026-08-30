@@ -2623,6 +2623,12 @@
   ;; tall and narrow: the fit rule then scaled everything down to suit the height, the
   ;; drawings shrank, and the DETAILS heading was stranded in the middle of the page.  Beside
   ;; them the sheet stays close to the drawing box's own 1.10:1, which is what fills it.
+  ;; GUTTER GAUGE IS 0.50 mm - RULE 4B.51 (owner 30-Aug: "Gutters thickness is 0.50mm by
+  ;; default", "not 1.20mm").  It printed 1.2 because that is what the ONE approval drawing the
+  ;; profile was TRACED from (job 59, PAECO) happened to say.  A trace proves the SHAPE; the
+  ;; gauge is a commercial standard and does not travel with it.  There is no BSF field for it,
+  ;; so it is a literal - if a job ever needs a heavier gutter, ADD THE FIELD rather than edit
+  ;; this string, which would re-commit every other proposal to that job's gauge.
   (setq et (strcase (peb-tb-or (MSPL-Get-Str data "BP_EAVE_TYPE") "")))
   (setq gx (+ ox 1500.0))
   (setvar "CLAYER" "TEXT")
@@ -2632,7 +2638,7 @@
       (txt-bold "ML" (list gx 170.0) (peb-th 'LABEL) 0 "VALLEY GUTTER")
       (setvar "CECOLOR" "BYLAYER")
       (txt "ML" (list gx 0.0) (peb-th 'ANNOT) 0 "SECTION PER THE APPROVAL DRAWING.")
-      (txt "ML" (list gx -160.0) (peb-th 'ANNOT) 0 "1.2 mm PPG.L  |  COLOUR AS SHEET"))
+      (txt "ML" (list gx -160.0) (peb-th 'ANNOT) 0 "0.50 mm PPG.L  |  COLOUR AS SHEET"))
     ((vl-string-search "GUTTER" et)
       (setvar "CECOLOR" "5")
       (txt-bold "ML" (list gx 170.0) (peb-th 'LABEL) 0 "EAVE GUTTER")
@@ -2642,7 +2648,7 @@
         (peb-sd-eave-gutter (+ gx 120.0) 0.0 0.55))))
       ;; kept short so the column does not run into the title strip
       (txt "ML" (list gx -200.0) (peb-th 'ANNOT) 0 "165 BASE  |  203 DEEP")
-      (txt "ML" (list gx -360.0) (peb-th 'ANNOT) 0 "1.2 mm PPG.L  |  3 M")
+      (txt "ML" (list gx -360.0) (peb-th 'ANNOT) 0 "0.50 mm PPG.L  |  3 M")
       (txt "ML" (list gx -520.0) (peb-th 'ANNOT) 0 "COLOUR AS SHEET")))
 
   ;; -- RULE 4B.43 IS PARKED, NOT DELETED (owner 29-Aug) -------------------------------
