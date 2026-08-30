@@ -42,24 +42,37 @@ data files, no second serialiser. *(drawingData.ts:1-4, 676-991)*
 Commercial header fields (currency, payment, validity, delivery, sales rep) ride the data
 bundle as title-block text but PD does not draw them. *(drawingData.ts:179-186)*
 
-**1.6 — GOLDEN RULE: every drawing in its OWN layout frame, and CENTRED in it.**
+**1.6 — THE GOLDEN RULES FOR PLACING A DRAWING ON A LAYOUT.**
 
-> *"Primary Rules: Golden Rule — Each Drawing Must come in the Relevant Layout Frame & Also It
-> Should be in The Center of Each Layout Frame."* — owner, 30-Aug-2026
+> *"make the Golden Rules for Place of Drawings in the layouts — 1 - Only one relevant drawing
+> must go in one layout, 2 - Drawings must be placed in the center of the Box, 3 - Right Side
+> Title Block must have the Information about that Page Drawings."* — owner, 30-Aug-2026
 
-Stated by the owner as a **primary rule**, so it sits here and not among the drafting rules: it
-outranks them, and it is the acceptance test every sheet must pass before anyone looks at the
-drawing on it. Two halves, and the first is the one that keeps breaking:
+Stated by the owner as **primary rules**, so they sit here and not among the drafting rules: they
+outrank them, and they are the acceptance test every sheet must pass before anyone looks at the
+drawing on it.
 
-* **ITS OWN.** A layout may show its own sheet and NOTHING ELSE. Sheets share one model space,
-  tiled side by side, so a viewport is a *window* — it cannot exclude a neighbour that overlaps
-  it. On MSPL-26-278 the COVER appeared inside `PRO-01 COLUMN LAYOUT PLAN`.
-* **CENTRED.** The view centre equals the sheet's own bbox centre, and the viewport rectangle
-  sits at the paper box centre. Both, always.
+**1.6.1 — ONE RELEVANT DRAWING PER LAYOUT.** A layout shows its own sheet and NOTHING ELSE.
+Every sheet is drawn into ONE shared, tiled model space, so a viewport is a *window* onto it: it
+cannot exclude a neighbour that overlaps it. "Its own frame" is therefore a property of the
+TILING, not of the layout, and only measuring catches a breach — which is how the COVER came to
+be inside `PRO-01 COLUMN LAYOUT PLAN` on MSPL-26-278.
 
-4B.28 says how to PROVE it and 4B.29 gives the placement arithmetic. What was missing is that
-nobody ran the proof — so it is now a tool, `scripts/auditLayoutViews.js`, and a render that
-fails it is a render that did not happen.
+**1.6.2 — CENTRED IN THE BOX.** The view centre equals the sheet's own bbox centre, and the
+viewport rectangle sits at the drawing box's centre (115.32, 105). Both, always.
+
+**1.6.3 — THE RIGHT-HAND TITLE BLOCK DESCRIBES THAT SHEET.** Every field in the strip is either
+**true of this sheet** or **not printed**. The drawing title, its PRO number and its scale come
+from the same three values the layout itself was built from — never a default, never the previous
+sheet's. See **4B.54**, which is this clause applied to the bands.
+
+**How they are enforced.** 4B.28 says how to PROVE 1.6.1 and 1.6.2, and 4B.29 gives the placement
+arithmetic; 4B.7 is 1.6.3's older, narrower ancestor (*the table must not contradict the drawing*).
+What was missing until 30-Aug is that nobody ran the proof — a rule that is true and unenforced is
+worthless. The render now records what each sheet DREW (`_bbox.txt`) and what each tab actually
+SHOWS (`_vpview.txt`, DXF groups 12/45 read back off the finished viewport), `checkGoldenRule`
+measures both, and a DWG that breaks either is left on disk to be looked at but is **NOT filed into
+the proposal folder** — filing is what turns a bad render into something a customer sees.
 
 **1.5 — One area = one file; one building = one drawing.** Serialiser emits
 `PEB_Data_B<building>_A<area>.txt`; a building's areas tile into one drawing; each building
@@ -1656,3 +1669,53 @@ both sides**, symmetric.
 
 This is the third pass over this callout: 4B.27 fixed the glyph that read `110`, then 75 %-from-
 eave became 50 %-of-half. Both were placements. This one is a *clearance*, which is why it holds.
+
+
+### 4B.54 The title-block band is about the sheet it is on — or it is the wrong band
+
+> *"Right Side Title Block must have the Information about that Page Drawings"* — owner, 30-Aug-2026
+> (rule **1.6.3**)
+
+**THE RULE**
+
+> The band in the right-hand strip belongs to the drawing on that sheet. A sheet that matches no
+> band gets one written for it — it does not fall through to another sheet's.
+
+`peb-build-tbdata` was designed to be sheet-agnostic, and says so: *"EVERY sheet gets the SAME
+title block … only DRGTITLE differs"* (owner, 7-Jul). Of its ~41 fields exactly one varied. The
+only per-sheet behaviour in the whole system is a `wcmatch` on the drawing title inside
+`peb-titleblock-mammut`, choosing one of four bands. That was right while the rule was *"the same
+block everywhere"*; the owner has now replaced that rule, and 4B.39 had already replaced it once
+for the mezzanine.
+
+**What the four-band dispatch was actually printing**
+
+| sheet | matched | band it got |
+|---|---|---|
+| **DETAILS** | nothing → default | the BUILDING's roof live load, wind speed, seismic zone, rainfall — on a page of panel profiles |
+| **ROOF FRAMING PLAN** | `*FRAMING*` | the WALL framing notes |
+| **ROOF SHEETING PLAN** | `*SHEETING*` | the WALL cladding notes |
+
+Three new kinds, and the order of the tests is part of the rule: **the specific patterns are tested
+before the substring ones, and the ROOF tests anchor on the FIRST word** (`ROOF*`), so
+`SIDE WALL SHEETING` can never be caught by them.
+
+* **DETAILS** → `PANEL & TRIM DATA`: the roof and wall panel type, profile and material, and the
+  eave — the things that sheet draws — with the gutter at 0.50 mm (4B.51). Written as paragraphs,
+  not label/value rows: a profile name is `Standard S Profile 35-250`, and in the narrow value
+  column `tb-fith` would shrink it to unreadable.
+* **ROOF FRAMING PLAN** → `ROOF FRAMING DATA`: slope, bays, length, width, and purlins deferred to
+  the approved design (proposal level — never member sections, the owner's standing rule).
+* **ROOF SHEETING PLAN** → `ROOF SHEETING DATA`: the roof panel and its slope, and the fall
+  direction deferred to the plan itself.
+
+**And the title must be the SHEET's, not the drawing type's.** In the DWG path the area suffix
+(` A1`/` A2`) and the match-line part (` P1`/` P2`) reached the tab name only, never `DRGTITLE` —
+so a split or multi-area building printed **byte-identical title blocks on two different
+drawings**: correct geometry, and no way to tell the sheets apart from the strip whose job is to
+name them. That is 1.6.1 failing inside the title block while the geometry passes. `DRGTITLE` now
+carries the full sheet identity; the PDF path always did.
+
+**Still open, recorded so it is not mistaken for finished:** `DRN`/`CHK` print the engine defaults
+`M.H`/`YEA` on every sheet of every proposal because `drawingData.ts` sends blanks, and the `DSN`
+column has a label and no value cell at all — a labelled empty cell is 4B.7.

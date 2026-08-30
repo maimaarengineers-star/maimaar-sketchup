@@ -2162,6 +2162,19 @@
     (cons "MZ_CHB"    (peb-tb-comma (MSPL-Get-Str data "MZ1_CH_FFL_BEAM")))
     (cons "MZ_CHR"    (peb-tb-comma (MSPL-Get-Str data "MZ1_CH_SLAB_RAFTER")))
     (cons "MZ_JOISTSP" (peb-tb-comma (MSPL-Get-Str data "MZ_JOIST")))
+;; -- RULE 1.6.3 - THE SHEET'S OWN DATA, for the bands that had none (owner 30-Aug) --
+    ;; "Right Side Title Block must have the Information about that Page Drawings."
+    ;; The DETAILS sheet draws PANEL SECTIONS and the EAVE GUTTER, so these are what it has to
+    ;; talk about; the ROOF sheets are about the roof, not the walls. All stated BSF fields -
+    ;; the panel is quoted, never inferred - and still PROPOSAL level: no member sections, no
+    ;; web/flange thicknesses (owner's standing rule for the title block).
+    (cons "PN_R_TYPE" (peb-tb-or (MSPL-Get-Str data "PN_ROOF_TYPE") "-"))
+    (cons "PN_R_PROF" (peb-tb-or (MSPL-Get-Str data "PN_ROOF_OUTER_PROFILE") "-"))
+    (cons "PN_R_MAT"  (peb-tb-or (MSPL-Get-Str data "PN_ROOF_OUTER_MAT") "-"))
+    (cons "PN_W_TYPE" (peb-tb-or (MSPL-Get-Str data "PN_WALL_TYPE") "-"))
+    (cons "PN_W_PROF" (peb-tb-or (MSPL-Get-Str data "PN_WALL_OUTER_PROFILE") "-"))
+    (cons "PN_W_MAT"  (peb-tb-or (MSPL-Get-Str data "PN_WALL_OUTER_MAT") "-"))
+    (cons "EAVETYPE"  (peb-tb-or (MSPL-Get-Str data "BP_EAVE_TYPE") "-"))
     (cons "DRGTITLE"  drgTitle)
     (cons "SCALE"     "N.T.S.")
     (cons "SHEETSIZE" "A1")
@@ -2277,9 +2290,21 @@
   ;; PROPOSAL level — never member sections / web-flange thicknesses (owner).  All four kinds fill the SAME
   ;; vertical band (bandTop -> bandTop-0.276s) so the bottom PROJECT block still lines up on every sheet.
   (setq lx (+ X0 (* W 0.05)) vx (+ X0 (* W 0.70)) ux (+ X0 (* W 0.865)))   ; owner 7-Jul: value+unit cols
+  ;; RULE 1.6.3 (owner 30-Aug): the band must be about THIS sheet. Two kinds were missing and
+  ;; the sheets fell through to bands about something else:
+  ;;   * DETAILS matched nothing, so the sheeting-profile page printed the BUILDING's roof live
+  ;;     load, wind speed, seismic zone and rainfall intensity - the same complaint 4B.39 fixed
+  ;;     for the mezzanine, on a different sheet.
+  ;;   * ROOF FRAMING PLAN matched *FRAMING* and ROOF SHEETING PLAN matched *SHEETING*, so both
+  ;;     roof sheets printed the WALL framing / cladding notes.
+  ;; ORDER MATTERS: the specific patterns are tested before the substring ones, and the ROOF
+  ;; tests anchor on the FIRST word ("ROOF*") so "SIDE WALL SHEETING" cannot be caught by them.
   (setq dt (strcase (tb-get "DRGTITLE"))
-        tbKind (cond ((wcmatch dt "*SECTION*")             "SECTION")
-                     ((wcmatch dt "*MEZZANINE*")           "MEZZ")   ; rule 4B.39
+        tbKind (cond ((wcmatch dt "*DETAIL*")              "DETAILS")   ; rule 1.6.3
+                     ((wcmatch dt "*SECTION*")             "SECTION")
+                     ((wcmatch dt "*MEZZANINE*")           "MEZZ")      ; rule 4B.39
+                     ((and (wcmatch dt "ROOF*") (wcmatch dt "*FRAMING*"))  "ROOFFRM")
+                     ((and (wcmatch dt "ROOF*") (wcmatch dt "*SHEETING*")) "ROOFSHT")
                      ((wcmatch dt "*FRAMING*")             "FRAMING")
                      ((wcmatch dt "*SHEETING*,*CLADDING*") "SHEETING")
                      (T                                    "PLAN"))
@@ -2368,6 +2393,61 @@
       (tb-mtext (+ X0 (* W 0.04)) (+ yCur (* rh 0.72))
         (tb-fith "HEIGHTS, SLOPE & GRIDS AS SHOWN ON THE SECTION." (* cw 1.02) (* s 0.0090)) cw 1
         "HEIGHTS, SLOPE & GRIDS AS SHOWN ON THE SECTION." green))
+    ;; ==== DETAILS : the PANELS and the EAVE this sheet actually draws (rule 1.6.3) ====
+    ;; Written as paragraphs rather than the label/value rows the SECTION band uses, because a
+    ;; profile name is "Standard S Profile 35-250" - in the narrow value column tb-fith would
+    ;; shrink it to unreadable. The gutter gauge is stated here because the sheet draws the
+    ;; gutter section (rule 4B.51: 0.50 mm, and NOT the 1.2 on the traced approval drawing).
+    ((= tbKind "DETAILS")
+      (setq rh (* s 0.052) bt yCur yCur (- yCur rh))
+      (tb-mtext-bold (+ X0 (* W 0.035)) (- bt (* s 0.0130))
+        (tb-fith "PANEL & TRIM DATA" (* cw 0.85) (* s 0.0120)) (* W 0.93) 1 "PANEL & TRIM DATA" green)
+      (setq rh (* s 0.224) yCur (- yCur rh))
+      (tb-mtext (+ X0 (* W 0.04)) (- (+ yCur rh) (* sm 1.3))
+        (tb-fith (strcat "ROOF  " (tb-get "PN_R_PROF")) cw (* sm 1.05)) cw 1
+        (strcat "ROOF PANEL\\P"
+                "  " (tb-get "PN_R_TYPE") "  |  " (tb-get "PN_R_PROF") "\\P"
+                "  " (tb-get "PN_R_MAT") "\\P"
+                "WALL PANEL\\P"
+                "  " (tb-get "PN_W_TYPE") "  |  " (tb-get "PN_W_PROF") "\\P"
+                "  " (tb-get "PN_W_MAT") "\\P"
+                "EAVE\\P"
+                "  " (tb-get "EAVETYPE") "  |  0.50 mm PPG.L") white))
+    ;; ==== ROOF FRAMING PLAN : about the ROOF, not the walls (rule 1.6.3) ====
+    ((= tbKind "ROOFFRM")
+      (setq rh (* s 0.052) bt yCur yCur (- yCur rh))
+      (tb-mtext-bold (+ X0 (* W 0.035)) (- bt (* s 0.0130))
+        (tb-fith "ROOF FRAMING DATA" (* cw 0.85) (* s 0.0120)) (* W 0.93) 1 "ROOF FRAMING DATA" green)
+      (foreach r (list
+           (list "ROOF SLOPE"      (tb-get "BSLOPE")  "")
+           (list "No. OF BAYS"     (tb-get "BBAYS")   "")
+           (list "BUILDING LENGTH" (tb-get "BLENGTH") "MM")
+           (list "BUILDING WIDTH"  (tb-get "BWIDTH")  "MM"))
+        (setq rh (* s 0.0280) yCur (- yCur rh))
+        (tb-mtext lx (+ yCur (* rh 0.5)) (tb-fith (car r) (* W 0.52) sm) 0 4 (car r) white)
+        (tb-mtext (+ X0 (* W 0.80)) (+ yCur (* rh 0.5)) (tb-fith (cadr r) (* W 0.16) val) 0 6 (cadr r) green)
+        (if (/= (caddr r) "")
+          (tb-mtext (+ X0 (* W 0.82)) (+ yCur (* rh 0.5)) (tb-fith (caddr r) (* W 0.155) (* sm 0.90)) 0 4 (caddr r) grey)))
+      (setq rh (* s 0.090) yCur (- yCur rh))
+      (tb-mtext (+ X0 (* W 0.04)) (- (+ yCur rh) (* sm 1.1))
+        (tb-fith "PURLIN SIZE & SPACING PER APPROVED DESIGN." cw (* sm 1.05)) cw 1
+        (strcat "PURLIN SIZE & SPACING PER APPROVED DESIGN.\\P"
+                "BRACED BAYS & FALL AS SHOWN ON THIS PLAN.") green))
+    ;; ==== ROOF SHEETING PLAN : the ROOF panel, not the wall cladding (rule 1.6.3) ====
+    ((= tbKind "ROOFSHT")
+      (setq rh (* s 0.052) bt yCur yCur (- yCur rh))
+      (tb-mtext-bold (+ X0 (* W 0.035)) (- bt (* s 0.0130))
+        (tb-fith "ROOF SHEETING DATA" (* cw 0.85) (* s 0.0120)) (* W 0.93) 1 "ROOF SHEETING DATA" green)
+      (setq rh (* s 0.224) yCur (- yCur rh))
+      (tb-mtext (+ X0 (* W 0.04)) (- (+ yCur rh) (* sm 1.3))
+        (tb-fith (strcat "  " (tb-get "PN_R_PROF")) cw (* sm 1.05)) cw 1
+        (strcat "ROOF PANEL\\P"
+                "  " (tb-get "PN_R_TYPE") "  |  " (tb-get "PN_R_PROF") "\\P"
+                "  " (tb-get "PN_R_MAT") "\\P"
+                "ROOF SLOPE  " (tb-get "BSLOPE") "\\P"
+                "EAVE\\P"
+                "  " (tb-get "EAVETYPE") "\\P"
+                "FALL DIRECTION AS SHOWN ON THIS PLAN.") white))
     ;; ==== FRAMING : proposal-level framing notes (NO member sizes/sections) ====
     ((= tbKind "FRAMING")
       (setq rh (* s 0.052) bt yCur yCur (- yCur rh))
