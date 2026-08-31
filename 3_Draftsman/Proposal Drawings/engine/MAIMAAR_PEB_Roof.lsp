@@ -457,14 +457,14 @@
       (peb-fmt-labelled "BUILDING WIDTH" wid (peb-basis-suffix wref))))))
 
   ;; ── ROOF ACCESSORIES (skylights / vents / opening) ───────────────
-  (vl-catch-all-apply (function (lambda () (peb-draw-roof-accessories data len wid))))
+  (vl-catch-all-apply (function (lambda () (peb-draw-roof-accessories data len wid bayPts))))
 
   ;; ── ROOF EXTENSIONS + CANOPIES + MONITOR (footprints on the roof plane) ─────
   (vl-catch-all-apply (function (lambda () (peb-draw-roof-ext data len wid))))
   (vl-catch-all-apply (function (lambda () (peb-draw-canopy data len wid))))
   ;; roof-monitor opening band — belongs on the Roof Plan (owner 6-Jul); drawer shared with the CLP.
   (if (boundp 'peb-draw-monitor)
-    (vl-catch-all-apply (function (lambda () (peb-draw-monitor data len wid)))))
+    (vl-catch-all-apply (function (lambda () (peb-draw-monitor data len wid bayPts)))))
   (setvar "CLAYER" "0")
 
   ;; ── TITLE + panel note + border ──────────────────────────────────

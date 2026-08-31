@@ -3193,7 +3193,7 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   (vl-catch-all-apply (function (lambda () (peb-draw-fascia data len wid))))
   ;; owner 21-Jul: the ROOF MONITOR is NOT shown on the Column Layout Plan — it belongs on the ROOF PLAN
   ;; (to be built later), like the other roof accessories.  Disabled here (drawer kept for the Roof Plan).
-  ;; (vl-catch-all-apply (function (lambda () (peb-draw-monitor data len wid))))
+  ;; (vl-catch-all-apply (function (lambda () (peb-draw-monitor data len wid bayPts))))
   (vl-catch-all-apply (function (lambda () (peb-draw-partition data len wid))))
   (vl-catch-all-apply (function (lambda () (peb-draw-crane data len wid))))
   ;; future drawers appended here: mezzanine / crane / roof-ext / fascia / monitor / platform / catwalk / partition ...
@@ -3446,6 +3446,39 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
       (if (not full) (vl-catch-all-apply (function (lambda () (peb-dim-height-stretch bx (+ bx (* nx (+ proj (* su 1.6)))) by ey (peb-comma (rtos (abs (- ey by)) 2 0)))))))))
   (princ))
 
+
+;; The monitor's FOOTPRINT on the roof plane -> (x0 x1 yBot yTop throat ridge), or nil when the job
+;; has no monitor.  Factored out because TWO sheets need it and they must not disagree: the monitor
+;; drawer draws the band, and the ROOF SHEETING PLAN has to STOP the sheeting runs at it.  Cladding
+;; does not run through an upstand - and drawn through, 59 run lines turned the monitor into a smear
+;; you could not identify on the sheet (owner 31-Aug: "simple But Excellent Outlook").
+(defun peb-monitor-band (data len wid bayPtsIn / ow throat rmlen ridge half bp gf gt x0 x1)
+  (if (/= (strcase (MSPL-Get-Str data "RM_TOGGLE")) "YES")
+    nil
+    (progn
+      ;; OVERALL WIDTH = THROAT x 2 (owner 31-Aug).  The monitor sheeting extends half a throat past
+      ;; the opening on EACH side, so a 1.50 m throat gives a 3.00 m band with 750 either side.
+      ;; ONE derivation, stated once: the section used throat + 1800 and the plan a flat 3000, so a
+      ;; job that left the field blank got a section and a plan that disagreed by 200 mm about the
+      ;; same monitor - and neither said so.
+      (setq throat (MSPL-Get-Num data "RM_THROAT_WIDTH")
+            ow     (MSPL-Get-Num data "RM_OVERALL_WIDTH"))
+      (if (or (null throat) (<= throat 0.0))
+        (setq throat (if (and ow (> ow 0.0)) (/ ow 2.0) 1000.0)))
+      (if (or (null ow) (<= ow 0.0)) (setq ow (* throat 2.0)))
+      (setq rmlen (MSPL-Get-Num data "RM_LENGTH")
+            ridge (peb-ridge-y data wid)
+            half  (/ ow 2.0)
+            bp    (if (and bayPtsIn (> (length bayPtsIn) 1)) bayPtsIn (peb-mzfp-bays data len))
+            gf    (MSPL-Get-Int data "RM_GRID_FROM")
+            gt    (MSPL-Get-Int data "RM_GRID_TO"))
+      (cond
+        ((and gf gt (> gf 0) (> gt gf) bp (<= gt (length bp)))
+         (setq x0 (nth (1- gf) bp) x1 (nth (1- gt) bp)))
+        ((or (null rmlen) (<= rmlen 0.0) (>= rmlen len)) (setq x0 0.0 x1 len))
+        (T (setq x0 (/ (- len rmlen) 2.0) x1 (+ x0 rmlen))))
+      (list x0 x1 (- ridge half) (+ ridge half) throat ridge))))
+
 ;; ---- component drawer: peb-draw-monitor (merged from comp_monitor.lsp) ----
 ;; ============================================================================
 ;; ROOF MONITOR — Column Layout Plan component drawer (single, along the ridge)
@@ -3457,36 +3490,22 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
 ;; a centre ridge line, a "ROOF MONITOR" label, a width dim, and a length dim if
 ;; the monitor is partial.  NO columns.
 ;; ============================================================================
-(defun peb-draw-monitor (data len wid
-                         / u ridge ow throat rmlen half x0 x1 yTop yBot mcx su lay lyr bayPts gf gt)
+(defun peb-draw-monitor (data len wid bayPtsIn
+                         / u ridge ow throat rmlen half x0 x1 yTop yBot mcx su lay lyr bayPts gf gt bnd sx lts yy)
   (if (= (strcase (MSPL-Get-Str data "RM_TOGGLE")) "YES")
     (progn
       ;; ---- size unit (same formula the other drawers use) ----------------
       (setq u (max 400.0 (min 3000.0 (/ (max len wid) 70.0))))
       ;; ---- read IF keys with safe defaults (all raw mm) ------------------
-      (setq ow    (MSPL-Get-Num data "RM_OVERALL_WIDTH"))   ; total strip width across the ridge
-      (setq rmlen (MSPL-Get-Num data "RM_LENGTH"))          ; length along the ridge (0/blank = full)
-      (if (or (null ow) (<= ow 0.0)) (setq ow 3000.0))      ; Mammut-ish default 3.0 m
-      (setq throat (MSPL-Get-Num data "RM_THROAT_WIDTH"))   ; vent opening (SAME O.W. the section reads)
-      (if (or (null throat) (<= throat 0.0)) (setq throat (* ow 0.5)))
-      ;; ---- geometry ------------------------------------------------------
-      ;; ridge station via peb-ridge-y (honours BP_RIDGE_OFFSET) so the plan monitor lands on the
-      ;; SAME ridge the SECTION uses (peb-ridge-x) — no section/plan disagreement (owner 19-Jul).
-      (setq ridge (peb-ridge-y data wid)                   ; single ridge (offset-aware)
-            half  (/ ow 2.0)
-            yTop  (+ ridge half)
-            yBot  (- ridge half))
-      ;; length span — grid range (owner 11-Jul: RM_GRID_FROM/TO into the bay grid) if set, else centred
-      ;; if partial, else full LEW->REW.
-      (setq bayPts (peb-mzfp-bays data len)
-            gf (MSPL-Get-Int data "RM_GRID_FROM") gt (MSPL-Get-Int data "RM_GRID_TO"))
-      (cond
-        ((and gf gt (> gf 0) (> gt gf) bayPts (<= gt (length bayPts)))
-         (setq x0 (nth (1- gf) bayPts) x1 (nth (1- gt) bayPts)))
-        ((or (null rmlen) (<= rmlen 0.0) (>= rmlen len)) (setq x0 0.0 x1 len))
-        (T (setq x0 (/ (- len rmlen) 2.0) x1 (+ x0 rmlen))))
-      (setq mcx (/ (+ x0 x1) 2.0)
-            su  (max 300.0 (min u (* ow 0.30))))            ; annotation size scaled to the strip depth
+      ;; ONE source for the footprint (peb-monitor-band) - the sheeting plan reads the same band to
+      ;; break its runs, so the opening the sheeting stops at IS the opening drawn here.
+      (setq bnd   (peb-monitor-band data len wid bayPtsIn)
+            x0    (nth 0 bnd) x1 (nth 1 bnd) yBot (nth 2 bnd) yTop (nth 3 bnd)
+            throat (nth 4 bnd) ridge (nth 5 bnd)
+            ow    (- yTop yBot)
+            rmlen (- x1 x0)
+            mcx   (/ (+ x0 x1) 2.0)
+            su    (max 300.0 (min u (* ow 0.30))))            ; annotation size scaled to the strip depth
       ;; ---- layer ---------------------------------------------------------
       (setq lay "COMP-MONITOR")
       (if (not (tblsearch "LAYER" lay))
@@ -3496,34 +3515,57 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
       (setvar "CLAYER" lay)
       (setq lyr (getvar "CLAYER"))
       ;; ---- strip outline (rectangle = two ridge-parallel lines + end caps) ----
+      ;; The band EDGE is the only line on this sheet that says "different surface, different level",
+      ;; so it carries weight.  At the sheeting runs' own 0.09 it disappeared among them: the monitor
+      ;; drew correctly - 3000 deep, own ridge, own 1000-pitch runs - and still read as unbroken roof,
+      ;; because everything inside it looks like everything outside it.  Two eaves at 0.50 separate
+      ;; the two surfaces at a glance; the callout then says which is which.
       (entmake (list (cons 0 "LWPOLYLINE") (cons 100 "AcDbEntity") (cons 8 lyr)
-                     (cons 100 "AcDbPolyline") (cons 90 4) (cons 70 1)
+                     (cons 100 "AcDbPolyline") (cons 90 4) (cons 70 1) (cons 370 50)
                      (list 10 x0 yBot) (list 10 x1 yBot)
                      (list 10 x1 yTop) (list 10 x0 yTop)))
-      ;; ---- centre ridge line ---------------------------------------------
+      ;; ---- what you actually SEE from above: the monitor's own ROOF ---------------------------
+      ;; This is a ROOF PLAN, so it shows the roof.  A monitor seen from above is a little building
+      ;; with its own ridge and its own sheeting; the throat is in its VERTICAL SIDES and is hidden
+      ;; underneath that roof, not visible as a hole (owner 31-Aug: "since it is roof plan, show the
+      ;; roof monitor sheeting").  So the sheeting is what reads, and the opening is drawn HIDDEN.
+      ;;
+      ;; This replaced a hatched throat.  The hatch was an improvement on five near-parallel lines,
+      ;; but it said the wrong thing: it drew the monitor as a hole in the roof, which is what you
+      ;; would see if the monitor were not there.
+      ;; --- the monitor's OWN ridge, down the centre of its band.  (The MAIN roof ridge is
+      ;;     suppressed under the monitor - 4B.56 - so this is the only ridge here, and it is real.)
       (entmake (list (cons 0 "LINE") (cons 8 lyr)
                      (list 10 x0 ridge 0.0) (list 11 x1 ridge 0.0)))
-      ;; ---- THROAT opening (vent slot) — two lines at ridge ± throat/2, so the PLAN reads the SAME
-      ;;      O.W. opening the SECTION shows between the legs (plan/section agreement, owner 19-Jul).
-      (entmake (list (cons 0 "LINE") (cons 8 lyr)
-                     (list 10 x0 (- ridge (/ throat 2.0)) 0.0) (list 11 x1 (- ridge (/ throat 2.0)) 0.0)))
-      (entmake (list (cons 0 "LINE") (cons 8 lyr)
-                     (list 10 x0 (+ ridge (/ throat 2.0)) 0.0) (list 11 x1 (+ ridge (/ throat 2.0)) 0.0)))
-      ;; ---- label suppressed (owner 8-Jul) --------------------------------
-      ;; Real Maimaar/Mammut approval drawings show the monitor GEOMETRICALLY only —
-      ;; no "ROOF MONITOR" text on either the CLP or the Roof Plan (reference-verified).
-      ;; The opening band + dims below identify it; no text label is drawn.
-      ;; ---- width dim (RM_OVERALL_WIDTH) — vertical, at the left end -------
-      (vl-catch-all-apply
-        (function (lambda ()
-          (peb-dim-height-stretch x0 (- x0 (* su 1.6)) yBot yTop
-                                  (peb-comma (rtos ow 2 0))))))
-      ;; ---- length dim — horizontal, only if PARTIAL ----------------------
-      (if (and rmlen (> rmlen 0.0) (< rmlen len))
-        (vl-catch-all-apply
-          (function (lambda ()
-            (peb-dim-h-stretch x0 x1 (+ yTop (* su 1.6))
-                               (peb-comma (rtos (- x1 x0) 2 0)))))))))
+      ;; --- its sheeting runs, at the SAME 1000 cover the main roof uses: one material, two levels.
+      (setq sx (+ x0 1000.0))
+      (while (< sx (- x1 1.0))
+        (entmake (list (cons 0 "LINE") (cons 8 lyr) (cons 370 9)     ; 0.09 - as light as the roof runs
+                       (list 10 sx yBot 0.0) (list 11 sx yTop 0.0)))
+        (setq sx (+ sx 1000.0)))
+      ;; The OPENING is deliberately NOT drawn.  It is directly under the monitor sheeting, so from
+      ;; above you cannot see it (owner 31-Aug: "opening will not be visible in the Roof Plan as it
+      ;; will come underneath of roof monitor Sheeting").  A dashed throat was drawn here for one
+      ;; iteration; it showed a hole that the view does not contain.  The reference sweep says the
+      ;; same from the other direction: no MSPL drawing uses a dashed monitor boundary in plan.
+      ;; --- name it.  From above there are TWO sheeted surfaces and they look alike - same 1000
+      ;;     cover, same direction - so the sheet's job is to say which is which (owner: "we have to
+      ;;     just identity that this is roof monitor sheeting and this is main sheeting").  The main
+      ;;     roof already carries its own "ROOF SHEETING : <profile>" mleader on this sheet; this is
+      ;;     its twin.  Placed at 0.66 of the length so the two never sit on top of each other.
+      (vl-catch-all-apply (function (lambda ()
+        (peb-label-with-leader "ROOF MONITOR SHEETING"
+          (list (+ x0 (* (- x1 x0) 0.66)) (+ wid (* u 2.6)))
+          (list (+ x0 (* (- x1 x0) 0.66)) yTop) "S" (* u 0.42)))))
+      ;; NO DIMENSIONS on the roof sheeting plan.  The overall sat at the far LEFT of the sheet and
+      ;; the throat at the far RIGHT - two numbers for one object, 63 m apart, and the overall wedged
+      ;; into a gap smaller than its own text between the roof outline and the 30,480 width chain
+      ;; (owner 31-Aug: "the dimensions of roof monitor these are mingled").  Deleting them fixes
+      ;; that at the root rather than moving the clutter somewhere else, and it is what the reference
+      ;; does: KM Foods does not dimension the monitor on the plan at all, and MSPL-032 dimensions it
+      ;; only on its own dedicated ROOF MONITOR SHEETING PLAN.  The numbers still live on the BSF and
+      ;; on the cross section.
+      ))
   (princ))
 
 ;; ---- component drawer: peb-draw-partition (merged from comp_partition.lsp) ----
@@ -4634,10 +4676,118 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   (setvar "CLAYER" "0")
   (princ))
 
+;; ===== SKYLIGHTS, PLACED (rule 4B.55) =====================================================
+;; The count-only path below spreads skylights on an even grid.  That is honest for "N somewhere on
+;; the roof" but it is not a LOCATION, and it can drop a skylight straight onto the ridge.  When the
+;; BSF says how many PER BAY (RA_SKY_PER_BAY) the sheet can place them properly: the MIDDLE OF EACH
+;; ROOF SIDE and the MIDDLE OF EACH BAY (owner 31-Aug-2026).
+;;
+;; Traced from MSPL 2025/203 (DHL Warehouse, Islamabad) approval drawing sheet 19 - a 49,370 x 66,845
+;; gable at 1:10 over 8 bays carrying 16 skylights on a 2 x 8 grid, one per slope per bay.
+;;
+;; Drawn at the NET LIGHT OPENING (RA_SKY_L_NET, 3000), NOT the overall sheet (RA_SKY_L, 3250): the
+;; balance laps under the roof sheeting and lets no light through, so drawing the overall would show
+;; an opening 250 bigger than the building actually gets.  The BOQ still buys the overall.
+;;
+;; Layer "SKY LIGHT" cyan - the house layer, read out of MSPL-051's own DXF, not invented.  The fill
+;; is 45-degree LINES and never a HATCH entity: real hatches do not survive acad /b.
+
+;; n evenly spaced centres between y0 and y1.  n=1 lands on the MIDDLE of that side, which is the rule.
+(defun peb-sky-half (y0 y1 n / out i)
+  (setq out nil i 0)
+  (while (< i n)
+    (setq out (cons (+ y0 (* (- y1 y0) (/ (+ (* 2.0 i) 1.0) (* 2.0 n)))) out) i (1+ i)))
+  (reverse out))
+
+;; The y-stations of ONE bay's skylights.  Default splits them symmetrically about the ridge, so
+;; 2 per bay = one per slope; an explicit Position forces them all onto one slope or onto the ridge.
+;; rY comes from peb-ridge-y, so an off-centre ridge gives two DIFFERENT half widths and the
+;; skylights still sit mid-slope on each - never (/ wid 2.0).
+(defun peb-sky-rows (rY wid n pos / nearN farN)
+  (cond
+    ((and pos (vl-string-search "RIDGE" pos)) (list rY))
+    ((and pos (vl-string-search "NSW" pos))   (peb-sky-half 0.0 rY n))
+    ((and pos (vl-string-search "FSW" pos))   (peb-sky-half rY wid n))
+    (T (setq nearN (fix (/ (+ n 1) 2)) farN (- n nearN))
+       (append (peb-sky-half 0.0 rY nearN)
+               (if (> farN 0) (peb-sky-half rY wid farN) nil)))))
+
+;; 45-degree line fill on the CURRENT layer - the peb-mezz-hatch algorithm, not hard-wired to the
+;; mezzanine layer.
+(defun peb-sky-hatch (x0 y0 x1 y1 spacing / c cmax step xa xb lay)
+  (if (or (null spacing) (<= spacing 0.0)) (setq spacing 250.0))
+  (setq lay (getvar "CLAYER") step (* spacing 1.41421356)
+        c (+ (- y0 x1) step) cmax (- y1 x0))
+  (while (< c cmax)
+    (setq xa (max x0 (- y0 c)) xb (min x1 (- y1 c)))
+    (if (< (+ xa 1.0) xb)
+      (entmake (list (cons 0 "LINE") (cons 8 lay) (cons 370 5)
+                     (list 10 xa (+ xa c) 0.0) (list 11 xb (+ xb c) 0.0))))
+    (setq c (+ c step)))
+  (princ))
+
+;; NO PART MARKS.  A proposal sheet is not a cutting list - SKL-01 / RS-01 and the parts table belong
+;; to the APPROVAL drawing (owner 31-Aug: "at this stage no need to give the sheeting and skylight any
+;; number").  One SKY LIGHT / W X L callout, the count, and the note.  Returns how many it drew.
+(defun peb-draw-skylights-per-bay (data len wid bayPts n perBay / skyW skyL pos rY nb ys bi cx yc
+                                   gf gt i0 i1 u ts drawn x0 x1 y0 y1 first)
+  (setq skyW (MSPL-Get-Num data "RA_SKY_W")
+        skyL (MSPL-Get-Num data "RA_SKY_L_NET"))
+  (if (or (null skyW) (<= skyW 0.0)) (setq skyW 1000.0))
+  (if (or (null skyL) (<= skyL 0.0)) (setq skyL 3000.0))
+  (setq pos (strcase (MSPL-Get-Str data "RA_SKY_POS"))
+        rY  (peb-ridge-y data wid)
+        nb  (max 1 (1- (length bayPts)))
+        ys  (peb-sky-rows rY wid (max 1 (fix perBay)) pos))
+  ;; optional grid range; 0 / blank = every bay
+  (setq gf (MSPL-Get-Num data "RA_SKY_GRID_FROM") gt (MSPL-Get-Num data "RA_SKY_GRID_TO"))
+  (setq i0 (if (and gf (> gf 0)) (max 0 (1- (fix gf))) 0)
+        i1 (if (and gt (> gt 1)) (min nb (1- (fix gt))) nb))
+  (if (<= i1 i0) (setq i0 0 i1 nb))
+  (setq u (max 400.0 (min 3000.0 (/ (max len wid) 70.0)))
+        ts (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)
+        drawn 0 bi i0 first T)
+  (peb-comp-layer "SKY LIGHT" 4)
+  (while (and (< bi i1) (< drawn n))
+    (setq cx (/ (+ (nth bi bayPts) (nth (1+ bi) bayPts)) 2.0))
+    (foreach yc ys
+      (if (< drawn n)
+        (progn
+          (setq x0 (- cx (/ skyW 2.0)) x1 (+ cx (/ skyW 2.0))
+                y0 (- yc (/ skyL 2.0)) y1 (+ yc (/ skyL 2.0)))
+          (setvar "CLAYER" "SKY LIGHT")
+          (peb-comp-poly (list (list x0 y0) (list x1 y0) (list x1 y1) (list x0 y1)))
+          (peb-sky-hatch x0 y0 x1 y1 (/ skyW 4.0))
+          (if first
+            (progn
+              (setq first nil)
+              (vl-catch-all-apply (function (lambda ()
+                (peb-label-with-leader
+                  (strcat "SKY LIGHT " (rtos skyW 2 0) " X " (rtos skyL 2 0) " (TYP.)")
+                  (list (+ x1 (* u 2.4)) (+ y1 (* u 1.8))) (list x1 y1) "S" (* u 0.42)))))))
+          (setq drawn (1+ drawn)))))
+    (setq bi (1+ bi)))
+  ;; the count, in the house wording, and the standing note.  Owner 31-Aug: the window to move a
+  ;; skylight is the APPROVAL stage, not erection - the sheets ship CUT TO SIZE, so the location is
+  ;; fixed the moment the drawing is approved.  (PAECO 169's "BEFORE ERECTION" is superseded.)
+  ;; BELOW the roof, not on it.  Printed inside the outline these two lines sat among the sheeting
+  ;; runs and the fall arrows and had to be shrunk to fit between them - a note nobody can read is
+  ;; not a note.  Under the eave there is clear paper, so they print at a readable size and the
+  ;; roof stays a roof.  The reference sheets put their notes outside the building for this reason.
+  (setvar "CLAYER" "SKY LIGHT")
+  (txt-bold "MC" (list (* len 0.5) (- 0.0 (* u 3.0))) (/ (* u 0.50) ts) 0.0
+            (strcat (if (< drawn 10) (strcat "0" (itoa drawn)) (itoa drawn))
+                    " No. ROOF SKY LIGHT (EACH " (rtos skyL 2 0) "mm)"))
+  (txt "MC" (list (* len 0.5) (- 0.0 (* u 4.1))) (/ (* u 0.34) ts) 0.0
+       (strcat "NOTE: IF THE SKYLIGHT LOCATION NEEDS TO BE CHANGED, IT SHOULD BE DONE AT THE TIME OF "
+               "APPROVAL; OTHERWISE MAIMAAR STEEL GROUP WILL NOT BE RESPONSIBLE."))
+  (setvar "CLAYER" "0")
+  drawn)
+
 ;; ---- ROOF ACCESSORIES (RA_*) : skylights + turbo-vents as COUNTS → typical distributed roof marks
 ;;      (no per-unit grid location in the IF; grid-located ones flow through PL_ placements), + a roof-
 ;;      opening area note. Owner 6-Jul "100% IF": closes the count-based accessory fields. ----
-(defun peb-draw-roof-accessories (data len wid / nsky nvent opening u ts sq cols rows i j k px py r ridge cap)
+(defun peb-draw-roof-accessories (data len wid bayPts / nsky nvent opening u ts sq cols rows i j k px py r ridge cap perBay)
   (setq nsky    (MSPL-Get-Num data "RA_SKYLIGHTS")
         nvent   (MSPL-Get-Num data "RA_TURBOVENTS")
         opening (MSPL-Get-Num data "RA_ROOF_OPENING")
@@ -4645,7 +4795,14 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
         ts (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0))
   (if (or (and nsky (> nsky 0)) (and nvent (> nvent 0)) (and opening (> opening 0)))
     (peb-comp-layer "COMP-ROOF-ACC" 4))                      ; cyan
-  ;; --- skylights: even grid over the roof (draw up to 15 typical marks; true count in the label) ---
+  ;; --- skylights ---------------------------------------------------------------------------
+  ;; PLACED when the BSF states a per-bay count AND the caller handed us the real bay grid: middle of
+  ;; each roof side, middle of each bay (rule 4B.55).  Otherwise the original even grid, UNCHANGED -
+  ;; so every drawing that does not use the new key renders exactly as it did before.
+  (setq perBay (MSPL-Get-Num data "RA_SKY_PER_BAY"))
+  (if (or (null perBay) (<= perBay 0.0)) (setq perBay 0.0))
+  (if (and nsky (> nsky 0) (> perBay 0.0) bayPts (> (length bayPts) 1))
+    (peb-draw-skylights-per-bay data len wid bayPts (fix nsky) perBay)
   (if (and nsky (> nsky 0))
     (progn
       (setq nsky (fix nsky) cap (min nsky 15)
@@ -4664,7 +4821,7 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
         (setq i (1+ i)))
       (setvar "CLAYER" "COMP-ROOF-ACC")
       (txt-bold "MC" (list (* len 0.5) (* wid 0.035)) (/ (* u 0.45) ts) 0.0
-                (strcat (itoa nsky) " SKYLIGHTS (TYP. DISTRIBUTED)"))))
+                (strcat (itoa nsky) " SKYLIGHTS (TYP. DISTRIBUTED)")))))
   ;; --- turbo/roof vents: circles evenly along the ridge line ---
   (if (and nvent (> nvent 0))
     (progn

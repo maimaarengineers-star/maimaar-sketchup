@@ -354,9 +354,11 @@ The run direction is deliberately perpendicular to the framing plan's purlins so
 the two sheets can never be mistaken for one another at a glance.
 
 Skylights, turbo-vents and roof openings come **from the BSF** (`RA_SKYLIGHTS`,
-`RA_TURBOVENTS`, `RA_ROOF_OPENING`) via `peb-draw-roof-accessories` — the same
-routine the Column Layout Plan uses. One source, no second opinion: if the BSF
-declares none, the sheet draws none.
+`RA_TURBOVENTS`, `RA_ROOF_OPENING`) via `peb-draw-roof-accessories`. One source, no
+second opinion: if the BSF declares none, the sheet draws none. **`RA_SKYLIGHTS` now
+reads the `roof_accessory` COMPONENT first** (the column is only a fallback) — see
+4B.55 for why the old column-only read let a job be billed for 16 and drawn with 0.
+The **roof monitor** is drawn here too, for the same reason (4B.55).
 
 Both sheets belong in the **PDF** set and the **DWG** tab set. They were in the
 DWG path only (behind the draft-sheets gate) and the sheeting plan did not exist
@@ -736,6 +738,27 @@ the helper is absent. Anything **not** guarded that way is a real blank-sheet bu
 
 **And when replacing a span, anchor on the END of what you mean to replace, not on the
 start of the next thing you happen to see.**
+
+**The mirror-image failure, found 31-Aug, and now checked.** Deleting a block from *inside* a defun
+can take that defun's own closing parens with it. The function then **swallows every function after
+it**: `lispcheck` still lists them as defined — it reads text, not structure — while AutoLISP leaves
+them undefined. Deleting a dimension block from `peb-draw-monitor` took the `))` that closed its
+`progn`+`if`, and the **skylights, defined 1,100 lines further down, silently stopped existing**. The
+sheet rendered: correct border, correct title block, main sheeting, grid, falls — and no skylights
+and no monitor. Nothing errored.
+
+A paren count does not find this. It gives one number for a 9,000-line file and cannot say which
+function is wrong. `lispcheck.js` now walks every TOP-LEVEL `(defun` and checks it closes **before
+the next one starts**, and names the pair:
+
+```
+UNCLOSED DEFUN -- it eats the functions after it:
+  MAIMAAR_PEB_Plan.lsp:3493  peb-draw-monitor  swallows  peb-draw-partition
+```
+
+Nested helper defuns (`tb-get` inside `peb-titleblock-mammut`, `aLn` inside `C:PEB-PLAN`) are
+legitimately enclosed by their parent, so only column-0 defuns are compared. The check was verified
+by re-injecting the real bug into a copy and confirming it fires.
 
 ### 4B.27 Text: one ladder, real bold, and clearances derived from the text
 
@@ -1719,3 +1742,142 @@ carries the full sheet identity; the PDF path always did.
 **Still open, recorded so it is not mistaken for finished:** `DRN`/`CHK` print the engine defaults
 `M.H`/`YEA` on every sheet of every proposal because `drawingData.ts` sends blanks, and the `DSN`
 column has a label and no value cell at all — a labelled empty cell is 4B.7.
+### 4B.55 A skylight has a PLACE — and the count must come from where the price comes from
+
+`MSPL-26-269` was billed for 16 skylights and its Roof Sheeting Plan drew none. Nothing errored.
+
+The count had two homes. `drawingData.ts` read the legacy **area column** `skylights`; the BSF saves
+it on the **`roof_accessory` component**, which is where the estimator reads it
+(`mapComponents.pushAcc('skylight', …)`). So `RA_SKYLIGHTS=0` reached the engine and 4B.12's own
+contract — *"if the BSF declares none, the sheet draws none"* — did exactly what it promised. The
+sheet was obeying a rule while telling the customer something the price contradicted.
+
+**The count now comes from the component, with the column as fallback, and filling BOTH raises a
+warning** rather than a silent pick: the two are billed by different code paths
+(`mapComponents` vs `mapArea` → `buildArea.computeSkylights`), so both filled is a double charge.
+Same shape as the doors block, same default-OFF Include tick — an untied skylight is neither billed
+nor drawn.
+
+**Where a skylight goes: the MIDDLE OF EACH ROOF SIDE, and the MIDDLE OF EACH BAY** (owner,
+31-Aug-2026). Not an even grid over the rectangle — that is not a location, and it can drop a panel
+onto the ridge line, which cannot be built. `RA_SKY_PER_BAY` turns the placement on; without it the
+old even grid runs unchanged, so no existing job's sheet moves.
+
+Sides come from `peb-ridge-y`, never `wid/2` — an off-centre ridge gives two different half widths
+and the panels still sit mid-slope on each. Bays come from the **caller's** `bayPts`: the sheeting
+plan slices that list and shrinks `len` for match-line parts, so a drawer that rebuilds stations
+from `len` puts every panel in the wrong bay on a split sheet. `peb-draw-roof-accessories` and
+`peb-draw-monitor` both take it as an argument now for exactly that reason.
+
+Traced, not invented — MSPL **2025/203 DHL Warehouse** approval sheet 19: a 49,370 × 66,845 gable at
+1:10 over 8 bays, 16 skylights on a 2 × 8 grid, one per slope per bay.
+
+**Draw the NET opening, not the sheet you buy.** `RA_SKY_L` = 3250 is the overall panel ordered;
+`RA_SKY_L_NET` = 3000 is what lets light in, the balance lapped under the roof sheeting. Drawing
+3250 would show an opening the building does not get. Same gross-vs-cover split as the sheeting
+itself (coil 1200 → cover 1000). Carry both; the BOQ needs the first, the plan needs the second.
+
+Layer **`SKY LIGHT`** (with the space), cyan — the house layer, read out of MSPL-051's own DXF. Fill
+is 45° **lines**, never a `HATCH` entity: real hatches do not survive `acad /b`.
+
+**No part numbers at proposal stage.** `SKL-01`, `RS-01`, `LS-01` and the parts table belong to the
+approval drawing, where pieces are being fabricated — *"at this stage no need to give the sheeting
+and skylight any number"*. One `SKY LIGHT` / `1000 X 3000` callout, the count in house wording
+(`16 No. ROOF SKY LIGHT (EACH 3000mm)`), and the note. The one proposal-stage precedent in the whole
+archive, `221-24-MSPL.pdf` PRO-04, prints exactly that and nothing more.
+
+**The note says APPROVAL, not erection.** The archive wording is *"…BEFORE ERECTION…"*; it is
+superseded. The skylights ship **cut to size**, so the customer's window to move one closes when the
+drawing is approved and cutting starts — not when the crew arrives:
+
+> IF THE SKYLIGHT LOCATION NEEDS TO BE CHANGED, IT SHOULD BE DONE AT THE TIME OF APPROVAL;
+> OTHERWISE MAIMAAR STEEL GROUP WILL NOT BE RESPONSIBLE.
+
+**And the roof monitor was in the same hole.** The 21-Jul ruling took it off the Column Layout Plan
+and sent it to *"the ROOF PLAN (to be built later)"*. That sheet exists (`C:PEB-ROOF`) but sits
+behind `PEB_DRAFT_SHEETS` and is absent from the PDF pipeline — so the monitor was declared on the
+BSF, drawn on the section, and shown on **no plan the customer ever received**. It is now drawn on
+the roof sheeting plan beside the other roof accessories. A sheet gated off for review is not a
+home; check what actually ships.
+
+**Verified by measurement, not by eye** — dump the sheet's entities and do arithmetic on them:
+16 panels, x-centres = the eight real bay centres (3240 … 57720), y-centres = 7620 and 22860, every
+one 1000 × 3000.
+
+**Still open:** the turbo-vent branch hardcodes `ridge (/ wid 2.0)` (`Plan.lsp`), and
+`Framing.lsp`'s `PL_ SURFACE=ROOF` marks use `midY` — both put vents on the wrong line when
+`BP_RIDGE_OFFSET` moves the ridge. Left alone here because fixing it moves existing sheets.
+
+### 4B.56 Two sheeted surfaces — the sheet's job is to say which is which
+
+A roof monitor is **small frames standing on the existing roof**, carrying a small roof over the
+ridge. Its roof sits **0.75 m above** the main sheeting (`RM_HEIGHT` = throat / 2) and **overlaps**
+it — passing over it, not lapped into it. The main roof is genuinely cut only at the **throat**;
+under the overhang either side it continues.
+
+**So from above there are TWO sheeted surfaces, and they look alike** — both are 1000-cover panel
+runs in the same direction. The opening is not visible at all, because the monitor roof covers it.
+The drawing's job is therefore **not** to hide one surface, and **not** to draw a hole. It is to
+**identify each one**. That is a labelling problem, not a geometry problem — which is the thing three
+successive wrong versions of this band all missed.
+
+**Draw:**
+
+* the **main roof** runs at 1000 cover, breaking **only across the throat**;
+* the **monitor roof** — a band `throat x 2` wide on the ridge, with **its own ridge and its own runs
+  at the same 1000 cover**, because that is what a roof looks like from above;
+* **no opening.** It is underneath. A dashed throat was drawn for one iteration and it showed a hole
+  the view does not contain. The reference agrees from the other direction: **no MSPL drawing uses a
+  dashed monitor boundary in plan** — every one is continuous;
+* **no ridge line under the monitor** (owner: *"in case of roof Monitor, i think there is no need of
+  Ridge Line"*). The monitor stands on the ridge; there is nothing exposed to draw. The ridge is
+  drawn only where the monitor is not — a partial monitor keeps its end stubs, which is exactly where
+  the ridge really is exposed. Its label follows the line, or is not printed;
+* **two callouts** — `ROOF MONITOR SHEETING` on the band, and the main roof's existing
+  `ROOF SHEETING : <profile>` mleader. Placed at different stations so they never collide.
+
+**And NO dimensions on this sheet.** The overall sat at the far left and the throat at the far right —
+two numbers for one object **63 m apart**, the overall wedged into a gap smaller than its own text
+between the roof outline and the `30,480` width chain (owner: *"the dimensions of roof monitor these
+are mingled"*). Deleting them fixes that at the root instead of moving clutter. It is also what the
+reference does: KM Foods does not dimension the monitor on the plan at all, and MSPL-032 dimensions
+it only on its own dedicated sheet. The numbers still live on the BSF and the cross section.
+
+**OVERALL WIDTH = THROAT x 2** (owner). The sheeting overhangs the opening by half a throat each
+side; height is throat / 2. The whole monitor falls out of one number. It had to become a single
+derivation: the section fell back to `throat + 1800` and the plan to a flat `3000`, so a job that
+left the field blank got a section and a roof plan drawing the same monitor **200 mm apart**, with
+nothing saying so. `peb-monitor-band` and `MAIMAAR_PEB_Section.lsp` now both read `throat * 2`.
+
+**ONE source for the footprint.** `peb-monitor-band (data len wid bayPts)` returns
+`(x0 x1 yBot yTop throat ridge)` and BOTH consumers call it — the monitor drawer, and the sheeting
+loop that leaves the gap. The gap the sheeting stops at *is* the opening the monitor covers. It takes
+`bayPts` from the caller for the match-line reason in 4B.55.
+
+**What the reference actually shows** (swept entity-by-entity, 31-Aug — this CORRECTS the 8-Jul note
+that recorded "no monitor label, reference-verified"):
+
+| source | plan treatment |
+|---|---|
+| `MAIMAAR_06_Warehouse_KMFoods.dxf`, sheeting plan | band 1487.7, two CONTINUOUS lines, sheeting butts both edges, band empty, `TEXT` **`ROOF MONITOR OPENING`** inside |
+| same, framing plan | same band, `HATCH ANSI33` 1500/0, label as a hatch island |
+| MSPL-032 (2021) sheet 06, issued for approval | band ~1600, zero content inside, no label |
+| MSPL-032 sheets 07 + 08 | **dedicated `ROOF MONITOR FRAMING PLAN` / `ROOF MONITOR SHEETING PLAN`** — 1000 each side of `℄ OF RIDGE`, `RMS-1` 1000x1000 panels, qty 32 |
+| `proposals/30_Proposal Drawings.dxf` | band carrying the SAME roof hatch as the main roof — the monitor's roof shown on the plan, `ROOF MONITOR` leader on the ridge |
+
+So MSPL **does** label it on the plan; the 8-Jul ruling was based on a wrong reading. And MSPL-032
+corroborates the geometry: opening 1600, monitor roof 2000, overhang ~200 each side — the same shape
+as 1500 / 3000 / 750.
+
+**Where we depart, deliberately.** The majority MSPL convention draws the band as an empty opening,
+which dodges the problem: an empty slot never has to distinguish two sheeted surfaces. We draw both
+and name both. `proposals/30` draws both and labels only one. Naming both is better than either —
+that is the whole of "more beautiful than the references" on this sheet.
+
+⚠ `REF_10_BigBird_Hatchery_RoofMonitor.dxf` is **misnamed** — it contains no monitor at all. It is a
+**RIDGE VENT**: discrete 3000 x 1000 double-outlined rectangles, one per bay, cut as islands out of
+the roof hatch. A different product. Do not copy it into a monitor.
+
+**Still open:** the turbo-vent branch hardcodes `ridge (/ wid 2.0)` and `Framing.lsp`'s
+`PL_ SURFACE=ROOF` marks use `midY`, so both put vents on the wrong line when `BP_RIDGE_OFFSET` moves
+the ridge. Left alone: fixing it moves existing sheets.

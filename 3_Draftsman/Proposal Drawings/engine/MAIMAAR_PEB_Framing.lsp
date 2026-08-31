@@ -1841,7 +1841,7 @@
 (defun peb-draw-roof-sheeting (data ox oy / len wid slopeD bayPts prev midY i x y
                                cover nRuns stype mgGables mgGableW base mgi ry mgRid
                                mgVal bubGap bubR ovr j fx hiNSW wgrid lbl
-                               prng pi0 pi1 px0 pOfs)
+                               prng pi0 pi1 px0 pOfs bi mBnd mX0 mX1 mB mT lblX)
   (setq len    (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
         wid    (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
         slopeD (atof (peb-tb-or (MSPL-Get-Str data "SLOPE") "10")))
@@ -1884,9 +1884,30 @@
         nRuns (fix (/ len cover))
         i 1)
   (if (> nRuns 400) (setq nRuns 400))          ; a very long shed would just go black
+  ;; A run STOPS at the roof monitor - the cladding butts into the upstand, it does not pass under
+  ;; it.  Drawn straight through, every run crossed the monitor band and the monitor stopped being
+  ;; legible: five near-parallel lines with 59 more ruled across them read as a grey smudge, not as
+  ;; an opening (owner 31-Aug, "simple But Excellent Outlook").  The band comes from
+  ;; peb-monitor-band, the SAME call the monitor drawer uses, so the gap the sheeting leaves is
+  ;; exactly the opening that gets drawn in it - they cannot drift apart.
+  ;; The break is the THROAT, not the whole band.  The monitor roof merely passes OVER the main roof
+  ;; - "overlap but not real overlap" (owner 31-Aug) - so the main sheeting continues underneath the
+  ;; overhang either side and is genuinely cut only at the opening.  Breaking the full 3000 band said
+  ;; the roof was cut twice as wide as it is.  peb-monitor-band returns (x0 x1 yBot yTop throat ridge),
+  ;; so the opening is ridge +/- throat/2 - the SAME numbers the monitor drawer uses.
+  (setq mBnd (if (boundp 'peb-monitor-band) (peb-monitor-band data len wid bayPts) nil))
+  (if mBnd (setq mX0 (+ ox (nth 0 mBnd)) mX1 (+ ox (nth 1 mBnd))
+                 mB  (+ oy (- (nth 5 mBnd) (/ (nth 4 mBnd) 2.0)))
+                 mT  (+ oy (+ (nth 5 mBnd) (/ (nth 4 mBnd) 2.0)))))
   (while (< i nRuns)
     (setq x (+ ox (* cover i)))
-    (command "_.LINE" (list x oy) (list x (+ oy wid)) "")
+    ;; only the runs that actually meet the monitor are broken; a partial-length monitor leaves the
+    ;; rest of the roof sheeted end to end.
+    (if (and mBnd (>= x mX0) (<= x mX1))
+      (progn
+        (command "_.LINE" (list x oy) (list x mB) "")
+        (command "_.LINE" (list x mT) (list x (+ oy wid)) ""))
+      (command "_.LINE" (list x oy) (list x (+ oy wid)) ""))
     (setq i (1+ i)))
 
   ;; --- main frame lines, light, so the grid still reads through the sheeting -
@@ -1932,11 +1953,29 @@
      )
     ;; GABLE (clear span / multi-span): ridge down the middle, falls both ways
     (T
+     ;; A roof monitor STANDS ON the ridge, so under it there is no ridge to show - the monitor's own
+     ;; geometry is what tells you where the ridge runs (owner 31-Aug: "in case of roof Monitor, i
+     ;; think there is no need of Ridge Line").  Drawn anyway, the line and its label ran straight
+     ;; through the hatched opening and neither could be read.  So the ridge is drawn ONLY where the
+     ;; monitor is not: a full-length monitor leaves none, a partial one keeps its end stubs - which
+     ;; is exactly where a ridge IS exposed on the real roof.
      (setvar "CLAYER" "RIDGE")
-     (command "_.LINE" (list ox midY) (list (+ ox len) midY) "")
-     (setvar "CLAYER" "TEXT")
-     (txt "ML" (list (+ ox (* len 0.02)) (+ midY (* 300 *PEB-TEXT-SCALE*)))
-          (peb-th 'ANNOT) 0 "RIDGE LINE")
+     (if mBnd
+       (progn
+         (if (> mX0 (+ ox 1.0))          (command "_.LINE" (list ox midY)  (list mX0 midY) ""))
+         (if (< mX1 (- (+ ox len) 1.0))  (command "_.LINE" (list mX1 midY) (list (+ ox len) midY) "")))
+       (command "_.LINE" (list ox midY) (list (+ ox len) midY) ""))
+     ;; ...and the label only where there is a ridge left to label.
+     (setq lblX
+       (cond ((null mBnd) (+ ox (* len 0.02)))
+             ((> mX0 (+ ox 1.0)) (+ ox (* (- mX0 ox) 0.15)))
+             ((< mX1 (- (+ ox len) 1.0)) (+ mX1 (* (- (+ ox len) mX1) 0.15)))
+             (T nil)))
+     (if lblX
+       (progn
+         (setvar "CLAYER" "TEXT")
+         (txt "ML" (list lblX (+ midY (* 300 *PEB-TEXT-SCALE*)))
+              (peb-th 'ANNOT) 0 "RIDGE LINE")))
      ))
 
   ;; --- SHEETING MLEADER (owner 26-Aug) -------------------------------------
@@ -1961,7 +2000,16 @@
 
   ;; --- skylights / vents / roof openings, straight from the BSF ------------
   (if (boundp 'peb-draw-roof-accessories)
-    (vl-catch-all-apply (function (lambda () (peb-draw-roof-accessories data len wid)))))
+    (vl-catch-all-apply (function (lambda () (peb-draw-roof-accessories data len wid bayPts)))))
+
+  ;; --- roof monitor (owner 31-Aug: "show the roof Monitor as well on the Roof Plan") -------
+  ;; It was drawn on NO shipped sheet. The 21-Jul ruling took it off the Column Layout Plan and sent
+  ;; it to "the ROOF PLAN (to be built later)" — but that sheet (C:PEB-ROOF) is behind the
+  ;; PEB_DRAFT_SHEETS gate and is not in the PDF pipeline, so the monitor fell through the gap: the
+  ;; BSF declared it, the section drew it, and every plan the customer received showed a bare roof.
+  ;; This is the roof plan that actually ships, so it belongs here, beside the other roof accessories.
+  (if (boundp 'peb-draw-monitor)
+    (vl-catch-all-apply (function (lambda () (peb-draw-monitor data len wid bayPts)))))
 
   ;; --- overall length + width, metres AND feet on the one line -------------
   (vl-catch-all-apply (function (lambda ()
@@ -1980,6 +2028,21 @@
     (vl-catch-all-apply (function (lambda ()
       (peb-dim-h-stretch ox (+ ox len) (+ oy wid (* 900 *PEB-DIM-SCALE*))
                          (peb-fmt-expr (MSPL-Get-Str data "BAYEXPR")))))))
+
+  ;; --- and a dimension on EVERY BAY (owner 31-Aug: "match with old reference") -------------
+  ;; The chain above states the whole length with the bay EXPRESSION as its text, which is a
+  ;; summary, not a dimension: a fabricator reading "6@8000" has to do arithmetic to find where
+  ;; grid 5 is.  Every MSPL approval sheeting plan dimensions each bay individually - MSPL
+  ;; 2025/203 (DHL) sheet 19 runs 7344 | 8641 x6 | 7344 across the top - so this sheet does too.
+  ;; Sits INSIDE the overall (450 vs 900 * DIM-SCALE) so the reading order is roof, bays, total,
+  ;; bubbles, exactly as the reference stacks them.  bayPts is already part-sliced and rebased,
+  ;; so a match-line sheet dimensions ITS OWN bays and no others.
+  (setq bi 0)
+  (while (< bi (1- (length bayPts)))
+    (vl-catch-all-apply (function (lambda ()
+      (peb-dim-h-stretch (+ ox (nth bi bayPts)) (+ ox (nth (1+ bi) bayPts))
+                         (+ oy wid (* 450 *PEB-DIM-SCALE*)) nil))))
+    (setq bi (1+ bi)))
 
   ;; --- grid bubbles: numbers along the length, letters at the eaves --------
   (setq bubR   (peb-bub-radius (peb-min-spacing bayPts))

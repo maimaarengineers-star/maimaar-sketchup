@@ -7633,7 +7633,10 @@
   (if (or (null throat) (<= throat 0.0)) (setq throat (MSPL-Get-Num data "RM_OVERALL_WIDTH")))
   (if (or (null throat) (<= throat 0.0)) (setq throat (min 3500.0 (* wid 0.20))))
   (setq overallW (MSPL-Get-Num data "RM_OVERALL_WIDTH"))
-  (if (or (null overallW) (<= overallW throat)) (setq overallW (+ throat 1800.0)))
+  ;; OVERALL = THROAT x 2 (owner 31-Aug) - the SAME derivation peb-monitor-band uses on the plan.
+  ;; This used to be throat + 1800 here and a flat 3000 on the plan, so a blank field produced a
+  ;; section and a roof plan that drew the same monitor 200 mm apart.
+  (if (or (null overallW) (<= overallW throat)) (setq overallW (* throat 2.0)))
   ;; owner 21-Jul: monitor HEIGHT = HALF the throat width (governing proportion rule for the monitor).
   (setq rmh (/ throat 2.0))
   (setq eaveType (strcase (MSPL-Get-Str data "RM_EAVE_TYPE"))
