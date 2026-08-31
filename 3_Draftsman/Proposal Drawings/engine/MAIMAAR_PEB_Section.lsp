@@ -306,7 +306,7 @@
 ;;  from the panel only for a SANDWICH.  Density is always shown when present.
 (defun peb-panel-label (data key / typ outMat outFin outProf innerProf insThk insType insDens
                                     pirThk pirDens pirType innerMat linerMat
-                                    outer core inner coreU isSandwich isLiner finOut profOut lbl)
+                                    outer core inner coreU isSandwich isLiner finOut profOut lbl addOn)
   (setq typ      (peb-alist-get data (strcat "PN_" key "_TYPE")))
   (setq outMat   (peb-alist-get data (strcat "PN_" key "_OUTER_MAT")))
   (setq outFin   (peb-alist-get data (strcat "PN_" key "_OUTER_FINISH")))
@@ -381,10 +381,20 @@
           (/= (strcase (vl-string-trim " " (peb-alist-get data (strcat "LN_" key "_COVERAGE")))) "NOT REQUIRED"))
       (setq inner (strcat (peb-panel-clean-mat linerMat) finOut) isLiner T))
     (T (setq inner "")))
-  ;; --- COMPOSE: outer [+ core] [+ inner (Liner?)] ---
+  ;; --- COMPOSE: outer [+ core] [+ inner (Liner? Add-on?)] ---
+  ;; A liner on an OP1-OP10 sales code is quoted SEPARATELY from the base price (LN_<key>_ADDON),
+  ;; so the drawing says so: without it the customer reads a lined roof on the sheet and a base
+  ;; price that does not include it.  Tagged on the ITEM, never on the sheet - a bare "(OPTIONAL)"
+  ;; floating on a drawing reads as though the BUILDING were optional (owner 31-Aug).
+  ;; This is the one place both the SECTION and the PLAN compose a panel label, so the tag reaches
+  ;; both sheets from here.  Blank/"No" on every existing job, so those drawings do not move.
   (setq lbl outer)
   (if (/= core "")  (setq lbl (strcat lbl " + " core)))
-  (if (/= inner "") (setq lbl (strcat lbl " + " inner (if isLiner " Liner" ""))))
+  (setq addOn (= (strcase (vl-string-trim " " (peb-alist-get data (strcat "LN_" key "_ADDON")))) "YES"))
+  (if (/= inner "")
+    (setq lbl (strcat lbl " + " inner
+                      (if isLiner " Liner" "")
+                      (if (and isLiner addOn) " (ADD-ON)" ""))))
   lbl)
 
 ;;  Legacy entry point kept for the drawing code: heading + full build-up.

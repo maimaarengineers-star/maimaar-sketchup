@@ -1907,3 +1907,36 @@ is not a reason when the reference is at a different scale.
 **Still open:** the turbo-vent branch hardcodes `ridge (/ wid 2.0)` and `Framing.lsp`'s
 `PL_ SURFACE=ROOF` marks use `midY`, so both put vents on the wrong line when `BP_RIDGE_OFFSET` moves
 the ridge. Left alone: fixing it moves existing sheets.
+
+
+### 4B.57 If it is not in the price, the drawing has to say so
+
+A liner carrying an **OP1–OP10** sales code is quoted **separately** from the base price. Drawn
+without a word, the sheet shows a lined roof while the price beside it does not include one — the
+customer reads a complete building and a number that does not buy it.
+
+So the panel label carries **`(ADD-ON)`**:
+
+```
+ROOF SHEETING  0.50mm AZ 150 (PPGL) + 0.50mm AZ 150 (PPGL) Liner (ADD-ON)
+```
+
+**ADD-ON, not "Optional"** (owner 31-Aug). "Optional" describes the decision; "Add-On" describes the
+thing. Beside a price, "Optional" can be read as the *price* being optional.
+
+**Tag the ITEM, never the sheet.** A bare "(OPTIONAL)" floating on a drawing reads as though the
+BUILDING were optional. It belongs on the label of the thing that is not being bought.
+
+**One edit, both sheets.** `peb-panel-label` (`Section.lsp`) is the single place a panel label is
+composed — `peb-build-sheeting-string` in `Plan.lsp` *delegates* to it and only falls back to a
+simple label if it is unbound. So the tag was added there once and reaches the Section and the Plan
+together. Do not add a second copy to the Plan: that is 4B.55's drift class, and the fallback path
+deliberately carries no liner information at all.
+
+Driven by `LN_ROOF_ADDON` / `LN_WALL_ADDON` from `drawingData.ts`, derived from the liner
+component's own `salesCode`. Blank or non-OP on every existing record, so no existing drawing moves.
+
+⚠ `addOn` is declared in `peb-panel-label`'s LOCALS. An undeclared symbol in AutoLISP is **global** —
+it would have survived between sheets in one render session and tagged a later building's liner that
+is in the base price. The bug would have appeared only on the *second* building of a multi-building
+set, which is the kind that reaches a customer.
