@@ -2061,18 +2061,28 @@ panel lines. Same split the rest of both drawers already observe.
 
 | | what is drawn | pitch | why that pitch |
 |---|---|---|---|
-| END, `"S"` | monitor end, **leg to leg** | throat/(n+1), n = throat/333 → **300** on a 1500 throat | matches the wall sheeting (`sp 333.0`) on the same sheet |
+| END, `"S"` | monitor end, **full overall width** | overall/(n+1), n = overall/333 → **300** on a 3000 overall | matches the wall sheeting (`sp 333.0`) on the same sheet |
 | SIDE, `"S"` | monitor roof on its slope | **1000** | the roof COVER width `peb-draw-roof-sheeting` uses |
 | SIDE, both | the vent opening below it | **1000** | the same stations as the sheeting above it |
 | SIDE sheeting sheet | the MAIN roof band | **1000** | it was a bare rectangle on a sheeting drawing |
 
-**Leg to leg, never to the roof edge** (owner 31-Aug). The monitor roof overhangs 750 past each leg
-with an **open soffit** — that is how a mini gable frame closes. Sheeting out to `overall/2` would
-draw a wall where the building has none.
+**Full overall width, extensions included** (owner 31-Aug: *"On both Ends Sheeting are complete
+including Both Sides Extensions"*). The end is closed right out to the roof edge, so the 750
+extension each side is sheeted too.
 
-⚠ **Distribute the end sheets, do not run a fixed pitch from one leg.** A fixed 333 from the left leg
+This **reverses** the leg-to-leg answer given earlier the same day, and the reversal is the point
+worth keeping: the earlier reasoning ("a mini gable frame closes between its legs, so sheeting the
+overhang would draw a wall that is not there") was sound in the abstract and simply not how
+Maimaar builds them. The owner is the authority on that, not the reasoning.
+
+The bottom of every sheet line is `peb-fr-topy` — the main roof at that x — which is the correct
+bound in **both** zones, between the legs and out under the extensions, so one expression covers
+the whole 3000. Top and bottom slope at the same rate, so each line is exactly `rmh` (750) tall
+right across.
+
+⚠ **Distribute the end sheets, never run a fixed pitch from one edge.** A fixed 333 from the left leg
 put the last line 168 from the right leg — half a pitch — and the two printed as a single thickened
-line. Spacing `throat/(n+1)` is symmetric about the ridge and clear of both legs.
+line. Spacing `overall/(n+1)` is symmetric about the ridge and clear of both roof edges.
 
 ⚠ **One module for the whole monitor.** The opening's ticks were evenly distributed at ~2 m while the
 sheeting above ran at a fixed 1 m, so the two bands divided on different lines and stacked as two
@@ -2081,3 +2091,66 @@ as one object.
 
 **The main roof band is now sheeted on the side sheeting elevation, for every gable job** — not only
 those with a monitor. Owner's call, 31-Aug.
+
+### 4B.59 The elevations say what they are showing
+
+A round of owner review on 31-Aug, all of it one theme: *"what i want the sync in all the drawings
+of the building"*, and *"we should not compromise on Aesthetic"*.
+
+**Every sheet states its own basis.** The elevations printed bare numbers while the plan tagged its
+areas and the section spelled the height down the wall — three sheets of one set and only two said
+what the number meant.
+
+| | height | overall dim |
+|---|---|---|
+| plan (PRO-01) | `CLEAR HT.` tag | `BUILDING WIDTH : … O/O STEEL COLUMN` |
+| section (PRO-02) | `CLEAR HEIGHT`, rotated | `… O/O STEEL COLUMN` |
+| elevations (PRO-03…06) | **`9,140 [30'-0"] C.H`** | **`30,480 [100'-0"] O/O STEEL COLUMN`** |
+
+Three lengths of one fact, because each sheet has different room for it. What they must NOT do is
+disagree about **which** basis, so all three read the same keys through the same helpers:
+`peb-height-tag-label` / `peb-height-tag-abbr` on `HEIGHT_REF`, and `peb-basis-suffix` on
+`LENGTH_REF`/`BAY_REF` for a side wall and `WIDTH_REF`/`WIDTH_MOD_REF` for an end wall — the plan's
+own keys (`Plan.lsp:5959, 5982`).
+
+⚠ The `HEIGHT_REF` trap travels with the helpers: **"Clear Height at Eave" contains BOTH "CLEAR" and
+"EAVE"**, so CLEAR is tested first in both, or every clear height prints as an eave height.
+
+**An abbreviation must be defined on the drawing that uses it.** Note 7 on both elevation note
+blocks: `C.H = CLEAR HT.   E.H = EAVE HT.` — both defined, not just the one in use, so the note does
+not change between jobs. `tbKind` FRAMING/SHEETING reaches only the four wall elevations; the roof
+sheets match ROOFFRM/ROOFSHT earlier in the same cond.
+
+**Framing shows frame, sheeting shows cladding — in both directions.** Monitor legs draw on the
+framing sheets only (a sheeting elevation draws no columns behind its wall sheeting either); bird
+mesh draws on the sheeting sheets only. On the framing side elevation the mesh had been 60 ticks
+across the top of the wall, reading as a comb.
+
+**Bird mesh is drawn as BOXES.** `WRM` in the QE is *"Galvanized Wire Mesh (1.219m x 30.4m Rolls)"*,
+billed by m² — a square mesh. Verticals alone drew slats, which is a different product and one a
+bird walks through. One horizontal through the band gives 1000 x 300 boxes: the coarsest grid that
+still reads as mesh, because the band is 600 tall = 1.6 mm at 1:375 and a true mesh pitch fills solid.
+
+⚠ **Mesh draws only when `RM_BIRD_MESH` is selected** (owner). Blank draws nothing.
+
+**A label above a peak-mounted part becomes a subtitle.** "ROOF MONITOR" centred above the monitor
+landed under the sheet heading — measured, it OVERLAPPED by 79.5 mm on PRO-04, and lowering it to
+294 mm clear (1.3 mm on paper) still read as a subtitle of the drawing. **Height alone cannot fix
+it**: the monitor stands on the peak and the heading is centred over that same peak, so the label
+has to leave the centreline. It is now a leader to the LEFT — the right side already carries the
+GIRT TYPE leader.
+
+**A member drawn as one unterminated line is not a member.** Removed from both knees and the peak of
+the end-wall framing elevation: the flange braces (a bare diagonal ending in mid-air), the haunch
+(a second bare diagonal crossing it, and redundant — the rafter is already a TAPERED double-line
+member), and the peak ridge tick (a dashed vertical running the full rise, hanging through the
+rafter into the frame). If a brace or haunch is ever wanted back it must be a **closed shape landing
+on the members at both ends**.
+
+**Purlins are NOT shown on the side framing elevation, and the reason is arithmetic.** `purlSp 1500`
+gives `nRows = fix(0.5 + wid/1500)` = 20 across 30,480, so 10 per slope. On a side elevation purlins
+run parallel to the wall and project as **horizontal** lines spread over the roof band's 1,524 mm —
+152 mm apart, which at 1:375 is **0.41 mm**, thinner than the plotted lineweight. Ten of them merge
+into a grey smear. Sheeting lines pass the same test and are drawn, because they run the other way:
+**vertical**, at the 1000 cover width, **2.7 mm** apart. Legibility at the plotted scale is the test,
+not whether the part exists.

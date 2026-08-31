@@ -1514,6 +1514,22 @@
         ((wcmatch u "*EAVE*")  "EAVE HT.")
         (T                     "CLEAR HT.")))
 
+;; The SAME basis, abbreviated, for the WALL ELEVATIONS (owner 31-Aug: "you may make the
+;; abbreviation of Clear Height to C.H, Eave Height to E.H ... for framing elevations and sheeting
+;; elevations").  A sibling rather than a flag on the one above, because the three sheets want three
+;; lengths of the same fact and each has its own room for it:
+;;    plan      -> CLEAR HT.     (a tag inside an area box)
+;;    section   -> CLEAR HEIGHT  (rotated, spans the whole wall)
+;;    elevation -> C.H           (appended to a dim string that already carries mm and feet)
+;; They must not disagree about WHICH basis it is, which is why both read HEIGHT_REF through the
+;; same cond - including the trap: "Clear Height at Eave" contains BOTH "CLEAR" and "EAVE", so CLEAR
+;; is tested FIRST or every clear height prints as an eave height.
+(defun peb-height-tag-abbr (ref / u)
+  (setq u (strcase (if ref ref "")))
+  (cond ((wcmatch u "*CLEAR*") "C.H")
+        ((wcmatch u "*EAVE*")  "E.H")
+        (T                     "C.H")))
+
 ;; map an IF "Measured At" basis string -> the Mammut-style dim-label suffix.
 (defun peb-basis-suffix (b / u)
   ;; Abbreviated to save space (owner 4-Jul): O/O = out to out, C/C = centre to centre, I/I = in to in.
@@ -2471,7 +2487,18 @@
                 ;; kept under ~40 characters so each note stays on ONE line — note 3 is
                 ;; the longest that fits the strip, and a wrapped note reads as a mistake
                 "5. CONNECTIONS BOLTED UNLESS NOTED.\\P"
-                "6. FRAME GEOMETRY PER CROSS SECTION.") white))
+                "6. FRAME GEOMETRY PER CROSS SECTION.\\P"
+                ;; ABBREVIATION LEGEND (owner 31-Aug: abbreviate to C.H / E.H, then "But there must
+                ;; be clarity").  An abbreviation on a customer drawing has to be defined ON that
+                ;; drawing: the height dim is the only place C.H/E.H appears and a reader who does
+                ;; not already know the convention has nothing to resolve it against.  BOTH are
+                ;; defined, not only the one in use, so the note does not change between an
+                ;; eave-basis job and a clear-basis one.
+                ;; tbKind FRAMING/SHEETING reaches ONLY the four wall elevations - the roof sheets
+                ;; match ROOFFRM/ROOFSHT earlier in the same cond - so this lands exactly where the
+                ;; abbreviation is used and nowhere else.  Kept under 40 chars like its neighbours,
+                ;; because a wrapped note in this strip reads as a mistake.
+                "7. C.H = CLEAR HT.   E.H = EAVE HT.") white))
     ;; ==== SHEETING / CLADDING : proposal-level cladding notes ====
     (T
       (setq rh (* s 0.052) bt yCur yCur (- yCur rh))
@@ -2493,7 +2520,10 @@
                 "3. FLASHINGS & TRIMS PER APPROVED DESIGN.\\P"
                 "4. OPENINGS & INFILL BY OTHERS AS SHOWN.\\P"
                 "5. SHEET THICKNESS PER THE PROPOSAL.\\P"
-                "6. FASTENERS & SEALANTS PER DESIGN.") white)))
+                "6. FASTENERS & SEALANTS PER DESIGN.\\P"
+                ;; ABBREVIATION LEGEND - see the identical note in the FRAMING block above.  Both
+                ;; elevation kinds carry the C.H/E.H height dim, so both have to define it.
+                "7. C.H = CLEAR HT.   E.H = EAVE HT.") white)))
   (setq yCur (- bandTop (* s 0.276)))
   (tb-hdiv yCur)
 

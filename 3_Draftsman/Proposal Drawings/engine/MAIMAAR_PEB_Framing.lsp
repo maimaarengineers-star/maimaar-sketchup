@@ -538,7 +538,7 @@
                        / m throat overall rmh halfT halfO prev cx s apexY
                          legL legR legTopL legTopR ridgeY eaveY
                          nSt gFrom gTo mx0 mx1 bandH nT i px mesh
-                         isSht sxm ytop)
+                         isSht sxm ytop lx)
   (setq m (peb-fr-mon-geom data))
   ;; Only a GABLE carries a monitor: it straddles a RIDGE, and rtype "B" puts a VALLEY at
   ;; mid-span (see peb-fr-topy) - seating a monitor there would draw it inside a gutter.
@@ -567,10 +567,18 @@
                   eaveY   (- ridgeY (* halfO s))   ; monitor roof follows the MAIN slope
                   legTopL (+ legL rmh)
                   legTopR (+ legR rmh))
-            ;; the two legs, seated on the main rafter
-            (setvar "CLAYER" "STRUCTURE")
-            (command "_.LINE" (list (+ ox (- cx halfT)) legL) (list (+ ox (- cx halfT)) legTopL) "")
-            (command "_.LINE" (list (+ ox (+ cx halfT)) legR) (list (+ ox (+ cx halfT)) legTopR) "")
+            ;; The two legs, seated on the main rafter - on the FRAMING sheet only.
+            ;; A sheeting elevation shows no structure BEHIND its sheeting: the end wall on this very
+            ;; sheet draws its panel lines and brick with no columns at all.  The monitor legs are the
+            ;; same thing at a smaller scale, and once the end sheeting ran the full 3000 they sat 150
+            ;; from a sheet line - a quarter of a millimetre at 1:234 - and printed as a doubled line
+            ;; at each leg.  Omitting them is not hiding a member; it is the sheet being consistent
+            ;; about what it shows.
+            (if (not isSht)
+              (progn
+                (setvar "CLAYER" "STRUCTURE")
+                (command "_.LINE" (list (+ ox (- cx halfT)) legL) (list (+ ox (- cx halfT)) legTopL) "")
+                (command "_.LINE" (list (+ ox (+ cx halfT)) legR) (list (+ ox (+ cx halfT)) legTopR) "")))
             ;; its own gable roof, overhanging each leg out to overall/2
             (setvar "CLAYER" "CLADDING")
             (command "_.PLINE" (list (+ ox (- cx halfO)) eaveY)
@@ -582,6 +590,26 @@
                               (list (+ ox (- cx halfO)) (- eaveY (* 0.18 rmh))) "")
             (command "_.LINE" (list (+ ox (+ cx halfO)) eaveY)
                               (list (+ ox (+ cx halfO)) (- eaveY (* 0.18 rmh))) "")
+            ;; NAME IT (owner 31-Aug: "write the roof monitor name in elevations for clearity").
+            ;; The roof plan names it and the section labels it; the elevations were showing an
+            ;; unlabelled box sitting on the ridge, which is only obvious to someone who already
+            ;; knows the building has a monitor.
+            ;; LEADER TO THE SIDE, not a caption above.  The monitor stands on the PEAK and the
+            ;; sheet heading is centred over the same peak, so ANY centred label above it lands
+            ;; directly under the title and reads as a subtitle of the drawing rather than as a
+            ;; label on a part.  Measured: at 2.0 text-heights it OVERLAPPED the heading by 79.5,
+            ;; and at 1.15 it cleared by only 294 - 1.3 mm on paper - which still read as a
+            ;; subtitle.  Height alone cannot fix it; the label has to leave the centreline.
+            ;; It goes LEFT: the right-hand side already carries the GIRT TYPE leader and its text.
+            ;; The leader sits at the monitor mid-height, so it points at the monitor itself
+            ;; rather than at the roof, and the text is right-justified onto the leader tail.
+            (setq lx (- cx halfO))
+            (setvar "CLAYER" "DIMENSIONS")
+            (command "_.LINE" (list (+ ox lx) (/ (+ eaveY ridgeY) 2.0))
+                              (list (+ ox (- lx (* 1800 *PEB-TEXT-SCALE*))) (/ (+ eaveY ridgeY) 2.0)) "")
+            (setvar "CLAYER" "TEXT")
+            (txt "MR" (list (+ ox (- lx (* 2100 *PEB-TEXT-SCALE*))) (/ (+ eaveY ridgeY) 2.0))
+                 (peb-th 'SMALL) 0 "ROOF MONITOR")
             ;; THE MONITOR END, SHEETED (owner 31-Aug: "on both ends Sheeting will be there for
             ;; roof monitor", "vertical sheets").  On a SHEETING elevation the wall beneath it is
             ;; filled with panel lines, so an outline alone reads as nothing being there at all -
@@ -595,17 +623,21 @@
             ;; monitor matches the wall under it instead of carrying its own private sheeting scale.
             (if isSht
               (progn
-                ;; EVENLY distributed, not a fixed 333 run from the left leg.  A fixed pitch left the
-                ;; last sheet line 168 from the right leg - half a pitch - and the two printed as one
-                ;; thickened line.  n = throat/333 rounded down, then spaced throat/(n+1), which for a
-                ;; 1500 throat is 4 lines at 300: symmetric about the ridge, clear of both legs, and
-                ;; near enough 333 to match the wall sheeting beside it.
+                ;; FULL OVERALL WIDTH, extensions included (owner 31-Aug: "On both Ends Sheeting are
+                ;; complete including Both Sides Extensions").  Not leg to leg: the monitor end is
+                ;; closed right out to the roof edge, so the 750 extension each side is sheeted too.
+                ;;
+                ;; EVENLY distributed, never a fixed pitch run from one edge.  A fixed 333 from the
+                ;; left leg had left the last line 168 from the right one - half a pitch - and the two
+                ;; printed as a single thickened line.  n = overall/333 rounded down, spaced
+                ;; overall/(n+1): 9 lines at 300 on a 3000 overall, symmetric about the ridge, clear
+                ;; of both roof edges, and near enough the wall sheeting's own 333 to match it.
                 (setvar "CLAYER" "CLADDING")
-                (setq nT (fix (/ throat 333.0)))
+                (setq nT (fix (/ overall 333.0)))
                 (if (< nT 1) (setq nT 1))
                 (setq i 1)
                 (while (<= i nT)
-                  (setq sxm (+ (- cx halfT) (* throat (/ (float i) (float (1+ nT))))))
+                  (setq sxm (+ (- cx halfO) (* overall (/ (float i) (float (1+ nT))))))
                   ;; top = the monitor RAFTER UNDERSIDE at this x, the same line the leg tops were
                   ;; measured landing on exactly (12415.9 on 269); bottom = the main roof, seated
                   ;; with peb-fr-topy like every other thing on this sheet.
@@ -647,6 +679,14 @@
               (command "_.LINE" (list (+ ox mx0) eaveY) (list (+ ox mx1) eaveY) "")
               (setvar "CLAYER" "RIDGE")
               (command "_.LINE" (list (+ ox mx0) ridgeY) (list (+ ox mx1) ridgeY) "")
+              ;; NAME IT (owner 31-Aug: "write the roof monitor name in elevations for clearity").
+              ;; The roof plan names it and the section labels it; the elevations were showing an
+              ;; unlabelled box sitting on the ridge, which is only obvious to someone who already
+              ;; knows the building has a monitor.
+              (setvar "CLAYER" "TEXT")
+              (txt "MC" (list (+ ox (/ (+ mx0 mx1) 2.0))
+                              (+ ridgeY (* 1.15 (peb-th 'SMALL) *PEB-TEXT-SCALE*)))
+                   (peb-th 'SMALL) 0 "ROOF MONITOR")
               ;; THE MONITOR'S ROOF SHEETING on its slope (owner 31-Aug: "roof sheeting of slope
               ;; will be shown and opening will be shown below it").  Pitch 1000 = the roof COVER
               ;; width peb-draw-roof-sheeting uses, so these are the SAME runs the roof plan draws.
@@ -672,8 +712,17 @@
                   ;; length at exactly this Y on both side sheets, and a second one on OPEN at the
                   ;; same coordinates is a duplicate entity, not a darker line.
                   (setvar "CLAYER" "OPEN")
+                  ;; BIRD MESH is CLADDING, so it belongs on the sheeting sheet only (owner 31-Aug:
+                  ;; "in Framing Sidewall Elevations Sidelines are Showing (Vertical Lines), these
+                  ;; should not be there.  Will show the opening from the side and roof sheeting
+                  ;; line on the top").  At 1 m pitch over a 61 m monitor that is 60 ticks, and on
+                  ;; the FRAMING elevation - which carries no sheeting of any kind - they read as a
+                  ;; comb across the top of the wall rather than as a mesh.
+                  ;; The framing sheet keeps what the owner asked for and nothing else: the opening
+                  ;; band bounded by the main roof below and the monitor eave above, and the roof
+                  ;; line on top.  Same split as the monitor legs, in the other direction.
                   (setq mesh (strcase (peb-tb-or (MSPL-Get-Str data "RM_BIRD_MESH") "")))
-                  (if (or (= mesh "YES") (= mesh "Y") (= mesh "TRUE"))
+                  (if (and isSht (or (= mesh "YES") (= mesh "Y") (= mesh "TRUE")))
                     (progn
                       ;; The SAME stations as the roof sheeting above: mx0 + n*1000, the roof COVER
                       ;; width.  Evenly-distributed 2 m ticks landed between the sheet lines, so the
@@ -682,7 +731,18 @@
                       (setq px (+ mx0 1000.0))
                       (while (< px mx1)
                         (command "_.LINE" (list (+ ox px) apexY) (list (+ ox px) eaveY) "")
-                        (setq px (+ px 1000.0)))))))))))
+                        (setq px (+ px 1000.0)))
+                      ;; ...AND A HORIZONTAL, so the mesh reads as BOXES (owner 31-Aug: "normally
+                      ;; it is galvanised wire mesh ... with Boxes ... so that Bird may not enter in
+                      ;; the building").  It is WRM in the QE - "Galvanized Wire Mesh (1.219m x
+                      ;; 30.4m Rolls)", billed by m2 - a SQUARE mesh, and verticals alone drew it as
+                      ;; slats or a louvre, which is a different product that a bird walks through.
+                      ;; ONE horizontal, not a fine hatch: the opening band is 600 tall, which is
+                      ;; 1.6 mm at 1:375.  A true mesh pitch there is far below the plotted
+                      ;; lineweight and fills solid grey; a 2-row grid of 1000 x 300 boxes is the
+                      ;; coarsest thing that still reads unmistakably as mesh rather than as slats.
+                      (command "_.LINE" (list (+ ox mx0) (/ (+ apexY eaveY) 2.0))
+                                        (list (+ ox mx1) (/ (+ apexY eaveY) 2.0)) "")))))))))
       (setvar "CLAYER" prev)))
   (princ))
 
@@ -1246,42 +1306,26 @@
               (setq jj (1+ jj)))))
         (setq i (1+ i)))
       (setvar "CECOLOR" "BYLAYER")
-      ;; FLANGE BRACES — a short dashed diagonal at each KNEE (rafter end at a corner column). Proposal Drawing:
-      ;; brace LINES shown, no "FB" mark.
-      (setvar "CLAYER" "CROSS")
-      (if (>= (length pts) 2)
-        (progn
-          (setq p0 (car pts) p1 (nth 1 pts))                         ; left knee
-          (command "_.LINE" (list (car p0) (cadr p0))
-                            (list (+ (car p0) (* (- (car p1) (car p0)) 0.14)) (- (cadr p0) 1000.0)) "")
-          (setq p0 (last pts) p1 (nth (- (length pts) 2) pts))       ; right knee
-          (command "_.LINE" (list (car p0) (cadr p0))
-                            (list (+ (car p0) (* (- (car p1) (car p0)) 0.14)) (- (cadr p0) 1000.0)) "")))
-      ;; HAUNCH at each knee — a tapered soffit from the corner-column inner face up to the rafter underside
-      ;; ~2.6 m inboard, deepening the rafter-column junction (ref: the tapered knee). Segments taken
-      ;; left->right (as pts is sorted) so the perpendicular underside offset always drops BELOW the rafter.
-      (setvar "CLAYER" "STRUCTURE")
-      (if (>= (length pts) 3)
-        (progn
-          (setq p0 (nth 0 pts) p1 (nth 1 pts)
-                sdx (- (car p1) (car p0)) sdy (- (cadr p1) (cadr p0)) slen (sqrt (+ (* sdx sdx) (* sdy sdy))))
-          (if (> slen 2600.0)
-            (progn
-              (setq tt (/ 2600.0 slen) px (+ (car p0) (* tt sdx)) py (+ (cadr p0) (* tt sdy)))
-              (command "_.LINE" (list (+ (car p0) colhw) (- (cadr p0) (* 780.0 *PEB-TEXT-SCALE*)))
-                                (list (+ px (* (/ sdy slen) rdep)) (- py (* (/ sdx slen) rdep))) "")))
-          (setq p1 (nth (1- (length pts)) pts) p0 (nth (- (length pts) 2) pts)
-                sdx (- (car p1) (car p0)) sdy (- (cadr p1) (cadr p0)) slen (sqrt (+ (* sdx sdx) (* sdy sdy))))
-          (if (> slen 2600.0)
-            (progn
-              (setq tt (/ (- slen 2600.0) slen) px (+ (car p0) (* tt sdx)) py (+ (cadr p0) (* tt sdy)))
-              (command "_.LINE" (list (- (car p1) colhw) (- (cadr p1) (* 780.0 *PEB-TEXT-SCALE*)))
-                                (list (+ px (* (/ sdy slen) rdep)) (- py (* (/ sdx slen) rdep))) "")))))
-      ;; ridge tick (gable) at the peak
-      (if (= rtype "G")
-        (progn (setvar "CLAYER" "RIDGE")
-          (command "_.LINE" (list (+ ox (/ faceLen 2.0)) (+ base eaveH))
-                            (list (+ ox (/ faceLen 2.0)) (+ base eaveH rise)) ""))))
+      ;; A CLEAN RAFTER at the knees and the peak (owner 31-Aug, marked up on PRO-04: "Fix these
+      ;; Lines & Show the Clean Rafter").  Three things used to be drawn here and all three are gone:
+      ;;
+      ;;   FLANGE BRACES - one bare diagonal per knee, from the eave corner 14% along the rafter and
+      ;;     1000 straight down, ENDING IN MID-AIR.  A brace that terminates on nothing does not read
+      ;;     as a brace; it reads as a stray line someone forgot to trim.
+      ;;   HAUNCH - a second bare diagonal per knee, from the column inner face up to a point 2600
+      ;;     along the rafter, also unterminated.  It crossed the flange brace, so each knee carried
+      ;;     an X of two lines that met nothing.  It was also REDUNDANT: the end-wall rafter is
+      ;;     already drawn as a TAPERED double-line member (see ewMain / d0 above), which is the
+      ;;     haunch.  The line was drawing a second time, badly, what the member already shows.
+      ;;   RIDGE TICK - a dashed vertical at the peak running the full rise (1524 on 269) from eave
+      ;;     level up to the apex, so it hung down through the rafter into the frame.  The apex of a
+      ;;     gable needs no marker, and the roof monitor now stands on it.
+      ;;
+      ;; These are approval/shop-drawing details.  This sheet says "FRAMING SHOWN IS INDICATIVE ONLY"
+      ;; in its own notes, and at 1:234 the three of them cost the rafter its readability and bought
+      ;; no information.  If a brace or haunch is ever wanted back it must be drawn as a CLOSED shape
+      ;; that lands on the members at both ends - never as a single line stopping in space.
+      )
     (progn
       ;; SIDE wall: horizontal eave strut (this wall's eave) + dashed ridge above (gable)
       (setvar "CLAYER" "STRUCTURE")
@@ -1459,7 +1503,18 @@
   ;; 9. eave-height dim (left) + bay/station dim chain (below the bubbles)
   (vl-catch-all-apply (function (lambda ()
     (peb-fr-overall-v (- ox (* 1500 *PEB-DIM-SCALE*)) base (+ base clrH)
-                      (peb-dim-mft clrH)))))   ; rule 4B.7 — spans AND prints the clear height
+                      ;; SAY WHICH HEIGHT IT IS (owner 31-Aug: "in plan we write the word Clear
+                      ;; Height, here also we have to mention this in elevation ... what i want
+                      ;; the sync in all the drawings of the building").  The elevations printed a
+                      ;; bare number while the plan tagged its areas CLEAR HT./EAVE HT. and the
+                      ;; section spelled CLEAR HEIGHT down the wall - three sheets of one set, and
+                      ;; only two of them said what the number meant.
+                      ;; peb-height-tag-abbr is the PLAN helper's abbreviated sibling, called here
+                      ;; rather than copied, so the sheets cannot drift on WHICH basis it is even
+                      ;; though they print it at three different lengths.  C.H / E.H per the owner:
+                      ;; this string already carries mm and feet, so the label has to be short.
+                      (strcat (peb-dim-mft clrH) " "
+                              (peb-height-tag-abbr (MSPL-Get-Str data "HEIGHT_REF")))))))
   ;; the dim chain clears the bubble by its ACTUAL radius, not a fixed drop
   (setq noteY (- base bubGap bubR (* 600.0 *PEB-DIM-SCALE*)))
   (vl-catch-all-apply (function (lambda () (peb-fr-dimchain ox noteY stations))))
@@ -1467,7 +1522,20 @@
   ;; line (owner 26-Aug).  The bay chain above stays in mm per the sheet note.
   (vl-catch-all-apply (function (lambda ()
     (peb-fr-overall-h ox (+ ox faceLen) (- noteY (* 2600.0 *PEB-DIM-SCALE*))
-                      (peb-dim-mft faceLen)))))
+                      ;; ...and WHICH PLANE it is measured on, the same way the Column Layout Plan
+                      ;; states it (owner 31-Aug: "also show the dimensions as O/O, C/C ... like we
+                      ;; mention the column layout plan").  peb-basis-suffix is the plan's helper,
+                      ;; read from the plan's OWN keys - LENGTH_REF/BAY_REF for a side wall,
+                      ;; WIDTH_REF/WIDTH_MOD_REF for an end wall (Plan.lsp:5959, 5982).  Sharing
+                      ;; the keys is the point: PRO-01 and the elevations can no longer disagree
+                      ;; about what plane the building was measured on.
+                      (strcat (peb-dim-mft faceLen) " "
+                              (peb-basis-suffix
+                                (if isEnd
+                                  (peb-tb-or (MSPL-Get-Str data "WIDTH_REF")
+                                             (MSPL-Get-Str data "WIDTH_MOD_REF"))
+                                  (peb-tb-or (MSPL-Get-Str data "LENGTH_REF")
+                                             (MSPL-Get-Str data "BAY_REF")))))))))
   ;; rule 4B.44 - canopies on this wall, drawn last so the fascia reads over the framing
   (vl-catch-all-apply (function (lambda ()
     (peb-fr-canopy data surf ox base faceLen stations revView wallEave))))
@@ -1923,7 +1991,18 @@
   ;; it did, so the pair disagreed about what the wall measured (owner 26-Aug).
   (vl-catch-all-apply (function (lambda ()
     (peb-fr-overall-v (- ox (* 1500 *PEB-DIM-SCALE*)) base (+ base clrH)
-                      (peb-dim-mft clrH)))))   ; rule 4B.7 — spans AND prints the clear height
+                      ;; SAY WHICH HEIGHT IT IS (owner 31-Aug: "in plan we write the word Clear
+                      ;; Height, here also we have to mention this in elevation ... what i want
+                      ;; the sync in all the drawings of the building").  The elevations printed a
+                      ;; bare number while the plan tagged its areas CLEAR HT./EAVE HT. and the
+                      ;; section spelled CLEAR HEIGHT down the wall - three sheets of one set, and
+                      ;; only two of them said what the number meant.
+                      ;; peb-height-tag-abbr is the PLAN helper's abbreviated sibling, called here
+                      ;; rather than copied, so the sheets cannot drift on WHICH basis it is even
+                      ;; though they print it at three different lengths.  C.H / E.H per the owner:
+                      ;; this string already carries mm and feet, so the label has to be short.
+                      (strcat (peb-dim-mft clrH) " "
+                              (peb-height-tag-abbr (MSPL-Get-Str data "HEIGHT_REF")))))))
   ;; the dim chain clears the bubble by its ACTUAL radius, not a fixed drop
   (setq noteY (- base bubGap bubR (* 600.0 *PEB-DIM-SCALE*)))
   (vl-catch-all-apply (function (lambda () (peb-fr-dimchain ox noteY stations))))
@@ -1931,7 +2010,20 @@
   ;; line (owner 26-Aug).  The bay chain above stays in mm per the sheet note.
   (vl-catch-all-apply (function (lambda ()
     (peb-fr-overall-h ox (+ ox faceLen) (- noteY (* 2600.0 *PEB-DIM-SCALE*))
-                      (peb-dim-mft faceLen)))))
+                      ;; ...and WHICH PLANE it is measured on, the same way the Column Layout Plan
+                      ;; states it (owner 31-Aug: "also show the dimensions as O/O, C/C ... like we
+                      ;; mention the column layout plan").  peb-basis-suffix is the plan's helper,
+                      ;; read from the plan's OWN keys - LENGTH_REF/BAY_REF for a side wall,
+                      ;; WIDTH_REF/WIDTH_MOD_REF for an end wall (Plan.lsp:5959, 5982).  Sharing
+                      ;; the keys is the point: PRO-01 and the elevations can no longer disagree
+                      ;; about what plane the building was measured on.
+                      (strcat (peb-dim-mft faceLen) " "
+                              (peb-basis-suffix
+                                (if isEnd
+                                  (peb-tb-or (MSPL-Get-Str data "WIDTH_REF")
+                                             (MSPL-Get-Str data "WIDTH_MOD_REF"))
+                                  (peb-tb-or (MSPL-Get-Str data "LENGTH_REF")
+                                             (MSPL-Get-Str data "BAY_REF")))))))))
   ;; rule 4B.44 - canopies on this wall
   (vl-catch-all-apply (function (lambda ()
     (peb-fr-canopy data surf ox base faceLen stations revView wallEave))))

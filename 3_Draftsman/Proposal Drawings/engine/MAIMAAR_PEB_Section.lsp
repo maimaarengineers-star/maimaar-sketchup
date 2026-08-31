@@ -7655,12 +7655,26 @@
   ;; construction type (BS roof_monitor.constructionType -> RM_CONSTR): member depths per type
   ;; (rafter mDep / leg pDep).  Built-Up = deeper welded I; Cold-Formed = shallow C/Z; Hot-Rolled = IPE (default).
   (setq rmConstr (strcase (MSPL-Get-Str data "RM_CONSTR")))
+  ;; MEMBER DEPTHS COME FROM THE QE, not from a drawing-side guess (owner 31-Aug: "in the Section of
+  ;; the Roof Monitor, it will be shown Web of 200mm of legs and rafter"; then "monitor leg is 100mm
+  ;; not 200 i think"; then "check it in QE Data ... roof monitor legs size and rafter size").
+  ;; Checked, and the QE settles it - computeRoofMonitor in quickest/accessories.ts bills ONE frame
+  ;; section for the monitor, so the legs and the rafter ARE the same member:
+  ;;    Hot-Rolled   IPEa  -> mbsdb.json "IPE-200A", erp HRB-IPE-200A-100-18.40-12000-2
+  ;;    Cold-Formed  C20G  -> mbsdb.json "C200X60X2.0 Galvanized"
+  ;;    purlins      Z20G  -> "Z 200X2.0"
+  ;; All 200 deep.  The 100 is the IPE-200A FLANGE WIDTH - it is the "-100-" in that ERP code - and
+  ;; not the web, which is why 100 looked plausible.  The old 180/160 and 150 matched nothing at all.
   (cond
     ((or (vl-string-search "BUILT" rmConstr) (vl-string-search "BU" rmConstr))
-       (setq mDep 240.0 pDep 200.0))                                   ; Hot-Rolled Built-up (BU)
+       (setq mDep 240.0 pDep 200.0))                                   ; Built-up (BU): the QE gives
+                                                                       ; BU no catalogue depth ("Light
+                                                                       ; Built-Up ... upto 10 mm HR
+                                                                       ; coil"), so this one is left
+                                                                       ; as it was rather than guessed.
     ((or (vl-string-search "COLD" rmConstr) (vl-string-search "C20" rmConstr) (vl-string-search "CF" rmConstr))
-       (setq mDep 200.0 pDep 150.0))                                   ; Cold-Formed (C20G)
-    (T (setq mDep 180.0 pDep 160.0)))                                  ; Hot-Rolled (IPEa) — default
+       (setq mDep 200.0 pDep 200.0))                                   ; Cold-Formed  = C200x60x2.0
+    (T (setq mDep 200.0 pDep 200.0)))                                  ; Hot-Rolled (IPEa) = IPE-200A
 
   ;; ---- mini-PEB-frame geometry — PER-SIDE rafter slopes so the monitor seats on the TRUE
   ;;      rafter even at an OFF-CENTRE ridge (BP_RIDGE_OFFSET) or unequal pitches.  sL/sR = rise/run
