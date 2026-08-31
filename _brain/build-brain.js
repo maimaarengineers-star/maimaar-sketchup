@@ -148,6 +148,24 @@ if (fs.existsSync(MEMORY)) {
 // Code paths referenced in prose, to check they still exist.
 const CODE_REF = /\b((?:services|routes|scripts|migrations|public|tests|middleware|config)\/[A-Za-z0-9_./-]+\.(?:ts|js|html|css|json|csv))/g;
 
+// A memory written before the TypeScript migration cites services/x.js, while the source
+// is now x.ts and the runtime loads dist/. Count any of those as "still exists" - flagging
+// them all makes the report mostly false positives, and a noisy report gets ignored.
+const ALT_EXT = {
+  '.js':   ['.ts', '.tsx', '.mjs', '.cjs', '.json'],
+  '.ts':   ['.js', '.tsx'],
+  '.json': ['.js', '.ts'],
+};
+function pathResolves(p) {
+  const cands = [p, 'dist/' + p];
+  const ext = path.extname(p);
+  for (const alt of (ALT_EXT[ext] || [])) {
+    const swapped = p.slice(0, -ext.length) + alt;
+    cands.push(swapped, 'dist/' + swapped);
+  }
+  return cands.some(c => fs.existsSync(path.join(CRM, c)));
+}
+
 let nDocs = 0, nChunks = 0;
 db.exec('BEGIN');
 for (const { file, type } of files) {
@@ -193,7 +211,7 @@ for (const { file, type } of files) {
     const p = m[1];
     if (seen.has(p)) continue;
     seen.add(p);
-    if (!fs.existsSync(path.join(CRM, p))) insFlag.run(docId, 'dead_path', p);
+    if (!pathResolves(p)) insFlag.run(docId, 'dead_path', p);
   }
 }
 db.exec('COMMIT');
