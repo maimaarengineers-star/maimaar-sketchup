@@ -44,3 +44,10 @@ _generated_drawings/
 Drawing1_*.log
 plot.log
 _tunnel.log
+
+# The knowledge index (_brain). Keep the BUILDERS - they are the real artefact and must
+# survive a machine loss. The .db itself is derived: regenerate with `node _brain/build-brain.js`,
+# never commit 5 MB of index.
+!/_brain/
+/_brain/*
+!/_brain/*.js
