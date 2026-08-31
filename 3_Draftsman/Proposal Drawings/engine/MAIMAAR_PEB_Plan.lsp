@@ -3491,7 +3491,7 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
 ;; the monitor is partial.  NO columns.
 ;; ============================================================================
 (defun peb-draw-monitor (data len wid bayPtsIn
-                         / u ridge ow throat rmlen half x0 x1 yTop yBot mcx su lay lyr bayPts gf gt bnd sx lts yy)
+                         / u ridge ow throat rmlen half x0 x1 yTop yBot mcx su lay lyr bayPts gf gt bnd sx lts yy mlbl mlh mlw mlx0 mlx1)
   (if (= (strcase (MSPL-Get-Str data "RM_TOGGLE")) "YES")
     (progn
       ;; ---- size unit (same formula the other drawers use) ----------------
@@ -3537,26 +3537,47 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
       ;;     suppressed under the monitor - 4B.56 - so this is the only ridge here, and it is real.)
       (entmake (list (cons 0 "LINE") (cons 8 lyr)
                      (list 10 x0 ridge 0.0) (list 11 x1 ridge 0.0)))
+      ;; --- THE NAME, marked in the plan (owner 31-Aug: "mark the name of Roof Monitor in plan").
+      ;;     Inside the band and with no leader - exactly where KM Foods puts `ROOF MONITOR OPENING`
+      ;;     on its own roof sheeting plan.  Sized off the ladder and capped to a third of the band
+      ;;     so it can never outgrow the thing it names.  Sits in the UPPER half, clear of the
+      ;;     monitor's own ridge line running down the centre.
+      (setq mlbl "ROOF MONITOR"
+            mlh  (peb-fit-txt-h mlbl (* (- x1 x0) 0.30) (peb-th 'ANNOT))
+            mlw  (* 0.62 mlh (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0) (strlen mlbl))
+            mlx0 (- mcx (/ mlw 2.0))
+            mlx1 (+ mcx (/ mlw 2.0)))
       ;; --- its sheeting runs, at the SAME 1000 cover the main roof uses: one material, two levels.
+      ;;     The runs SKIP the label's span.  KM Foods does the same thing by islanding its hatch
+      ;;     around the text; with line-fill the equivalent is simply not drawing the lines that
+      ;;     would strike through it.  A name with sheeting ruled across it is not a name.
       (setq sx (+ x0 1000.0))
       (while (< sx (- x1 1.0))
-        (entmake (list (cons 0 "LINE") (cons 8 lyr) (cons 370 9)     ; 0.09 - as light as the roof runs
-                       (list 10 sx yBot 0.0) (list 11 sx yTop 0.0)))
+        (if (or (< sx (- mlx0 (* mlh 0.7))) (> sx (+ mlx1 (* mlh 0.7))))
+          (entmake (list (cons 0 "LINE") (cons 8 lyr) (cons 370 9)   ; 0.09 - as light as the roof runs
+                         (list 10 sx yBot 0.0) (list 11 sx yTop 0.0))))
         (setq sx (+ sx 1000.0)))
+      (setvar "CLAYER" "TEXT")
+      (txt "MC" (list mcx (+ ridge (* (- yTop ridge) 0.5))) mlh 0.0 mlbl)
+      (setvar "CLAYER" lyr)
       ;; The OPENING is deliberately NOT drawn.  It is directly under the monitor sheeting, so from
       ;; above you cannot see it (owner 31-Aug: "opening will not be visible in the Roof Plan as it
       ;; will come underneath of roof monitor Sheeting").  A dashed throat was drawn here for one
       ;; iteration; it showed a hole that the view does not contain.  The reference sweep says the
       ;; same from the other direction: no MSPL drawing uses a dashed monitor boundary in plan.
       ;; --- name it.  From above there are TWO sheeted surfaces and they look alike - same 1000
-      ;;     cover, same direction - so the sheet's job is to say which is which (owner: "we have to
-      ;;     just identity that this is roof monitor sheeting and this is main sheeting").  The main
-      ;;     roof already carries its own "ROOF SHEETING : <profile>" mleader on this sheet; this is
-      ;;     its twin.  Placed at 0.66 of the length so the two never sit on top of each other.
-      (vl-catch-all-apply (function (lambda ()
-        (peb-label-with-leader "ROOF MONITOR SHEETING"
-          (list (+ x0 (* (- x1 x0) 0.66)) (+ wid (* u 2.6)))
-          (list (+ x0 (* (- x1 x0) 0.66)) yTop) "S" (* u 0.42)))))
+      ;;     cover, same direction - so the sheet has to say which is which (owner: "we have to just
+      ;;     identity that this is roof monitor sheeting and this is main sheeting").
+      ;;     It sits in the NOTE BLOCK BELOW the drawing, not on a leader over it (owner 31-Aug:
+      ;;     "all text below the drawings").  A leader from below the eave up to the ridge band
+      ;;     would cross the whole lower roof and every skylight on the way - and the band already
+      ;;     reads on its own, being the only thing on the sheet drawn at 0.50.
+      ;;     Height off the 4B.27 LADDER (peb-th), never a fraction of `u`: no text picks its own size.
+      (setq lts (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0))
+      (setvar "CLAYER" "TEXT")
+      (txt "ML" (list 0.0 (- 0.0 (* (peb-th 'ANNOT) lts 6.2))) (peb-th 'ANNOT) 0.0
+           "ROOF MONITOR SHEETING - SAME PROFILE AS MAIN ROOF, OVER THE RIDGE")
+      (setvar "CLAYER" lyr)
       ;; NO DIMENSIONS on the roof sheeting plan.  The overall sat at the far LEFT of the sheet and
       ;; the throat at the far RIGHT - two numbers for one object, 63 m apart, and the overall wedged
       ;; into a gap smaller than its own text between the roof outline and the 30,480 width chain
@@ -4730,7 +4751,7 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
 ;; to the APPROVAL drawing (owner 31-Aug: "at this stage no need to give the sheeting and skylight any
 ;; number").  One SKY LIGHT / W X L callout, the count, and the note.  Returns how many it drew.
 (defun peb-draw-skylights-per-bay (data len wid bayPts n perBay / skyW skyL pos rY nb ys bi cx yc
-                                   gf gt i0 i1 u ts drawn x0 x1 y0 y1 first)
+                                   gf gt i0 i1 u ts drawn x0 x1 y0 y1 first nt)
   (setq skyW (MSPL-Get-Num data "RA_SKY_W")
         skyL (MSPL-Get-Num data "RA_SKY_L_NET"))
   (if (or (null skyW) (<= skyW 0.0)) (setq skyW 1000.0))
@@ -4758,29 +4779,32 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
           (setvar "CLAYER" "SKY LIGHT")
           (peb-comp-poly (list (list x0 y0) (list x1 y0) (list x1 y1) (list x0 y1)))
           (peb-sky-hatch x0 y0 x1 y1 (/ skyW 4.0))
-          (if first
-            (progn
-              (setq first nil)
-              (vl-catch-all-apply (function (lambda ()
-                (peb-label-with-leader
-                  (strcat "SKY LIGHT " (rtos skyW 2 0) " X " (rtos skyL 2 0) " (TYP.)")
-                  (list (+ x1 (* u 2.4)) (+ y1 (* u 1.8))) (list x1 y1) "S" (* u 0.42)))))))
+          ;; No leader.  The size now rides in the note block below the drawing with everything
+          ;; else (owner 31-Aug: "all text below the drawings"), and a hatched 1000 x 3000 panel
+          ;; repeated 16 times on a bay grid does not need to be pointed at.
           (setq drawn (1+ drawn)))))
     (setq bi (1+ bi)))
   ;; the count, in the house wording, and the standing note.  Owner 31-Aug: the window to move a
   ;; skylight is the APPROVAL stage, not erection - the sheets ship CUT TO SIZE, so the location is
   ;; fixed the moment the drawing is approved.  (PAECO 169's "BEFORE ERECTION" is superseded.)
-  ;; BELOW the roof, not on it.  Printed inside the outline these two lines sat among the sheeting
-  ;; runs and the fall arrows and had to be shrunk to fit between them - a note nobody can read is
-  ;; not a note.  Under the eave there is clear paper, so they print at a readable size and the
-  ;; roof stays a roof.  The reference sheets put their notes outside the building for this reason.
-  (setvar "CLAYER" "SKY LIGHT")
-  (txt-bold "MC" (list (* len 0.5) (- 0.0 (* u 3.0))) (/ (* u 0.50) ts) 0.0
-            (strcat (if (< drawn 10) (strcat "0" (itoa drawn)) (itoa drawn))
-                    " No. ROOF SKY LIGHT (EACH " (rtos skyL 2 0) "mm)"))
-  (txt "MC" (list (* len 0.5) (- 0.0 (* u 4.1))) (/ (* u 0.34) ts) 0.0
-       (strcat "NOTE: IF THE SKYLIGHT LOCATION NEEDS TO BE CHANGED, IT SHOULD BE DONE AT THE TIME OF "
-               "APPROVAL; OTHERWISE MAIMAAR STEEL GROUP WILL NOT BE RESPONSIBLE."))
+  ;; ---- the note block: ALL of it BELOW the drawing, and below the view heading --------------
+  ;; These two lines used to sit just under the eave, where the sheet's own view heading
+  ;; ("ROOF SHEETING PLAN", ~1,900 tall) already lives - the note printed straight through it.
+  ;; Measured: note at y -3422 against a heading spanning -5283..-3387.  There is no room above the
+  ;; heading for four lines, so the block goes BELOW it, left-aligned, one ladder rung, even pitch.
+  ;; Heights come from peb-th (4B.27); the long note is additionally capped by peb-fit-txt-h so it
+  ;; can never grow wider than the building it belongs to.
+  (setvar "CLAYER" "TEXT")
+  (txt "ML" (list 0.0 (- 0.0 (* (peb-th 'ANNOT) ts 7.5))) (peb-th 'ANNOT) 0.0
+       (strcat (if (< drawn 10) (strcat "0" (itoa drawn)) (itoa drawn))
+               " No. ROOF SKY LIGHT (EACH " (rtos skyL 2 0) "mm) - "
+               (rtos skyW 2 0) " X " (rtos skyL 2 0) " TYPICAL"))
+  ;; NO skylight-location note on a PROPOSAL sheet (owner 31-Aug: "it do not seems good at the time
+  ;; of proposal stage").  It was traced from PAECO 169 - an APPROVAL drawing, where the location is
+  ;; being fixed and saying so is the point.  Here it is premature and, worse, redundant: this sheet's
+  ;; own General Note 3 already reads "PROPOSAL DRAWING IS INDICATIVE ONLY; FINAL DIMENSIONS & LEVELS
+  ;; WILL BE SHOWN IN THE APPROVAL DRAWING AT THE DESIGN STAGE."  The note belongs on the approval
+  ;; drawing, with the rest of what approval fixes.
   (setvar "CLAYER" "0")
   drawn)
 

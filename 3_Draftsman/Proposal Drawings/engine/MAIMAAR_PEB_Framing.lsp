@@ -2029,20 +2029,13 @@
       (peb-dim-h-stretch ox (+ ox len) (+ oy wid (* 900 *PEB-DIM-SCALE*))
                          (peb-fmt-expr (MSPL-Get-Str data "BAYEXPR")))))))
 
-  ;; --- and a dimension on EVERY BAY (owner 31-Aug: "match with old reference") -------------
-  ;; The chain above states the whole length with the bay EXPRESSION as its text, which is a
-  ;; summary, not a dimension: a fabricator reading "6@8000" has to do arithmetic to find where
-  ;; grid 5 is.  Every MSPL approval sheeting plan dimensions each bay individually - MSPL
-  ;; 2025/203 (DHL) sheet 19 runs 7344 | 8641 x6 | 7344 across the top - so this sheet does too.
-  ;; Sits INSIDE the overall (450 vs 900 * DIM-SCALE) so the reading order is roof, bays, total,
-  ;; bubbles, exactly as the reference stacks them.  bayPts is already part-sliced and rebased,
-  ;; so a match-line sheet dimensions ITS OWN bays and no others.
-  (setq bi 0)
-  (while (< bi (1- (length bayPts)))
-    (vl-catch-all-apply (function (lambda ()
-      (peb-dim-h-stretch (+ ox (nth bi bayPts)) (+ ox (nth (1+ bi) bayPts))
-                         (+ oy wid (* 450 *PEB-DIM-SCALE*)) nil))))
-    (setq bi (1+ bi)))
+  ;; NO per-bay dimension chain.  It was added to match MSPL 2025/203 sheet 19, which dimensions
+  ;; every bay across the top - and on THAT sheet it fits.  Here it does not: this is A4 at 1:378,
+  ;; each dim prints millimetres AND feet, and 6,480 mm of bay is ~17 mm of paper.  AutoCAD pushed
+  ;; every text outside its own arrows and the eight of them collided into one unreadable smear
+  ;; across the top of the drawing (owner 31-Aug: "everything is overlapping").  The overall chain
+  ;; below already carries the grid as "1@6480 + 6@8000 + 1@6480", and the bubbles number it.  A
+  ;; dimension nobody can read is worse than one that was never drawn.
 
   ;; --- grid bubbles: numbers along the length, letters at the eaves --------
   (setq bubR   (peb-bub-radius (peb-min-spacing bayPts))

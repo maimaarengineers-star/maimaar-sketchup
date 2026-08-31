@@ -1786,12 +1786,15 @@ and skylight any number"*. One `SKY LIGHT` / `1000 X 3000` callout, the count in
 (`16 No. ROOF SKY LIGHT (EACH 3000mm)`), and the note. The one proposal-stage precedent in the whole
 archive, `221-24-MSPL.pdf` PRO-04, prints exactly that and nothing more.
 
-**The note says APPROVAL, not erection.** The archive wording is *"…BEFORE ERECTION…"*; it is
-superseded. The skylights ship **cut to size**, so the customer's window to move one closes when the
-drawing is approved and cutting starts — not when the crew arrives:
-
-> IF THE SKYLIGHT LOCATION NEEDS TO BE CHANGED, IT SHOULD BE DONE AT THE TIME OF APPROVAL;
-> OTHERWISE MAIMAAR STEEL GROUP WILL NOT BE RESPONSIBLE.
+**NO skylight-location note on a proposal sheet.** One was traced from PAECO 169 and carried for a
+few iterations — *"if the skylight location needs to be changed, it should be done at the time of
+approval; otherwise Maimaar Steel Group will not be responsible."* Both halves are gone (owner
+31-Aug). The disclaimer half because a proposal drawing does not need a threat, and the whole note
+because it is **premature and redundant at this stage**: PAECO 169 is an APPROVAL drawing, where the
+location is being fixed and saying so is the point, and this sheet's own General Note 3 already reads
+*"PROPOSAL DRAWING IS INDICATIVE ONLY; FINAL DIMENSIONS & LEVELS WILL BE SHOWN IN THE APPROVAL
+DRAWING AT THE DESIGN STAGE."* The note belongs on the approval drawing with the rest of what
+approval fixes. **Tracing a note from a reference means tracing its STAGE too.**
 
 **And the roof monitor was in the same hole.** The 21-Jul ruling took it off the Column Layout Plan
 and sent it to *"the ROOF PLAN (to be built later)"*. That sheet exists (`C:PEB-ROOF`) but sits
@@ -1877,6 +1880,29 @@ that is the whole of "more beautiful than the references" on this sheet.
 ⚠ `REF_10_BigBird_Hatchery_RoofMonitor.dxf` is **misnamed** — it contains no monitor at all. It is a
 **RIDGE VENT**: discrete 3000 x 1000 double-outlined rectangles, one per bay, cut as islands out of
 the roof hatch. A different product. Do not copy it into a monitor.
+
+**ALL sheet text goes in ONE block BELOW the drawing — and below the view heading.** Not on leaders
+over it, not tucked under the eave. Measured on 31-Aug: the skylight note printed at y −3422 while
+the sheet's own view heading (`ROOF SHEETING PLAN`, ~1,900 tall) spans −5283…−3387 — straight
+through each other. There is no room for a note stack between the eave and the heading, so the block
+sits under the heading: left-aligned at the building's left edge, even pitch, one rung.
+
+And no leader for the monitor. From a note block below the eave, a leader up to the ridge band
+crosses the entire lower roof and every skylight on the way. The band is the only thing on the sheet
+drawn at 0.50 — it identifies itself, and the note names it.
+
+**Every height off the ladder (4B.27), never a fraction of `u`.** `peb-th 'ANNOT` for the notes,
+`peb-th 'SMALL` for the long one, and that one additionally through `peb-fit-txt-h` against the
+building length so it can never grow wider than the thing it belongs to. Ad-hoc heights like
+`(/ (* u 0.45) ts)` are how three notes ended up at three different sizes on one sheet.
+
+**NO per-bay dimension chain on this sheet.** It was added to match MSPL 2025/203 sheet 19, which
+dimensions every bay — and on that sheet it fits. On A4 at 1:378 it does not: each dim prints
+millimetres AND feet, 6,480 mm of bay is ~17 mm of paper, so AutoCAD pushed every text outside its
+own arrows and eight of them collided into one smear across the top of the drawing. The overall
+chain already carries the grid as `1@6480 + 6@8000 + 1@6480` and the bubbles number it. **A
+dimension nobody can read is worse than one that was never drawn** — and "the reference does it"
+is not a reason when the reference is at a different scale.
 
 **Still open:** the turbo-vent branch hardcodes `ridge (/ wid 2.0)` and `Framing.lsp`'s
 `PL_ SURFACE=ROOF` marks use `midY`, so both put vents on the wrong line when `BP_RIDGE_OFFSET` moves
