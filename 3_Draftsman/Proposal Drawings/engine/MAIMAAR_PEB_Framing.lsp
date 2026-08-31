@@ -491,6 +491,148 @@
                      (+ base eaveHi (- 0 (* (- eaveHi eaveLo) (/ x faceLen))))))
     (T (+ base eaveH))))
 
+;; == ROOF MONITOR ON THE WALL ELEVATIONS =========================================
+;; Owner 31-Aug: "A Huge Bug now. Elevations Do not Show the Roof Monitor Lines."
+;;
+;; NOT a regression - the elevations never had it.  The monitor lived on exactly two
+;; surfaces: the SECTION (peb-draw-roof-monitor, Section.lsp) and the ROOF PLAN
+;; (peb-draw-monitor / peb-monitor-band, Plan.lsp).  All four wall elevations read no
+;; RM_* key whatsoever, so a shed carrying a 1500 throat monitor printed end walls
+;; whose roof line ran straight over the ridge as though nothing sat on it.
+;;
+;; THE DERIVATION BELOW IS THE SECTION'S, VERBATIM, so the three surfaces cannot drift:
+;;   throat  = RM_THROAT_WIDTH  (falls back to RM_OVERALL_WIDTH)
+;;   overall = RM_OVERALL_WIDTH, and when blank or <= throat -> throat * 2 (owner 31-Aug)
+;;   height  = throat / 2 - STANDING RULE R1, *not* RM_HEIGHT.  The section ignores that
+;;             key too; one monitor drawn to two different heights on two sheets of one
+;;             set is precisely the class of bug that sharing this derivation avoids.
+;;
+;; The legs are seated with peb-fr-topy - the SAME function that drew the roof line on
+;; this very sheet - so they land ON the drawn roof for any roof type, rather than on a
+;; separately computed one that could float above it or sink below it.
+;;
+;; THE TWO VIEWS SHOW DIFFERENT THINGS (one object, two projections):
+;;   END wall  (LEW/REW) - the CROSS-SECTION: a mini gable straddling the peak, legs at
+;;             ridge +/- throat/2, its roof overhanging each leg out to +/- overall/2.
+;;             The monitor END is sheeted closed, so NO vent opening is drawn there.
+;;   SIDE wall (NSW/FSW) - the LENGTH: a raised band over the ridge spanning grids
+;;             RM_GRID_FROM..RM_GRID_TO.  THIS face is the vent, so the throat opening
+;;             and its bird mesh (RM_BIRD_MESH) show here and only here.
+;; Rule 4B.58.
+(defun peb-fr-mon-geom (data / on throat overall)
+  ;; -> (throat overall height), or nil when the building carries no monitor.
+  (setq on (strcase (peb-tb-or (MSPL-Get-Str data "RM_TOGGLE") "")))
+  (if (or (= on "YES") (= on "Y") (= on "TRUE") (= on "1"))
+    (progn
+      (setq throat (MSPL-Get-Num data "RM_THROAT_WIDTH"))
+      (if (or (null throat) (<= throat 0.0))
+        (setq throat (MSPL-Get-Num data "RM_OVERALL_WIDTH")))
+      (if (and throat (> throat 0.0))
+        (progn
+          (setq overall (MSPL-Get-Num data "RM_OVERALL_WIDTH"))
+          (if (or (null overall) (<= overall throat)) (setq overall (* throat 2.0)))
+          (list throat overall (/ throat 2.0)))))))
+
+(defun peb-fr-monitor (data ox base faceLen eaveH eaveHi eaveLo rise rtype hiSide isEnd
+                       wallEave slopeD stations
+                       / m throat overall rmh halfT halfO prev cx s apexY
+                         legL legR legTopL legTopR ridgeY eaveY
+                         nSt gFrom gTo mx0 mx1 bandH nT i px mesh)
+  (setq m (peb-fr-mon-geom data))
+  ;; Only a GABLE carries a monitor: it straddles a RIDGE, and rtype "B" puts a VALLEY at
+  ;; mid-span (see peb-fr-topy) - seating a monitor there would draw it inside a gutter.
+  (if (and m (= rtype "G") (> faceLen 1.0) (> rise 0.0) (> slopeD 0.0))
+    (progn
+      (setq prev   (getvar "CLAYER")
+            throat (car m) overall (cadr m) rmh (caddr m)
+            halfT  (/ throat 2.0)
+            halfO  (/ overall 2.0))
+      (if isEnd
+        ;; ---- END WALL: the monitor in cross-section, straddling the drawn peak -------
+        ;; Skipped when the monitor is as wide as the building - that is not a monitor,
+        ;; it is a data error, and drawing it would bury the end wall underneath it.
+        (if (< overall (* faceLen 0.60))
+          (progn
+            (setq cx      (/ faceLen 2.0)
+                  s       (/ rise cx)          ; the slope of the roof AS DRAWN on this sheet
+                  apexY   (peb-fr-topy cx faceLen base eaveH eaveHi eaveLo rise rtype hiSide)
+                  legL    (peb-fr-topy (- cx halfT) faceLen base eaveH eaveHi eaveLo rise rtype hiSide)
+                  legR    (peb-fr-topy (+ cx halfT) faceLen base eaveH eaveHi eaveLo rise rtype hiSide)
+                  ridgeY  (+ apexY rmh)
+                  eaveY   (- ridgeY (* halfO s))   ; monitor roof follows the MAIN slope
+                  legTopL (+ legL rmh)
+                  legTopR (+ legR rmh))
+            ;; the two legs, seated on the main rafter
+            (setvar "CLAYER" "STRUCTURE")
+            (command "_.LINE" (list (+ ox (- cx halfT)) legL) (list (+ ox (- cx halfT)) legTopL) "")
+            (command "_.LINE" (list (+ ox (+ cx halfT)) legR) (list (+ ox (+ cx halfT)) legTopR) "")
+            ;; its own gable roof, overhanging each leg out to overall/2
+            (setvar "CLAYER" "CLADDING")
+            (command "_.PLINE" (list (+ ox (- cx halfO)) eaveY)
+                               (list (+ ox cx) ridgeY)
+                               (list (+ ox (+ cx halfO)) eaveY) "")
+            ;; eave returns - the fascia depth at each overhang, so the roof reads as a
+            ;; sheeted plane with a real edge instead of two bare lines meeting in a V.
+            (command "_.LINE" (list (+ ox (- cx halfO)) eaveY)
+                              (list (+ ox (- cx halfO)) (- eaveY (* 0.18 rmh))) "")
+            (command "_.LINE" (list (+ ox (+ cx halfO)) eaveY)
+                              (list (+ ox (+ cx halfO)) (- eaveY (* 0.18 rmh))) "")))
+        ;; ---- SIDE WALL: the monitor along its LENGTH, raised over the ridge ----------
+        (progn
+          (setq apexY  (+ base wallEave rise)        ; the ridge, as THIS sheet draws it
+                ridgeY (+ apexY rmh)
+                eaveY  (- ridgeY (* halfO (/ 1.0 slopeD)))
+                bandH  (- eaveY apexY)
+                nSt    (length stations)
+                gFrom  (MSPL-Get-Num data "RM_GRID_FROM")
+                gTo    (MSPL-Get-Num data "RM_GRID_TO")
+                mx0    0.0
+                mx1    faceLen)
+          ;; Grid numbers map onto stations only on a WHOLE wall.  A match-line PART sheet
+          ;; carries a SLICE of the stations with its own local origin, so grid 1 is no
+          ;; longer stations[0]; there the monitor spans the full drawn face rather than a
+          ;; confidently wrong pair of stations.  A monitor covering every grid is the full
+          ;; face anyway, so it takes the same path and needs no station lookup at all.
+          (if (and gFrom gTo (> gFrom 0.0) (> gTo gFrom) (<= (fix gTo) nSt)
+                   (or (null *PEB-PART-N*) (<= *PEB-PART-N* 1))
+                   (not (and (<= gFrom 1.0) (>= (fix gTo) nSt))))
+            (setq mx0 (nth (1- (fix gFrom)) stations)
+                  mx1 (nth (1- (fix gTo))   stations)))
+          (if (> (- mx1 mx0) 1.0)
+            (progn
+              ;; end edges: up from the main roof to the monitor ridge
+              (setvar "CLAYER" "STRUCTURE")
+              (command "_.LINE" (list (+ ox mx0) apexY) (list (+ ox mx0) ridgeY) "")
+              (command "_.LINE" (list (+ ox mx1) apexY) (list (+ ox mx1) ridgeY) "")
+              ;; the near eave of the monitor roof, and its ridge on the far side
+              (setvar "CLAYER" "CLADDING")
+              (command "_.LINE" (list (+ ox mx0) eaveY) (list (+ ox mx1) eaveY) "")
+              (setvar "CLAYER" "RIDGE")
+              (command "_.LINE" (list (+ ox mx0) ridgeY) (list (+ ox mx1) ridgeY) "")
+              ;; THE VENT.  This face is the whole reason the monitor exists (owner: "at
+              ;; peak, the reason of Fumes"), so the opening is drawn AS an opening: the
+              ;; throat band between the main roof and the monitor eave, ticked when a
+              ;; bird mesh is specified.  Ticks sit ~2 m apart so they read as a grille at
+              ;; 1:378; a true mesh hatch at that scale smears into a solid grey tone.
+              (if (> bandH 1.0)
+                (progn
+                  ;; No line along the bottom of the band: the RIDGE line already runs the full
+                  ;; length at exactly this Y on both side sheets, and a second one on OPEN at the
+                  ;; same coordinates is a duplicate entity, not a darker line.
+                  (setvar "CLAYER" "OPEN")
+                  (setq mesh (strcase (peb-tb-or (MSPL-Get-Str data "RM_BIRD_MESH") "")))
+                  (if (or (= mesh "YES") (= mesh "Y") (= mesh "TRUE"))
+                    (progn
+                      (setq nT (fix (/ (- mx1 mx0) 2000.0)) i 1)
+                      (if (> nT 60) (setq nT 60))
+                      (while (< i nT)
+                        (setq px (+ ox mx0 (* (- mx1 mx0) (/ (float i) (float nT)))))
+                        (command "_.LINE" (list px apexY) (list px eaveY) "")
+                        (setq i (1+ i)))))))))))
+      (setvar "CLAYER" prev)))
+  (princ))
+
+
 ;; A horizontal dimension CHAIN drawn from primitives (batch-safe, independent of
 ;; the wall's base Y — unlike peb-dim-h-stretch which pins its def-points to y=0).
 ;; A small OPEN-V arrowhead drawn from primitives (owner 29-Jul: match the plan/section
@@ -1093,7 +1235,28 @@
       (if (= rtype "G")
         (progn (setvar "CLAYER" "RIDGE")
           (command "_.LINE" (list ox (+ base wallEave rise))
+                            (list (+ ox faceLen) (+ base wallEave rise)) "")
+          ;; CLOSE THE ROOF BAND.  Viewed square-on to a long wall, the near roof slope projects as a
+          ;; RECTANGLE from eave level to ridge level over the full length, and the gable rake at each
+          ;; end projects as a VERTICAL line - the rake runs away from the viewer, so it foreshortens
+          ;; to a point in plan-x.  Both sheets drew the eave and (here) the ridge and left the band
+          ;; open at its ends, so the ridge read as a line floating over the wall rather than as the
+          ;; top of a roof.  A roof monitor seated at its TRUE height then had nothing under it at all
+          ;; (owner 31-Aug).  These two edges are the roof; the monitor stands on them.
+          (setvar "CLAYER" "STRUCTURE")
+          (command "_.LINE" (list ox (+ base wallEave)) (list ox (+ base wallEave rise)) "")
+          (command "_.LINE" (list (+ ox faceLen) (+ base wallEave))
                             (list (+ ox faceLen) (+ base wallEave rise)) "")))))
+
+
+  ;; ROOF MONITOR (owner 31-Aug: "Elevations Do not Show the Roof Monitor Lines").  Drawn
+  ;; AFTER the roof profile so it sits on top of the line it straddles, and wrapped the way
+  ;; every other optional piece on this sheet is: a monitor that cannot be drawn must not be
+  ;; able to unwind the whole elevation, which is exactly how the end wall was lost once
+  ;; before (see the rdep note above).
+  (vl-catch-all-apply (function (lambda ()
+    (peb-fr-monitor data ox base faceLen eaveH eaveHi eaveLo rise rtype hiSide isEnd
+                    wallEave slopeD stations))))
 
   ;; 4. girts + sheeting-base + brick/RCC hatch + condition label — drawn PER WALL-FACE SEGMENT (owner 29-Jul)
   ;; so a RAISED band (on the existing floor) starts its brick/sheeting from +rbBase, not FFL. See
@@ -1531,12 +1694,46 @@
             (setq pts (append pts (list (list (+ ox cx) (peb-fr-topy cx faceLen base eaveH eaveHi eaveLo rise rtype hiSide))))))))
       (setq pts (vl-sort pts '(lambda (a b) (< (car a) (car b)))) i 0)
       (while (< (1+ i) (length pts)) (command "_.LINE" (nth i pts) (nth (1+ i) pts) "") (setq i (1+ i))))
-    (command "_.LINE" (list ox (+ base wallEave)) (list (+ ox faceLen) (+ base wallEave)) ""))
+    (progn
+      (command "_.LINE" (list ox (+ base wallEave)) (list (+ ox faceLen) (+ base wallEave)) "")
+      ;; THE RIDGE, as a reference line - the SAME convention peb-draw-framing-elev already uses on
+      ;; its own side walls ("dashed ridge above (gable)").  This sheet omitted it, so the two
+      ;; side-wall sheets disagreed about whether the building even has a roof, and a roof monitor
+      ;; drawn at its true height had nothing underneath it: the band floated a clear 1524 above the
+      ;; wall top and read as a stray strip rather than as something standing on the ridge.
+      (if (= rtype "G")
+        (progn (setvar "CLAYER" "RIDGE")
+          (command "_.LINE" (list ox (+ base wallEave rise))
+                            (list (+ ox faceLen) (+ base wallEave rise)) "")
+          ;; CLOSE THE ROOF BAND.  Viewed square-on to a long wall, the near roof slope projects as a
+          ;; RECTANGLE from eave level to ridge level over the full length, and the gable rake at each
+          ;; end projects as a VERTICAL line - the rake runs away from the viewer, so it foreshortens
+          ;; to a point in plan-x.  Both sheets drew the eave and (here) the ridge and left the band
+          ;; open at its ends, so the ridge read as a line floating over the wall rather than as the
+          ;; top of a roof.  A roof monitor seated at its TRUE height then had nothing under it at all
+          ;; (owner 31-Aug).  These two edges are the roof; the monitor stands on them.
+          (setvar "CLAYER" "STRUCTURE")
+          (command "_.LINE" (list ox (+ base wallEave)) (list ox (+ base wallEave rise)) "")
+          (command "_.LINE" (list (+ ox faceLen) (+ base wallEave))
+                            (list (+ ox faceLen) (+ base wallEave rise)) "")
+          ;; the two end edges just below draw with no setvar of their own, so CLAYER is left
+          ;; on STRUCTURE for them rather than on RIDGE.
+          (setvar "CLAYER" "STRUCTURE")))))
   ;; two vertical end edges (base -> roof)
   (command "_.LINE" (list ox base)
                     (list ox (if isEnd (peb-fr-topy 0.0 faceLen base eaveH eaveHi eaveLo rise rtype hiSide) (+ base wallEave))) "")
   (command "_.LINE" (list (+ ox faceLen) base)
                     (list (+ ox faceLen) (if isEnd (peb-fr-topy faceLen faceLen base eaveH eaveHi eaveLo rise rtype hiSide) (+ base wallEave))) "")
+
+  ;; ROOF MONITOR (owner 31-Aug: "Elevations Do not Show the Roof Monitor Lines").  Drawn
+  ;; AFTER the roof profile so it sits on top of the line it straddles, and wrapped the way
+  ;; every other optional piece on this sheet is: a monitor that cannot be drawn must not be
+  ;; able to unwind the whole elevation, which is exactly how the end wall was lost once
+  ;; before (see the rdep note above).
+  (vl-catch-all-apply (function (lambda ()
+    (peb-fr-monitor data ox base faceLen eaveH eaveHi eaveLo rise rtype hiSide isEnd
+                    wallEave slopeD stations))))
+
   ;; existing raised RCC structure (mirror the framing): brick masonry infill + RCC PILLARS at the grid lines
   (if (and rbOn hasR)
     (progn

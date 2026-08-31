@@ -1940,3 +1940,107 @@ component's own `salesCode`. Blank or non-OP on every existing record, so no exi
 it would have survived between sheets in one render session and tagged a later building's liner that
 is in the base price. The bug would have appeared only on the *second* building of a multi-building
 set, which is the kind that reaches a customer.
+
+### 4B.58 A roof monitor exists on every sheet that can see it
+
+The monitor was drawn on exactly **two** surfaces — the SECTION (`peb-draw-roof-monitor`,
+`Section.lsp`) and the ROOF PLAN (`peb-draw-monitor` / `peb-monitor-band`, `Plan.lsp`). All four
+wall elevations read **no `RM_*` key whatsoever**, so a shed carrying a 1500 throat monitor printed
+end walls whose roof line ran straight over the ridge as though nothing sat on it (owner 31-Aug:
+*"A Huge Bug now. Elevations Do not Show the Roof Monitor Lines"*).
+
+This was never a regression. It had been missing since the monitor was built, and it only became
+visible when a job actually carried one.
+
+**The rule: an object added to the model belongs on every sheet whose view contains it.** A monitor
+is not a roof-plan feature; it is a part of the building. Adding one to the section and the plan and
+stopping there ships a set whose sheets disagree with each other about what is being built.
+
+**ONE derivation, shared.** `peb-fr-mon-geom` (`Framing.lsp`) repeats the section's arithmetic
+verbatim so the three surfaces cannot drift:
+
+| | |
+|---|---|
+| throat | `RM_THROAT_WIDTH`, falling back to `RM_OVERALL_WIDTH` |
+| overall | `RM_OVERALL_WIDTH`; blank or `<= throat` → **`throat × 2`** (owner 31-Aug) |
+| height | **`throat / 2`** — STANDING RULE R1 |
+
+⚠ **Height is `throat / 2`, NOT `RM_HEIGHT`.** The section ignores that key too. They agree on
+today's records (1500 → 750), so reading the key would look correct and would silently diverge the
+day someone typed a different number into the field. One monitor drawn to two different heights on
+two sheets of one set is the exact failure this shared derivation exists to prevent.
+
+**Seat it on the line that was actually drawn.** The legs are placed with `peb-fr-topy` — *the same
+function that drew the roof line on that very sheet* — not with a separately computed roof level. A
+second computation can be right in principle and still float the monitor above the rafter or sink it
+below, because the sheet's own profile is what the reader sees.
+
+**The two views are different projections, not one drawing twice:**
+
+* **END wall (LEW/REW)** — the **cross-section**: a mini gable straddling the peak, legs at
+  `ridge ± throat/2`, its roof overhanging each leg out to `± overall/2`, with eave returns. The
+  monitor's end is sheeted closed, so **no vent opening is drawn there**.
+* **SIDE wall (NSW/FSW)** — the **length**: a raised band over the ridge spanning grids
+  `RM_GRID_FROM..RM_GRID_TO`. **This face is the vent** (owner: *"at peak, the reason of Fumes"*),
+  so the throat opening and its bird mesh (`RM_BIRD_MESH`) show here and only here.
+
+Bird mesh is drawn as ticks ~2 m apart, not as a hatch: at 1:378 a true mesh hatch smears into a
+solid grey tone and the opening stops reading as an opening.
+
+**Guards, each for a reason:**
+
+* Gables only. `rtype "B"` puts a **valley** at mid-span (`peb-fr-topy`), so a monitor seated there
+  would be drawn inside a gutter.
+* `overall < 0.60 × faceLen` on the end wall — a monitor as wide as the building is a data error,
+  and drawing it would bury the elevation underneath it.
+* On a **match-line PART sheet** the stations are a slice with their own local origin, so grid 1 is
+  no longer `stations[0]`. There the monitor spans the full drawn face rather than a confidently
+  wrong pair of stations.
+* The call is wrapped in `vl-catch-all-apply`, like every other optional piece on these sheets. A
+  monitor that cannot be drawn must not be able to unwind the whole elevation — which is precisely
+  how the end wall was lost once before (see the `rdep` note in `peb-draw-framing-elev`).
+
+All locals are declared. An undeclared symbol in AutoLISP is **global** and leaks between sheets in
+one render session — 4B.57 records the same trap.
+
+Verified by measurement on MSPL-26-269 (throat 1500, overall 3000, wid 30480, slope 1:10): legs at
+x = 14490 / 15990 (ridge 15240 ± 750), leg height 750, monitor roof 13740→16740 (3000 wide, rise
+150 = `overall/2 × slope`), leg top 12415.9 landing exactly on the monitor rafter underside.
+
+#### 4B.58a The monitor needed a roof to stand on — the side elevations had none
+
+Drawing the monitor at its true height on a side wall exposed a second, older gap. **Neither side
+elevation drew a roof.** `peb-draw-framing-elev` drew a bare ridge line floating over the wall;
+`peb-draw-sheeting-elev` drew nothing above the eave at all. The two sibling sheets did not even
+agree on whether the building has a roof.
+
+So the monitor band came out correct to the millimetre and read as a **stray strip**: 1,524 mm of
+white space between the wall top and a band of ticks, with nothing joining them. Measurement said
+the geometry was right; looking at it said the drawing was wrong. **Both were true** — which is why
+the render is checked with the eye as well as with arithmetic.
+
+The projection: viewed square-on to a long wall, the near roof slope projects as a **rectangle**
+from eave level to ridge level over the full length, and the gable rake at each end projects as a
+**vertical line** — the rake runs away from the viewer, so it foreshortens to a point in plan-x.
+Four lines make that band: eave, ridge, and two end edges. The sheets drew one or two of them.
+
+Both side elevations now close the band, so:
+
+| level | PRO-03 | PRO-05 |
+|---|---|---|
+| eave | 42528.4 | 42528.4 |
+| ridge | 44052.4 | 44052.4 |
+| monitor eave | 44652.4 | 44652.4 |
+| monitor ridge | 44802.4 | 44802.4 |
+
+⚠ **`(setvar "CLAYER" "RIDGE")` must be put back.** The two end edges just below the roof block draw
+with **no `setvar` of their own** and inherit whatever is current — they would have silently moved
+onto the RIDGE layer, and a layer error prints as a wrong lineweight, not as an error.
+
+⚠ **No line along the bottom of the vent band.** The ridge line already runs the full length at
+exactly that Y. A second line there on the OPEN layer is a duplicate entity, not a darker line.
+Verified: PRO-05 reports **zero** coincident duplicates.
+
+**This changes both side elevations on every gable job, not only those with a monitor** — they gain
+a closed roof band where they previously showed a bare wall. Flagged to the owner as a deliberate
+consequence, not a side effect.
