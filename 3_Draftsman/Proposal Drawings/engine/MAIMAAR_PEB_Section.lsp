@@ -7526,6 +7526,32 @@
     (draw-z-purlin px py ux uy vx vy depth 60.0 60.0 10.0 17.3)   ; Z200/60/20, as the main roof
     (setq i (1+ i))))
 
+(defun rm-mon-sheeting (x1 y1 x2 y2 depth thk / dx dy L ux uy vx vy b1x b1y b2x b2y t1x t1y t2x t2y)
+  ;; ROOF SHEETING on ONE monitor slope - the SAME pattern as the main roof (owner 31-Aug:
+  ;; "roof monitor sheeting will have same pattern as of roof sheeting - profile sheeting on
+  ;; both side of peak line").  A cladThk band resting on the purlin TOP FLANGE, on CLADDING,
+  ;; capped at the eave end, drawn once per side so both slopes read off the peak line.
+  ;;
+  ;; WHY THE OFFSET IS PERPENDICULAR HERE AND VERTICAL ON THE MAIN ROOF.  draw-purlins states the
+  ;; rule: purlins are "tilted perpendicular to the rafter so the top flange sits flush against the
+  ;; bottom of the sheeting".  The main roof can add purlinH to Y and still land flush because its
+  ;; slope is shallow (1:10 -> a ~1 mm error).  The monitor is a 45 deg mini-gable by R1 (height =
+  ;; throat/2), where a vertical 200 misses the purlin top by ~83 mm - the sheeting floats off the
+  ;; purlins and reads wrong.  So the band is offset along the SAME normal rm-mon-purlins uses.
+  ;; Call with the EAVE as (x1,y1) and the RIDGE as (x2,y2): the cap then lands at the eave, and the
+  ;; two slopes meet cleanly on the peak line.
+  (setq dx (- x2 x1) dy (- y2 y1) L (sqrt (+ (* dx dx) (* dy dy))))
+  (if (<= L 1e-6) (setq L 1.0))
+  (setq ux (/ dx L) uy (/ dy L) vx (- uy) vy ux)
+  (if (< vy 0.0) (setq vx (- vx) vy (- vy)))          ; normal points UP - sheeting ABOVE the rafter
+  (setq b1x (+ x1 (* depth vx))         b1y (+ y1 (* depth vy))
+        b2x (+ x2 (* depth vx))         b2y (+ y2 (* depth vy))
+        t1x (+ x1 (* (+ depth thk) vx)) t1y (+ y1 (* (+ depth thk) vy))
+        t2x (+ x2 (* (+ depth thk) vx)) t2y (+ y2 (* (+ depth thk) vy)))
+  (command "_.LINE" (list b1x b1y) (list b2x b2y) "")   ; outer face
+  (command "_.LINE" (list t1x t1y) (list t2x t2y) "")   ; inner face
+  (command "_.LINE" (list b1x b1y) (list t1x t1y) ""))  ; eave end cap, as the main roof caps its eave
+
 (defun rm-leg-cap (cx cy w gdir gslope / pt hg)
   ;; LEG-TOP connection: two SOLID plates at the seam (rafter bottom <-> leg top), 1.5mm hairline gap,
   ;; NO bolts, NO plate at the peak.  Plus ONE GP gusset on the THROAT side whose flange leg lies ON the
@@ -7667,8 +7693,12 @@
   (rm-mon-purlins eaveLx (+ eaveYL mDep) ridgeX (+ monRidgeY mDep) monPL 200.0 nil)  ; left half: eave..ridge (incl the shared ridge)
   (rm-mon-purlins eaveRx (+ eaveYR mDep) ridgeX (+ monRidgeY mDep) monPR 200.0 T)    ; right half: eave.. (skip the shared ridge)
   (setvar "CLAYER" "CLADDING")     ; universal rule: roof sheeting = CLADDING (same as the main roof)
-  (command "_.PLINE" (list eaveLx (+ eaveYL mDep 90.0)) (list ridgeX (+ monRidgeY mDep 90.0)) (list eaveRx (+ eaveYR mDep 90.0)) "")
-  (command "_.PLINE" (list eaveLx (+ eaveYL mDep 125.0)) (list ridgeX (+ monRidgeY mDep 125.0)) (list eaveRx (+ eaveYR mDep 125.0)) "")
+  ;; One run per slope, each starting at its own eave, so the sheeting reads off the peak line on
+  ;; BOTH sides and sits flush on the purlin tops.  It used to be two PLINEs offset +90/+125 in Y,
+  ;; which on a 45 deg monitor put the sheet 110 mm INSIDE the 200-deep purlins it is supposed to
+  ;; rest on - the band cut straight through them.  200 = purlin depth, 35 = cladThk (main roof).
+  (rm-mon-sheeting eaveLx (+ eaveYL mDep) ridgeX (+ monRidgeY mDep) 200.0 35.0)
+  (rm-mon-sheeting eaveRx (+ eaveYR mDep) ridgeX (+ monRidgeY mDep) 200.0 35.0)
   ;; ridge cap over the sheeting apex — REMOVED 21-Jul (owner: the small cap on the monitor apex is not wanted).
   ;; 5) BIRD SCREEN mesh — DROPPED from the section (owner 22-Jul "clean geometry + width only"): the diagonal
   ;;    mesh hatch was visual noise at section scale.  It belongs on the enlarged monitor DETAIL, not here.
