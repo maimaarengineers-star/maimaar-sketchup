@@ -2044,3 +2044,40 @@ Verified: PRO-05 reports **zero** coincident duplicates.
 **This changes both side elevations on every gable job, not only those with a monitor** — they gain
 a closed roof band where they previously showed a bare wall. Flagged to the owner as a deliberate
 consequence, not a side effect.
+
+#### 4B.58b An outline is not "shown" on a sheeting drawing
+
+`efb2679` put the monitor on all four elevations as an **outline** — legs, gable roof, eave returns,
+and the vent opening. The owner's verdict on the sheeting sheets: *"roof monitor is not shown in the
+sheeting elevation."* It was drawn. It was in the entity dump. It measured correct. Beside a wall
+filled with panel lines, a hollow outline still reads as **nothing being there**.
+
+**A sheeting elevation shows sheeting.** An object that appears on it unsheeted has not been drawn,
+whatever the geometry says.
+
+`peb-fr-monitor` therefore takes a **`kind`** argument — `"F"` or `"S"` — passed as a literal by
+each drawer, since each one knows which sheet it is. Framing keeps the clean outline; sheeting gets
+panel lines. Same split the rest of both drawers already observe.
+
+| | what is drawn | pitch | why that pitch |
+|---|---|---|---|
+| END, `"S"` | monitor end, **leg to leg** | throat/(n+1), n = throat/333 → **300** on a 1500 throat | matches the wall sheeting (`sp 333.0`) on the same sheet |
+| SIDE, `"S"` | monitor roof on its slope | **1000** | the roof COVER width `peb-draw-roof-sheeting` uses |
+| SIDE, both | the vent opening below it | **1000** | the same stations as the sheeting above it |
+| SIDE sheeting sheet | the MAIN roof band | **1000** | it was a bare rectangle on a sheeting drawing |
+
+**Leg to leg, never to the roof edge** (owner 31-Aug). The monitor roof overhangs 750 past each leg
+with an **open soffit** — that is how a mini gable frame closes. Sheeting out to `overall/2` would
+draw a wall where the building has none.
+
+⚠ **Distribute the end sheets, do not run a fixed pitch from one leg.** A fixed 333 from the left leg
+put the last line 168 from the right leg — half a pitch — and the two printed as a single thickened
+line. Spacing `throat/(n+1)` is symmetric about the ridge and clear of both legs.
+
+⚠ **One module for the whole monitor.** The opening's ticks were evenly distributed at ~2 m while the
+sheeting above ran at a fixed 1 m, so the two bands divided on different lines and stacked as two
+mismatched grilles. Both now step `mx0 + n × 1000`, so the monitor divides on one module and reads
+as one object.
+
+**The main roof band is now sheeted on the side sheeting elevation, for every gable job** — not only
+those with a monitor. Owner's call, 31-Aug.

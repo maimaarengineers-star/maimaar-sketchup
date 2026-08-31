@@ -534,19 +534,24 @@
           (list throat overall (/ throat 2.0)))))))
 
 (defun peb-fr-monitor (data ox base faceLen eaveH eaveHi eaveLo rise rtype hiSide isEnd
-                       wallEave slopeD stations
+                       wallEave slopeD stations kind
                        / m throat overall rmh halfT halfO prev cx s apexY
                          legL legR legTopL legTopR ridgeY eaveY
-                         nSt gFrom gTo mx0 mx1 bandH nT i px mesh)
+                         nSt gFrom gTo mx0 mx1 bandH nT i px mesh
+                         isSht sxm ytop)
   (setq m (peb-fr-mon-geom data))
   ;; Only a GABLE carries a monitor: it straddles a RIDGE, and rtype "B" puts a VALLEY at
   ;; mid-span (see peb-fr-topy) - seating a monitor there would draw it inside a gutter.
   (if (and m (= rtype "G") (> faceLen 1.0) (> rise 0.0) (> slopeD 0.0))
     (progn
+      ;; kind "S" = a SHEETING elevation, "F" = a FRAMING one.  The framing sheets keep the clean
+      ;; outline; only the sheeting sheets get panel lines, the same split the rest of these two
+      ;; drawers already observe.
       (setq prev   (getvar "CLAYER")
             throat (car m) overall (cadr m) rmh (caddr m)
             halfT  (/ throat 2.0)
-            halfO  (/ overall 2.0))
+            halfO  (/ overall 2.0)
+            isSht  (= kind "S"))
       (if isEnd
         ;; ---- END WALL: the monitor in cross-section, straddling the drawn peak -------
         ;; Skipped when the monitor is as wide as the building - that is not a monitor,
@@ -576,7 +581,40 @@
             (command "_.LINE" (list (+ ox (- cx halfO)) eaveY)
                               (list (+ ox (- cx halfO)) (- eaveY (* 0.18 rmh))) "")
             (command "_.LINE" (list (+ ox (+ cx halfO)) eaveY)
-                              (list (+ ox (+ cx halfO)) (- eaveY (* 0.18 rmh))) "")))
+                              (list (+ ox (+ cx halfO)) (- eaveY (* 0.18 rmh))) "")
+            ;; THE MONITOR END, SHEETED (owner 31-Aug: "on both ends Sheeting will be there for
+            ;; roof monitor", "vertical sheets").  On a SHEETING elevation the wall beneath it is
+            ;; filled with panel lines, so an outline alone reads as nothing being there at all -
+            ;; which is exactly how this was reported.
+            ;;
+            ;; LEG TO LEG only, the THROAT (owner's choice 31-Aug).  The roof overhangs 750 past
+            ;; each leg with an OPEN soffit - that is how a mini gable frame closes - so sheeting
+            ;; out to overall/2 would draw a wall where the building has none.
+            ;;
+            ;; Pitch 333 is the SAME sp the wall sheeting further down this very sheet uses, so the
+            ;; monitor matches the wall under it instead of carrying its own private sheeting scale.
+            (if isSht
+              (progn
+                ;; EVENLY distributed, not a fixed 333 run from the left leg.  A fixed pitch left the
+                ;; last sheet line 168 from the right leg - half a pitch - and the two printed as one
+                ;; thickened line.  n = throat/333 rounded down, then spaced throat/(n+1), which for a
+                ;; 1500 throat is 4 lines at 300: symmetric about the ridge, clear of both legs, and
+                ;; near enough 333 to match the wall sheeting beside it.
+                (setvar "CLAYER" "CLADDING")
+                (setq nT (fix (/ throat 333.0)))
+                (if (< nT 1) (setq nT 1))
+                (setq i 1)
+                (while (<= i nT)
+                  (setq sxm (+ (- cx halfT) (* throat (/ (float i) (float (1+ nT))))))
+                  ;; top = the monitor RAFTER UNDERSIDE at this x, the same line the leg tops were
+                  ;; measured landing on exactly (12415.9 on 269); bottom = the main roof, seated
+                  ;; with peb-fr-topy like every other thing on this sheet.
+                  (setq ytop (- ridgeY (* (abs (- sxm cx)) s)))
+                  (command "_.LINE"
+                    (list (+ ox sxm)
+                          (peb-fr-topy sxm faceLen base eaveH eaveHi eaveLo rise rtype hiSide))
+                    (list (+ ox sxm) ytop) "")
+                  (setq i (1+ i)))))))
         ;; ---- SIDE WALL: the monitor along its LENGTH, raised over the ridge ----------
         (progn
           (setq apexY  (+ base wallEave rise)        ; the ridge, as THIS sheet draws it
@@ -609,6 +647,20 @@
               (command "_.LINE" (list (+ ox mx0) eaveY) (list (+ ox mx1) eaveY) "")
               (setvar "CLAYER" "RIDGE")
               (command "_.LINE" (list (+ ox mx0) ridgeY) (list (+ ox mx1) ridgeY) "")
+              ;; THE MONITOR'S ROOF SHEETING on its slope (owner 31-Aug: "roof sheeting of slope
+              ;; will be shown and opening will be shown below it").  Pitch 1000 = the roof COVER
+              ;; width peb-draw-roof-sheeting uses, so these are the SAME runs the roof plan draws.
+              ;;
+              ;; This band is only (rmh - halfO/slopeD) tall - 150 on a 1500 throat at 1:10 -
+              ;; because the monitor follows the MAIN slope (the Section derives it that way).
+              ;; That is the true projection, not an error; it is simply thin on paper.
+              (if (and isSht (> (- ridgeY eaveY) 1.0))
+                (progn
+                  (setvar "CLAYER" "CLADDING")
+                  (setq sxm (+ mx0 1000.0))
+                  (while (< sxm mx1)
+                    (command "_.LINE" (list (+ ox sxm) eaveY) (list (+ ox sxm) ridgeY) "")
+                    (setq sxm (+ sxm 1000.0)))))
               ;; THE VENT.  This face is the whole reason the monitor exists (owner: "at
               ;; peak, the reason of Fumes"), so the opening is drawn AS an opening: the
               ;; throat band between the main roof and the monitor eave, ticked when a
@@ -623,12 +675,14 @@
                   (setq mesh (strcase (peb-tb-or (MSPL-Get-Str data "RM_BIRD_MESH") "")))
                   (if (or (= mesh "YES") (= mesh "Y") (= mesh "TRUE"))
                     (progn
-                      (setq nT (fix (/ (- mx1 mx0) 2000.0)) i 1)
-                      (if (> nT 60) (setq nT 60))
-                      (while (< i nT)
-                        (setq px (+ ox mx0 (* (- mx1 mx0) (/ (float i) (float nT)))))
-                        (command "_.LINE" (list px apexY) (list px eaveY) "")
-                        (setq i (1+ i)))))))))))
+                      ;; The SAME stations as the roof sheeting above: mx0 + n*1000, the roof COVER
+                      ;; width.  Evenly-distributed 2 m ticks landed between the sheet lines, so the
+                      ;; opening and the sheeting over it read as two mismatched grilles stacked on
+                      ;; each other instead of as one monitor divided on one module.
+                      (setq px (+ mx0 1000.0))
+                      (while (< px mx1)
+                        (command "_.LINE" (list (+ ox px) apexY) (list (+ ox px) eaveY) "")
+                        (setq px (+ px 1000.0)))))))))))
       (setvar "CLAYER" prev)))
   (princ))
 
@@ -1256,7 +1310,7 @@
   ;; before (see the rdep note above).
   (vl-catch-all-apply (function (lambda ()
     (peb-fr-monitor data ox base faceLen eaveH eaveHi eaveLo rise rtype hiSide isEnd
-                    wallEave slopeD stations))))
+                    wallEave slopeD stations "F"))))
 
   ;; 4. girts + sheeting-base + brick/RCC hatch + condition label — drawn PER WALL-FACE SEGMENT (owner 29-Jul)
   ;; so a RAISED band (on the existing floor) starts its brick/sheeting from +rbBase, not FFL. See
@@ -1716,6 +1770,16 @@
           (command "_.LINE" (list ox (+ base wallEave)) (list ox (+ base wallEave rise)) "")
           (command "_.LINE" (list (+ ox faceLen) (+ base wallEave))
                             (list (+ ox faceLen) (+ base wallEave rise)) "")
+          ;; THE MAIN ROOF, SHEETED (owner 31-Aug).  On a SHEETING drawing this band was an empty
+          ;; rectangle while the wall below it was full of panel lines.  Pitch 1000 = the roof
+          ;; COVER width peb-draw-roof-sheeting uses.  Only here, never in the framing drawer.
+          ;; No overlap with the monitor, which stands entirely ABOVE the ridge this band tops out at.
+          (setvar "CLAYER" "CLADDING")
+          (setq sx 1000.0)
+          (while (< sx faceLen)
+            (command "_.LINE" (list (+ ox sx) (+ base wallEave))
+                              (list (+ ox sx) (+ base wallEave rise)) "")
+            (setq sx (+ sx 1000.0)))
           ;; the two end edges just below draw with no setvar of their own, so CLAYER is left
           ;; on STRUCTURE for them rather than on RIDGE.
           (setvar "CLAYER" "STRUCTURE")))))
@@ -1732,7 +1796,7 @@
   ;; before (see the rdep note above).
   (vl-catch-all-apply (function (lambda ()
     (peb-fr-monitor data ox base faceLen eaveH eaveHi eaveLo rise rtype hiSide isEnd
-                    wallEave slopeD stations))))
+                    wallEave slopeD stations "S"))))
 
   ;; existing raised RCC structure (mirror the framing): brick masonry infill + RCC PILLARS at the grid lines
   (if (and rbOn hasR)
