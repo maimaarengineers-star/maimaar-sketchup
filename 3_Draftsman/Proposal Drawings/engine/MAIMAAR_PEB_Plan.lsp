@@ -8322,8 +8322,9 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
 
 ;; ---- helper: collect all staircase void extents for later joist/beam exclusion ----
 ;; Returns a list of void rectangles: ((x0 x1 y0 y1) ...) for each enabled staircase
+;; Orientation handled: Longitudinal = standard (NSW→FSW); Transverse = rotated 90° (LEW→REW)
 (defun peb-stair-voids (data fx0 fx1 fy0 fy1 /
-                        i tag wdt hgt typ topl midl trd pfl shp
+                        i tag wdt hgt typ topl midl trd pfl shp orient
                         n offX offY ox oy ext voids)
   (setq voids nil i 1 n 0)
   (if (= (strcase (MSPL-Get-Str data "ST_TOGGLE")) "YES")
@@ -8341,15 +8342,17 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
                     trd  (MSPL-Get-Str data (strcat tag "TREAD"))
                     pfl  (MSPL-Get-Str data (strcat tag "PLAT_FLOOR"))
                     offX (MSPL-Get-Num data (strcat tag "OFFSET_X"))
-                    offY (MSPL-Get-Num data (strcat tag "OFFSET_Y")))
+                    offY (MSPL-Get-Num data (strcat tag "OFFSET_Y"))
+                    orient (MSPL-Get-Str data (strcat tag "ORIENTATION")))
               (if (or (null wdt) (<= wdt 0.0)) (setq wdt 1200.0))
               (if (or (null hgt) (<= hgt 0.0)) (setq hgt 3000.0))
               (if (or (null offX) (<= offX 0.0)) (setq offX 0.0))
               (if (or (null offY) (<= offY 0.0)) (setq offY 6000.0))
+              (if (or (null orient) (= (strcase orient) "")) (setq orient "Longitudinal"))
               (setq shp (peb-stair-shape typ midl)
                     ox (+ fx0 offX)
                     oy (+ fy0 offY))
-              ;; Calculate footprint for this staircase
+              ;; Calculate footprint for this staircase (orientation handled in drawing functions)
               (setq ext
                 (cond ((= shp "U") (peb-stair-plan-u ox oy wdt hgt topl midl nil trd pfl))
                       ((= shp "L") (peb-stair-plan-l ox oy wdt hgt topl midl nil trd pfl))
@@ -8374,8 +8377,9 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
 ;;   OFFSET_X = distance along WIDTH (LEW to REW)
 ;;   OFFSET_Y = distance along LENGTH (NSW to FSW)
 ;; Standing Rule: Remove joists & beams in staircase void; create clean rectangular opening.
+;; Orientation support: Longitudinal = along length (NSW→FSW); Transverse = across width (LEW→REW)
 (defun peb-mzfp-stairs (data fx0 fx1 fy0 fy1 /
-                        i tag wdt hgt typ topl midl trd pfl shp
+                        i tag wdt hgt typ topl midl trd pfl shp orient
                         n offX offY ox oy ext th)
   (if (= (strcase (MSPL-Get-Str data "ST_TOGGLE")) "YES")
     (progn
@@ -8395,15 +8399,18 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
                       trd  (MSPL-Get-Str data (strcat tag "TREAD"))
                       pfl  (MSPL-Get-Str data (strcat tag "PLAT_FLOOR"))
                       offX (MSPL-Get-Num data (strcat tag "OFFSET_X"))  ;; Distance along WIDTH
-                      offY (MSPL-Get-Num data (strcat tag "OFFSET_Y"))) ;; Distance along LENGTH
+                      offY (MSPL-Get-Num data (strcat tag "OFFSET_Y"))  ;; Distance along LENGTH
+                      orient (MSPL-Get-Str data (strcat tag "ORIENTATION"))) ;; Longitudinal or Transverse
                 (if (or (null wdt) (<= wdt 0.0)) (setq wdt 1200.0))
                 (if (or (null hgt) (<= hgt 0.0)) (setq hgt 3000.0))
                 (if (or (null offX) (<= offX 0.0)) (setq offX 0.0))
                 (if (or (null offY) (<= offY 0.0)) (setq offY 6000.0))
+                (if (or (null orient) (= (strcase orient) "")) (setq orient "Longitudinal"))
                 (setq shp (peb-stair-shape typ midl))
                 ;; Position staircase using absolute coordinates from BSF offsets
                 ;; ox = fx0 + OFFSET_X (absolute position along width)
                 ;; oy = fy0 + OFFSET_Y (absolute position along length)
+                ;; Orientation (Longitudinal/Transverse) drives rotation in floor plan
                 (setq ox (+ fx0 offX)
                       oy (+ fy0 offY))
                 ;; Draw the stair once to learn its footprint
