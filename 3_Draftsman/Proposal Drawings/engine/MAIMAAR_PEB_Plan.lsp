@@ -8323,13 +8323,13 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
                 (if (or (null hgt) (<= hgt 0.0)) (setq hgt 3000.0))
                 (setq shp   (peb-stair-shape typ midl)
                       onREW (= (rem n 2) 1))
-                ;; ST1 at the LEW end of the deck, ST2 at the REW end - the two escape routes
-                ;; at opposite ends, which is why there are two of them.
+                ;; ST1 at the LEW end of the deck, ST2 at the REW end - positioned at interior post/column locations
+                ;; Staircases should be placed at the mezzanine column positions, not at building edges
                 (setq oy (+ fy0 inset (/ wdt 2.0)))
-                (setq ox (if onREW (- fx1 inset) (+ fx0 inset)))
-                ;; Draw the stair once to learn its footprint, on a throwaway origin? No - the
-                ;; drawers are deterministic, so ask peb-stair-flights for the run instead and
-                ;; place the origin so the stair reads INTO the building from its end.
+                ;; Position at interior post columns: ST1 at LEW column, ST2 at REW column
+                ;; Use column depth to calculate from building edge toward interior
+                (setq ox (if onREW (- fx1 inset (* wdt 0.5)) (+ fx0 inset (* wdt 0.5))))
+                ;; Draw the stair once to learn its footprint
                 (if onREW
                   (setq ox (- ox (+ (* (peb-stair-going) (nth 0 (peb-stair-flights hgt)))
                                     (max 900.0 wdt)))))
