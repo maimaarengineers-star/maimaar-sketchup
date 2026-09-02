@@ -7276,15 +7276,32 @@
       ;; A stub is dropped wherever a PEB frame column already stands (owner 12-Jul: "2 columns
       ;; coming at the same place"), and clipped to the mezzanine band.
       (setq fcs (vl-sort (if (and frameCols (> (length frameCols) 1)) frameCols (list 0.0 wid)) '<))
+      ;; TARGET SPACING COMES FROM THE ESTIMATOR, NOT FROM A CONSTANT.  This asked for stations on a
+      ;; hard-coded 6 m target while the Mezzanine Floor Plan asked on MZ_COL_SPACING, so on a job that
+      ;; relies on auto-division the two sheets subdivided the same module differently.  One input, both
+      ;; sheets.  (On MSPL-26-279 the explicit 5@15240 chain overrides it either way.)
+      (setq mzTgt (car (peb-width-order
+                         (peb-parse-mod-expression
+                           (peb-tb-or (MSPL-Get-Str data "MZ_COL_SPACING") "")))))
+      (if (or (null mzTgt) (<= mzTgt 0.0)) (setq mzTgt 6000.0))
       (setq mzsp (vl-catch-all-apply
-                   (function (lambda () (peb-mezz-col-ys data wid pb0 pb1 6000.0)))))
+                   (function (lambda () (peb-mezz-col-ys data wid pb0 pb1 mzTgt)))))
       (if (vl-catch-all-error-p mzsp) (setq mzsp nil))
       (setq xs '())
+      ;; OWNER 1-Sep-2026: "existing columns of main building columns will support Mezzanine Beams and
+      ;; Joists" - so a stub standing on a PEB column is NOT drawn; only genuine additional columns are.
+      ;;
+      ;; 5 mm could never catch one.  The stub chain is walked across the DECK BAND (inset 1000 mm a
+      ;; side) and rescaled to close on it, so its stations land 199-600 mm off the frame grid - and
+      ;; every single one survived this test, which is why the section drew a mezzanine column beside
+      ;; each full-height building column.  Same physical test the Mezzanine Floor Plan now uses: inside
+      ;; half a column depth is inside the column, so it IS that column.
+      (setq mzSecTol (/ (peb-col-web-depth wid) 2.0))
       (if mzsp
         (foreach acc mzsp
           (setq acc (- wid acc))            ; plan space -> section space (rule 4B.37)
           (if (and (> acc (+ x0 1.0)) (< acc (- x1 1.0))
-                   (not (vl-some (function (lambda (p) (< (abs (- p acc)) 5.0))) fcs)))
+                   (not (vl-some (function (lambda (p) (< (abs (- p acc)) mzSecTol))) fcs)))
             (setq xs (append xs (list acc)))))
         ;; fallback, unchanged: subdivide each frame-column gap by ~6 m
         (progn

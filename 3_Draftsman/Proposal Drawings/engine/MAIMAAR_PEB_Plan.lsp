@@ -2316,7 +2316,8 @@
   ;; ORDER MATTERS: the specific patterns are tested before the substring ones, and the ROOF
   ;; tests anchor on the FIRST word ("ROOF*") so "SIDE WALL SHEETING" cannot be caught by them.
   (setq dt (strcase (tb-get "DRGTITLE"))
-        tbKind (cond ((wcmatch dt "*DETAIL*")              "DETAILS")   ; rule 1.6.3
+        tbKind (cond ((wcmatch dt "*STAIRCASE*")          "STAIRCASE")  ; staircase design loads (2-Sep-2026)
+                     ((wcmatch dt "*DETAIL*")              "DETAILS")   ; rule 1.6.3
                      ((wcmatch dt "*SECTION*")             "SECTION")
                      ((wcmatch dt "*MEZZANINE*")           "MEZZ")      ; rule 4B.39
                      ((and (wcmatch dt "ROOF*") (wcmatch dt "*FRAMING*"))  "ROOFFRM")
@@ -2356,6 +2357,19 @@
                  (* cw 1.02) (* s 0.0092)) cw 1
         (strcat "{\\Fromand.shx;AS PER " (tb-get "CODE")
                 " METAL BUILDING SYSTEMS MANUAL}") green))
+    ;; ==== STAIRCASE DETAILS : the STAIRCASE's own design loads (2-Sep-2026) ====
+    ((= tbKind "STAIRCASE")
+      (setq rh (* s 0.052) bt yCur yCur (- yCur rh))
+      (tb-mtext-bold (+ X0 (* W 0.035)) (- bt (* s 0.0130))
+        (tb-fith "DESIGN LOADS" (* cw 0.85) (* s 0.0120)) (* W 0.93) 1 "DESIGN LOADS" green)
+      (setq rh (* s 0.224) yCur (- yCur rh))
+      (tb-mtext (+ X0 (* W 0.04)) (- (+ yCur rh) (* sm 1.3))
+        (tb-fith "OCCUPANCY: PRODUCTION / INDUSTRIAL" cw (* sm 1.05)) cw 1
+        (strcat "OCCUPANCY : PRODUCTION / INDUSTRIAL\\P"
+                "LIVE LOAD : 3.0 kN/m²\\P"
+                "HANDRAIL : 0.36 kN/m LINE LOAD AT TOP\\P"
+                "MEZZANINE LIVE LOAD : AS STATED IN BSF\\P"
+                "REFERENCE : BS 6399 TABLE 4.10") white))
     ;; ==== MEZZANINE FLOOR PLAN : the MEZZANINE's own design data (owner 29-Aug) ====
     ;; Rule 4B.39.  The roof/frame live loads, wind, exposure, snow and seismic belong to the
     ;; BUILDING and are already printed on the Column Layout Plan and the Cross Section; repeating
@@ -4602,131 +4616,94 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
 
 (defun peb-draw-stairs
        (data len wid /
-        u inset gap ycur i tag wdt hgt typ topl runlen
-        x0 x1 y0 y1 midx midy th nt spc j ty
-        ax0 ay0 ay1 hl a1 a2 lan
-        midl mzStr mezzNum foot xbase yc newy mlanm ymid0 ymid1 mzcur ytop)
+        u inset i tag wdt hgt typ midl th mzStr mezzNum foot
+        nOnMezz onREW xcol yb0 yt1 r lab any)
+  ;; ============================================================================
+  ;; COLUMN LAYOUT PLAN: THE STAIRCASE COLUMNS, AND NOTHING ELSE  (owner 1-Sep-2026)
+  ;; ----------------------------------------------------------------------------
+  ;; "on columns layout plan only staircase column will come. you may mark them and label ...
+  ;;  However, the Full Plan of Staircase Must come in the Mezzanine Floor Plan"
+  ;;
+  ;; This sheet is about COLUMNS.  A staircase footprint with treads, landings and an UP arrow
+  ;; on it is noise here - it answers a question the sheet is not asking, and it competes with
+  ;; the thing the sheet exists to show.  The full stair now lives on the mezzanine floor plan
+  ;; (peb-draw-mezz-floor-plan) and on its own PRO-10 detail sheet; what belongs HERE is where
+  ;; the staircase puts columns into the building's column grid.
+  ;;
+  ;; EACH ONE IS RINGED.  On a sheet carrying hundreds of identical column marks, an unringed
+  ;; staircase column is invisible - a reader cannot tell which four of them are not the
+  ;; building's.  The circle is the whole point of drawing them here.
+  ;;
+  ;; Placement follows the same rule as the detail sheet: two columns per stair, under the ends
+  ;; of the landing beam, on the two outer stringer lines; ST1 takes the mezzanine's LEW end and
+  ;; ST2 its REW end.  The *PEB-MEZZ-FOOTS* contract is unchanged - mezzanine is drawn first and
+  ;; publishes the footprint, and a stair whose mezzanine cannot be resolved simply draws nothing
+  ;; here rather than guessing a position ([[maimaar-stairs-mezz-anchor]]).
+  ;; ============================================================================
   (if (= (strcase (MSPL-Get-Str data "ST_TOGGLE")) "YES")
     (progn
-      (setq u     (max 400.0 (min 3000.0 (/ (max len wid) 70.0)))  ; annotation unit
-            inset (max 300.0 (min 1500.0 (* u 0.5)))               ; clearance from LEW wall / NSW corner
-            gap   (max 400.0 (* u 0.9))                            ; vertical gap between stacked stairs
-            th    (max 300.0 (* u 0.40))                           ; desired raw text height
-            ycur  inset                                            ; running y-cursor, starts near NSW corner
-            mzcur nil)                                             ; per-mezzanine y-cursors (alist mezzNum . y)
-      (peb-comp-layer "COMP-STAIRS" 6)                             ; magenta
-      (setq i 1)
+      (setq u     (max 400.0 (min 3000.0 (/ (max len wid) 70.0)))
+            inset (max 300.0 (min 1500.0 (* u 0.5)))
+            th    (max 300.0 (* u 0.40))
+            i     1
+            nOnMezz 0
+            any   nil)
+      (peb-comp-layer "COMP-STAIRS" 6)
       (while (<= i 4)
         (setq tag (strcat "ST" (itoa i) "_"))
         (if (= (strcase (MSPL-Get-Str data (strcat tag "TOGGLE"))) "YES")
           (vl-catch-all-apply
             (function
               (lambda ()
-                ;; --- read + default this stair's fields ---
                 (setq wdt  (MSPL-Get-Num data (strcat tag "WIDTH"))
                       hgt  (MSPL-Get-Num data (strcat tag "HEIGHT"))
                       typ  (MSPL-Get-Str data (strcat tag "TYPE"))
-                      topl (MSPL-Get-Str data (strcat tag "TOP_LANDING"))
                       midl (MSPL-Get-Str data (strcat tag "MID_LANDING")))
-                (if (or (null wdt) (<= wdt 0.0)) (setq wdt 1200.0)) ; ST width already mm, dflt 1200
-                ;; straight-flight run: derived from climb height, else 4000 mm
-                (setq runlen (if (and hgt (> hgt 0.0)) (max 3000.0 (* hgt 1.2)) 4000.0))
-                ;; --- PLACEMENT: anchor to the stair's mezzanine when ST_IN_MEZZ resolves to a known
-                ;;     footprint (owner 14-Jul); else fall back to the old LEW-corner tiling, unchanged. ---
+                (if (or (null wdt) (<= wdt 0.0)) (setq wdt 1200.0))
+                (setq *SLOG* (open "C:/maimaar_render/st_log.txt" "a"))
+                (if *SLOG* (progn (write-line (strcat tag "entered wdt=" (rtos wdt 2 0)) *SLOG*) (close *SLOG*)))
                 (setq mzStr   (MSPL-Get-Str data (strcat tag "IN_MEZZ"))
                       mezzNum (peb-mezz-num mzStr)
                       foot    (if (and mezzNum *PEB-MEZZ-FOOTS*) (assoc mezzNum *PEB-MEZZ-FOOTS*) nil))
-                (if foot
-                  (progn
-                    ;; against the mezzanine's LEW edge, climbing up within its y-band; per-mezz cursor
-                    (setq xbase (nth 1 foot)
-                          yc    (cdr (assoc mezzNum mzcur)))
-                    (if (null yc) (setq yc (+ (nth 3 foot) inset)))
-                    (setq x0 xbase y0 yc))
-                  (setq x0 inset y0 ycur))          ; fallback: LEW corner, global cursor
-                ;; MID_LANDING splits the run into two flights with a landing band between (owner 14-Jul).
-                (setq mlanm (if (= midl "1") (max 900.0 (* wdt 0.9)) 0.0))
-                (setq x1   (+ x0 wdt)
-                      y1   (+ y0 runlen mlanm)
-                      midx (/ (+ x0 x1) 2.0)
-                      midy (/ (+ y0 y1) 2.0)
-                      ymid0 (+ y0 (/ runlen 2.0))                  ; landing band start (mid-run)
-                      ymid1 (+ ymid0 mlanm))                       ; landing band end
-                (peb-comp-layer "COMP-STAIRS" 6)
-                (peb-comp-poly (list (list x0 y0) (list x1 y0)
-                                     (list x1 y1) (list x0 y1)))
-                ;; --- TREAD lines: ~6-10 across the width, over each flight (skip the mid-landing band) ---
-                (setq nt  (max 6 (min 10 (fix (/ runlen 400.0))))
-                      spc (/ runlen (+ nt 1.0))
-                      j   1)
-                (while (<= j nt)
-                  (setq ty (+ y0 (* j spc)))
-                  (if (> ty ymid0) (setq ty (+ ty mlanm)))         ; shift upper-flight treads past the band
-                  (if (or (<= mlanm 0.0) (< ty ymid0) (> ty ymid1))
+                ;; ALWAYS DRAW SOMETHING.  The old drawer fell back to the LEW corner when the
+                ;; mezzanine footprint could not be resolved, and that fallback is why it drew at
+                ;; all; my first cut simply skipped the stair, so the columns silently vanished
+                ;; from the sheet.  A stair whose mezzanine cannot be found still HAS columns -
+                ;; place them against the building instead and let the drawing show them.
+                (setq *SLOG* (open "C:/maimaar_render/st_log.txt" "a"))
+                (if *SLOG* (progn (write-line (strcat tag "foot=" (if foot "yes" "nil")) *SLOG*) (close *SLOG*)))
+                (progn
+                    (setq onREW (= (rem nOnMezz 2) 1))
+                    (setq xcol (if foot
+                                 (if onREW (- (nth 2 foot) inset) (+ (nth 1 foot) inset))
+                                 (if onREW (- len inset) inset)))
+                    ;; the two columns straddle the stair width, on its outer lines
+                    (setq yb0 (if foot (+ (nth 3 foot) inset) inset)
+                          yt1 (+ yb0 wdt))
+                    (setq r (max 250.0 (* u 0.55)))
+                    (setq *SLOG* (open "C:/maimaar_render/st_log.txt" "a"))
+                    (if *SLOG* (progn (write-line (strcat tag "drawing at x=" (rtos xcol 2 0) " y=" (rtos yb0 2 0)) *SLOG*) (close *SLOG*)))
+                    (foreach cy (list yb0 yt1)
+                      ;; the column itself, drawn as the I-section this sheet uses everywhere
+                      (vl-catch-all-apply
+                        (function (lambda () (peb-stair-col-plan xcol cy))))
+                      ;; and the ring that says "this one is the staircase's"
+                      (entmake (list (cons 0 "CIRCLE") (cons 8 "COMP-STAIRS")
+                                     (list 10 xcol cy 0.0) (cons 40 r))))
+                    ;; one label per stair, on a leader out from the upper column
+                    (setq lab (strcat "STAIR COLUMNS - ST" (itoa i)
+                                      (if onREW " (REW)" " (LEW)")))
                     (entmake (list (cons 0 "LINE") (cons 8 "COMP-STAIRS")
-                                   (list 10 x0 ty 0.0) (list 11 x1 ty 0.0))))
-                  (setq j (1+ j)))
-                ;; --- MID landing band: cross line + "LANDING" ---
-                (if (> mlanm 0.0)
-                  (progn
-                    (entmake (list (cons 0 "LINE") (cons 8 "COMP-STAIRS")
-                                   (list 10 x0 ymid0 0.0) (list 11 x1 ymid0 0.0)))
-                    (entmake (list (cons 0 "LINE") (cons 8 "COMP-STAIRS")
-                                   (list 10 x0 ymid1 0.0) (list 11 x1 ymid1 0.0)))
+                                   (list 10 xcol (+ yt1 r) 0.0)
+                                   (list 11 xcol (+ yt1 (* u 2.2)) 0.0)))
                     (setvar "CLAYER" "COMP-STAIRS")
-                    (txt-bold "MC" (list midx (/ (+ ymid0 ymid1) 2.0))
-                              (/ (* th 0.55) (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0))
-                              0.0 "LANDING")))
-                ;; --- UP arrow: LINE along the run (+y = climb) + arrowhead + "UP" ---
-                (setq ax0 midx
-                      ay0 (+ y0 (* spc 0.5))
-                      ay1 (- y1 (* spc 0.5))
-                      hl  (max 300.0 (* u 0.5)))
-                (entmake (list (cons 0 "LINE") (cons 8 "COMP-STAIRS")
-                               (list 10 ax0 ay0 0.0) (list 11 ax0 ay1 0.0)))
-                (setq a1 (list (- ax0 (* hl 0.4)) (- ay1 hl))
-                      a2 (list (+ ax0 (* hl 0.4)) (- ay1 hl)))
-                (entmake (list (cons 0 "SOLID") (cons 8 "COMP-STAIRS")
-                               (list 10 (car a1) (cadr a1) 0.0)
-                               (list 11 (car a2) (cadr a2) 0.0)
-                               (list 12 ax0 ay1 0.0) (list 13 ax0 ay1 0.0)))
-                (setvar "CLAYER" "COMP-STAIRS")
-                (txt-bold "ML"
-                          (list (+ ax0 (* u 0.35)) (+ ay0 (* runlen 0.10)))
-                          (/ (* th 0.75) (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0))
-                          90.0 "UP")
-                ;; --- optional TOP landing rectangle at the head (y1..y1+landing) ---
-                (if (= topl "1")
-                  (progn
-                    (setq lan (max 900.0 (* wdt 0.9)))
-                    (peb-comp-poly (list (list x0 y1) (list x1 y1)
-                                         (list x1 (+ y1 lan)) (list x0 (+ y1 lan))))
-                    (setvar "CLAYER" "COMP-STAIRS")
-                    (txt-bold "MC" (list midx (+ y1 (/ lan 2.0)))
-                              (/ (* th 0.6) (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0))
-                              0.0 "LANDING")
-                    (setq y1 (+ y1 lan)))
-                  (setq lan 0.0))
-                ;; --- label to the right of the footprint, reading up the run ---
-                (setvar "CLAYER" "COMP-STAIRS")
-                (txt-bold "MC"
-                          (list (+ x1 (* u 0.7)) (/ (+ y0 y1) 2.0))
-                          (/ th (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0))
-                          90.0
-                          (strcat "STAIR ST" (itoa i)
-                                  (if (and typ (/= typ ""))
-                                    (strcat " (" (strcase typ) ")") "")
-                                  (if foot (strcat " @ MEZZ " (itoa mezzNum)) "")))
-                ;; --- advance the cursor past this stair (incl. landing) + gap ---
-                (setq newy (+ y1 gap))
-                (if foot
-                  (setq mzcur (cons (cons mezzNum newy) mzcur))   ; per-mezz cursor (front shadows old)
-                  (setq ycur newy))                                ; global fallback cursor
+                    (txt-bold "BC" (list xcol (+ yt1 (* u 2.4)))
+                              (/ th (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0.0 lab)
+                    (setq nOnMezz (1+ nOnMezz) any T))
                 (princ)))))
         (setq i (1+ i)))))
   (setvar "CLAYER" "0")
   (princ))
-
 ;; ===== SKYLIGHTS, PLACED (rule 4B.55) =====================================================
 ;; The count-only path below spreads skylights on an even grid.  That is honest for "N somewhere on
 ;; the roof" but it is not a LOCATION, and it can drop a skylight straight onto the ridge.  When the
@@ -7960,6 +7937,21 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
   (setq xs '())
   (foreach x bayPts (if (and (>= x (- fx0 1.0)) (<= x (+ fx1 1.0))) (setq xs (append xs (list x)))))
   (if (null xs) (setq xs (list fx0 fx1)))
+  ;; A MAIN BEAM ON BOTH END WALLS (owner 1-Sep-2026: "On Both Endwalls as well, there will be main
+  ;; beam b/w the post columns and joists will rest on it").
+  ;;
+  ;; xs is the bay lines CLIPPED to the deck band, and the band is inset from the building ends - so
+  ;; the first and last bay lines fell outside it and no beam was drawn at either end wall. The joists
+  ;; are drawn bay by bay BETWEEN consecutive xs, so the end bay had nothing to frame into: a floor
+  ;; running to the end wall with no member carrying it there.
+  ;;
+  ;; Force the two deck edges into the beam line list. Each spans post to post across the width like
+  ;; every other main beam, and because the joist loop reads this same list, the end-bay joists now
+  ;; land on it automatically. Added only when a bay line is not already there, so a mezzanine that
+  ;; genuinely stops mid-bay is unchanged.
+  (if (not (vl-some (function (lambda (v) (< (abs (- v fx0)) 1.0))) xs)) (setq xs (cons fx0 xs)))
+  (if (not (vl-some (function (lambda (v) (< (abs (- v fx1)) 1.0))) xs)) (setq xs (append xs (list fx1))))
+  (setq xs (vl-sort xs '<))
 
   ;; THE WHOLE FLOOR PLATE FIRST (owner 29-Aug): the building outline, then every part of it the
   ;; mezzanine does NOT cover, crossed and labelled. Up to four bands — below / above the deck
@@ -8169,16 +8161,42 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
       (setq mainYs (vl-catch-all-apply (function (lambda () (peb-main-column-ys data wid)))))
       (if (vl-catch-all-error-p mainYs) (setq mainYs nil))
       (setq bubR2 (peb-mz-bubble-r colD) mzOnly nil)
+      ;; OWNER 1-Sep-2026: "you have to only show the Additional Columns which are coming till the
+      ;; Mezzanine, and those columns are to be circled with circle bubble to identify", and
+      ;; "existing columns of main building columns will support Mezzanine Beams and Joists".
+      ;;
+      ;; So a station that lands on a PEB column IS that column: drawn once, at the COLUMN'S OWN
+      ;; centre, and never bubbled.  Only a genuine extra stub is drawn at its own station and circled.
+      ;;
+      ;; WHY THIS USED TO FAIL - 250 mm could never recognise "same column".  The stub chain is walked
+      ;; across the DECK BAND (inset 1000 mm from each wall) and rescaled to close on it, so its
+      ;; stations drift off the frame grid: on MSPL-26-279 they sat 199-600 mm out, every one was
+      ;; judged NEW, and a second column was drawn beside a full-height one and labelled MEZZANINE
+      ;; ONLY - on the plan AND, with its own 5 mm test, in the section.
+      ;;
+      ;; The test is now PHYSICAL, not a constant: within half a column depth the stub stands INSIDE
+      ;; the existing column, so it is the same column. Derived from the column the frame actually
+      ;; carries, so it scales with the building instead of being a number that fits one span.
+      (setq mzColTol (/ (peb-col-web-depth wid) 2.0) mzStations '())
+      (foreach y ys
+        (setq mzHit (if mainYs
+                      (car (vl-remove-if-not
+                             (function (lambda (m) (< (abs (- m y)) mzColTol))) mainYs))
+                      nil))
+        (setq mzRy (if mzHit mzHit y))
+        ;; Two stub stations inside ONE column collapse to that column - never two I-sections in
+        ;; the same place, which is the whole complaint this rule exists to answer.
+        (if (not (vl-some (function (lambda (q) (< (abs (- (car q) mzRy)) 1.0))) mzStations))
+          (setq mzStations (append mzStations (list (cons mzRy (if mzHit nil T)))))))
       (foreach x xs
-        (foreach y ys
+        (foreach mzp mzStations
           (vl-catch-all-apply (function (lambda ()
-            (draw-I-column-lengthwise x y)
-            (if (and mainYs
-                     (not (vl-some (function (lambda (my) (< (abs (- my y)) 250.0))) mainYs)))
+            (draw-I-column-lengthwise x (car mzp))
+            (if (cdr mzp)
               (progn
                 (setq mzOnly T)
                 (entmake (list (cons 0 "CIRCLE") (cons 8 "COMP-MEZZ")
-                               (list 10 x y 0.0) (cons 40 bubR2))))))))))
+                               (list 10 x (car mzp) 0.0) (cons 40 bubR2))))))))))
       ;; say what the circle MEANS, or it is just a decoration
       (if mzOnly
         (progn
@@ -8259,6 +8277,88 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
   (txt-bold "MC" (list (/ (+ fx0 fx1) 2.0) (- 0.0 (* thS 8.7))) (peb-th 'ANNOT) 0
             (strcat "MEZZANINE FLOOR-" (itoa floorNum) " LAYOUT PLAN" lvlStr))
   (setvar "CECOLOR" "BYLAYER")
+
+  ;; ---- THE STAIRCASES AND THEIR OPENINGS  (owner 1-Sep-2026) -----------------------------
+  ;; "Mark the opening in the Mezzanine Floor Plan and Show the Staircase there" ... "make the
+  ;;  opening as per the length and width of staircase and show the staircase".
+  ;;
+  ;; Drawn LAST, deliberately: the deck, voids, joists, columns, grid and caption above are the
+  ;; existing sheet and the owner was explicit that none of it changes.  Everything below only
+  ;; ADDS on top, so a failure here cannot damage the floor plan - and the whole block is
+  ;; wrapped so it cannot take the sheet down either.
+  (vl-catch-all-apply
+    (function (lambda () (peb-mzfp-stairs data fx0 fx1 fy0 fy1))))
+  (princ))
+
+;; ---- the staircases on the mezzanine floor plan ------------------------------------------
+;; THE OPENING IS SIZED TO THE STAIR, not to a nominal hole.  The shape drawers on PRO-10 return
+;; their own footprint as (x0 x1 y0 y1), so the opening is cut from the same numbers that draw
+;; the stair - a U's run plus landing by the depth of both flights and the well.  Anything else
+;; would show a staircase rising through a deck it would actually hit.
+;;
+;; The stair itself is drawn by those SAME drawers, so this sheet and the detail sheet cannot
+;; disagree about what the staircase looks like.
+(defun peb-mzfp-stairs (data fx0 fx1 fy0 fy1 /
+                        i tag wdt hgt typ topl midl trd pfl shp
+                        inset n onREW ox oy ext th)
+  (if (= (strcase (MSPL-Get-Str data "ST_TOGGLE")) "YES")
+    (progn
+      (setq inset (max 300.0 (* (- fx1 fx0) 0.01))
+            th    (peb-th 'SMALL)
+            i 1 n 0)
+      (while (<= i 4)
+        (setq tag (strcat "ST" (itoa i) "_"))
+        (if (= (strcase (MSPL-Get-Str data (strcat tag "TOGGLE"))) "YES")
+          (vl-catch-all-apply
+            (function
+              (lambda ()
+                (setq wdt  (MSPL-Get-Num data (strcat tag "WIDTH"))
+                      hgt  (MSPL-Get-Num data (strcat tag "HEIGHT"))
+                      typ  (MSPL-Get-Str data (strcat tag "TYPE"))
+                      topl (= (MSPL-Get-Str data (strcat tag "TOP_LANDING")) "1")
+                      midl (= (MSPL-Get-Str data (strcat tag "MID_LANDING")) "1")
+                      trd  (MSPL-Get-Str data (strcat tag "TREAD"))
+                      pfl  (MSPL-Get-Str data (strcat tag "PLAT_FLOOR")))
+                (if (or (null wdt) (<= wdt 0.0)) (setq wdt 1200.0))
+                (if (or (null hgt) (<= hgt 0.0)) (setq hgt 3000.0))
+                (setq shp   (peb-stair-shape typ midl)
+                      onREW (= (rem n 2) 1))
+                ;; ST1 at the LEW end of the deck, ST2 at the REW end - the two escape routes
+                ;; at opposite ends, which is why there are two of them.
+                (setq oy (+ fy0 inset (/ wdt 2.0)))
+                (setq ox (if onREW (- fx1 inset) (+ fx0 inset)))
+                ;; Draw the stair once to learn its footprint, on a throwaway origin? No - the
+                ;; drawers are deterministic, so ask peb-stair-flights for the run instead and
+                ;; place the origin so the stair reads INTO the building from its end.
+                (if onREW
+                  (setq ox (- ox (+ (* (peb-stair-going) (nth 0 (peb-stair-flights hgt)))
+                                    (max 900.0 wdt)))))
+                (setq ext
+                  (cond ((= shp "U") (peb-stair-plan-u ox oy wdt hgt topl midl nil trd pfl))
+                        ((= shp "L") (peb-stair-plan-l ox oy wdt hgt topl midl nil trd pfl))
+                        (T           (peb-stair-plan   ox oy wdt hgt topl midl nil trd pfl))))
+                ;; THE OPENING, cut to exactly the footprint the stair just reported.
+                (if ext
+                  (progn
+                    (peb-comp-layer "COMP-MEZZ-OPENING" 8)
+                    (peb-comp-poly (list (list (nth 0 ext) (nth 2 ext))
+                                         (list (nth 1 ext) (nth 2 ext))
+                                         (list (nth 1 ext) (nth 3 ext))
+                                         (list (nth 0 ext) (nth 3 ext))))
+                    (entmake (list (cons 0 "LINE") (cons 8 "COMP-MEZZ-OPENING")
+                                   (list 10 (nth 0 ext) (nth 2 ext) 0.0)
+                                   (list 11 (nth 1 ext) (nth 3 ext) 0.0)))
+                    (entmake (list (cons 0 "LINE") (cons 8 "COMP-MEZZ-OPENING")
+                                   (list 10 (nth 0 ext) (nth 3 ext) 0.0)
+                                   (list 11 (nth 1 ext) (nth 2 ext) 0.0)))
+                    (setvar "CLAYER" "COMP-MEZZ-OPENING")
+                    (txt-bold "MC" (list (/ (+ (nth 0 ext) (nth 1 ext)) 2.0)
+                                         (- (nth 2 ext) (* th 1.6)))
+                              th 0.0 (strcat "OPENING - ST" (itoa i)))))
+                (setq n (1+ n))
+                (princ)))))
+        (setq i (1+ i)))))
+  (setvar "CLAYER" "0")
   (princ))
 
 (defun C:PEB-MEZZ-FLOOR (/ dataFile data len wid floorNum)

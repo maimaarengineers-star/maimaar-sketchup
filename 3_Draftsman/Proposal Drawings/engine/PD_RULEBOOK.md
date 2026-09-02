@@ -1250,6 +1250,33 @@ columns are new. Same convention the Column Layout Plan overlay already uses (ow
 a wrongly marked one is quoted from. And the circle gets a legend row — an unexplained symbol is
 decoration.
 
+#### 4B.40a WHY THE QE AND THE PD DISAGREE ON PURPOSE (owner, 1-Sep-2026)
+
+They count different things, and both are right:
+
+> *"In QE, since we do NOT have the formula to strengthen main building columns in case of taking
+> the mezzanine, that is the reason we take complete columns and then validate by SAP at a later
+> stage. But PD must not add additional columns for mezzanine and will use the existing main
+> building columns. However, those columns which are additional for mezzanine till mezzanine
+> bottom will be shown in PD."*
+
+* **QE bills a full mezzanine column at EVERY station, including the ones standing on a building
+  column.** That is not a double-count to be fixed — it is the allowance for strengthening the main
+  column that now carries a floor, and the engine has no formula for that uplift. SAP settles the
+  real member at design stage. On MSPL-26-279 that is 60 columns / ~17 t / ~Rs 7 M, deliberately.
+* **PD draws the building as it will be BUILT:** the existing PEB column carries the mezzanine beams
+  and joists, so no second column is drawn beside it. Only a genuinely ADDITIONAL column — one that
+  exists solely for the mezzanine and stops at the beam soffit — is drawn, and it is bubbled.
+
+So a change on one side must NOT be propagated to the other "for consistency". The owner reverted
+exactly such a propagation on 1-Sep-2026 (*"QE will not changed / only PD"*) after an endwall rule
+change moved the estimate by Rs 732,841 and put 216 other areas on the changed branch.
+
+**Practical consequence for anyone editing this:** a PD-only column rule belongs in the PD's own
+input builder (`services/drawingData.ts`) or in these .lsp files — NEVER in
+`public/modules/sales/geometryRules.js` or `services/estimation/geometryDivision.ts`, which the
+estimate reads.
+
 ### 4B.41 Inside a mezzanine, interior bracing is FULL-HEIGHT PORTAL
 
 **Owner, 29-Aug:** *"in the Mezzanine Area, all internal bracings will be Full height Portal"*,
@@ -2154,3 +2181,396 @@ run parallel to the wall and project as **horizontal** lines spread over the roo
 into a grey smear. Sheeting lines pass the same test and are drawn, because they run the other way:
 **vertical**, at the 1000 cover width, **2.7 mm** apart. Legibility at the plotted scale is the test,
 not whether the part exists.
+
+---
+
+## STAIRCASE — the Mammut convention, harvested 1-Sep-2026
+
+Source: **Mammut Technical Manual, Chapter 12 "STAIRCASE & LADDERS", Section 12.1 "Staircase &
+Handrails"** — `D:\Design Manual\Technical Manual.pdf`, pages 307-319 (13 sheets). Read the
+figures, do not paraphrase this section from memory: it is the ground truth for every label
+below ([[maimaar-drawings-reference-first]]).
+
+**The standard staircase is a DOUBLE FLIGHT with an intermediate (mid) landing** — the manual's
+own words. Single flight is offered too. Stringers are a hot-rolled channel or a single plate.
+Treads may be checkered plate, grating, concrete-filled steel or plain RC, interchangeable
+without modification. **Staircase paint matches the primary member's paint** — it is never
+specified separately.
+
+Manual sheet 5 of 13 (p311) is the case Maimaar quotes most often and the one 279-26-MSPL asks
+for: **SINGLE FLIGHT STAIRCASE WITH TOP-MID LANDING** (`ST<n>_TOP_LANDING=1` +
+`ST<n>_MID_LANDING=1`).
+
+### PLAN — what is drawn, and the exact words
+
+The flight is a band between two **stringers** (the long edges), with tread lines across it.
+Landings are separate platforms at each end of the run, each closed by a **landing beam**.
+
+| Element | Label, verbatim |
+|---|---|
+| Long edges of every flight | `STRINGER` |
+| Tread lines | `TREAD (TYP.)` |
+| Beam closing the top landing | `TOP LANDING BEAM` |
+| The top landing itself | `TOP LANDING PLATFORM` |
+| Beam(s) at the mid landing | `MID-LANDING BEAM` — reads vertically, inside the landing |
+| The mid landing itself | `MID-LANDING PLATFORM` |
+| Post under the mid landing | `MID-LANDING POST` — a filled circle in plan |
+| Bracing at the mid landing | `CABLE BRACING` |
+| Climb direction | `UP` at the FOOT, on a leader with a small open circle |
+| Overall run dimension | `STAIRCASE LENGTH` |
+| Sheet title | `PLAN`, underlined |
+
+The climb arrow is a **single line along the centre of the run with a solid arrowhead at the
+TOP (mezzanine) end and a small open circle at the foot**, `UP` lettered beside the circle. It
+is not an arrow at each end, and `UP` is not written along the flight.
+
+### ELEVATION / SECTION — what is drawn
+
+| Element | Label, verbatim |
+|---|---|
+| Rails, near and far side | `HANDRAIL (NS / FS)` |
+| Kick plate at every landing | `TOE PLATE` |
+| Deck the stair lands on | `MEZZANINE LEVEL` |
+| Beam(s) at the head | `TOP LANDING BEAMS` |
+| Beam(s) at the mid landing | `MID-LANDING BEAMS` |
+| Post under the mid landing | `MID-LANDING POST` |
+| Sloping member | `STRINGER` |
+| Treads | `TREAD (TYP.)` |
+| Ground datum | `FINISH FLOOR LEVEL` |
+| Base fixing | `EXPANSION BOLTS` |
+| Vertical dims | `STAIRCASE HEIGHT`, `MID-LANDING HEIGHT` |
+| Horizontal dims | `TOP LANDING WIDTH`, `MID-LANDING WIDTH`, `STAIRCASE LENGTH` |
+| Sheet titles | `ELEVATION`, then the type, both underlined |
+
+**Handrail set-out is `475` above `425`** — the two dimensions the manual carries on every
+elevation, measured up from the walking surface. Draw them; they are the only numbers on the
+handrail and they are what makes it read as a Mammut rail rather than a generic railing.
+
+### What this means for the engine
+
+The current plan drawer is a **flat footprint with tread lines and a rotated "UP"** — it has no
+stringers, no landing platform, no landing beam, no mid-landing post, no cable bracing, and it
+letters `UP` along the run instead of at the foot. Every one of those is a named element on the
+manual sheet, so the footprint is not a staircase yet, it is a hatched rectangle.
+
+### STAIRCASE — corrected against Maimaar's OWN issued drawing, 1-Sep-2026
+
+Source: **055-MSPL Style Textile, "STAIR CASE FOR FF2 MEZZANINE", Rev-01, sheet 06 "ELEVATION AT
+GRID-B"** (`E:\Maimaar Steel Pvt Ltd\Jobs\2022\055-MSPL_Style Textile_Stairs`). An issued,
+for-approval drawing beats both the manual and any inference. Where this and the Mammut manual
+disagree, **this wins** — it is what Maimaar actually builds.
+
+| | Maimaar issued drawing | what the sheet had before |
+|---|---|---|
+| Handrail height | **1100 mm** | 900 (475+425) — WRONG |
+| Going | **280 mm** | 260 (from the manual) |
+| Stringer | **C-200x75x6x6** channel | plain 250 deep band |
+| Handrail | **Ø42.7 mm pipe, 1.291 mm wall** | plain lines |
+| Rail infill | **Tube 50x5 / 50x3** | none |
+| Tread support | **L-50x50x5, 2 per step, welded to stringer** | none |
+| Landing beam | **Main Beam F=100x5 W=250x4** | plain rectangle |
+| Column | **F=150x6 W=250x5**, full height, on a 200 mm pedestal | stub post under the landing |
+| Base plates | **CBP-01** (column), **SBP-01** (stringer) | none |
+| Material | **Grade 50 throughout the staircase** | not stated |
+
+**THE 475/425 IN THE MAMMUT MANUAL IS NOT THE HANDRAIL HEIGHT.** They are the rail spacings
+drawn above a mezzanine deck. The staircase handrail is **1100**, which is also exactly what the
+BSF already says — its field reads *"1.1m High Handrails Included"*. Two independent sources and
+the form all agree; the sheet was the only thing that did not.
+
+**The columns run full height past the staircase** and the flights hang off them through the main
+beams — they are not stub posts standing under each landing. On a multi-storey stair the same
+two columns carry every landing.
+
+### A U-TYPE HAS TWO FLIGHTS PER STOREY — AND THE PLAN MUST DRAW EVERY ONE OF THEM
+
+**Owner, 1-Sep-2026:** *"Actually there is contradiction b/w the plan and section"*, and, pointing
+at the same reference: *"this is special for multi-storey U-Type Staircase, Section, Plan, Column
+Layout Plan."*
+
+He was right, and it was measurable. On **MSPL-26-279** (Sky Power, two U-shape stairs, 1,200 wide,
+5,380 mm mezzanine, top + mid landing) the sheet drew:
+
+| | flights | risers | climb drawn |
+|---|---|---|---|
+| PLAN | 2 | 24 (11 + 11 tread lines) | 3,600 mm |
+| ELEVATION | 3 | 36 (levels +0 / +1793 / +3587 / +5380) | 5,380 mm |
+
+Both views read the same `peb-stair-flights` list — that much had already been fixed. The fault was
+one level down: `peb-stair-plan-u` took `(nth 0 fl)` and `(nth 1 fl)` **and drew only those two**,
+whatever the length of the list. A U plan can lay out two bands, the split asked for three, and the
+third flight was dropped silently. Reading the same rule is not the same as drawing the same stair.
+
+**Two rules come out of it, both taken off 055-MSPL, not invented.**
+
+**1. Risers per flight is 18, not 12.** 055-MSPL numbers every riser on its floor plans. Counted
+off the drawing: **13 · 14 · 14 · 14 · 14** (flights 1-13, 14-27, 28-41, 42-55, 56-69). Never 12,
+never more than 15. The 12 in the engine came from the strict end of the BS 5395 range; IBC has no
+riser-count limit at all, only the 3658 mm rise between landings. An issued approval drawing beats
+a code range read at second hand. At 18, a 5,380 mm storey splits 18/18 — two flights, which is
+what a U *is* — and plan and elevation agree by construction.
+
+**2. More than two flights means more than one PLAN.** 055-MSPL's own sheet index carries
+**"MAIN BEAM - CHECKERED PLATE - TUBE - STRINGER - LAYOUT PLAN" three times, one per floor**, each
+plan holding that floor's two flights, riser numbering running continuously across all three
+(1-13, 14-27 | 28-41, 42-55 | 56-69), one `UP` per plan, with **ELEVATION AT GRID-B** (along the
+run) and **ELEVATION AT GRID-1 & 2** (across it) carrying the whole climb. So `peb-stair-plan-u`
+now takes the flights **in pairs**, draws one plan block per pair, stacks them down the sheet and
+captions each `PLAN AT LEVEL n` — with the set captioned `PLAN` once, underneath. A two-flight
+stair produces exactly one block and one caption, so the ordinary mezzanine sheet is unchanged.
+
+`peb-stair-elev-drop` adds the extra blocks' pitch, or the elevation lands on top of plan two.
+
+**The general rule, worth more than either number:** when a view cannot hold what the data says,
+it must draw more views — never quietly draw less. A dropped flight looks exactly like a stair
+that was designed shorter.
+
+### THE LANDING RULE: the step count decides, against an approved internal standard
+
+**Owner, 1-Sep-2026:** *"Add the Rule of no. of landing based on the no. of steps must be less than
+approved as per the internal standards"*, *"There must be Autodivision Rule & should be flexible
+till 2-4 steps"*, and *"our priority is to keep the rise to 150mm."*
+
+> **No flight may carry more steps than the Maimaar approved maximum. The number of intermediate
+> landings is whatever it takes to satisfy that — never a number someone types in.**
+
+| Constant | Value | Source |
+|---|---|---|
+| `peb-stair-rise` | **150 mm** | house standard; *priority is to keep the rise to 150* |
+| `peb-stair-going` | **300 mm** | house standard |
+| `peb-stair-max-risers` | **15** | Maimaar approved maximum steps per flight |
+| `peb-stair-step-tol` | **3** | the 2-4 step flexibility, spent **on the cap** |
+| `peb-stair-max-rise` | **3658 mm** | IBC 1011.8, rise between landings |
+
+1. `risers = round(height / 150)` — the rise is fixed, so the step count follows from the climb.
+   **Never stretch the riser to make a split come out neatly.**
+2. `flights = max( ceil(risers / (15+3)), ceil(height / 3658) )` — the flexible ceiling decides the
+   flight count, because the whole point of the tolerance is to avoid adding a landing for the sake
+   of one or two steps.
+3. `intermediate landings = flights − 1`.
+4. Steps are then **divided equally**, remainder to the lowest flights. So the tolerance decides
+   *how many* flights and the equal split decides *how long* each is — two mechanisms, two jobs.
+
+**Why 15 and not 12, and not 18.** 055-MSPL numbers every riser; counted off it the flights are
+**13 · 14 · 14 · 14 · 14** — its own maximum is 15. IBC has no riser-count limit at all, only the
+3658 mm rise, so the old 12 came from the strict end of BS 5395 read second-hand and is contradicted
+by Maimaar's own issued drawing. A flat 18 (which this file briefly carried) is the right *ceiling*
+but the wrong *standard*: it silently licenses every flight to run three steps longer than anything
+Maimaar has issued. Hence two constants, not one.
+
+**The rule reproduces the reference — and a caution about how that was checked.** Feeding
+055-MSPL's own step counts through the division rule gives its own flights exactly:
+
+| its steps | rule gives | drawn on 055-MSPL |
+|---|---|---|
+| 27 | 14 / 13 | **13 · 14** |
+| 28 | 14 / 14 | **14 · 14** |
+| 14 | 14 | **14**, single flight |
+
+**Do not check it the other way round.** The first version of that test re-derived the step count
+from the reference's storey heights using *our* 150 mm riser and "failed" — because 055-MSPL was
+built at a **~187 mm** riser, so on the same 5054 mm storey it has 27 steps where we would have 34.
+That is the house standard outranking one job, exactly as intended, not a disagreement. The
+division rule and the riser standard are separate things and must be tested separately.
+
+### The rule is printed on the sheet
+
+`peb-stair-rulenote` draws it small, at the very bottom, under everything — the place and weight of
+055-MSPL's own *"NOTE: Grade 50 Material Is Used In Stair Case"*. It states the rule **and this
+staircase's own numbers**, generated from the same `peb-stair-flights` list the views are drawn
+from. That is the point of putting it on the drawing rather than only here: if a drawer ever again
+draws a different number of flights than the rule produced — the 279-26 fault — the note and the
+drawing contradict each other on the customer's own sheet. A silent fault becomes one anybody sees.
+
+### Level captions name their levels, not an ordinal
+
+055-MSPL captions its floor plans `PLAN FROM F.F.L TO 5054mm LEVEL`, `PLAN FROM 5054 TO 10257mm
+LEVEL`. `peb-stair-level-caption` builds exactly that. An ordinal ("PLAN AT LEVEL 2") tells a reader
+nothing they cannot already count; the levels tie the plan to the elevation's own level markers,
+which are drawn in those same numbers.
+
+### Two new views, both off the reference
+
+**`peb-stair-collayout`** — the reference's APR-01. It answers the one question the walking plan
+cannot: *where does this staircase land on the floor*. `CBP-01 (QTY-04)` — four column base plates,
+a pair on each column line — and `SBP-01 (QTY-02)` — two stringer base plates at the foot.
+**It does not grow with the landing count:** the columns run full height and every storey's landing
+hangs off the same two column lines, so a four-landing stair has the same four base plates as a
+one-landing stair. Dimensions carry the reference's own wording, value first, description after:
+`O/O OF STEEL COLUMN`, `C/C OF STEEL COLUMN`, `C/C OF STEEL COLUMN TO BASE PLATE OF STRINGER`.
+
+**`peb-stair-stepdetail`** — the reference's *"Typical Detail of Steel Checkered Plate Step"*
+(nosing 25, plate 6). **Form from the reference, numbers from ourselves:** it is dimensioned from
+`peb-stair-going` / `peb-stair-rise`, not the reference's 280/185, so it can never drift from the
+stair drawn beside it on the same sheet. Parts are **named, not sized** — `STRINGER`, `TREAD CLEAT`
+— because PD is blind by default and a section size is designed-steel information. The plate
+*thickness* is stated, because that is what the customer is buying, not a designed section.
+
+### EVERY RISER IS EXACTLY 150 — AND THE ODD MILLIMETRES GO AT THE BASE
+
+**Owner, 1-Sep-2026:** *"height b/w the top of floor and landing must be same as of 150 - all equal
+steps"*, after *"our priority is to keep the rise to 150mm."*
+
+Four drawers used to compute `rise = hgt / total-risers`. That is *equal* but it is not *150*: a
+5,380 mm mezzanine came out at **149.4 mm** with its landing on **+2690**, and the sheet's own note
+admitted it — *"36 STEPS AT 149MM"*.
+
+**The riser is now the constant and the climb is what gives.** `round(h/150) × 150` cannot miss the
+real storey by more than **half a riser (75 mm)**, because the count was rounded:
+
+| storey | steps | drawn climb | leftover |
+|---|---|---|---|
+| 5380 | 36 | 5400 | 20 mm |
+| 4877 | 33 | 4950 | 73 mm |
+| 3000 | 20 | 3000 | 0 |
+
+**The leftover is taken at the BASE, never at the top.** The top tread *is* the mezzanine floor —
+a stair that stops 20 mm short of the floor it serves is wrong in a way nobody can build around,
+and a 20 mm lip at the head of a flight is a trip hazard. The bottom is where the adjustment
+belongs and where it already exists physically: the section draws 200 mm pedestals and the
+reference carries a `non-shrink grout` layer under every base plate. Setting a base plate 20 mm
+into its grout bed is ordinary practice.
+
+`peb-stair-base-offset` returns it; the elevation and section start at `oy + offset` while `oy`
+stays the F.F.L datum, so level markers read the true heights and the head lands exactly on the
+mezzanine. The rule note **declares the offset** rather than hiding it — that is the difference
+between a construction instruction and a silent error.
+
+### FOUR COLUMNS, AT THE CORNERS OF THE STAIR TOWER — FOR ANY NUMBER OF LANDINGS
+
+**Owner, 1-Sep-2026:** *"there will be 4 columns"*, *"First Landing will be full width of the stair
+and then next landing will directly to to mezzanine Floor."*
+
+Flight 1 starts on the floor and the last flight lands on the mezzanine, so **both ends of the
+staircase are already carried — the intermediate landings are the only parts with nothing under
+them.** The landings alternate ends as the stair switches back, so a far-end landing spans the far
+pair of columns and a near-end landing spans the near pair. **Add landings and you add no columns.**
+
+055-MSPL settles it: five flights, four intermediate landings, three storeys — and its schedule
+still reads **`CBP-01 (QTY-04)`**.
+
+> A staircase has four columns, at the four corners of the stair tower, running from the floor
+> **to the top — the mezzanine level**. Landings alternate ends; each spans the pair at its end.
+
+**Correction, same day.** I first wrote "to the topmost intermediate landing", reasoning that the
+last flight is carried at both ends so a column above it would carry nothing. The owner's ruling is
+*"in elevation columns must go till top with 4 columns on corners"* — and it is the better answer:
+the tower is braced over its full height, and the last flight's head has to land against something.
+055-MSPL's columns run full height for the same reason.
+
+### THE LANDING IS A FULL LANDING, AND THERE IS NO TOP PLATFORM
+
+The intermediate landing spans the **whole stairwell** — both flight bands and the well between
+them — because a person climbs flight 1, turns on it, and sets off up flight 2. It is a **FULL
+landing**, not a half one, and that is the word on the drawing and in the code.
+
+And **the second landing IS the mezzanine floor.** `ST<n>_TOP_LANDING` no longer draws a platform;
+drawing one in front of the deck invents a step that does not exist. The field is read for the
+sheet title only.
+
+The title therefore names what actually varies — the number of **intermediate** landings, derived
+from the flight list like everything else: `STAIR ST1 - U-SHAPE STAIRCASE WITH 1 INTERMEDIATE
+LANDING`.
+
+### A DIMENSION CARRIES ITS MEASUREMENT, AND EACH FACT APPEARS ONCE
+
+**Owner, 1-Sep-2026:** *"clear the mixed labelling and show the clear dimensions."*
+
+**Every dimension prints its value.** The main views were drawing a dimension line with a
+description and no number — `STAIRCASE LENGTH`, `MID-LANDING HEIGHT`, `OUT TO OUT WIDTH`. That is a
+caption sitting on a dimension line: the sheet *looked* dimensioned while telling the reader
+nothing. `peb-stair-dim` / `peb-stair-vdim` now measure themselves from the endpoints they are
+already given, so **a caller cannot forget and the number cannot disagree with the line it sits
+on**. Format is the reference's own — value first, description after: `6318 C/C OF STEEL LINE`.
+
+**One fact, one place — the view that owns it.**
+
+| view | owns |
+|---|---|
+| PLAN | the footprint — flight run, landing, overall length, out-to-out width |
+| ELEVATION | the climb — level markers, full-landing height, staircase height |
+| SECTION | the width across, and the part names |
+| COLUMN LAYOUT | base plates and the dimensions between them |
+| STEP DETAIL | going, riser, nosing, tread plate |
+| SPEC NOTE | only what no view can draw — type, tread material, handrail, which mezzanine |
+
+The section used to repeat the elevation's `STAIRCASE HEIGHT`, its whole set of `+NNNNmm` markers
+and the stair title; the spec note repeated the width, the height and the landing platform. Stating
+a fact twice is worse than stating it once: a reader who notices a difference has no way to tell
+which is authoritative, and nothing forces the two to agree except that both happen to be right
+today.
+
+### NEVER WRITE "MAMMUT" ON A DRAWING — the grep that proves it
+
+Standing rule, restated 1-Sep-2026. Exactly one **drawn** string in the engine ever broke it —
+`MAIMAAR_PEB_Stair.lsp`'s load note, `REFERENCE : BS 6399 / MAMMUT DESIGN MANUAL …`, now
+`REFERENCE : BS 6399 - LIVE LOADS, TABLE 4.10`. BS 6399 *is* the standard; the manual was only
+where it was read, and that provenance belongs here, not on a customer's sheet.
+
+The check, before any release that touches a note block:
+
+```
+grep -rn -i mammut engine/*.lsp | grep -v '^[^:]*:[0-9]*: *;;' | grep -v peb-titleblock-mammut
+```
+
+Anything it returns is on paper. Comments and the function name `peb-titleblock-mammut` never
+reach the sheet and are not the concern.
+
+### THE SWITCHBACK STACKS — IT DOES NOT WALK SIDEWAYS
+
+**Owner, 1-Sep-2026**, marking up the 3-landing render in red and green
+(`D:\Sales Department\MSPL\Proposals\2026\279-26-MSPL_…\Rendered Pictures\`):
+*"see the 2nd landing which should be outside and green column will come, also stringer will start
+from right edge of 2nd landing."*
+
+Both the plan and the elevation advanced their cursor **past** the landing, so every flight began
+one landing further along than the last:
+
+```
+  WRONG                                 RIGHT
+  flight 1     0 -> 5100                flight 1     0 -> 5100   landing out to  6300
+  flight 2  6300 -> 1200                flight 2  5100 ->    0   landing out to -1200
+  flight 3     0 -> 5100                flight 3     0 -> 5100   landing out to  6300
+  ...the stair walks right               ...it stacks in one footprint
+```
+
+**A flight turns at the INNER edge of the landing it leaves, and the landing projects OUTWARD
+past the end of the flight that arrived on it.** The cursor does not move out with the landing.
+Two consequences:
+
+- The flights then **overlap in x**, which is correct — they are at different *depths*, and an
+  elevation looks along the depth. A switchback drawn flat is supposed to cross over itself.
+- **Outward is the only place the landing can physically go.** Hung back over the foot of the
+  flight below it would leave no headroom on the bottom steps.
+
+The tower therefore spans `-lw … run + lw`, and that outward face is where the near columns stand —
+the green line on the owner's markup falls out of the geometry rather than being placed to match it.
+
+**A two-flight stair hides this completely** (on flight 1 the two conventions agree), which is why
+it survived until a three-landing stair was asked for. The general lesson: a rule that is only
+exercised in one direction has only been tested in one direction.
+
+**And the landing between two plan blocks belonged to neither.** Block 1 drew flights 1-2 and their
+far landing, block 2 drew flights 3-4 and theirs, and the landing you actually turn on to get from
+one to the other fell down the gap. Every block above the first now draws the outward landing it
+steps off, and — because the columns belong to the **tower**, not to the block — every floor plan
+places its near columns at that outward face, including the ground block that has no landing there.
+Otherwise one staircase's four columns appear at two different x on two of its own plans.
+
+### COLUMNS TRIM AT THE LANDING THEY CARRY — THEY DO NOT FLOAT IN THE AIR
+
+**Owner, 1-Sep-2026**, marked-up images from `D:\Sales Department\MSPL\Proposals\2026\279-26-MSPL_…\Rendered Pictures\`:
+*"Trim the Columns at this level as marked.PNG"* and *"This side Encircled Column will not go in the Air as there no support required in case of one mid landing."*
+
+The **structure** is four columns at the four corners of the stair tower. **They run from the floor to the bottom face of the highest landing at their end**, not to the mezzanine. Above the last landing the next flight is already supported at both ends — by the landing it leaves and the mezzanine or next landing it arrives on. Columns there would carry nothing and would float in mid-air.
+
+In a U-stair, landings alternate ends: landing 0 is at RIGHT (where flight 1 lands), landing 1 is at LEFT (where flight 2 lands), landing 2 is at RIGHT, and so on. **Left columns run to the highest odd-indexed landing, right columns run to the highest even-indexed landing, or both run to the mezzanine if no such landing exists.**
+
+| stairs | left pair | right pair |
+|---|---|---|
+| 1 landing | floor → mezzanine (carries landing 0 + flight 2 above) | floor → landing 0 (carries it, nothing above) |
+| 3 landings | floor → landing 1 (carries it + flights 1-2) | floor → landing 2 (carries it, nothing above) |
+
+`peb-stair-col-max-h` computes this: it takes a column index (0=left, 1=right), the list of landing heights, mezzanine height, and the stair shape, and returns the maximum height that column pair should extend to. Both `peb-stair-elev` and `peb-stair-section` call it before drawing their columns.
+
+**Test by rendering a 1-landing and 3-landing stair:** the two column pairs should have different heights, and on a 1-landing stair the right pair should trim at the landing, not extend to the mezzanine.
