@@ -4660,8 +4660,18 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                       typ  (MSPL-Get-Str data (strcat tag "TYPE"))
                       midl (MSPL-Get-Str data (strcat tag "MID_LANDING")))
                 (if (or (null wdt) (<= wdt 0.0)) (setq wdt 1200.0))
+                ;; READ STAIRCASE OFFSETS FROM BSF (owner 2-Sep-2026)
+                ;; OFFSET_X = distance from LEW (Left End Wall) — along building width
+                ;; OFFSET_Y = distance from NSW (Near Side Wall) — along building length
+                ;; ORIENTATION = Longitudinal (runs length-wise NSW→FSW) or Transverse (runs width-wise LEW→REW)
+                (setq offX (MSPL-Get-Num data (strcat tag "OFFSET_X"))
+                      offY (MSPL-Get-Num data (strcat tag "OFFSET_Y"))
+                      orient (MSPL-Get-Str data (strcat tag "ORIENTATION")))
+                (if (null offX) (setq offX 0.0))
+                (if (null offY) (setq offY 6000.0))
+                (if (null orient) (setq orient "Longitudinal"))
                 (setq *SLOG* (open "C:/maimaar_render/st_log.txt" "a"))
-                (if *SLOG* (progn (write-line (strcat tag "entered wdt=" (rtos wdt 2 0)) *SLOG*) (close *SLOG*)))
+                (if *SLOG* (progn (write-line (strcat tag "entered wdt=" (rtos wdt 2 0) " offX=" (rtos offX 2 0) " offY=" (rtos offY 2 0)) *SLOG*) (close *SLOG*)))
                 (setq mzStr   (MSPL-Get-Str data (strcat tag "IN_MEZZ"))
                       mezzNum (peb-mezz-num mzStr)
                       foot    (if (and mezzNum *PEB-MEZZ-FOOTS*) (assoc mezzNum *PEB-MEZZ-FOOTS*) nil))
@@ -4673,13 +4683,25 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                 (setq *SLOG* (open "C:/maimaar_render/st_log.txt" "a"))
                 (if *SLOG* (progn (write-line (strcat tag "foot=" (if foot "yes" "nil")) *SLOG*) (close *SLOG*)))
                 (progn
-                    (setq onREW (= (rem nOnMezz 2) 1))
-                    (setq xcol (if foot
-                                 (if onREW (- (nth 2 foot) inset) (+ (nth 1 foot) inset))
-                                 (if onREW (- len inset) inset)))
-                    ;; the two columns straddle the stair width, on its outer lines
-                    (setq yb0 (if foot (+ (nth 3 foot) inset) inset)
-                          yt1 (+ yb0 wdt))
+                    ;; USE BSF OFFSETS if provided (owner 2-Sep-2026), else fall back to mezzanine-based placement
+                    ;; For Longitudinal: staircase runs along length (NSW→FSW), width is in X-direction
+                    ;;   xcol = offX, yb0 = offY, yt1 = offY + width
+                    ;; For Transverse: staircase runs across width (LEW→REW), width is in Y-direction
+                    ;;   xcol = offX, yb0 = offY, yt1 = offY + width (rotated in drawing, not position-math)
+                    (if (and offX (> offX 0.0))
+                      ;; Use BSF offsets as primary positioning
+                      (progn
+                        (setq xcol offX)
+                        (setq yb0 offY yt1 (+ offY wdt)))
+                      ;; Fall back to mezzanine-based placement if offsets not provided
+                      (progn
+                        (setq onREW (= (rem nOnMezz 2) 1))
+                        (setq xcol (if foot
+                                     (if onREW (- (nth 2 foot) inset) (+ (nth 1 foot) inset))
+                                     (if onREW (- len inset) inset)))
+                        ;; the two columns straddle the stair width, on its outer lines
+                        (setq yb0 (if foot (+ (nth 3 foot) inset) inset)
+                              yt1 (+ yb0 wdt))))
                     (setq r (max 250.0 (* u 0.55)))
                     (setq *SLOG* (open "C:/maimaar_render/st_log.txt" "a"))
                     (if *SLOG* (progn (write-line (strcat tag "drawing at x=" (rtos xcol 2 0) " y=" (rtos yb0 2 0)) *SLOG*) (close *SLOG*)))
@@ -8381,8 +8403,10 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
 (defun peb-mzfp-stairs (data fx0 fx1 fy0 fy1 /
                         i tag wdt hgt typ topl midl trd pfl shp orient
                         n offX offY ox oy ext th)
+  (if *SLOG* (progn (write-line (strcat "MZFP_ENTER ST_TOGGLE ST_TOGGLE check") *SLOG*) (close *SLOG*)))
   (if (= (strcase (MSPL-Get-Str data "ST_TOGGLE")) "YES")
     (progn
+      (if *SLOG* (progn (write-line (strcat "MZFP_ST_YES entering loop") *SLOG*) (close *SLOG*)))
       (setq th (peb-th 'SMALL)
             i 1 n 0)
       (while (<= i 4)
@@ -8414,10 +8438,12 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
                 (setq ox (+ fx0 offX)
                       oy (+ fy0 offY))
                 ;; Draw the stair once to learn its footprint
+                (if *SLOG* (progn (write-line (strcat tag "MZFP calling stair shape=" shp " ox=" (rtos ox 2 0) " oy=" (rtos oy 2 0)) *SLOG*) (close *SLOG*)))
                 (setq ext
                   (cond ((= shp "U") (peb-stair-plan-u ox oy wdt hgt topl midl nil trd pfl))
                         ((= shp "L") (peb-stair-plan-l ox oy wdt hgt topl midl nil trd pfl))
                         (T           (peb-stair-plan   ox oy wdt hgt topl midl nil trd pfl))))
+                (if *SLOG* (progn (write-line (strcat tag "MZFP after draw ext=" (if ext (strcat (rtos (nth 0 ext) 2 0) ".." (rtos (nth 1 ext) 2 0)) "NIL")) *SLOG*) (close *SLOG*)))
                 ;; THE OPENING, cut to exactly the footprint the stair just reported.
                 (if ext
                   (progn
