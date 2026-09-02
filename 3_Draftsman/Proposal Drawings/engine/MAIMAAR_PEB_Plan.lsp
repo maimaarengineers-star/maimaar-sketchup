@@ -2317,9 +2317,14 @@
   ;; tests anchor on the FIRST word ("ROOF*") so "SIDE WALL SHEETING" cannot be caught by them.
   (setq dt (strcase (tb-get "DRGTITLE"))
         tbKind (cond ((wcmatch dt "*STAIRCASE*")          "STAIRCASE")  ; staircase design loads (2-Sep-2026)
+                     ;; MEZZANINE BEFORE DETAIL/SECTION (3-Sep-2026).  "MEZZANINE SECTION
+                     ;; DETAILS" hit *DETAIL* first and printed the PANEL & TRIM table - the
+                     ;; cladding spec on a sheet about a floor slab.  A sheet that says
+                     ;; MEZZANINE is about the mezzanine whatever else its title says, so the
+                     ;; test that names the subject is asked before the ones that name the view.
+                     ((wcmatch dt "*MEZZANINE*")           "MEZZ")      ; rule 4B.39
                      ((wcmatch dt "*DETAIL*")              "DETAILS")   ; rule 1.6.3
                      ((wcmatch dt "*SECTION*")             "SECTION")
-                     ((wcmatch dt "*MEZZANINE*")           "MEZZ")      ; rule 4B.39
                      ((and (wcmatch dt "ROOF*") (wcmatch dt "*FRAMING*"))  "ROOFFRM")
                      ((and (wcmatch dt "ROOF*") (wcmatch dt "*SHEETING*")) "ROOFSHT")
                      ((wcmatch dt "*FRAMING*")             "FRAMING")
@@ -7912,7 +7917,7 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                                  mzRcc rccXs rccYs floorSys jspSys lvl lvlStr specStr mzJoist
                                  dimX yprev yy jy beamHalf joistHalf secHalf secSp sx isGrating
                                  bayA bayB legX legY rowH sampleLen L colR
-                                 jbi jxa jxb thS mzThk fflLvl mainYs mzOnly bubR2)
+                                 jbi jxa jxb thS mzThk fflLvl mainYs mzOnly bubR2 stVoids)
   (setq sc (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0))
   ;; -- RULE 4B.26 - EVERY NOTE ON THIS SHEET IS SIZED FROM THE LADDER (owner 29-Aug) --
   ;; "Floors Details are Also Missing ... We had already developed it."  They were not missing.
@@ -8323,127 +8328,169 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
     (function (lambda () (peb-mzfp-stairs data fx0 fx1 fy0 fy1))))
   (princ))
 
-;; ---- helper: check if a line intersects any staircase void ----
-;; Returns T if the line from (x1,y1) to (x2,y2) intersects any void in voids list
-;; voids format: ((x0 x1 y0 y1) ...)
-(defun peb-line-intersects-void (x1 y1 x2 y2 voids)
-  (if (null voids) nil
-    (catch 'found
-      (foreach v voids
-        (let ((vx0 (nth 0 v)) (vx1 (nth 1 v)) (vy0 (nth 2 v)) (vy1 (nth 3 v)))
-          ;; Check if horizontal line (y1==y2) intersects void x-range and y-range
-          ;; Or if vertical line (x1==x2) intersects void y-range and x-range
-          (if (or (and (equal y1 y2 0.1)  ;; horizontal line
-                       (>= y1 vy0) (<= y1 vy1)  ;; y in void y-range
-                       (not (or (>= x2 vx1) (<= x1 vx0))))  ;; x overlaps void x-range
-                   (and (equal x1 x2 0.1)  ;; vertical line
-                       (>= x1 vx0) (<= x1 vx1)  ;; x in void x-range
-                       (not (or (>= y2 vy1) (<= y1 vy0)))))  ;; y overlaps void y-range
-            (throw 'found T))))
-      nil)))
+;; ---- helper: does a line cross any staircase void? ---------------------------------------
+;; AutoLISP HAS NO `catch`, NO `throw` AND NO `let` (2-Sep-2026).  The first version of this
+;; test was written in Common Lisp and used all three, so the FIRST joist that asked the
+;; question raised "no function definition: CATCH" - and because the joist loop sits in the
+;; middle of peb-draw-mezz-floor-plan, that error took the WHOLE sheet down from there on.
+;; The caller's vl-catch-all-apply swallowed it, so the mezzanine floor plan plotted with its
+;; deck outline and nothing else: no joists, no beams, no grid bubbles, no dimensions, no
+;; legend, no title - and the only geometry left on it was the pair of staircases that the
+;; void PASS had already drawn.  A sheet that looked deliberate and was a crash.
+;;
+;; Written in the AutoLISP the rest of this file is written in, it cannot fail.  It also no
+;; longer assumes x1<x2 / y1<y2: the beam loop hands it its ends in whatever order it holds
+;; them, and a reversed pair used to test as "no overlap" and put a beam through the stairwell.
+(defun peb-line-intersects-void (x1 y1 x2 y2 voids / hit vx0 vx1 vy0 vy1)
+  (setq hit nil)
+  (foreach v voids
+    (setq vx0 (min (nth 0 v) (nth 1 v)) vx1 (max (nth 0 v) (nth 1 v))
+          vy0 (min (nth 2 v) (nth 3 v)) vy1 (max (nth 2 v) (nth 3 v)))
+    (if (or (and (equal y1 y2 0.1)                                  ; horizontal member
+                 (> y1 vy0) (< y1 vy1)
+                 (> (max x1 x2) vx0) (< (min x1 x2) vx1))
+            (and (equal x1 x2 0.1)                                  ; vertical member
+                 (> x1 vx0) (< x1 vx1)
+                 (> (max y1 y2) vy0) (< (min y1 y2) vy1)))
+      (setq hit T)))
+  hit)
 
-;; ---- helper: collect all staircase void extents for later joist/beam exclusion ----
-;; Returns a list of void rectangles: ((x0 x1 y0 y1) ...) for each enabled staircase
-;; Orientation handled: Longitudinal = standard (NSW→FSW); Transverse = rotated 90° (LEW→REW)
-(defun peb-stair-voids (data fx0 fx1 fy0 fy1 /
-                        i tag wdt hgt typ topl midl trd pfl shp orient
-                        n offX offY ox oy ext voids)
-  (setq voids nil i 1 n 0)
-  (if (= (strcase (MSPL-Get-Str data "ST_TOGGLE")) "YES")
-    (while (<= i 4)
-      (setq tag (strcat "ST" (itoa i) "_"))
-      (if (= (strcase (MSPL-Get-Str data (strcat tag "TOGGLE"))) "YES")
-        (vl-catch-all-apply
-          (function
-            (lambda ()
-              (setq wdt  (MSPL-Get-Num data (strcat tag "WIDTH"))
-                    hgt  (MSPL-Get-Num data (strcat tag "HEIGHT"))
-                    typ  (MSPL-Get-Str data (strcat tag "TYPE"))
-                    topl (/= nil (wcmatch (strcase (MSPL-Get-Str data (strcat tag "TOP_LANDING"))) "Y*,1"))
-                    midl (/= nil (wcmatch (strcase (MSPL-Get-Str data (strcat tag "MID_LANDING"))) "Y*,1"))
-                    trd  (MSPL-Get-Str data (strcat tag "TREAD"))
-                    pfl  (MSPL-Get-Str data (strcat tag "PLAT_FLOOR"))
-                    offX (MSPL-Get-Num data (strcat tag "OFFSET_X"))
-                    offY (MSPL-Get-Num data (strcat tag "OFFSET_Y"))
-                    orient (MSPL-Get-Str data (strcat tag "ORIENTATION")))
-              (if (or (null wdt) (<= wdt 0.0)) (setq wdt 1200.0))
-              (if (or (null hgt) (<= hgt 0.0)) (setq hgt 3000.0))
-              (if (or (null offX) (<= offX 0.0)) (setq offX 0.0))
-              (if (or (null offY) (<= offY 0.0)) (setq offY 6000.0))
-              (if (or (null orient) (= (strcase orient) "")) (setq orient "Longitudinal"))
-              (setq shp (peb-stair-shape typ midl)
-                    ox (+ fx0 offX)
-                    oy (+ fy0 offY))
-              ;; Calculate footprint for this staircase (orientation handled in drawing functions)
-              (setq ext
+;; ---- ONE PLACE DECIDES WHERE A STAIRCASE STANDS ------------------------------------------
+;; Both passes below - the void pass that clears the joists and the draw pass that puts the
+;; stair on the sheet - MUST agree to the millimetre, or the deck opens a hole in one place
+;; and the stair rises through another.  So neither of them works the position out: they both
+;; ask this, and it answers once.
+;;
+;; Returns (ox oy wdt hgt topl midl trd pfl shp) for ST<n>, or nil when that stair is not on.
+;;
+;; -- THE OFFSET IS MEASURED FROM THE BUILDING CORNER, NOT FROM THE DECK --------------------
+;; The BSF asks for "Position X - Distance from LEW" and "Position Y - Distance from NSW", and
+;; this sheet already draws in exactly those coordinates: its own voids start at 0,0, and 0,0
+;; IS the LEW/NSW junction.  Both passes used to add fx0/fy0 and so measured the stair from the
+;; corner of the mezzanine DECK instead - the form and the drawing disagreeing in silence,
+;; which is the one thing the single-truth rule forbids.  On 279-26 the deck is inset 1,000
+;; from the NSW, so every stair drew 1,000 off its stated position; on a mezzanine that starts
+;; at grid 3 it would be a whole bay out.
+(defun peb-mzfp-stair-org (data tag fx0 fx1 fy0 fy1 /
+                           wdt hgt typ topl midl trd pfl shp offX offY ox oy dep runX)
+  (if (/= (strcase (MSPL-Get-Str data (strcat tag "TOGGLE"))) "YES")
+    nil
+    (progn
+      (setq wdt  (MSPL-Get-Num data (strcat tag "WIDTH"))
+            hgt  (MSPL-Get-Num data (strcat tag "HEIGHT"))
+            typ  (MSPL-Get-Str data (strcat tag "TYPE"))
+            topl (/= nil (wcmatch (strcase (MSPL-Get-Str data (strcat tag "TOP_LANDING"))) "Y*,1"))
+            midl (/= nil (wcmatch (strcase (MSPL-Get-Str data (strcat tag "MID_LANDING"))) "Y*,1"))
+            trd  (MSPL-Get-Str data (strcat tag "TREAD"))
+            pfl  (MSPL-Get-Str data (strcat tag "PLAT_FLOOR"))
+            offX (MSPL-Get-Num data (strcat tag "OFFSET_X"))
+            offY (MSPL-Get-Num data (strcat tag "OFFSET_Y")))
+      (if (or (null wdt)  (<= wdt 0.0))  (setq wdt 1200.0))
+      (if (or (null hgt)  (<= hgt 0.0))  (setq hgt 3000.0))
+      (if (or (null offX) (< offX 0.0))  (setq offX 0.0))
+      (if (or (null offY) (<= offY 0.0)) (setq offY 6000.0))
+      (setq shp (peb-stair-shape typ midl)
+            ox  offX
+            oy  offY)
+      ;; -- AND IT STAYS ON THE DECK IT SERVES ----------------------------------------------
+      ;; dep is the stairwell out-to-out ACROSS the flights (two bands + the stringer well) and
+      ;; oy is its CENTRE line; runX is what the stair needs ALONG the deck - flight 1 plus the
+      ;; landing at its head.  Both come from the same functions the stair drawer itself uses,
+      ;; so the clamp can never disagree with what gets drawn.  A stair hanging off the slab is
+      ;; not a placement, it is a mistake nobody can build - so a stated position that will not
+      ;; fit is pulled back onto the deck rather than drawn into thin air.
+      (setq dep  (+ wdt wdt (peb-stair-well wdt))
+            runX (+ (* (peb-stair-going) (car (peb-stair-flights hgt)))
+                    (peb-stair-landing-w wdt)))
+      (if (> (- fy1 fy0) dep)
+        (setq oy (max (+ fy0 (/ dep 2.0)) (min oy (- fy1 (/ dep 2.0))))))
+      (if (> (- fx1 fx0) runX)
+        (setq ox (max fx0 (min ox (- fx1 runX)))))
+      (list ox oy wdt hgt topl midl trd pfl shp))))
+
+;; Draw ST<n> from an org list and hand back the footprint the drawer itself reports.
+;;
+;; *PEB-STAIR-PLAIN* stands the stair's OWN dimensions, leaders and "PLAN" caption down for the
+;; duration - see peb-stair-plain-p in MAIMAAR_PEB_Stair.lsp.  They are sized off the stair
+;; (100 mm on a 1,200 wide one) and this sheet is a 55 m building on an A4 page, so they plotted
+;; at about a sixth of the ladder's smallest rung: an unreadable smudge lying across the deck.
+;; The stairwell, treads, landing and climb arrow stay - they are what this sheet is showing -
+;; and the numbers stay on the staircase sheet, which is drawn at a scale that can hold them.
+(defun peb-mzfp-stair-draw (org / ox oy wdt hgt topl midl trd pfl shp ext prev)
+  (setq ox (nth 0 org) oy (nth 1 org) wdt (nth 2 org) hgt (nth 3 org)
+        topl (nth 4 org) midl (nth 5 org) trd (nth 6 org) pfl (nth 7 org) shp (nth 8 org))
+  (setq prev (if (boundp '*PEB-STAIR-PLAIN*) *PEB-STAIR-PLAIN* nil)
+        *PEB-STAIR-PLAIN* T)
+  ;; Caught HERE, not by the caller: the flag is global and the whole page set runs in ONE
+  ;; acad, so a drawer that threw on its way out would leave every later staircase sheet
+  ;; silenced - a sheet losing its dimensions because a different sheet failed.
+  (setq ext (vl-catch-all-apply
+              (function (lambda ()
                 (cond ((= shp "U") (peb-stair-plan-u ox oy wdt hgt topl midl nil trd pfl))
                       ((= shp "L") (peb-stair-plan-l ox oy wdt hgt topl midl nil trd pfl))
-                      (T           (peb-stair-plan   ox oy wdt hgt topl midl nil trd pfl))))
-              ;; Store void extents
-              (if ext (setq voids (append voids (list ext))))
-              (setq n (1+ n))
-              (princ)))))
+                      (T           (peb-stair-plan   ox oy wdt hgt topl midl nil trd pfl)))))))
+  (setq *PEB-STAIR-PLAIN* prev)
+  (if (vl-catch-all-error-p ext) (setq ext nil))
+  ext)
+
+;; Erase every entity made after `mark` (nil = since the drawing was empty).
+(defun peb-erase-after (mark / e nx)
+  (setq e (if mark (entnext mark) (entnext)))
+  (while e
+    (setq nx (entnext e))
+    (vl-catch-all-apply (function (lambda () (entdel e))))
+    (setq e nx))
+  (princ))
+
+;; ---- the staircase VOIDS, measured before a single joist is drawn ------------------------
+;; The joists, the secondaries and the main beams must stop at the stairwell (owner: remove
+;; joists & beams in the staircase void), and they are drawn long before the stair is - so the
+;; hole has to be known first.
+;;
+;; It is MEASURED, not calculated.  The shape drawers report their own footprint, so this pass
+;; draws each stair, keeps what it reports, and ERASES it again - leaving the sheet exactly as
+;; it found it.  Calculating the footprint a second time here would be a second opinion about
+;; the same geometry, and the two would drift apart the first time a drawer changed.
+;;
+;; (The first version skipped the erase, which is why the crashed sheet still had staircases on
+;;  it: those were this pass's throwaway copies, left behind.)
+(defun peb-stair-voids (data fx0 fx1 fy0 fy1 / i tag org ext voids mark)
+  (setq voids nil i 1)
+  (if (= (strcase (MSPL-Get-Str data "ST_TOGGLE")) "YES")
+    (while (<= i 4)
+      (setq tag (strcat "ST" (itoa i) "_")
+            org (peb-mzfp-stair-org data tag fx0 fx1 fy0 fy1))
+      (if org
+        (progn
+          (setq mark (entlast) ext nil)
+          (vl-catch-all-apply (function (lambda () (setq ext (peb-mzfp-stair-draw org)))))
+          (vl-catch-all-apply (function (lambda () (peb-erase-after mark))))
+          (if ext (setq voids (append voids (list ext))))))
       (setq i (1+ i))))
   voids)
 
 ;; ---- the staircases on the mezzanine floor plan ------------------------------------------
-;; THE OPENING IS SIZED TO THE STAIR, not to a nominal hole.  The shape drawers on PRO-10 return
-;; their own footprint as (x0 x1 y0 y1), so the opening is cut from the same numbers that draw
-;; the stair - a U's run plus landing by the depth of both flights and the well.  Anything else
-;; would show a staircase rising through a deck it would actually hit.
+;; THE OPENING IS SIZED TO THE STAIR, not to a nominal hole.  The shape drawers on the stair
+;; sheet return their own footprint as (x0 x1 y0 y1), so the opening is cut from the same
+;; numbers that draw the stair - a U's run plus landing by the depth of both flights and the
+;; well.  Anything else would show a staircase rising through a deck it would actually hit.
 ;;
 ;; The stair itself is drawn by those SAME drawers, so this sheet and the detail sheet cannot
 ;; disagree about what the staircase looks like.
 ;;
-;; COORDINATE SYSTEM (origin at LEW & NSW junction = 0,0):
-;;   OFFSET_X = distance along WIDTH (LEW to REW)
-;;   OFFSET_Y = distance along LENGTH (NSW to FSW)
-;; Standing Rule: Remove joists & beams in staircase void; create clean rectangular opening.
-;; Orientation support: Longitudinal = along length (NSW→FSW); Transverse = across width (LEW→REW)
-(defun peb-mzfp-stairs (data fx0 fx1 fy0 fy1 /
-                        i tag wdt hgt typ topl midl trd pfl shp orient
-                        n offX offY ox oy ext th)
-  (if *SLOG* (progn (write-line (strcat "MZFP_ENTER ST_TOGGLE ST_TOGGLE check") *SLOG*) (close *SLOG*)))
+;; COORDINATE SYSTEM: origin at the LEW / NSW junction = 0,0, per peb-mzfp-stair-org above.
+(defun peb-mzfp-stairs (data fx0 fx1 fy0 fy1 / i tag org ext th)
   (if (= (strcase (MSPL-Get-Str data "ST_TOGGLE")) "YES")
     (progn
-      (if *SLOG* (progn (write-line (strcat "MZFP_ST_YES entering loop") *SLOG*) (close *SLOG*)))
-      (setq th (peb-th 'SMALL)
-            i 1 n 0)
+      (setq th (peb-th 'SMALL) i 1)
       (while (<= i 4)
-        (setq tag (strcat "ST" (itoa i) "_"))
-        (if (= (strcase (MSPL-Get-Str data (strcat tag "TOGGLE"))) "YES")
+        (setq tag (strcat "ST" (itoa i) "_")
+              org (peb-mzfp-stair-org data tag fx0 fx1 fy0 fy1))
+        (if org
           (vl-catch-all-apply
             (function
               (lambda ()
-                (setq wdt  (MSPL-Get-Num data (strcat tag "WIDTH"))
-                      hgt  (MSPL-Get-Num data (strcat tag "HEIGHT"))
-                      typ  (MSPL-Get-Str data (strcat tag "TYPE"))
-                      topl (/= nil (wcmatch (strcase (MSPL-Get-Str data (strcat tag "TOP_LANDING"))) "Y*,1"))
-                      midl (/= nil (wcmatch (strcase (MSPL-Get-Str data (strcat tag "MID_LANDING"))) "Y*,1"))
-                      trd  (MSPL-Get-Str data (strcat tag "TREAD"))
-                      pfl  (MSPL-Get-Str data (strcat tag "PLAT_FLOOR"))
-                      offX (MSPL-Get-Num data (strcat tag "OFFSET_X"))  ;; Distance along WIDTH
-                      offY (MSPL-Get-Num data (strcat tag "OFFSET_Y"))  ;; Distance along LENGTH
-                      orient (MSPL-Get-Str data (strcat tag "ORIENTATION"))) ;; Longitudinal or Transverse
-                (if (or (null wdt) (<= wdt 0.0)) (setq wdt 1200.0))
-                (if (or (null hgt) (<= hgt 0.0)) (setq hgt 3000.0))
-                (if (or (null offX) (<= offX 0.0)) (setq offX 0.0))
-                (if (or (null offY) (<= offY 0.0)) (setq offY 6000.0))
-                (if (or (null orient) (= (strcase orient) "")) (setq orient "Longitudinal"))
-                (setq shp (peb-stair-shape typ midl))
-                ;; Position staircase using absolute coordinates from BSF offsets
-                ;; ox = fx0 + OFFSET_X (absolute position along width)
-                ;; oy = fy0 + OFFSET_Y (absolute position along length)
-                ;; Orientation (Longitudinal/Transverse) drives rotation in floor plan
-                (setq ox (+ fx0 offX)
-                      oy (+ fy0 offY))
-                ;; Draw the stair once to learn its footprint
-                (if *SLOG* (progn (write-line (strcat tag "MZFP calling stair shape=" shp " ox=" (rtos ox 2 0) " oy=" (rtos oy 2 0)) *SLOG*) (close *SLOG*)))
-                (setq ext
-                  (cond ((= shp "U") (peb-stair-plan-u ox oy wdt hgt topl midl nil trd pfl))
-                        ((= shp "L") (peb-stair-plan-l ox oy wdt hgt topl midl nil trd pfl))
-                        (T           (peb-stair-plan   ox oy wdt hgt topl midl nil trd pfl))))
-                (if *SLOG* (progn (write-line (strcat tag "MZFP after draw ext=" (if ext (strcat (rtos (nth 0 ext) 2 0) ".." (rtos (nth 1 ext) 2 0)) "NIL")) *SLOG*) (close *SLOG*)))
+                (setq ext (peb-mzfp-stair-draw org))
                 ;; THE OPENING, cut to exactly the footprint the stair just reported.
                 (if ext
                   (progn
@@ -8452,21 +8499,15 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
                                          (list (nth 1 ext) (nth 2 ext))
                                          (list (nth 1 ext) (nth 3 ext))
                                          (list (nth 0 ext) (nth 3 ext))))
-                    (entmake (list (cons 0 "LINE") (cons 8 "COMP-MEZZ-OPENING")
-                                   (list 10 (nth 0 ext) (nth 2 ext) 0.0)
-                                   (list 11 (nth 1 ext) (nth 3 ext) 0.0)))
-                    (entmake (list (cons 0 "LINE") (cons 8 "COMP-MEZZ-OPENING")
-                                   (list 10 (nth 0 ext) (nth 3 ext) 0.0)
-                                   (list 11 (nth 1 ext) (nth 2 ext) 0.0)))
                     (setvar "CLAYER" "COMP-MEZZ-OPENING")
                     (txt-bold "MC" (list (/ (+ (nth 0 ext) (nth 1 ext)) 2.0)
                                          (- (nth 2 ext) (* th 1.6)))
                               th 0.0 (strcat "OPENING - ST" (itoa i)))))
-                (setq n (1+ n))
                 (princ)))))
         (setq i (1+ i)))))
   (setvar "CLAYER" "0")
   (princ))
+
 
 (defun C:PEB-MEZZ-FLOOR (/ dataFile data len wid floorNum)
   (setq dataFile (if (and (boundp '*PEB-DATA-FILE*) *PEB-DATA-FILE*) *PEB-DATA-FILE* nil))
