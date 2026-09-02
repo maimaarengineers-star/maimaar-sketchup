@@ -8026,6 +8026,10 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
         secHalf   (max  50.0 (* 22.0 sc)))
   (setq isGrating (wcmatch floorSys "*GRAT*,*CHEQ*,*PLATE*"))
 
+  ;; CALCULATE STAIRCASE VOIDS EARLY (for joist/beam exclusion)
+  ;; Standing Rule: Remove joists & beams in staircase void area
+  (setq stVoids (peb-stair-voids data fx0 fx1 fy0 fy1))
+
   ;; JOISTS — 150mm double-line flange ALONG THE LENGTH, spaced across the width at jspSys.  None for
   ;; precast / hollow-core (jspSys nil).
   (if jspSys
@@ -8049,7 +8053,9 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
         (while (< jbi (1- (length xs)))
           (setq jxa (+ (nth jbi xs) beamHalf) jxb (- (nth (1+ jbi) xs) beamHalf))
           (if (> (- jxb jxa) beamHalf)
-            (vl-catch-all-apply (function (lambda () (peb-mezz-mainbeam jxa jy jxb jy joistHalf)))))
+            ;; Skip joist if it intersects a staircase void
+            (if (not (peb-line-intersects-void jxa jy jxb jy stVoids))
+              (vl-catch-all-apply (function (lambda () (peb-mezz-mainbeam jxa jy jxb jy joistHalf))))))
           (setq jbi (1+ jbi)))
         (setq jy (+ jy jspSys)))
       (vl-catch-all-apply (function (lambda ()
@@ -8072,7 +8078,9 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
       (setvar "CLAYER" "COMP-MEZZ-JOIST-SEC")
       (setq secSp (/ jspSys 2.0) bayA (nth 0 xs) bayB (nth 1 xs) sx (+ bayA secSp))
       (while (< sx (- bayB 1.0))
-        (vl-catch-all-apply (function (lambda () (peb-mezz-mainbeam sx fy0 sx fy1 secHalf))))
+        ;; Skip secondary joist if it intersects a staircase void
+        (if (not (peb-line-intersects-void sx fy0 sx fy1 stVoids))
+          (vl-catch-all-apply (function (lambda () (peb-mezz-mainbeam sx fy0 sx fy1 secHalf)))))
         (setq sx (+ sx secSp)))
       (vl-catch-all-apply (function (lambda ()
         ;; rule 4B.49 — the secondary spacing is a design number too
@@ -8083,7 +8091,10 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
   ;; each length column line (xs).  Drawn LAST so the heavy beams read on top of the joists + secondaries.
   (peb-comp-layer "COMP-MEZZ-BEAM" 5)
   (setvar "CLAYER" "COMP-MEZZ-BEAM")
-  (foreach x xs (vl-catch-all-apply (function (lambda () (peb-mezz-mainbeam x fy0 x fy1 beamHalf)))))
+  (foreach x xs
+    ;; Skip main beam if it intersects a staircase void
+    (if (not (peb-line-intersects-void x fy0 x fy1 stVoids))
+      (vl-catch-all-apply (function (lambda () (peb-mezz-mainbeam x fy0 x fy1 beamHalf))))))
   ;; The rotated "MAIN BEAM (TYP.)" tag that used to stand here is GONE (owner 29-Aug,
   ;; "austhetic is not good").  It named a member the legend below already names, and it stood
   ;; ON the second beam, crossing every joist in that bay - a label obscuring the thing it
@@ -8290,6 +8301,66 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
     (function (lambda () (peb-mzfp-stairs data fx0 fx1 fy0 fy1))))
   (princ))
 
+;; ---- helper: check if a line intersects any staircase void ----
+;; Returns T if the line from (x1,y1) to (x2,y2) intersects any void in voids list
+;; voids format: ((x0 x1 y0 y1) ...)
+(defun peb-line-intersects-void (x1 y1 x2 y2 voids)
+  (if (null voids) nil
+    (catch 'found
+      (foreach v voids
+        (let ((vx0 (nth 0 v)) (vx1 (nth 1 v)) (vy0 (nth 2 v)) (vy1 (nth 3 v)))
+          ;; Check if horizontal line (y1==y2) intersects void x-range and y-range
+          ;; Or if vertical line (x1==x2) intersects void y-range and x-range
+          (if (or (and (equal y1 y2 0.1)  ;; horizontal line
+                       (>= y1 vy0) (<= y1 vy1)  ;; y in void y-range
+                       (not (or (>= x2 vx1) (<= x1 vx0))))  ;; x overlaps void x-range
+                   (and (equal x1 x2 0.1)  ;; vertical line
+                       (>= x1 vx0) (<= x1 vx1)  ;; x in void x-range
+                       (not (or (>= y2 vy1) (<= y1 vy0)))))  ;; y overlaps void y-range
+            (throw 'found T))))
+      nil)))
+
+;; ---- helper: collect all staircase void extents for later joist/beam exclusion ----
+;; Returns a list of void rectangles: ((x0 x1 y0 y1) ...) for each enabled staircase
+(defun peb-stair-voids (data fx0 fx1 fy0 fy1 /
+                        i tag wdt hgt typ topl midl trd pfl shp
+                        n offX offY ox oy ext voids)
+  (setq voids nil i 1 n 0)
+  (if (= (strcase (MSPL-Get-Str data "ST_TOGGLE")) "YES")
+    (while (<= i 4)
+      (setq tag (strcat "ST" (itoa i) "_"))
+      (if (= (strcase (MSPL-Get-Str data (strcat tag "TOGGLE"))) "YES")
+        (vl-catch-all-apply
+          (function
+            (lambda ()
+              (setq wdt  (MSPL-Get-Num data (strcat tag "WIDTH"))
+                    hgt  (MSPL-Get-Num data (strcat tag "HEIGHT"))
+                    typ  (MSPL-Get-Str data (strcat tag "TYPE"))
+                    topl (/= nil (wcmatch (strcase (MSPL-Get-Str data (strcat tag "TOP_LANDING"))) "Y*,1"))
+                    midl (/= nil (wcmatch (strcase (MSPL-Get-Str data (strcat tag "MID_LANDING"))) "Y*,1"))
+                    trd  (MSPL-Get-Str data (strcat tag "TREAD"))
+                    pfl  (MSPL-Get-Str data (strcat tag "PLAT_FLOOR"))
+                    offX (MSPL-Get-Num data (strcat tag "OFFSET_X"))
+                    offY (MSPL-Get-Num data (strcat tag "OFFSET_Y")))
+              (if (or (null wdt) (<= wdt 0.0)) (setq wdt 1200.0))
+              (if (or (null hgt) (<= hgt 0.0)) (setq hgt 3000.0))
+              (if (or (null offX) (<= offX 0.0)) (setq offX 0.0))
+              (if (or (null offY) (<= offY 0.0)) (setq offY 6000.0))
+              (setq shp (peb-stair-shape typ midl)
+                    ox (+ fx0 offX)
+                    oy (+ fy0 offY))
+              ;; Calculate footprint for this staircase
+              (setq ext
+                (cond ((= shp "U") (peb-stair-plan-u ox oy wdt hgt topl midl nil trd pfl))
+                      ((= shp "L") (peb-stair-plan-l ox oy wdt hgt topl midl nil trd pfl))
+                      (T           (peb-stair-plan   ox oy wdt hgt topl midl nil trd pfl))))
+              ;; Store void extents
+              (if ext (setq voids (append voids (list ext))))
+              (setq n (1+ n))
+              (princ)))))
+      (setq i (1+ i))))
+  voids)
+
 ;; ---- the staircases on the mezzanine floor plan ------------------------------------------
 ;; THE OPENING IS SIZED TO THE STAIR, not to a nominal hole.  The shape drawers on PRO-10 return
 ;; their own footprint as (x0 x1 y0 y1), so the opening is cut from the same numbers that draw
@@ -8298,13 +8369,17 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
 ;;
 ;; The stair itself is drawn by those SAME drawers, so this sheet and the detail sheet cannot
 ;; disagree about what the staircase looks like.
+;;
+;; COORDINATE SYSTEM (origin at LEW & NSW junction = 0,0):
+;;   OFFSET_X = distance along WIDTH (LEW to REW)
+;;   OFFSET_Y = distance along LENGTH (NSW to FSW)
+;; Standing Rule: Remove joists & beams in staircase void; create clean rectangular opening.
 (defun peb-mzfp-stairs (data fx0 fx1 fy0 fy1 /
                         i tag wdt hgt typ topl midl trd pfl shp
-                        inset n onREW ox oy ext th)
+                        n offX offY ox oy ext th)
   (if (= (strcase (MSPL-Get-Str data "ST_TOGGLE")) "YES")
     (progn
-      (setq inset (max 300.0 (* (- fx1 fx0) 0.01))
-            th    (peb-th 'SMALL)
+      (setq th (peb-th 'SMALL)
             i 1 n 0)
       (while (<= i 4)
         (setq tag (strcat "ST" (itoa i) "_"))
@@ -8318,21 +8393,20 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
                       topl (/= nil (wcmatch (strcase (MSPL-Get-Str data (strcat tag "TOP_LANDING"))) "Y*,1"))
                       midl (/= nil (wcmatch (strcase (MSPL-Get-Str data (strcat tag "MID_LANDING"))) "Y*,1"))
                       trd  (MSPL-Get-Str data (strcat tag "TREAD"))
-                      pfl  (MSPL-Get-Str data (strcat tag "PLAT_FLOOR")))
+                      pfl  (MSPL-Get-Str data (strcat tag "PLAT_FLOOR"))
+                      offX (MSPL-Get-Num data (strcat tag "OFFSET_X"))  ;; Distance along WIDTH
+                      offY (MSPL-Get-Num data (strcat tag "OFFSET_Y"))) ;; Distance along LENGTH
                 (if (or (null wdt) (<= wdt 0.0)) (setq wdt 1200.0))
                 (if (or (null hgt) (<= hgt 0.0)) (setq hgt 3000.0))
-                (setq shp   (peb-stair-shape typ midl)
-                      onREW (= (rem n 2) 1))
-                ;; ST1 at the LEW end of the deck, ST2 at the REW end - positioned at interior post/column locations
-                ;; Staircases should be placed at the mezzanine column positions, not at building edges
-                (setq oy (+ fy0 inset (/ wdt 2.0)))
-                ;; Position at interior post columns: ST1 at LEW column, ST2 at REW column
-                ;; Use column depth to calculate from building edge toward interior
-                (setq ox (if onREW (- fx1 inset (* wdt 0.5)) (+ fx0 inset (* wdt 0.5))))
+                (if (or (null offX) (<= offX 0.0)) (setq offX 0.0))
+                (if (or (null offY) (<= offY 0.0)) (setq offY 6000.0))
+                (setq shp (peb-stair-shape typ midl))
+                ;; Position staircase using absolute coordinates from BSF offsets
+                ;; ox = fx0 + OFFSET_X (absolute position along width)
+                ;; oy = fy0 + OFFSET_Y (absolute position along length)
+                (setq ox (+ fx0 offX)
+                      oy (+ fy0 offY))
                 ;; Draw the stair once to learn its footprint
-                (if onREW
-                  (setq ox (- ox (+ (* (peb-stair-going) (nth 0 (peb-stair-flights hgt)))
-                                    (max 900.0 wdt)))))
                 (setq ext
                   (cond ((= shp "U") (peb-stair-plan-u ox oy wdt hgt topl midl nil trd pfl))
                         ((= shp "L") (peb-stair-plan-l ox oy wdt hgt topl midl nil trd pfl))
