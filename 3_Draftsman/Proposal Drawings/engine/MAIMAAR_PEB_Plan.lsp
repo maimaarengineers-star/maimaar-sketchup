@@ -4107,7 +4107,7 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
     ft fx0 fx1 fy0 fy1 partial cx cy lcy hlab fflStr fflv
     ys xs acc h hh x y
     numBays bayPts2 sp2 rem2 bx colD savedWeb circR host rcc mzRcc rccXs rccYs
-    module rr gap nsub yi yy0 yy1 glF glT glX0 glX1 offF offT
+    module rr gap nsub yi yy0 yy1 glF glT glX0 glX1 offF offT mzOO modSnp ewSnp
     mzBand mzB0 mzB1 mzPart mainYs mainTol sy0 sy1 dimX yprev yy
     mzNums mzk )
 
@@ -4377,24 +4377,53 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                 ;; (3b) SHOW THE MEZZANINE COLUMN SPACING (owner 11-Jul) — a vertical dim chain of the
                 ;; mezz column lines, run just INSIDE the deck's left edge (the building's own width dims
                 ;; already occupy the space outside the LEW wall).
+                ;; -- ...AND ONLY WHEN IT IS NOT ALREADY ON THE SHEET  (owner 3-Sep-2026) -----
+                ;; Two faults, one cause.  This measured the DRAWN gaps, so once the mezzanine's
+                ;; end stations were pulled back onto the column centrelines it printed
+                ;; "14,540 | 15,240 | 15,240 | 15,240 | 14,540" - the centre-to-centre chain -
+                ;; a hand's breadth from this sheet's own "5@15240 O/O STEEL COLUMN".  One grid,
+                ;; two answers, and the wrong one is the in-to-in number the owner rejected.
+                ;;
+                ;; And on this job it was a DUPLICATE as well: MZ_COL_SPACING is 5@15240 on the
+                ;; 50 ft option and 10@7620 on the 25 ft one, and the sheet already prints both
+                ;; outside the LEW wall.  So the chain is drawn only when the mezzanine really
+                ;; does divide the width its own way - and then it prints the estimator's
+                ;; expression with its basis, like every other chain in the set (4B.8).
                 (if (> (length ys) 1)
                   (progn
-                    (setq dimX (+ fx0 (* u 1.3)) yprev (car ys))
-                    (foreach yy (cdr ys)
+                    (setq mzOO   (peb-width-stations
+                                   (peb-tb-or (MSPL-Get-Str data "MZ_COL_SPACING") "") wid)
+                          modSnp (peb-mezz-snap-ends (peb-width-mods data wid) wid)
+                          ewSnp  (peb-mezz-snap-ends
+                                   (peb-mzfp-stations (MSPL-Get-Str data "EWLEXPR") wid) wid))
+                    (if (and (not (peb-ys-same ys modSnp 5.0))
+                             (not (peb-ys-same ys ewSnp  5.0)))
                       (vl-catch-all-apply (function (lambda ()
-                        (peb-dim-height-stretch fx0 dimX yprev yy (peb-comma (rtos (- yy yprev) 2 0))))))
-                      (setq yprev yy))))
+                        (peb-dim-height-stretch fx0 (+ fx0 (* u 1.3)) (car ys) (last ys)
+                          (strcat (peb-chain-text
+                                    (peb-tb-or (MSPL-Get-Str data "MZ_COL_SPACING") "") mzOO)
+                                  " " (peb-basis-suffix
+                                        (peb-tb-or (MSPL-Get-Str data "WIDTH_MOD_REF")
+                                                   (MSPL-Get-Str data "WIDTH_REF")))))))))))
 
                 ;; (4) footprint dims — only when PARTIAL (a full-interior default
                 ;;     rectangle is implied by the building outline, so dims would collide).
+                ;; PARTIAL IN EACH DIRECTION SEPARATELY (owner 3-Sep-2026).  `partial` is forced
+                ;; to T for a grid-bay-placed mezzanine, so a FULL-WIDTH deck still drew a width
+                ;; dim - a bare "76,200" printed across this sheet's own "10@7620 O/O STEEL
+                ;; COLUMN", stating the building's width a second time in a second voice.  A
+                ;; footprint dimension earns its place only where the footprint differs from the
+                ;; building; where it does not, the building outline already says it.
                 (if partial
                   (progn
-                    (vl-catch-all-apply (function (lambda ()
-                      (peb-dim-h-stretch fx0 fx1 (- fy0 (* post 2.5))
-                                         (peb-comma (rtos (- fx1 fx0) 2 0))))))
-                    (vl-catch-all-apply (function (lambda ()
-                      (peb-dim-height-stretch fx0 (- fx0 (* post 2.5)) fy0 fy1
-                                              (peb-comma (rtos (- fy1 fy0) 2 0))))))))))))))
+                    (if (> (abs (- (- fx1 fx0) len)) 1.0)
+                      (vl-catch-all-apply (function (lambda ()
+                        (peb-dim-h-stretch fx0 fx1 (- fy0 (* post 2.5))
+                                           (peb-comma (rtos (- fx1 fx0) 2 0)))))))
+                    (if (> (abs (- (- fy1 fy0) wid)) 1.0)
+                      (vl-catch-all-apply (function (lambda ()
+                        (peb-dim-height-stretch fx0 (- fx0 (* post 2.5)) fy0 fy1
+                                                (peb-comma (rtos (- fy1 fy0) 2 0)))))))))))))))
       (setvar "CLAYER" "0")
       (princ))))
 
