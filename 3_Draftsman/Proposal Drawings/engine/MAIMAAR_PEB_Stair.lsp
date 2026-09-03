@@ -53,7 +53,7 @@
 ;; Rule 4B.27 is the answer: a gap that exists to clear TEXT must be computed from that text's
 ;; height, never from a number that happened to suit one size.  So the enlargement lands with
 ;; the label-gap rework, not before it - and when it does, it changes here, once.
-(defun peb-stair-th (u) (* u 1.6))
+(defun peb-stair-th (u) (* u 2.2))
 
 (defun peb-stair-going () 300.0)   ; TREAD
 
@@ -1154,10 +1154,16 @@
   (peb-stair-vdim (- xlo (* u 6.4)) oy (+ oy hgt) th "STAIRCASE HEIGHT")
 
   (setvar "CLAYER" "STAIR-TEXT")
-  (txt-bold "MC" (list (/ (+ xlo xhi) 2.0) (- oy (* u 11.0)))
+  ;; -- THE CAPTION PAIR CLEARS THE FLOOR MARKS, AND EACH OTHER (rule 4B.27) --------------
+  ;; These sat at 11u and 13.8u below the datum - gaps written in `u`, the stair's geometry
+  ;; unit, while the text they exist to clear is written in `th`.  Raise the text and the gaps
+  ;; do not follow: "ELEVATION" landed on the GROUND FLOOR mark and its subtitle landed on
+  ;; "ELEVATION", 2.8u apart when the two lines together stand 2.35 x th tall.  Measured in
+  ;; text heights they hold at any size.
+  (txt-bold "MC" (list (/ (+ xlo xhi) 2.0) (- oy (* th 6.2)))
             (/ (* th 1.25) (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0.0 "ELEVATION")
   (if lbl
-    (txt-bold "MC" (list (/ (+ xlo xhi) 2.0) (- oy (* u 13.8)))
+    (txt-bold "MC" (list (/ (+ xlo xhi) 2.0) (- oy (* th 8.1)))
               (/ (* th 1.1) (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0.0 lbl))
   (princ))
 
@@ -1486,14 +1492,18 @@
   ;; "2544 O/O OF STEEL COLUMN" while this one said "OUT TO OUT WIDTH" over 1200.  Same phrase
   ;; for the same measurement everywhere, or the reader cannot tell them apart.
   ;; O/O OF STEEL COLUMN with breakdown: wdt + column depth + wdt
-  (peb-stair-dim-breakdown xcl xcr (- yb (* u 5.2)) (* th 0.9) "O/O OF STEEL COLUMN"
+  (peb-stair-dim-breakdown xcl xcr (- yb (* th 4.6)) (* th 0.9) "O/O OF STEEL COLUMN"
                            (strcat "(" (rtos wdt 2 0) " + " (rtos cd 2 0) " + " (rtos wdt 2 0) ")"))
-  (peb-stair-dim xl  xr  (- yb (* u 2.6)) (* th 0.9) "STAIR WIDTH")
+  ;; -- SPACED IN TEXT HEIGHTS, NOT IN `u` (rule 4B.27) ---------------------------------
+  ;; These four sat at 2.6u / 5.2u / 8.4u / 10.6u below the cut.  Each row carries a dimension
+  ;; line, its label, and - for the O/O row - a breakdown line under it, so at 2.6u apart with
+  ;; text 2.2u tall they printed into one another.  In text heights the stack holds at any size.
+  (peb-stair-dim xl  xr  (- yb (* th 2.2)) (* th 0.9) "STAIR WIDTH")
 
   (setvar "CLAYER" "STAIR-TEXT")
-  (txt-bold "MC" (list ox (- yb (* u 8.4)))
+  (txt-bold "MC" (list ox (- yb (* th 8.6)))
             (/ (* th 1.3) (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0.0 "SECTION A-A")
-  (txt-bold "MC" (list ox (- yb (* u 10.6)))
+  (txt-bold "MC" (list ox (- yb (* th 10.3)))
             (/ (* th 0.95) (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0.0 "AT LANDING")
   ;; the stair's title is drawn once, under the elevation - `lbl` is accepted and ignored here
   (princ))
@@ -1519,6 +1529,20 @@
 ;; Every line here is a BSF field.  Nothing is hardcoded and nothing is assumed: where the form
 ;; is silent the note SAYS it is not stated, because a drawing that quietly invents a tread type
 ;; is worse than one that admits the gap - the reader cannot tell an invention from a fact.
+;; "18" when every flight is the same, else "18 / 18 / 12" - the specification block states the
+;; split, and a stair whose flights are equal should not be made to look as though they are not.
+;; (Recovered: this was deleted along with the long rule note that used to be its only caller,
+;;  which took the specification block's FLIGHTS line down with it - silently, because the
+;;  drawer is wrapped and an undefined function just stops the block after its heading.)
+(defun peb-stair-flight-list (fl / s eq n)
+  (setq eq T n (car fl))
+  (foreach f fl (if (/= f n) (setq eq nil)))
+  (if eq
+    (itoa n)
+    (progn (setq s "")
+           (foreach f fl (setq s (if (= s "") (itoa f) (strcat s " / " (itoa f)))))
+           s)))
+
 (defun peb-stair-specnote (ox oy wdt typ w hgt trd pfl hrail inmezz / u th y fl nsteps)
   (setq u  (max 60.0 (/ wdt 12.0))
         th (* u 1.4)
@@ -1530,14 +1554,25 @@
   (txt-bold "ML" (list ox y) (/ (* th 1.3) (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0.0
             "STAIRCASE SPECIFICATION")
   (setq y (- y (* th 1.9)))
-  (txt-bold "ML" (list ox y) (/ th (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0.0
-            (strcat "NO. OF STEPS : " (itoa nsteps)))
-  (setq y (- y (* th 1.5)))
-  (txt-bold "ML" (list ox y) (/ th (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0.0
-            ;; THE STAIR'S OWN RISER, NOT THE NOMINAL.  This printed a hard-coded 150 while the
-            ;; note beside it derived the real figure, so on any storey that is not a whole
-            ;; number of 150s the sheet stated two different risers for one staircase.
-            (strcat "RISE PER STEP : " (rtos (peb-stair-rise hgt) 2 0) " MM (ALL EQUAL)"))
+  ;; ---- ONLY THE MAIN INFORMATION  (owner 3-Sep-2026) ---------------------------------
+  ;; "This text to be shortened - only main information, like riser height, tread etc."
+  ;;
+  ;; A six-line NOTE block used to stand below this one reciting the internal step-count
+  ;; standard, the IBC clause and the landing derivation, and it ran straight through the
+  ;; TYPICAL DETAIL OF STEEL CHECKERED PLATE STEP caption beside it.  None of it was
+  ;; information a customer reads off a proposal drawing - it is the rulebook's material, and
+  ;; the rulebook has it.  What a reader wants is the four figures that describe the stair, so
+  ;; they are here, in one block, each stated once.
+  (foreach ln
+    ;; No space padding: ROMAND is PROPORTIONAL, so padded labels do not line their colons up -
+    ;; they only look as though someone tried.  One separator, ragged left of it, honest.
+    (list (strcat "NO. OF STEPS : " (itoa nsteps))
+          (strcat "RISE PER STEP : " (rtos (peb-stair-rise hgt) 2 0) " MM (ALL EQUAL)")
+          (strcat "TREAD (GOING) : " (rtos (peb-stair-going) 2 0) " MM")
+          (strcat "FLIGHTS : " (itoa (length fl)) " OF " (peb-stair-flight-list fl))
+          (strcat "INTERMEDIATE LANDINGS : " (itoa (1- (length fl)))))
+    (txt-bold "ML" (list ox y) (/ th (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0.0 ln)
+    (setq y (- y (* th 1.5))))
   y)
 
 ;; ---- DESIGN LOADS  (owner 1-Sep-2026) ----------------------------------------------------
@@ -1654,24 +1689,28 @@
 
   ;; --- DIMENSIONS, in the reference's words.  It writes the measured value then what the
   ;; measurement is between - "6318 C/C OF STEEL LINE" - so we build the label the same way.
+  ;; -- SPACED IN TEXT HEIGHTS (rule 4B.27), and the vertical dim pushed clear ------------
+  ;; The long "C/C OF STEEL COLUMN TO BASE PLATE OF STRINGER" row ran at 4.2u under the plan
+  ;; while the vertical O/O dim stood 3.2u to its left: once the lettering grew, the rotated
+  ;; text and the horizontal label crossed each other.  Both are now measured off the text.
   (peb-stair-dim (- xa (/ (peb-stair-col-d) 2.0)) (+ xL (/ (peb-stair-col-d) 2.0))
-                 (+ yb1 (* u 4.2)) th
+                 (+ yb1 (* th 1.9)) th
                  "O/O OF STEEL COLUMN")
-  (peb-stair-dim xa xL (+ yb1 (* u 8.4)) th
+  (peb-stair-dim xa xL (+ yb1 (* th 3.8)) th
                  "C/C OF STEEL COLUMN")
-  (peb-stair-dim (+ ox (* u 3.0)) xL (- yb0 (* u 4.2)) th
+  (peb-stair-dim (+ ox (* u 3.0)) xL (- yb0 (* th 2.6)) th
                  "C/C OF STEEL COLUMN TO BASE PLATE OF STRINGER")
-  (peb-stair-vdim (- xa (* u 3.2)) yb0 yb1 th
+  (peb-stair-vdim (- xa (* th 2.4)) yb0 yb1 th
                   "O/O OF STEEL COLUMN")
 
-  (setq y (- yb0 (* u 9.0)))
+  (setq y (- yb0 (* th 4.8)))
   (txt-bold "MC" (list (/ (+ xa xL) 2.0) y)
             (/ (* th 1.25) (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0.0
             "STEEL COLUMN & STRINGER BASE PLATE LAYOUT PLAN")
   (if lbl
-    (txt-bold "MC" (list (/ (+ xa xL) 2.0) (- y (* u 2.6)))
+    (txt-bold "MC" (list (/ (+ xa xL) 2.0) (- y (* th 1.7)))
               (/ (* th 1.05) (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0.0 lbl))
-  (list xa xL (- y (* u 3.0)) (+ yb1 (* u 10.0))))
+  (list xa xL (- y (* th 2.0)) (+ yb1 (* th 4.6))))
 
 
 ;; ============================================================================
@@ -1729,95 +1768,32 @@
 
   ;; --- DIMENSIONS: the two numbers that define every step, plus the nosing.
   (peb-comp-layer "STAIR-TEXT" 7)
-  (peb-stair-dim (+ x0 g) (+ x0 (* 2.0 g)) (+ y0 (* 3.0 r) (* u 3.0)) th
+  ;; -- THIS DETAIL EXISTS TO BE READ (owner 3-Sep-2026: "make this text more visible") ---
+  ;; It is the one view drawn at a scale that can show what a step actually is, and its five
+  ;; labels were placed 1.6u to 3u apart with text 2.2u tall - GOING sat on NOSING, and TREAD
+  ;; CLEAT sat on STRINGER.  Every offset here is now a multiple of the text height, so the
+  ;; labels keep their clearance whatever the lettering is set to (rule 4B.27).
+  (peb-stair-dim (+ x0 g) (+ x0 (* 2.0 g)) (+ y0 (* 3.0 r) (* th 2.4)) th
                  "GOING")
-  (peb-stair-vdim (- x0 (* u 3.0)) (+ y0 r) (+ y0 (* 2.0 r)) th
+  (peb-stair-vdim (- x0 (* th 1.8)) (+ y0 r) (+ y0 (* 2.0 r)) th
                   "RISER")
-  (peb-stair-dim (- (+ x0 (* 2.0 g)) nos) (+ x0 (* 2.0 g)) (+ y0 (* 2.0 r) (* u 1.6)) th
+  (peb-stair-dim (- (+ x0 (* 2.0 g)) nos) (+ x0 (* 2.0 g)) (+ y0 (* 2.0 r) (* th 0.9)) th
                  "NOSING")
 
   ;; --- NAMES.  The reference's own wording for the plate; generic names for the steel.
-  (peb-stair-note-r (+ x0 (* 3.0 g)) (+ y0 (* 3.0 r)) (+ x0 (* 3.0 g) (* u 1.5)) th
+  (peb-stair-note-r (+ x0 (* 3.0 g)) (+ y0 (* 3.0 r)) (+ x0 (* 3.0 g) (* th 1.0)) th
                     "STEEL CHECKERED PLATE, THICKNESS 6mm")
-  (peb-stair-note (+ x0 (* 1.5 g)) (+ y0 (* 1.5 r) (- cl)) (- y0 (* u 4.0)) th "TREAD CLEAT")
-  (peb-stair-note (+ x0 (* 0.3 g)) (- y0 (* r 0.2)) (- y0 (* u 7.0)) th "STRINGER")
+  (peb-stair-note (+ x0 (* 1.5 g)) (+ y0 (* 1.5 r) (- cl)) (- y0 (* th 2.2)) th "TREAD CLEAT")
+  (peb-stair-note (+ x0 (* 0.3 g)) (- y0 (* r 0.2)) (- y0 (* th 3.7)) th "STRINGER")
 
   (setvar "CLAYER" "STAIR-TEXT")
-  (txt-bold "MC" (list (+ x0 (* 1.5 g)) (- y0 (* u 10.5)))
+  (txt-bold "MC" (list (+ x0 (* 1.5 g)) (- y0 (* th 6.4)))
             (/ (* th 1.2) (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0.0
             "TYPICAL DETAIL OF STEEL CHECKERED PLATE STEP")
   (if lbl
-    (txt-bold "MC" (list (+ x0 (* 1.5 g)) (- y0 (* u 12.8)))
+    (txt-bold "MC" (list (+ x0 (* 1.5 g)) (- y0 (* th 8.1)))
               (/ (* th 1.0) (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0.0 lbl))
   (princ))
-
-
-;; ---- THE RULE, WRITTEN ON THE DRAWING  (owner 1-Sep-2026) --------------------------------
-;; "You may write the rule as well in the drawing", "small text on below on bottom".
-;;
-;; Small, at the very bottom of the sheet, under everything - the same place and weight as
-;; 055-MSPL's own "NOTE: Grade 50 Material Is Used In Stair Case".
-;;
-;; It states the rule AND this staircase's own numbers, and the numbers come from the same
-;; peb-stair-flights list the views are drawn from.  That is the point of putting it here rather
-;; than only in the rulebook: if a drawer ever again draws a different number of flights than
-;; the rule produced - the 279-26 fault - the note and the drawing will visibly contradict each
-;; other on the customer's own sheet.  It turns a silent fault into one anybody can see.
-(defun peb-stair-rulenote (ox oy wdt hgt / u th fl nf sum ln y)
-  (setq u   (max 60.0 (/ wdt 12.0))
-        ;; a footnote, but it still has to be READ.  0.9u prints at 0.6 mm on a 1:150 sheet -
-        ;; below the ~2 mm a person can actually read - and in 130-character lines it came out
-        ;; as a grey band.  1.25u in shorter lines is still visibly subordinate to the spec and
-        ;; load blocks without being decoration.
-        th  (* u 1.25)
-        fl  (peb-stair-flights hgt)
-        nf  (length fl)
-        sum (apply '+ fl)
-        y   oy)
-  (peb-comp-layer "STAIR-TEXT" 7)
-  (setvar "CLAYER" "STAIR-TEXT")
-  (foreach ln
-    (list
-      (strcat "NOTE: RISE " (rtos (peb-stair-rise hgt) 2 0) "mm AND TREAD "
-              (rtos (peb-stair-going) 2 0) "mm ARE THE STANDARD.")
-      "THE NUMBER OF LANDINGS IS DERIVED FROM THE STEP COUNT, NOT SPECIFIED:"
-      (strcat "MAXIMUM " (itoa (peb-stair-max-risers))
-              " STEPS PER FLIGHT (MAIMAAR INTERNAL STANDARD), RELAXED BY UP TO "
-              (itoa (peb-stair-step-tol)) " STEPS")
-      (strcat "TO AVOID AN ADDITIONAL LANDING, AND MAXIMUM "
-              (rtos (peb-stair-max-rise) 2 0)
-              "mm RISE BETWEEN LANDINGS (IBC 1011.8).")
-      "THE STEPS ARE THEN DIVIDED EQUALLY."
-      (strcat "THIS STAIRCASE: " (rtos hgt 2 0) "mm RISE, " (itoa sum) " STEPS AT "
-              (rtos (peb-stair-rise hgt) 2 0) "mm, " (itoa nf) " FLIGHT"
-              (if (> nf 1) "S" "") " OF " (peb-stair-flight-list fl) ", "
-              (itoa (1- nf)) " INTERMEDIATE LANDING" (if (= (1- nf) 1) "" "S") ".")
-      ;; DECLARE THE BASE OFFSET RATHER THAN HIDE IT.  Holding the riser at exactly 150 means
-      ;; the climb is steps*150, which overshoots the storey by up to half a riser; the head
-      ;; must land on the mezzanine, so the difference is taken at the bottom.  Saying so on
-      ;; the sheet is the difference between a construction instruction and a silent error.
-      ;; Omitted entirely when the storey happens to be a whole number of risers.
-      (if (> (abs (peb-stair-base-offset hgt)) 0.5)
-        (strcat "ALL RISERS " (rtos (peb-stair-rise hgt) 2 0)
-                "mm EXACTLY. STAIRCASE BASE SET " (rtos (abs (peb-stair-base-offset hgt)) 2 0)
-                "mm "
-                (if (< (peb-stair-base-offset hgt) 0.0) "BELOW" "ABOVE")
-                " F.F.L, TAKEN UP IN THE GROUT BED UNDER THE BASE PLATES.")
-        (strcat "ALL RISERS " (rtos (peb-stair-rise hgt) 2 0)
-                "mm EXACTLY, BASE AT F.F.L.")))
-    (txt-bold "ML" (list ox y) (/ th (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0.0 ln)
-    (setq y (- y (* th 1.55))))
-  y)
-
-;; "18" for an even split, "14 / 13" when the remainder makes one flight longer.
-(defun peb-stair-flight-list (fl / s eq n)
-  (setq eq T n (car fl))
-  (foreach f fl (if (/= f n) (setq eq nil)))
-  (if eq
-    (itoa n)
-    (progn (setq s "")
-           (foreach f fl (setq s (if (= s "") (itoa f) (strcat s " / " (itoa f)))))
-           s)))
 
 (defun peb-stair-loadnote (ox oy wdt usage mzlive / u th L y ln)
   (setq u  (max 60.0 (/ wdt 12.0))
@@ -2028,10 +2004,11 @@
                 ;; faster than one long one and cost the sheet no height.
                 ;; REMOVED 2-Sep-2026: design loads now appear in title bar, detailed note removed
                 ;; (peb-stair-loadnote (* wdt 7.0) oy wdt usage mzlive)
-                ;; THE RULE, small, under both note blocks - the last thing on the staircase.
-                ;; It is drawn from the same flight list the views were drawn from, so it and
-                ;; the drawing cannot disagree without the sheet showing it.
-                (setq oy (peb-stair-rulenote 0.0 (- oy (* wdt 2.6)) wdt hgt))
+                ;; The six-line rule note that stood here is GONE (owner 3-Sep-2026: "this text
+                ;; to be shortened - only main information").  It recited the internal step-count
+                ;; standard and the IBC clause onto a customer sheet, and ran through the step
+                ;; detail's caption doing it.  Its figures are in the specification block above;
+                ;; its reasoning is in PD_RULEBOOK.md, which is where reasoning belongs.
                 (setq drawn T)
                 ;; clearance below the ELEVATION (its dims and caption hang under y=oy)
                 (setq oy (- oy (* wdt 14.0)))
