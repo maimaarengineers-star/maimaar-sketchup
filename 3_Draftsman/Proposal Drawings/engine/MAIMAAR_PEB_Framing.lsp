@@ -2691,6 +2691,16 @@
 ;;
 ;; One rib, centred on its pitch line c:
 ;;   foot c-.16 | web up c-.08 | crown to c+.08 | web down to c+.16   (of the pitch)
+;; ── THE SHEET PROFILE'S OWN NUMBERS, IN ONE PLACE (3-Sep-2026) ────────────────────────────
+;; "Section should 100% match with Sheeting Profile" (owner). It did — but only because 250 and
+;; 35 happened to be typed identically in two places: here for the DETAILS sheet, and again in
+;; the light-panel component. Two literals that agree today are not a match; they are a match
+;; waiting to be broken by whoever edits one of them. These accessors make the sheet the SOURCE,
+;; and every other drawer reads the profile from it.
+(defun peb-sheet-rib-pitch  () 250.0)   ; Standard S Profile 35-250 — 4 pitches = the 1000 cover
+(defun peb-sheet-rib-height ()  35.0)
+(defun peb-sheet-cover      () 1000.0)  ; crown to crown
+
 (defun peb-sd-sprofile (x0 y0 n pit ht / i c pts)
   (setq i 0 pts '())
   (while (<= i n)
@@ -2700,7 +2710,13 @@
                                 (list (+ c (* pit 0.08)) (+ y0 ht))
                                 (list (+ c (* pit 0.16)) y0))))
     (setq i (1+ i)))
-  (setvar "CLAYER" "SHEETING")
+  ;; LAYER OVERRIDE (owner 3-Sep-2026). The wall / sky light panel is THE SAME SHEET PROFILE
+  ;; as the roof ("1.50mm thickness and have sheeting profile of roof"), so the accessory
+  ;; drawer calls this very function rather than re-deriving the rib geometry — but its
+  ;; output belongs on the light-panel layer, not on SHEETING. Unset ⇒ SHEETING, exactly as
+  ;; before, so every existing caller is byte-identical.
+  (setvar "CLAYER" (if (and (boundp '*PEB-SPROF-LAYER*) *PEB-SPROF-LAYER*)
+                     *PEB-SPROF-LAYER* "SHEETING"))
   (setq i 0)
   (while (< (1+ i) (length pts))
     (command "_.LINE" (nth i pts) (nth (1+ i) pts) "")
@@ -2748,7 +2764,11 @@
   ;;
   ;; 485.5 wide on a 470 pitch leaves a 15.5 lap - and 15.5 is the hook's own width (0 -> 15.5),
   ;; the same self-check the trace closed on.
-  (setvar "CLAYER" "SHEETING")
+    ;; Same layer override as peb-sd-sprofile: the light panel is the SAME PROFILE in a
+  ;; different material (owner 3-Sep-2026), so it calls this very function and only needs the
+  ;; result on its own layer. Unset -> SHEETING, exactly as before.
+  (setvar "CLAYER" (if (and (boundp '*PEB-SPROF-LAYER*) *PEB-SPROF-LAYER*)
+                     *PEB-SPROF-LAYER* "SHEETING"))
   (setq k (/ cov 470.0))            ; scale his section to the caller's module
   (setq i 0)
   (while (< i n)
@@ -2893,8 +2913,19 @@
 ;; Replaces the previous version, which reused the single-skin S profile at 250 pitch and
 ;; 35 rib on top of the core. A sandwich's outer face is NOT the S profile: it is this
 ;; 184-module 32 rib, and the two look plainly different on the page.
+;; ---- the sandwich module, ONE source (rule 3) ------------------------------
+;; Declared here beside the drawer that owns the profile, the way peb-sheet-rib-pitch is declared
+;; beside the S profile. Read by peb-sd-sandwich below AND by any component clad in sandwich panel
+;; (Library/sliding_door — the leaf infill on MSPL-027 and MSPL-030 is sandwich panel), so the
+;; door leaf and the wall beside it can never disagree about what a sandwich panel looks like.
+(defun peb-sandwich-module () 184.0)   ; crown to crown
+(defun peb-sandwich-rib    ()  32.0)   ; rib width at the crown, and its height above the core
+(defun peb-sandwich-lap    ()  16.0)   ; the half-rib that laps the next panel
+
 (defun peb-sd-sandwich (x0 y0 n pit ht thk / i x w mod rib crown flat lap top)
-  (setq mod 184.0 rib 32.0 crown 32.0 flat 106.0 lap 16.0)
+  (setq mod  (peb-sandwich-module) rib (peb-sandwich-rib) crown (peb-sandwich-rib)
+        lap  (peb-sandwich-lap)
+        flat 106.0)                    ; the flat between ribs; 16 at each end laps the next panel
   (setq top (+ y0 thk))
   (setq w (+ (* n mod) lap))                       ; n modules plus the closing lap
   (setvar "CLAYER" "SHEETING")
@@ -3046,7 +3077,9 @@
 (defun peb-sd-panel (ox y lock ttl mat fin col ptype thk / pit ht cov panW gA sand dep)
   ;; ONE panel detail: the section, its rib/pitch dimensions, the cover dimension,
   ;; and that panel's OWN specification off the BSF.
-  (setq pit 250.0 ht 35.0 cov 470.0 panW 1000.0)   ; 470 = gola c/c per MSPL fabrication BOQs
+  ;; pit/ht from the shared accessors above, so the panel section and every component that
+  ;; reuses the profile cannot drift apart.
+  (setq pit (peb-sheet-rib-pitch) ht (peb-sheet-rib-height) cov 470.0 panW (peb-sheet-cover))   ; 470 = gola c/c per MSPL fabrication BOQs
   (setq sand (and (> thk 0.0) (vl-string-search "SANDWICH" (strcase ptype))))
   ;; The title clears the panel by its ACTUAL depth — a 50 mm sandwich core is deeper
   ;; than a 35 mm rib, and a fixed offset put the title straight through it.
