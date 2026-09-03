@@ -2213,6 +2213,76 @@ The same reading applies to any future opening on this sheet — a lift well, a 
 hole interrupts the members where it actually is, and nowhere else.
 
 
+### 4B.61 A main frame line takes a letter; an infill post takes a prime
+
+**Owner, 3-Sep-2026:** *"Bubble of dimension should be based on post columns & in case the main
+columns are not aligned, then use A′, B′ like this."*
+
+The width grid every sheet letters is the **merged** one — the width-module lines (the multi-span
+frame columns) plus the end-wall and mezzanine posts between them. Lettering it straight through
+gives every station equal billing, so a reader cannot tell a primary frame line from a wind post,
+and the two take different connections.
+
+> A station that **is** a width-module line takes a **plain letter**. A post that is **not** takes
+> the **primed** letter of the main line above it.
+>
+> ```
+>  A     A′     B     B′     C     C′     D     D′     E     E′     F
+>  0   7,620 15,240 22,860 30,480 38,100 45,720 53,340 60,960 68,580 76,200
+> ```
+
+The prime carries the distinction without a second bubble shape — a different bubble for a post
+would put the set straight back into *"the bubbles are not the same"*.
+
+`peb-width-mark` / `peb-width-marks` (`MAIMAAR_PEB_Plan.lsp`), asked by the column layout plan,
+both framing elevations, both sheeting elevations and the cross section. **One producer**: a line
+cannot be marked one way on one sheet and another way on the next (4B.8). Skip-I comes free from
+`peb-grid-letter`, and A stays at the far side wall (4B.34).
+
+Straight-counting was also plainly wrong before the primes existed: the count included the posts,
+so the near wall read **K** on the elevation where the plan said **F**.
+
+---
+
+### 4B.62 One bubble, one arrowhead, one dimension voice
+
+**Owner, 3-Sep-2026:** *"Syn all the bubbles and also dimension follow the dimensions placement
+rule in all drawings."* Both audits found the same shape of problem: a written standard, and
+almost nothing obeying it.
+
+**Bubbles — six radii became one.** 4B.31's `720 × TEXT-SCALE` is the rule; the engine had
+`620×sc` on the mezzanine plan, `1100×TS` capped at 0.30 of a bay on the four framing views,
+`380×TS` on the cross section, a `0.48×minSp` shrink on the roof plan, and — worst — the wall
+elevations reading `*PEB-BUBRAD*` without ever setting it, so their bubble size was **whatever
+sheet rendered before them**. Every sheet now asks `peb-bub-r` (Standard.lsp) and none inherits.
+Both shrink rules are gone: crowding is answered by the **stagger**, never by shrinking, because
+the bubble and the gap shrink together. The cross section's own plain-circle drawer is retired —
+it drew a second kind of bubble into the same set.
+
+**Arrowheads — four sizes and two styles became one.** The cross section drew its dimension heads
+as a filled triangle (`PLINE` + `HATCH SOLID`) against the 19-Jul rule, while the *same file's*
+monitor dims drew them open. Every dimension arrowhead in the set is now the OPEN `240/85` V.
+Leader and callout heads stay **filled** — that is the other half of the rule.
+
+**Feet belong on the OVERALL extent, not on every dimension.** 3.8b reads as "mm + ft-in
+everywhere"; 4B.11 and 4B.14 are narrower, and they are right. Putting `[ft'-in"]` on every
+dimension of a 6 m-wide view ran the labels into each other, and 4B.14's own example shows a
+derived value bare — *"no ft needed"* — because General Note 1 already states every dimension is
+in millimetres. Overall length, width, height carry feet. Nothing else does.
+
+**A dimension is not a heading.** The staircase sheet drew its dimensions through `txt-bold` —
+PEB-TITLE at heading weight — on an ad-hoc `STAIR-TEXT` layer that is in neither `*PEB-LAYERS*`
+nor `PEB_LAYERS.csv`. ROMAND was never the question; *which ROMAND style* was. Dimensions go in
+`PEB-DIM` at normal weight on the `DIMENSIONS` layer, like every other sheet.
+
+**And the trap underneath all of it.** A gap that exists to clear TEXT must be computed from that
+text's height (4B.27). The staircase sheet placed its labels in multiples of `u`, its geometry
+unit, so enlarging the lettering moved the text and not the gaps: every label collided and the
+auto-fit dropped the sheet from 1:143 to 1:182, handing back most of the gain. Raising a text
+size is never a one-number change unless the gaps are already expressed in it.
+
+---
+
 ---
 
 ## STAIRCASE — the Mammut convention, harvested 1-Sep-2026

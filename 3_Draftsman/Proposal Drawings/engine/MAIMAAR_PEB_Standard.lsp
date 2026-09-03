@@ -210,12 +210,12 @@
 ;;    / "ALAM" dimstyles).  Consumed by setup-maimaar-dim in the Plan engine.
 ;;    DIMTXT x DIMSCALE should plot ~300-1100 mm.
 ;; ---------------------------------------------------------------------------
-(setq *PEB-DIM-PARAMS*
-  '((DIMTXT . 600.0) (DIMASZ . 600.0) (DIMEXE . 100.0) (DIMEXO . 100.0)
-    (DIMGAP . 10.0)  (DIMDEC . 0)     (DIMFONT . "romans.shx")))
-
-(defun peb-dimp (sym / p)
-  (if (setq p (assoc sym *PEB-DIM-PARAMS*)) (cdr p) nil))
+;; *PEB-DIM-PARAMS* and peb-dimp were DELETED (3-Sep-2026).  A table of DIMTXT/DIMASZ/DIMEXE/
+;; DIMGAP values that nothing read - `peb-dimp` had no callers anywhere in the engine - sitting in
+;; the file that calls itself the single source of truth for how a drawing LOOKS.  It also named
+;; romans.shx, contradicting the universal ROMAND rule twelve lines below it.  A stale standard
+;; that nothing enforces is worse than none: the next person to read this file would have taken
+;; it for the answer.  The numbers that ARE used live with the drawers that use them.
 
 ;; ---------------------------------------------------------------------------
 ;; 6) HELPERS  —  linetype loader, layer materialiser, text styles, one-shot setup
