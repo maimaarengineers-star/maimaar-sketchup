@@ -50,7 +50,7 @@ reviewable diff, not a merge.
 | Component | Folder | State |
 |---|---|---|
 | Sky lights & wall lights | `skylights_and_wall_lights/` | drawer + section + sample done and verified; seam-lock sky light drawn at the corrected 484 cover but webs still straight and the stiffener tube not drawn; not yet synced into the building drawings |
-| Louver | `louver/` | **in progress on another terminal** - `MAIMAAR_PEB_Louver.lsp` |
+| Louver | `louver/` | **drawers built and rendering** (`MAIMAAR_PEB_Louver.lsp`). Fixed, adjustable and sand-trap from one drawer, at ANY size - the framed opening, blade count, girt span and free area are all derived, and the manual's own worked example (73.4 m2 -> 210 louvers) reproduces from the formulas. Elevation split by a diagonal break, mesh one side / blades the other, as the reference draws it. Reference = Technical Manual Section 13.8, chosen after scanning the whole job archive (1,873 DWG/DXF + 24,526 PDFs) found NO Maimaar wall-louver detail. `LV_*` keys emitted by `drawingData.ts`; `LOUVER` added to `PEB_LAYERS.csv`. NOT yet synced into the building drawings. |
 | Sliding door | `sliding_door/` | **drawers built and rendering** (`MAIMAAR_PEB_SlidingDoor.lsp`). SSD and DSD from one drawer; plan symbol TRACED from the approval sheet Maimaar issues; sample is a DSD 6000 x 6000 - the manual's own worked case - in ~18 s. Reference dug from the whole job archive (29,287 PDFs, 2,297 DWGs, 2016-2026) + the manual's jamb chapter. NOT yet synced into the building drawings. |
 
 > **CLOSED, 3-Sep-2026.** `SLIDING DOOR,30,Continuous,0.50` is now in
