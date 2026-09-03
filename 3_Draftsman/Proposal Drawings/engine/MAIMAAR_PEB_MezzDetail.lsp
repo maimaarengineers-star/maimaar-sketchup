@@ -1041,7 +1041,7 @@
   ;; owner asked for "no need to show much details".
   ;; ---- M-LADDERS: the build-up named, with its true figures ----------------
   (setq above (list (list (+ x0 (* pit sc 0.45)) (+ yb sRib (* sThk 0.5))
-                          (strcat (rtos thk 2 0) " mm R.C. SLAB - PER IF / BSF"))
+                          (strcat (rtos thk 2 0) " mm R.C. SLAB - AS PER BUILDING SPECIFICATION"))
                     (list (+ x0 (* pit sc 1.55)) (+ yb (* sRib 0.5))
                           (strcat (rtos *MZD-DECK-GAUGE* 2 2)
                                   " mm PROFILED STEEL DECK  |  "
@@ -1117,11 +1117,11 @@
     (list (mzd-row "F.F.L. MEZZANINE"
                    (if (mzd-g g "FFL-OK")
                      (mzd-mm (mzd-g g "FFL"))
-                     "NOT STATED ON THE BSF"))
+                     "NOT STATED"))
           (mzd-row "CLEAR HEIGHT UNDER BEAM"
                    (if (mzd-g g "CHB-OK")
                      (mzd-mm (mzd-g g "CHB"))
-                     "NOT STATED ON THE BSF"))
+                     "NOT STATED"))
           (mzd-row "MAIN BEAM DEPTH"
                    (strcat (mzd-mm (mzd-g g "BD"))
                            (if (mzd-g g "BD-OK") "" "   (INDICATIVE)"))))))
@@ -1156,13 +1156,14 @@
 ;; ended, and the enlarged floor build-up sat on top of "...REINFORCEMENT & CONNECTIONS".
 ;; One list, read by the drawer and by the measurer.
 (defun mzd-note-lines ( )
-  ;; Note 3 is BROKEN SHORTER than it reads in prose.  At 75 characters it was the longest
+  ;; Notes 2 and 3 are BROKEN SHORTER than they read in prose.  At 75 characters it was the longest
   ;; string on the sheet by a wide margin, and it is the string the notes COLUMN is measured
   ;; from - so the small per-character error in an estimated width was multiplied 75 times and
   ;; VIEW B landed on the end of it.  Wrapped at the comma, no line is long enough for the
   ;; estimate to drift that far, and three short lines read better on A4 than two long ones.
   (list "1.  ALL DIMENSIONS ARE IN MM."
-        "2.  LEVELS, FLOOR SYSTEM & LOADS ARE AS STATED IN THE IF / BSF."
+        "2.  LEVELS, FLOOR SYSTEM & LOADS ARE AS STATED"
+        "     IN THE BUILDING SPECIFICATION."
         "3.  INDICATIVE PROPOSAL DRAWING - MEMBER SIZES,"
         "     REINFORCEMENT & CONNECTIONS PER THE APPROVAL"
         "     DRAWING.  NOT FOR CONSTRUCTION."))
@@ -1238,7 +1239,7 @@
   (setq laneR (mzd-lane (list (mzd-floor-label sys thk)
                               (mzd-beam-label g)                            ; see mzd-beam-label
                               "STEEL JOISTS  -  SPACING AS PER DESIGN"      ; 4B.49
-                              (strcat (rtos thk 2 0) " mm R.C. SLAB - PER IF / BSF"))))
+                              (strcat (rtos thk 2 0) " mm R.C. SLAB - AS PER BUILDING SPECIFICATION"))))
   ;; ---- horizontal layout ---------------------------------------------------
 ;; THE LANE IS MEASURED TO THE DECK, NOT TO THE COLUMN (owner 3-Sep-2026).  VIEW A's floor
   ;; oversails its end columns by 0.16 of a bay and its ground line by 0.26 - a mezzanine has an
@@ -1303,7 +1304,7 @@
   ;; longer note, and the sheet has the width to spare: there is nothing to its right.
   (setq c1 ox
         c2 (+ c1 dataW (* th 4.0)))
-  (setq yD (mzd-panel c1 bandY "MEZZANINE DATA  -  PER IF / BSF" rows))
+  (setq yD (mzd-panel c1 bandY "MEZZANINE DATA  -  AS PER BUILDING SPECIFICATION" rows))
   (setq yN (mzd-notes c2 bandY))
   ;; ---- sheet heading, clear below everything, centred on the REAL sheet -----
   ;; The right edge is MEASURED off the widest thing the right column actually
@@ -1315,7 +1316,7 @@
                    (+ c2 notesW)
                    (+ ox (* *MZD-DECK-PITCH* sc 3.0) (* th 1.8)
                       (mzd-lane (list (strcat (rtos thk 2 0)
-                                              " mm R.C. SLAB - PER IF / BSF")
+                                              " mm R.C. SLAB - AS PER BUILDING SPECIFICATION")
                                       (strcat (rtos *MZD-DECK-GAUGE* 2 2)
                                               " mm PROFILED STEEL DECK  |  "
                                               (rtos *MZD-DECK-RIB* 2 0) " RIB @ "
