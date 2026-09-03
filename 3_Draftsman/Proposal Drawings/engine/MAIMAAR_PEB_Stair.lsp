@@ -1976,7 +1976,16 @@
            (if data (peb-draw-stair-sheet data))))
   (princ))
 
-(defun peb-stair-from-file (path / prev-last prev-max-x)
+;; `stairNo` selects WHICH staircase this sheet draws (1-4).  nil or 0 keeps the historic
+;; draw-them-all fallback, which is right for a job with a single stair.
+;;
+;; peb-draw-stair-sheet has honoured *PEB-STAIR-ONLY* since it was written - "ONE STAIRCASE PER
+;; SHEET ... four stairs, each with a plan AND an elevation, forced the sheet to 1:487, every
+;; label a smudge" - but nothing ever set it.  So 279-26's two stairs stacked onto one sheet at
+;; 1:289 and the owner could not read it: "staircase detail page is not so visible".  The
+;; renderer now asks for one sheet per staircase and this is where the ask arrives.
+(defun peb-stair-from-file (path stairNo / prev-last prev-max-x)
+  (setq *PEB-STAIR-ONLY* (if (and stairNo (numberp stairNo) (> stairNo 0)) stairNo nil))
   (if (not *PEB-TEXT-SCALE*) (setq *PEB-TEXT-SCALE* 1.0))
   (if (not *PEB-DIM-SCALE*)  (setq *PEB-DIM-SCALE* 1.0))
   (setq prev-last (entlast))
@@ -1988,6 +1997,7 @@
   (setq *PEB-DATA-FILE* path)
   (C:PEB-STAIR)
   (setq *PEB-DATA-FILE* nil)
+  (setq *PEB-STAIR-ONLY* nil)          ; never leak the selection into the next sheet
   (if (boundp 'peb-tile-place)
     (vl-catch-all-apply (function (lambda () (peb-tile-place prev-last prev-max-x)))))
   (princ))
