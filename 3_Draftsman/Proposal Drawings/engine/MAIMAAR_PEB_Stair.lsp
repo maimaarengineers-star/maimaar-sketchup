@@ -35,6 +35,26 @@
 ;; degree pitch instead of 32.  Everything downstream - flight length, footprint, how many
 ;; landings the international rule demands - is derived from these two numbers, so they are the
 ;; only place a job standard needs to change.
+;; ---- THE STAIR SHEET'S TEXT HEIGHT  (owner 3-Sep-2026) -----------------------------------
+;; "enlarge the staircase labelling text, still not visible properly."
+;;
+;; Every drawer on this sheet sized its text as `u * 1.6`, where u is the stair WIDTH over 12 -
+;; 100 mm on a 1,200 stair, so 160 model units of text.  At the sheet's own 1:143 that plots at
+;; 1.1 mm: under half the 2.5 mm the rest of the set uses, and below the size a printed A4 can
+;; hold at all.  The stair was sizing its lettering off the stair instead of off the sheet -
+;; rule 4B.1, the one fault this engine keeps repeating.
+;;
+;; One factor, one place - and it is still 1.6 TODAY, on purpose.  Raising it alone makes the
+;; sheet WORSE, which is worth recording: at 3.5 the text grew but every gap around it did not,
+;; because this sheet positions its labels in multiples of `u` - "5400 FLIGHT RUN" ran into
+;; "1200 LANDING", the floor names ran into PLAN and ELEVATION, and the bigger extents dropped
+;; the auto-fit from 1:143 to 1:182, so most of the gain was handed straight back.
+;;
+;; Rule 4B.27 is the answer: a gap that exists to clear TEXT must be computed from that text's
+;; height, never from a number that happened to suit one size.  So the enlargement lands with
+;; the label-gap rework, not before it - and when it does, it changes here, once.
+(defun peb-stair-th (u) (* u 1.6))
+
 (defun peb-stair-going () 300.0)   ; TREAD
 (defun peb-stair-rise  () 150.0)   ; RISER
 
@@ -328,7 +348,7 @@
 (defun peb-stair-plan (ox oy wdt hgt topl midl lbl trd pfl /
                        u th going fl nf lw tlw y0 y1 x xa xcur i k n ytxt r xs xe)
   (setq u     (max 60.0 (/ wdt 12.0))
-        th    (* u 1.6)
+        th    (peb-stair-th u)
         going (peb-stair-going)
         fl    (peb-stair-flights hgt)          ; risers per flight, already divided equally
         nf    (length fl)
@@ -487,7 +507,7 @@
 (defun peb-stair-plan-u1 (ox oy wdt f1 f2 well dep topl sub startland towerout /
                           u th going run1 run2 lw yb0 yb1 yt0 yt1 xa xb xL xc i n x xout)
   (setq u     (max 60.0 (/ wdt 12.0))
-        th    (* u 1.6)
+        th    (peb-stair-th u)
         going (peb-stair-going)
         lw    (peb-stair-landing-w wdt)         ; full-landing width, along the climb
         run1  (* going f1)
@@ -752,7 +772,7 @@
                           u th going run1 run2 lw
                           x0 x1 xb yb0 yb1 yt i n x y ytxt r xlo xhi ylo yhi)
   (setq u     (max 60.0 (/ wdt 12.0))
-        th    (* u 1.6)
+        th    (peb-stair-th u)
         going (peb-stair-going)
         lw    (max 900.0 wdt)                  ; top-landing width
         run1  (* going f1)
@@ -900,9 +920,9 @@
 
 (defun peb-stair-elev (ox oy wdt hgt topl midl lbl trd shp /
                        u th going fl nf lw tlw hr1 hr2 rise dir ybase xnext
-                       xa xcur ycur i k n x y xs xe ys ye ytxt hmid xmid xlo xhi lvls)
+                       xa xcur ycur i k n x y xs xe ys ye ytxt hmid xmid xlo xhi lvls xrcc)
   (setq u     (max 60.0 (/ wdt 12.0))
-        th    (* u 1.6)
+        th    (peb-stair-th u)
         going (peb-stair-going)
         fl    (peb-stair-flights hgt)       ; the SAME split the plan used - one rule, two views
         nf    (length fl)
@@ -1051,10 +1071,9 @@
   (peb-stair-col-elev (+ xlo (/ (peb-stair-col-d) 2.0)) ybase col-height)
   (peb-stair-col-elev (- xhi (/ (peb-stair-col-d) 2.0)) ybase col-height)
 
-  (peb-comp-layer "STAIR-TEXT" 7)
-  (entmake (list (cons 0 "LINE") (cons 8 "STAIR-TEXT")
-                 (list 10 xcur ycur 0.0) (list 11 (+ xcur (* u 4.0)) ycur 0.0)))
-  (peb-stair-note-r (+ xcur (* u 4.0)) ycur (+ xcur (* u 4.5)) th "MEZZANINE LEVEL")
+  ;; The "MEZZANINE LEVEL" leader that stood here is GONE (owner 3-Sep-2026).  It printed at the
+  ;; same point as the MEZZANINE FLOOR slab label below and the two smeared into each other; the
+  ;; slab label says it, and the numeric level marker to the right measures it.
   ;; The columns are NAMED on the section, which owns the part names - repeating the label here
   ;; broke that rule and, being forty characters hung off the left edge, dragged the sheet
   ;; extents 7 m further left and cost the whole drawing a scale step for one duplicate word.
@@ -1065,29 +1084,36 @@
 
   ;; --- CONCRETE FLOOR SYMBOLS at ground and mezzanine levels
   (peb-comp-layer "STAIR-LANDING" 3)
+  ;; -- THE RCC FLOOR IS TRIMMED AT THE STAIRCASE (owner 3-Sep-2026) --------------------
+  ;; "the RCC floor was extended to staircase, it should be trim at the last step of
+  ;; staircase."  Both slabs ran to `xa + 800` - 800 mm PAST the foot of the flight - so the
+  ;; concrete was drawn under the first step, through the very riser it is supposed to stop at.
+  ;; A floor does not continue into a stairwell; it stops where the stair starts.
+  ;;   ground floor  -> the FIRST step, which is xa: the flight springs from there.
+  ;;   mezzanine     -> the LAST step, the head.  The deck run drawn at the head already moved
+  ;;                    xcur out by dir*lw, so the head is xcur back-tracked by that.
+  (setq xrcc xa)
   ;; Ground level concrete (F.F.L)
-  (peb-comp-poly (list (list (- xlo (* u 3.0)) (- oy 100.0)) (list (+ xa 800.0) (- oy 100.0))
-                             (list (+ xa 800.0) oy) (list (- xlo (* u 3.0)) oy)))
+  (peb-comp-poly (list (list (- xlo (* u 3.0)) (- oy 100.0)) (list xrcc (- oy 100.0))
+                             (list xrcc oy) (list (- xlo (* u 3.0)) oy)))
   ;; Concrete hatch pattern at ground
   (foreach i (list (* u 0.5) (* u 1.0) (* u 1.5) (* u 2.0))
     (entmake (list (cons 0 "LINE") (cons 8 "STAIR-LANDING")
                    (list 10 (- xlo (* u 3.0)) (- oy (- i 100.0)) 0.0)
-                   (list 11 (+ xa 800.0) (- oy (- i 100.0)) 0.0))))
-  (setvar "CLAYER" "STAIR-TEXT")
-  (txt-bold "BL" (list (- xlo (* u 3.0)) (- oy 130.0))
-            (/ th (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0.0 "GROUND FLOOR")
+                   (list 11 xrcc (- oy (- i 100.0)) 0.0))))
+  (peb-stair-floor-mark (- xlo (* u 3.0)) oy th "GROUND FLOOR" -1 (+ 100.0 (* u 2.0)))
 
+  ;; Mezzanine level concrete — trimmed at the HEAD, the last step (see above)
+  (setq xrcc (- xcur (* dir lw)))
   ;; Mezzanine level concrete
-  (peb-comp-poly (list (list (- xlo (* u 3.0)) ycur) (list (+ xa 800.0) ycur)
-                             (list (+ xa 800.0) (+ ycur 100.0)) (list (- xlo (* u 3.0)) (+ ycur 100.0))))
+  (peb-comp-poly (list (list (- xlo (* u 3.0)) ycur) (list xrcc ycur)
+                             (list xrcc (+ ycur 100.0)) (list (- xlo (* u 3.0)) (+ ycur 100.0))))
   ;; Concrete hatch pattern at mezzanine
   (foreach i (list (* u 0.5) (* u 1.0) (* u 1.5) (* u 2.0))
     (entmake (list (cons 0 "LINE") (cons 8 "STAIR-LANDING")
                    (list 10 (- xlo (* u 3.0)) (+ ycur i) 0.0)
-                   (list 11 (+ xa 800.0) (+ ycur i) 0.0))))
-  (setvar "CLAYER" "STAIR-TEXT")
-  (txt-bold "TL" (list (- xlo (* u 3.0)) (+ ycur 130.0))
-            (/ th (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0.0 "MEZZANINE FLOOR")
+                   (list 11 xrcc (+ ycur i) 0.0))))
+  (peb-stair-floor-mark (- xlo (* u 3.0)) ycur th "MEZZANINE FLOOR" 1 (+ 100.0 (* u 2.0)))
 
   ;; --- LABELLING: the LEVELS carry this view, nothing else needs to.
   ;; A reader of an elevation wants to know how high each landing is and where it meets the
@@ -1136,6 +1162,36 @@
   (setvar "CLAYER" "STAIR-TEXT")
   (txt-bold "BL" (list (+ x (* t2 3.0)) (+ y (* t2 0.35)))
             (/ t2 (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0.0 s))
+
+;; ---- A NAMED FLOOR CARRIES THE LEVEL SYMBOL  (owner 3-Sep-2026) -------------------------
+;; "modify as marked - show the levels."  The mezzanine line on the elevation had TWO labels
+;; landing on the same point - a "MEZZANINE LEVEL" leader note and the "MEZZANINE FLOOR" slab
+;; label - printed one on top of the other into an unreadable smear, and neither of them was a
+;; level MARK.  The leader is gone (it said nothing the slab label does not) and the slab label
+;; now carries the same downward triangle the numeric levels use, so a named floor and a
+;; dimensioned level read as the same kind of thing.
+;;
+;; The text runs RIGHT from the mark, not left: a long string hung off the left edge is what
+;; once dragged the sheet extents 7 m out and cost the whole drawing a scale step.
+(defun peb-stair-floor-mark (x y th name dir clear / t2 yl ytx)
+  ;; `dir` is +1 when the slab's ink lies BELOW y (the mezzanine, whose concrete and hatch run
+  ;; upward from it) and -1 when it lies ABOVE (the ground floor).  `clear` is how far that ink
+  ;; reaches, so the mark is placed past it: the first pass at this put the text at the floor
+  ;; line itself and the concrete hatch struck straight through every letter.
+  ;; The triangle points AT the floor line; the level line and text sit clear of the slab.
+  (setq t2  (* th 0.85)
+        yl  (+ y (* dir (+ clear (* t2 1.3))))
+        ytx (if (> dir 0) (+ yl (* t2 0.35)) (- yl (* t2 1.15))))
+  (peb-comp-layer "STAIR-TEXT" 7)
+  (entmake (list (cons 0 "LINE") (cons 8 "STAIR-TEXT")
+                 (list 10 x yl 0.0) (list 11 (+ x (* t2 7.5)) yl 0.0)))
+  (entmake (list (cons 0 "SOLID") (cons 8 "STAIR-TEXT")
+                 (list 10 (+ x (* t2 1.0)) (+ yl (* dir t2 1.1)) 0.0)
+                 (list 11 (+ x (* t2 2.6)) (+ yl (* dir t2 1.1)) 0.0)
+                 (list 12 (+ x (* t2 1.8)) yl 0.0) (list 13 (+ x (* t2 1.8)) yl 0.0)))
+  (setvar "CLAYER" "STAIR-TEXT")
+  (txt-bold "BL" (list (+ x (* t2 3.2)) ytx)
+            (/ th (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0.0 name))
 
 ;; A sloping member of depth `d`, drawn as a closed band from (x0,y0) to (x1,y1).
 (defun peb-stair-slab (x0 y0 x1 y1 d)
@@ -1521,7 +1577,7 @@
 (defun peb-stair-collayout (ox oy wdt hgt lbl /
                             u th fl going lw run1 xa xL yb0 yb1 dep well y out)
   (setq u     (max 60.0 (/ wdt 12.0))
-        th    (* u 1.6)
+        th    (peb-stair-th u)
         fl    (peb-stair-flights hgt)
         going (peb-stair-going)
         lw    (max 900.0 wdt)
