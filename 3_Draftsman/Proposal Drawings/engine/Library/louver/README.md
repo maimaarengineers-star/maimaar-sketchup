@@ -145,14 +145,35 @@ estimator prices them; they are resolved to **one** set of drawing keys there �
 `LV_TYPE`, `LV_W`, `LV_H`, `LV_MAT`, `LV_COLOR`, `LV_SCREEN`, `LV_WALLS`, `LV_MODE`,
 `LV_PER_BAY` — so the LISP never compares a card name. The BSF computes, the drawing reads.
 
-## Status — NOT yet synced into the building drawings
+## Status — SYNCED, and drawing on MSPL-26-266
 
-The drawers are built, verified against the reference, and `lispcheck` is clean. Still to do,
-the three edits in `../README.md`:
+All three sync edits are done, and the louvers now draw in the brickwall on both side-wall
+elevations (PRO-03 framing and PRO-05 sheeting).
 
-1. the `(load …)` line in `loadLines`, `services/drawingData.ts`;
-2. the case in the `PL*_TYPE` placement dispatch in `MAIMAAR_PEB_Elevation.lsp`;
-3. the placement **rule** on the BSF side (`geometryRules.js`) — a louver's default sill, which
-   today the elevation guesses at 900 for anything that is not a door.
+1. `(load …)` — added to `loadLines` in `services/drawingData.ts`. **`scripts/renderOneSheet.js`
+   kept its own copy of that list and had no library on it at all**, so a sheet rendered through
+   the harness drew no library component while production drew one. It now reads the `Library/`
+   folder instead of holding a second list that can drift.
+2. The dispatch — `peb-fr-open-sill` / `peb-fr-open-ht` / `peb-fr-draw-opening` in
+   `MAIMAAR_PEB_Framing.lsp`. Both wall elevations drew **every** framed opening as a box from
+   the wall base to `0.72 × eave height`, so on 266 all twelve louvers and all twelve windows
+   plotted at `0 → 4662.6`: a 914-high louver came out a 4.66 m tall rectangle standing on the
+   floor. `PL*_SILL` and `PL*_HEIGHT` were in the data the whole time and nothing read them.
+   Now: louvers `2134 → 3048`, windows `3962 → 5486`, the door `0 → 3658`.
+3. The placement rule — nothing to add. 266 already stores sill 2134 against a 914 louver and a
+   3048 brickwall, and `2134 + 914 = 3048` puts the head exactly on top of the brickwork. A
+   `geometryRules.js` default that *derives* that (`sill = brick − height`, the brick-line twin
+   of the light panel's `sill = clear − length`) is still worth adding so a louver typed on a new
+   job lands there without anyone typing it.
 
-Then render one real building and diff it against the previous PDF.
+Two things the real sheet taught, both now in the drawer:
+
+- **Blade density follows the plot, not the product.** At the elevation's 1:259 the traced 100
+  pitch is 0.39 mm on paper, nine blade pairs merged, and every louver plotted a **solid black
+  block** (golden rule 5: a dense fill reaches the customer black). Below ~1.5 plotted mm the
+  drawer falls back to an indicative 4 strokes. The traced pitch still governs the detail and
+  still governs AEFF — only what is legible at that scale changes.
+- **A framed opening is a hole.** The brick hatch ran straight through the louver, coursing
+  visible between the blades. A guarded `WIPEOUT` over the framed opening masks it, the same
+  device and guard the brick-height label already uses, drawn before the louver so it hides the
+  fill and nothing after it.

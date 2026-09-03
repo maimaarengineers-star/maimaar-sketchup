@@ -238,10 +238,30 @@
 ;;  it, the screen to the left, so the two never sit on top of each other. nil draws blades
 ;;  across the whole opening (what a band on a wall elevation wants, where there is no room
 ;;  to show a screen anyway).
-(defun peb-lv-blades (x0 y0 w h kind brk / lay lw pit fac i n a b xs ys)
+;;  BLADE DENSITY FOLLOWS THE PLOT, NOT THE PRODUCT.
+;;
+;;  `ind` draws an INDICATIVE 4 strokes instead of every blade. On MSPL-26-266's side wall
+;;  elevation the sheet plots at 1:259, so the traced 100 pitch is 0.39 mm on paper: nine
+;;  blade pairs merge and each louver came out a SOLID BLACK BLOCK. That is golden rule 5 -
+;;  a dense fill reaches the customer black - and no wall elevation ever drawn shows real
+;;  blades anyway. The traced pitch is still what the DETAIL draws and still what AEFF is
+;;  computed from; only what is legible at this scale changes.
+(defun peb-lv-blades (x0 y0 w h kind brk ind / lay lw pit fac i n a b xs ys sp)
   (setq lay (getvar "CLAYER") lw (peb-lv-lw-blade)
         pit (peb-lv-pitch) fac (peb-lv-face)
         n   (peb-lv-openings w h kind) i 0)
+  (if ind
+    (progn
+      (setq n 4 sp (/ (if (eq kind 'SAND) w h) 5.0) i 1)
+      (while (<= i n)
+        (if (eq kind 'SAND)
+          (progn (setq a (+ x0 (* i sp)))
+                 (peb-lv-line a y0 a (+ y0 h) lay lw))
+          (progn (setq a (+ y0 (* i sp))
+                       xs (if brk (+ x0 (car brk) (* (cadr brk) (- a y0))) x0))
+                 (if (< (+ xs 1.0) (+ x0 w)) (peb-lv-line xs a (+ x0 w) a lay lw))))
+        (setq i (1+ i)))
+      (setq n 0 i 0)))
   (if (eq kind 'SAND)
     ;; VERTICAL blades (sand trap). The break runs bottom-left to top-right, so a blade at
     ;; x sits to the RIGHT of it only BELOW the height where the break reaches x — hence
@@ -276,9 +296,15 @@
 ;;  mesh on one side, blades on the other. A DETAIL wants that; a louver drawn 40 mm wide
 ;;  in a band along a 48 m wall does not, so the band passes nil and gets blades edge to
 ;;  edge. The frame and the framed opening are the same either way.
-(defun peb-lv-elev (x0 y0 w h type screened showScreen / kind m lay brk)
+(defun peb-lv-elev (x0 y0 w h type screened showScreen / kind m lay brk ind ts)
   (setq kind (peb-lv-kind type) m (peb-lv-margin) lay (peb-lv-layer)
-        brk  (if (and screened showScreen) (list (* 0.34 w) (/ (* 0.30 w) h)) nil))
+        brk  (if (and screened showScreen) (list (* 0.34 w) (/ (* 0.30 w) h)) nil)
+        ;; *PEB-TEXT-SCALE* is the engine's own "how big is this sheet's subject" factor and
+        ;; every sheet sets it from its own span, so it is the one honest proxy a pure-geometry
+        ;; drawer has for the plot scale. Below ~1.5 plotted mm a blade stops being a line and
+        ;; starts being ink: 420 x ts is that threshold in model units.
+        ts   (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)
+        ind  (< (peb-lv-pitch) (* 420.0 ts)))
   (peb-comp-layer lay (peb-lv-aci))
   ;; the framed opening — the hole the building leaves for it
   (peb-lv-rect (- x0 m) (- y0 m) (+ x0 w m) (+ y0 h m) (peb-lv-lw))
@@ -291,7 +317,7 @@
       (peb-comp-layer lay (peb-lv-aci))
       (peb-lv-line (+ x0 (car brk)) y0
                    (+ x0 (car brk) (* (cadr brk) h)) (+ y0 h) lay (peb-lv-lw-thin))))
-  (peb-lv-blades x0 y0 w h kind brk)
+  (peb-lv-blades x0 y0 w h kind brk ind)
   (princ))
 
 ;; ---------------------------------------------------------------------------

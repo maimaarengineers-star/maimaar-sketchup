@@ -1016,7 +1016,7 @@
                               faceLen stations isEnd base colhw rise ridgeRise
                               i x g yTop pts cx prev braced b x0 x1 y0 y1 lbl bubGap bubR revView hdTxt gMarks
                               prng pi0 pi1 px0 pOfs pnTot
-                              gsp gy cnt pre psurf pat pw mark expr ov noteY
+                              gsp gy cnt pre psurf pat pw ptyp psill ph mark expr ov noteY
                               ewHang hangHt cnt2 gbase
                               p0 p1 sdx sdy slen ux uy nx ny pdep npl jj tt px py rdep owText
                               bc bx0 by0 bx1 by1 owU isRcc hEnt
@@ -1465,14 +1465,21 @@
           pat   (atof (peb-tb-or (MSPL-Get-Str data (strcat pre "AT")) "0"))
           pat   (if revView (- faceLen pat) pat)   ; outside view — see the mirror note
           pw    (atof (peb-tb-or (MSPL-Get-Str data (strcat pre "WIDTH")) "0"))
+          ptyp  (strcase (peb-tb-or (MSPL-Get-Str data (strcat pre "TYPE")) ""))
           mark  (peb-tb-or (MSPL-Get-Str data (strcat pre "MARK")) ""))
     (if (and (= psurf surf) (> pw 0.0))
       (progn
-        (setvar "CLAYER" "OPEN")
-        (command "_.RECTANG" (list (+ ox pat (- (/ pw 2.0))) base)
-                             (list (+ ox pat (/ pw 2.0)) (+ base (* eaveH 0.72))))
+        ;; AT ITS OWN SILL AND HEIGHT, not a fraction of the eave — see peb-fr-open-sill.
+        (setq psill (peb-fr-open-sill data pre ptyp)
+              ph    (peb-fr-open-ht   data pre ptyp))
+        (peb-fr-draw-opening data pre ptyp
+                             (+ ox pat (- (/ pw 2.0))) (+ ox pat (/ pw 2.0))
+                             (+ base psill) (+ base psill ph))
+        ;; the mark goes just ABOVE the opening it names. It used to sit at 0.80 x eave,
+        ;; which for a louver in the brickwork was two metres clear of the thing it labels.
         (setvar "CLAYER" "TEXT")
-        (txt "MC" (list (+ ox pat) (+ base (* eaveH 0.80))) (* 230 *PEB-TEXT-SCALE*) 0 mark)))
+        (txt "MC" (list (+ ox pat) (+ base psill ph (* 420 *PEB-TEXT-SCALE*)))
+             (* 230 *PEB-TEXT-SCALE*) 0 mark)))
     (setq i (1+ i)))
 
   ;; 6b. THE MEZZANINE BEAM, ON THE END WALL  (owner 3-Sep-2026) --------------------------
@@ -1841,6 +1848,60 @@
 ;; Brick/Block -> AR-B816 (light-brick colour); Pre-Cast/RCC/Concrete -> AR-CONC aggregate (grey) w/ manual
 ;; cross-hatch fallback; Access/Glazing/Open -> nothing. Shared by the framing + sheeting elevations. colhw
 ;; insets the fill from the columns (0 for sheeting = full width).
+;; ── AN OPENING'S TRUE SILL AND HEIGHT ──────────────────────────────────────────────────
+;;
+;;  BOTH wall elevations drew EVERY framed opening as a rectangle from the wall base up to
+;;  0.72 x the eave height:
+;;
+;;      (command "_.RECTANG" (list ... base) (list ... (+ base (* eaveH 0.72))))
+;;
+;;  so a 914-high louver sitting inside a 3048 brickwall came out as a 4.66 m tall box
+;;  starting at the floor, and a louver, a window and a personnel door were the same box.
+;;  On MSPL-26-266 all twelve louvers and all twelve windows plotted at 0 -> 4662.6.
+;;
+;;  The BSF has carried PL*_SILL and PL*_HEIGHT the whole time - 266 says sill 2134,
+;;  height 914, and 2134 + 914 = 3048 = exactly the brick height, so the louver head is
+;;  meant to land on top of the brickwork. Nothing read them. These two read them, and the
+;;  defaults are MAIMAAR_PEB_Elevation.lsp:250's, so the three wall views cannot disagree
+;;  about where an opening sits.
+(defun peb-fr-open-sill (data pre ptyp / s)
+  (setq s (atof (peb-tb-or (MSPL-Get-Str data (strcat pre "SILL")) "0")))
+  (if (and (<= s 0.0) (not (vl-string-search "DOOR" ptyp))) 900.0 (max s 0.0)))
+
+(defun peb-fr-open-ht (data pre ptyp / h)
+  (setq h (atof (peb-tb-or (MSPL-Get-Str data (strcat pre "HEIGHT")) "0")))
+  (if (> h 0.0) h (if (vl-string-search "DOOR" ptyp) 3000.0 1200.0)))
+
+;; A LOUVER IS DRAWN AS A LOUVER (golden rule 1: one product, one drawer) by the component
+;; library; everything else keeps the clear rectangle these sheets have always used - only
+;; now at its own sill and height. peb-lv-elev draws the framed opening AND the louver, so
+;; the 22 frame margin and the blade pitch come from the traced Section 13.8 numbers and not
+;; from anything re-derived here.
+;;
+;; showScreen is nil on a wall elevation: the insect-screen mesh is a 120 fill, and twelve
+;; louvers' worth of it at wall scale is a grey smear. The break-and-mesh view belongs on a
+;; detail, where there is room for it.
+(defun peb-fr-draw-opening (data pre ptyp x0 x1 ybot ytop / scr m)
+  (if (and (wcmatch ptyp "*LOUVER*") (boundp 'peb-lv-elev))
+    (progn
+      (setq scr (not (wcmatch (strcase (peb-tb-or (MSPL-Get-Str data "LV_SCREEN") "with"))
+                              "*WITHOUT*"))
+            m   (peb-lv-margin))
+      ;; MASK THE FILL BEHIND IT. A framed opening in brickwork is a HOLE, and the brick hatch
+      ;; was running straight through the louver - coursing visible between the blades. A
+      ;; WIPEOUT hides only what was drawn BEFORE it (see Plan.lsp:6673), and peb-fr-material-fill
+      ;; runs well before this loop, so the mask lands on the brick and on nothing after it.
+      ;; Same device and the same catch guard as the brick-height label's mask above.
+      (vl-catch-all-apply (function (lambda ()
+        (setvar "WIPEOUTFRAME" 0)
+        (command "_.WIPEOUT" (list (- x0 m) (- ybot m)) (list (+ x1 m) (- ybot m))
+                             (list (+ x1 m) (+ ytop m)) (list (- x0 m) (+ ytop m)) ""))))
+      (peb-lv-elev x0 ybot (- x1 x0) (- ytop ybot)
+                   (peb-tb-or (MSPL-Get-Str data "LV_TYPE") ptyp) scr nil))
+    (progn (setvar "CLAYER" "OPEN")
+           (command "_.RECTANG" (list x0 ybot) (list x1 ytop))))
+  (princ))
+
 (defun peb-fr-material-fill (ox base faceLen gbase colhw owText / owU isRcc hEnt bc bx0 by0 bx1 by1)
   (setq owU (strcase owText)
         isRcc (wcmatch owU "*PRE-CAST*,*PRECAST*,*RCC*,*CONCRETE*,*R.C.C*"))
@@ -1877,7 +1938,7 @@
 ;; by others below (synced to the wall condition), the gable/eave outline, openings, grid bubbles + dim chain.
 (defun peb-draw-sheeting-elev (surf ox oy data / len wid slopeD stype rtype eaveH eaveHi eaveLo hiName hiSide
                               wallEave faceLen stations isEnd base rise ridgeRise i g x yTop pts cx prev lbl
-                              bubGap bubR ov gbase owText sp sx cnt pre psurf pat pw noteY owU revView hdTxt
+                              bubGap bubR ov gbase owText sp sx cnt pre psurf pat pw ptyp psill ph noteY owU revView hdTxt
                               prng pi0 pi1 px0 pOfs pnTot gMarks
                               rbOn rbFrom rbTo rbFloor rbBase nLen ewGrid ewRaised rx0 rx1 hasR gbaseR bc sbase sgb)
   (setq len (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
@@ -2098,10 +2159,17 @@
           psurf (strcase (peb-tb-or (MSPL-Get-Str data (strcat pre "SURFACE")) ""))
           pat (atof (peb-tb-or (MSPL-Get-Str data (strcat pre "AT")) "0"))
           pat (if revView (- faceLen pat) pat)      ; outside view — see the mirror note
-          pw (atof (peb-tb-or (MSPL-Get-Str data (strcat pre "WIDTH")) "0")))
+          pw (atof (peb-tb-or (MSPL-Get-Str data (strcat pre "WIDTH")) "0"))
+          ptyp (strcase (peb-tb-or (MSPL-Get-Str data (strcat pre "TYPE")) "")))
     (if (and (= psurf surf) (> pw 0.0))
-      (progn (setvar "CLAYER" "OPEN")
-        (command "_.RECTANG" (list (+ ox pat (- (/ pw 2.0))) base) (list (+ ox pat (/ pw 2.0)) (+ base (* eaveH 0.72))))))
+      (progn
+        ;; AT ITS OWN SILL AND HEIGHT — the same helper the framing elevation uses, so the
+        ;; opening is cut in the sheeting exactly where the framing says it is.
+        (setq psill (peb-fr-open-sill data pre ptyp)
+              ph    (peb-fr-open-ht   data pre ptyp))
+        (peb-fr-draw-opening data pre ptyp
+                             (+ ox pat (- (/ pw 2.0))) (+ ox pat (/ pw 2.0))
+                             (+ base psill) (+ base psill ph))))
     (setq i (1+ i)))
   ;; grid bubbles + title + dim chain (mirror the framing)
   ;; Bubble size: see peb-bub-radius.  900 x TEXT-SCALE tracked the wall's LENGTH,
