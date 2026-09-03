@@ -1389,6 +1389,8 @@
         gbase  (if (and ewHang (> hangHt 0.0)) hangHt (peb-fr-openwall-ht owText))
         gbaseR (peb-fr-seg-openwall-ht owText)                 ; raised-band brick height (compound OW segment)
         gy     (if isEnd (+ base eaveH) (+ base wallEave)))
+  (setq gbase  (peb-fr-brick-clamp gbase  surf data)           ; see peb-fr-brick-clamp
+        gbaseR (peb-fr-brick-clamp gbaseR surf data))
   (if (<= gbaseR 0.0) (setq gbaseR gbase))                    ; no per-segment condition -> reuse the main height
   ;; On the RAISED band the RCC pedestal + brick already carry UP TO the steel base (+rbBase); the brick that
   ;; remains ABOVE the base = (brick-height-from-FFL - rbBase), clamped to 0. When the brick just reaches the
@@ -1659,6 +1661,46 @@
   (setvar "CLAYER" prev)
   (princ))
 
+;; ---- MASONRY STOPS AT THE STEEL IT MEETS  (owner 3-Sep-2026) ----------------------------
+;; MSPL-26-279 states BP_BRICK_HT 5,029 (16'-6") and MZ1_CH_FFL_BEAM 4,877 (16'-0").  Both are
+;; deliberate round imperial figures and BOTH ARE RIGHT - they describe different places.  The
+;; brick dado is 16'-6" where nothing crosses it; the clear height under the mezzanine beam is
+;; 16'-0".  They only conflict on the END WALL, where the mezzanine main beam lies IN the wall
+;; plane: there the brick was drawn straight through 152 mm of steel, and the sheet said H=5,029
+;; under a beam whose soffit it had just drawn at 4,877.
+;;
+;; A mason does not build through a beam.  So where the mezzanine reaches this end wall, the
+;; masonry stops at the beam soffit and the label says which level it stopped at - the drawing
+;; stays buildable and the BSF keeps both of its numbers.  Side walls are untouched: the beams
+;; run INTO them end-on, so the wall is notched at each beam rather than capped.
+;;
+;; Gated on the mezzanine actually reaching THIS end: MZ_GRID_BAY_FROM 1 means it starts at the
+;; LEW, MZ_GRID_BAY_TO at the last grid means it runs to the REW.  A mezzanine that stops short
+;; leaves the brick at its full height, which is what it does on site.
+(defun peb-fr-brick-clamp (gbase surf data / chb gf gt nb)
+  (if (and (> gbase 0.0)
+           (member surf '("LEW" "REW"))
+           (= (strcase (peb-tb-or (MSPL-Get-Str data "MZ_TOGGLE") "")) "YES"))
+    (progn
+      (setq chb (atof (peb-tb-or (MSPL-Get-Str data "MZ1_CH_FFL_BEAM") "0"))
+            gf  (MSPL-Get-Int data "MZ_GRID_BAY_FROM")
+            gt  (MSPL-Get-Int data "MZ_GRID_BAY_TO")
+            nb  (MSPL-Get-Int data "NUMBAYS"))
+      (if (or (null gf) (< gf 1)) (setq gf 1))
+      (if (or (null nb) (< nb 1)) (setq nb 1))
+      (if (or (null gt) (< gt 2))  (setq gt (1+ nb)))
+      (if (and (> chb 100.0) (< chb gbase)
+               (if (= surf "LEW") (<= gf 1) (>= gt (1+ nb))))
+        (setq gbase chb))))
+  gbase)
+
+;; The clamp is invisible unless the label says so: H=4,877 under a stated 16'-6" dado reads as
+;; a mistake until the reader is told the beam is what stopped it.
+(defun peb-fr-brick-note (gbase owText)
+  (if (and (> gbase 0.0) (< gbase (- (peb-fr-openwall-ht owText) 1.0)))
+    "  (TO MEZZ. BEAM SOFFIT)"
+    ""))
+
 ;; Condition label with an opaque WIPEOUT mask behind it so it reads clearly OVER the brick/RCC hatch
 ;; (owner 29-Jul: "the brick masonry height text on the hatching is not clearly visible").  A wipeout plots
 ;; as blank paper (no border when WIPEOUTFRAME 0), hiding the hatch ONLY under the text.  Drawn AFTER the
@@ -1696,7 +1738,8 @@
                    ((wcmatch owU "*RCC*,*R.C.C*,*CONCRETE*") "RCC WALL (BY OTHERS)")
                    ((wcmatch owU "*BLOCK*")                "BLOCKWALL (BY OTHERS)")
                    (T                                      "BRICK WALL (BY OTHERS)"))
-             " - H=" (peb-comma (rtos gbase 2 0)))))
+             " - H=" (peb-comma (rtos gbase 2 0))
+             (peb-fr-brick-note gbase owText))))
 
 ;; Draw ONE wall-face SEGMENT of a FRAMING elevation: dense girts (sheeted zone) + sheeting-base line +
 ;; brick/RCC hatch + the condition label. Factored out of peb-draw-framing-elev (owner 29-Jul) so a wall can
@@ -1790,7 +1833,8 @@
                          ((wcmatch owU "*BLOCK*")                "BLOCKWALL (BY OTHERS)")
                          ((wcmatch owU "*GLAZ*")                 "GLAZING (BY OTHERS)")
                          (T                                      "BRICK WALL (BY OTHERS)"))
-                   " - H=" (peb-comma (rtos gbase 2 0))))))
+                   " - H=" (peb-comma (rtos gbase 2 0))
+                   (peb-fr-brick-note gbase owText)))))
   (princ))
 
 ;; Brick / RCC material fill for a wall zone (0..faceLen x 0..gbase from base), synced to the wall condition.
@@ -1897,7 +1941,7 @@
       (setq stations (reverse (mapcar (function (lambda (ss) (- faceLen ss))) stations)))
       (if isEnd (setq hiSide (not hiSide)))))
   (setq owText (peb-tb-or (MSPL-Get-Str data (strcat "OW_" surf)) "")
-        gbase (peb-fr-openwall-ht owText))
+        gbase (peb-fr-brick-clamp (peb-fr-openwall-ht owText) surf data))   ; see peb-fr-brick-clamp
   ;; RAISED BASE (owner 29-Jul) — mirror the framing so the sheeting elevations SYNC: grids [rbFrom..rbTo]
   ;; sit on an existing RCC floor; the raised band's brick/sheeting starts from +rbBase.
   (setq rbOn    (= (peb-tb-or (MSPL-Get-Str data "BP_RAISED_ON") "0") "1")
