@@ -2458,6 +2458,93 @@ pitch of **2.82 pt** - one riser, 149.44 mm, which is the 150 nominal the equal-
 
 ---
 
+### 4B.70 A dimension too small for its text puts the TEXT outside - or drops the words
+
+**Owner, 3-Sep-2026:** *"Avoid the overriding & fix the dim properly."*
+
+A dimension label was always centred on its dimension, however long the text or short the span.
+`"2690 FULL LANDING HEIGHT"` is twenty-four characters against a 2,690 mm span: at 1:152 the
+string is two and a half times longer than the thing it measures, so it overran both arrows and
+printed across whatever was below. `"1200 LANDING"` beside `"5400 FLIGHT RUN"` printed as one
+word - **`5400 FLIGHT RUN1200 LANDING`**.
+
+Two rules, applied in order:
+
+> **1. Where the text will not fit between the arrows, it goes OUTSIDE them** - past the upper
+> arrow on a vertical, past the right-hand one on a horizontal. That is what a draughtsman does,
+> and it leaves the neighbouring dimension its own room.
+>
+> **2. Where even that will not read, the NESTED-CHAIN rule applies instead: the span that can
+> carry a description carries it; the ones inside it carry values.**
+
+So the staircase elevation reads `5,380 [17'-8"] STAIRCASE HEIGHT` outside and a bare `2690`
+inside; the plan reads `1200 / 5100 FLIGHT RUN / 1200`; and the section reads `2600` with
+`O/O OF STEEL COLUMN (1200 + 200 + 1200)` on the line beneath - the line that has room for it.
+Nothing is lost: the level column beside the stair already prints `+2690MM` against that line.
+
+---
+
+### 4B.71 One text height per sheet - and the blocks are placed by MEASUREMENT, not by constants
+
+**Owner, 3-Sep-2026:** *"Text of stair is too small"* · *"Fix all the labelling of staircase"* ·
+*"Do the best refinement."*
+
+**THE SIZE.** The staircase sheet carried **three** text heights and only one was ever tuned: the
+section lettered at `1.5u`, the step detail at `1.4u`, the rest at `2.2u`. Two of six blocks
+printed a third smaller than everything around them, which is most of "too small" on its own -
+a reader judges a sheet by its smallest legible text. One function (`peb-stair-th`), asked by
+every drawer (4B.9).
+
+**THE PLACEMENT.** Every block sat at a constant number of stair-widths from the plan - 5.5 for
+the section, 10.0 for the layout plan. That holds only while the lettering never changes, and the
+moment the text was raised the sheet folded into itself: the step detail landed inside the base
+plate plan, `SECTION A-A`'s caption printed through the layout plan's. It is 4B.27 at block
+scale - a gap that has to clear TEXT, measured in something other than the text.
+
+> **Blocks are paired by SHAPE and placed by measurement.** The two long-and-low plans on one
+> line, the two tall views on the next, the two small ones under those - which is what keeps the
+> sheet narrow, because three views across a line is what forces the scale down.
+>
+> **And a block is cleared by its EXTENT, not by its origin.** The step detail grows *upward*
+> from the point it is given, so its origin drops by its own height as well as by the section's
+> dimensions above it.
+
+**THE DETAIL THAT WAS SMALLER THAN ITS OWN LABELS.** A step is 300 x 149 - 2 mm by 1 mm at sheet
+scale, while `"300 GOING"` is four times wider than the step it points at and the plate note ten
+times wider. **No amount of moving labels fixes a view smaller than its own lettering: the view
+has to grow.** Drawn x4, with the dimensions still stating the TRUE value (pass a pre-formatted
+string; `peb-stair-dimtext` passes through anything already starting with a digit), so nothing
+reports the drawing's size instead of the steel's.
+
+---
+
+### 4B.72 A column stops at the landing it carries
+
+**Owner, 3-Sep-2026:** *"In case of more landing than 1, columns should reach till landing, not
+in the air"* · *"Remove extending portion & column will go till last mid landing."*
+
+Both column pairs ran to the TOPMOST mid-landing - right for the pair that landing sits on, wrong
+for the other. Landings alternate ends, so on a three-landing stair:
+
+```
+   right-hand pair   carries  +2537  and  +7612     ->  runs to 7,612
+   left-hand pair    carries  +5075                 ->  runs to 5,075
+```
+
+Running the left pair to +7612 as well left 2.5 m of column standing above the last thing it
+holds - the same "column in the air" struck off the one-landing sheet on 1-Sep, one landing
+further up.
+
+> **Count the two ends separately. Landing `i` is at `xhi` for even `i` and `xlo` for odd `i`;
+> each end's columns rise to the highest landing on THAT end, and no further.**
+
+**A trap worth the line it cost.** The first cut used `(> colHi 0.0)` to mean "this end has a
+landing". The elevation is placed at a large NEGATIVE origin - blocks stack downward from the
+plan - so every level is below zero and **every column silently vanished from the sheet**. An
+absolute coordinate is never a flag; use `nil`.
+
+---
+
 ---
 
 ## STAIRCASE — the Mammut convention, harvested 1-Sep-2026
