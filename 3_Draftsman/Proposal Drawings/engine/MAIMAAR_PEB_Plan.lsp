@@ -8186,7 +8186,12 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
         ;; proposal drawing that states 1,250 c/c is read as a commitment, and the spacing is
         ;; settled at design/SAP against the real floor loading. Same reason the mezzanine
         ;; column SECTION size is not shown (owner 12-Jul). What the drawing states, it owes.
-        (txt "MC" (list (/ (+ fx0 fx1) 2.0) (+ (max fy1 wid) (* thS 1.2))) (peb-th 'SMALL) 0.0
+        ;; ...ABOVE the bubble row, not through it (owner 3-Sep-2026).  This sat at 1.2 text
+        ;; heights over the deck edge, which was clear white paper until the bay NUMBERS were
+        ;; synced onto this sheet; the bubbles are centred at fy1 + 3r and the note printed
+        ;; straight across them.  4B.27 again: a gap that has to clear something is measured
+        ;; from that thing - here the bubble radius, so the two move together for ever after.
+        (txt "MC" (list (/ (+ fx0 fx1) 2.0) (+ (max fy1 wid) (* (peb-bub-r) 5.2))) (peb-th 'SMALL) 0.0
              "JOISTS ALONG LENGTH, SPANNING BAY TO BAY - SPACING AS PER DESIGN"))))))
 
   ;; SECONDARY JOISTS — grating / chequered plate only: 100mm double-line flange PERPENDICULAR to the

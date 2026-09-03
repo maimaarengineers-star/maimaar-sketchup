@@ -1132,10 +1132,16 @@
   ;; The columns are NAMED on the section, which owns the part names - repeating the label here
   ;; broke that rule and, being forty characters hung off the left edge, dragged the sheet
   ;; extents 7 m further left and cost the whole drawing a scale step for one duplicate word.
-  ;; LEVEL MARKERS: F.F.L, every landing, and the head - measured from the finished floor.
+  ;; LEVEL MARKERS: the base, every landing, and the head - measured from the finished floor.
   (setq lvls (append lvls (list ycur)))
   (foreach lv lvls (peb-stair-level (+ xhi (* u 1.2)) lv oy th))
-  (peb-stair-note-elbow (+ xa 600.0) oy (- oy (* u 3.2)) (- xlo (* u 7.0)) -1 th "F.F.L")
+  ;; The "F.F.L" elbow that stood here is GONE (owner 3-Sep-2026), for the same reason the
+  ;; "MEZZANINE LEVEL" leader above it went.  ONE level was being named THREE times: this elbow
+  ;; hung off the left edge, the GROUND FLOOR mark with its triangle sat a few millimetres under
+  ;; it, and the numeric marker on the right already reads +0MM.  Three labels crowding one line
+  ;; is not emphasis - the elbow's text ran into the rotated 2,690 dimension beside it, and its
+  ;; leader dragged the sheet extents further left for a word the mark already says.
+  ;; Each fact once: the mark NAMES the level, the marker MEASURES it.
 
   ;; --- CONCRETE FLOOR SYMBOLS at ground and mezzanine levels
   (peb-comp-layer "STAIR-LANDING" 3)
@@ -1241,9 +1247,16 @@
   ;; reaches, so the mark is placed past it: the first pass at this put the text at the floor
   ;; line itself and the concrete hatch struck straight through every letter.
   ;; The triangle points AT the floor line; the level line and text sit clear of the slab.
+  ;; The DROP below the line is not the mirror of the RISE above it (owner 3-Sep-2026).
+  ;; Text grows UPWARD from its baseline, so a mark whose text sits ABOVE the line needs only a
+  ;; gap (0.35), while one whose text sits BELOW it needs the gap PLUS the whole plotted height.
+  ;; Taking 1.15 for both put the level line through the middle of GROUND FLOOR's lettering while
+  ;; MEZZANINE FLOOR, drawn by the same call in the other direction, read perfectly - the classic
+  ;; sign of a gap that was tuned in one direction and mirrored into the other.  2.75 is measured
+  ;; off the plot: this sheet's bold lettering caps out near 2.3 x t2, and 0.35 clears it (4B.27).
   (setq t2  (* th 0.85)
         yl  (+ y (* dir (+ clear (* t2 1.3))))
-        ytx (if (> dir 0) (+ yl (* t2 0.35)) (- yl (* t2 1.15))))
+        ytx (if (> dir 0) (+ yl (* t2 0.35)) (- yl (* t2 2.75))))
   (peb-comp-layer "STAIR-TEXT" 7)
   (entmake (list (cons 0 "LINE") (cons 8 "STAIR-TEXT")
                  (list 10 x yl 0.0) (list 11 (+ x (* t2 7.5)) yl 0.0)))
@@ -1575,8 +1588,13 @@
            s)))
 
 (defun peb-stair-specnote (ox oy wdt typ w hgt trd pfl hrail inmezz / u th y fl nsteps)
+  ;; ONE text height for the whole sheet (owner 3-Sep-2026: "make this text more visible",
+  ;; "overall make the staircase labelling precise").  Every other drawer on this sheet asks
+  ;; peb-stair-th; this block kept its own 1.4u, so after the enlargement the SPECIFICATION -
+  ;; the one block a reader goes to for the riser and the tread - was printing smaller than the
+  ;; labels around it.  A second copy of a size is a second size.
   (setq u  (max 60.0 (/ wdt 12.0))
-        th (* u 1.4)
+        th (peb-stair-th u)
         y  oy
         fl (peb-stair-flights hgt)
         nsteps (apply '+ fl))
