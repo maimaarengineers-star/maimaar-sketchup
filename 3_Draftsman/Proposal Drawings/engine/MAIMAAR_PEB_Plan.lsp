@@ -3788,10 +3788,25 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   (if b0 (list b0 b1)                               ; PRIMARY won -> done
   (progn
   ;; --- FALLBACK: MZ_WIDTH_ANCHOR + MZ_WIDTH_EXTENT (Advanced offset) ---
+  ;; -- A FULL-WIDTH MEZZANINE IS FULL WIDTH (owner 3-Sep-2026) ---------------------------
+  ;; This used to start at `inset` / `wid - inset` - a 1,000 mm cosmetic margin at both side
+  ;; walls - and for a FULL WIDTH deck nothing ever overrode it.  Three things went wrong at
+  ;; once, and only the third was visible:
+  ;;   * the deck stopped 1,000 short of each wall it actually abuts, and the strips left over
+  ;;     were labelled "VOID - NO MEZZANINE" on a mezzanine that has no void;
+  ;;   * grid A..F landed on 1,000..75,200 while the COLUMN LAYOUT PLAN letters the same six
+  ;;     lines at 0..76,200 - two sheets lettering one grid differently, against rule 4B.8;
+  ;;   * and the column chain, which sums to the full 76,200, no longer fitted the band it was
+  ;;     walked across.  peb-mezz-col-ys only walks a chain RAW when it agrees to within 2%;
+  ;;     2,000 / 74,200 is 2.7%, so it missed the guard, rescaled every station by 0.9738, and
+  ;;     printed the estimator's 15,240 module as 14,840 - the exact fault 4B.8 exists to stop,
+  ;;     warned about in the comment directly above the code that did it.
+  ;; The margin was only ever a drawing convenience.  A deck that reaches both side walls is
+  ;; drawn reaching both side walls.
   (setq anc (strcase (peb-tb-or (MSPL-Get-Str data "MZ_WIDTH_ANCHOR") ""))
         ext (MSPL-Get-Num data "MZ_WIDTH_EXTENT")
-        b0  inset
-        b1  (- wid inset))
+        b0  0.0
+        b1  wid)
   ;; The extent is measured FROM THE WALL (y=0 for NSW, y=wid for FSW).  A mezzanine slab ABUTS the
   ;; wall, so the anchored deck runs wall-to-extent and its depth dim then prints the IF's own number.
   ;; (Insetting the wall side drew 11 000 for a 12 m mezzanine — a label that disagrees with the
@@ -3805,7 +3820,7 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                                            b1 (+ b0 ext)))))
   ;; clamp to the building, and never invert
   (setq b0 (max 0.0 b0) b1 (min wid b1))
-  (if (>= b0 b1) (setq b0 inset b1 (- wid inset)))     ; nonsense extent -> fall back to full width
+  (if (>= b0 b1) (setq b0 0.0 b1 wid))                 ; nonsense extent -> fall back to full width
   (list b0 b1))))
 
 ;; EVERY width station where a MAIN-FRAME column already stands: the two SIDE-WALL column centres
