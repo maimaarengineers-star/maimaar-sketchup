@@ -584,6 +584,9 @@
 
 ;; The whole merged grid's marks, in PLAN ORDER (index 0 = y=0 = the near side wall), so a
 ;; caller that already works in station indices can look one up instead of re-deriving it.
+;; The one bubble radius lives in MAIMAAR_PEB_Standard.lsp (peb-bub-r), because Roof, Elevation
+;; and Section ask for it and none of them is guaranteed to have Plan.lsp loaded beside it.
+
 (defun peb-width-marks (stations mods / out)
   (setq out nil)
   (foreach st stations (setq out (append out (list (peb-width-mark st stations mods)))))
@@ -639,10 +642,15 @@
 ;; of paper each, with a 10.6 mm bubble sitting in every one.  So the only cap is a
 ;; bay FRACTION -- scale-invariant, so it reads the same on paper as in the model:
 ;; diameter <= 44% of the tightest bay, leaving clear white between neighbours.
-(defun peb-bub-radius (minSp / r)
-  (setq r (* 1100.0 *PEB-TEXT-SCALE*))                 ; ~8 mm dia on the plotted A4
-  (if (> minSp 1.0) (setq r (min r (* 0.30 minSp))))   ; ...but never over 60% of a bay
-  (max (* 300.0 *PEB-TEXT-SCALE*) r))                  ; floor stays paper-constant too
+(defun peb-bub-radius (minSp)
+  ;; `minSp` is accepted and IGNORED. 4B.31 repealed sizing a bubble against its neighbours, and
+  ;; this was the last place still doing it: 1100 x TS - a different size from the plan's 720 -
+  ;; capped at 0.30 x the tightest bay. Both halves were wrong, and the four framing/sheeting
+  ;; views are the ones that used it. Crowding is answered by the STAGGER (peb-bub-rows), never
+  ;; by shrinking: the bubble and the gap shrink together, so shrinking buys no clearance and
+  ;; makes the letters smallest on exactly the big buildings that are already at 1:800.
+  ;; The parameter stays so the four call sites need no change.
+  (peb-bub-r))
 
 ;; Smallest gap in a station list (0.0 if there are fewer than two stations).
 ;; The list is normally ascending, but abs() keeps this honest either way.
@@ -687,7 +695,10 @@
 
 (defun grid-bubble (x y label dir / r h prev pc d tail apex p1 p2 L phi alpha)
   (if (not *PEB-TEXT-SCALE*) (setq *PEB-TEXT-SCALE* 1.0))
-  (setq r (if *PEB-BUBRAD* *PEB-BUBRAD* (* 620 *PEB-TEXT-SCALE*)) prev (getvar "CLAYER") pc (getvar "CECOLOR"))
+  ;; ONE radius, asked for - never inherited.  *PEB-BUBRAD* used to be read here and set by only
+  ;; some of the sheets, so a sheet that set nothing drew whatever size the PREVIOUS sheet had
+  ;; left in the global.  peb-bub-r (Standard.lsp) is 4B.31's 720 x TEXT-SCALE for every sheet.
+  (setq r (peb-bub-r) prev (getvar "CLAYER") pc (getvar "CECOLOR"))
   (setq h (* r (cond ((<= (strlen label) 1) 0.95)   ; 1 char  -> fills the circle
                      ((= (strlen label) 2) 0.66)    ; 2 chars -> fit
                      (T 0.48))))                    ; 3+ chars -> fit
@@ -8340,7 +8351,7 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
         (setq yprev yy))))
 
   ;; grid bubbles — building bay NUMBERS along the top, width LETTERS down the left (A at the top)
-  (setq gbr (max 900.0 (* 620.0 sc)) i 0)
+  (setq gbr (peb-bub-r) i 0)          ; 4B.31 - one radius for every sheet
   (foreach x bayPts
     (if (and (>= x (- fx0 1.0)) (<= x (+ fx1 1.0)))
       (progn (setvar "CLAYER" "GRID-LINES")

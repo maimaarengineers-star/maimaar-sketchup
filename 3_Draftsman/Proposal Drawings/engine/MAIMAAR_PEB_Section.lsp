@@ -9791,7 +9791,7 @@
   ;; dim is at -2200·DS (was -3500·DS), the ft text sits at ~-2560·DS.
   ;; Bubble centre = -3300·TS gives ~740·TS clearance below ft text +
   ;; ~380 bubble radius — fits cleanly without floating.
-  (setq bubR (* 380 *PEB-TEXT-SCALE*))
+  (setq bubR (peb-bub-r))   ; 4B.31 - was 380 x TS, half the size of every other sheet
   ;; owner 14-Jul: with interior columns the overall O/O dim sits deeper (module dims + spacing), so it
   ;; landed ON the bubbles.  Drop the bubbles BELOW it for multi-column frames so the bubble line + vertical
   ;; ticks do not overlap the overall-width dimension.
@@ -9810,9 +9810,13 @@
     ;; cx is SECTION space (mirrored above); wgrid is PLAN space, so un-mirror to look
     ;; the letter up.  peb-width-letter then still returns A for the far side wall -
     ;; which the mirror has just placed on the LEFT.  Rule 4B.37.
-    (draw-grid-bubble bubX bubY bubR
-                      (peb-sec-grid-letter (- wid cx) wgrid i
-                        (if (boundp 'peb-width-mods) (peb-width-mods data wid) nil)))   ; letters follow the PLAN grid
+    ;; THE SAME BUBBLE THE PLAN DRAWS (owner 3-Sep: "sync all the bubbles").  This sheet had its
+    ;; own plain-circle drawer at half the radius, so the one set of drawings carried two kinds of
+    ;; grid bubble.  grid-bubble is the house mark - the green shield with its pointer aimed at
+    ;; the grid line - and "U" aims it up at the column standing above it.
+    (grid-bubble bubX bubY
+                 (peb-sec-grid-letter (- wid cx) wgrid i
+                   (if (boundp 'peb-width-mods) (peb-width-mods data wid) nil)) "U")   ; letters follow the PLAN grid
     ;; Connector tick - a single continuous vertical line from FFL all
     ;; the way down to the top of the bubble, passing through the dim
     ;; lines so the chain visually merges into one column.

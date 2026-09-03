@@ -265,7 +265,10 @@
         (peb-dim-v-native (- ox (* 1400 su)) oy (+ oy eaveH) (rtos eaveH 2 0))))))
 
   ;; ── grid bubbles + drop lines along the bottom ──────────────
-  (setq bubR (if *PEB-BUBRAD* *PEB-BUBRAD* (* 620 su))
+  ;; ASK, DO NOT INHERIT.  This read *PEB-BUBRAD* and set nothing, so the elevation's bubbles
+  ;; were whatever size the sheet rendered BEFORE it happened to leave in the global - the same
+  ;; job could plot two different sizes depending on render order.
+  (setq bubR (peb-bub-r)
         bubY (- oy (* 3200 su))
         idx  0)
   (foreach g stations

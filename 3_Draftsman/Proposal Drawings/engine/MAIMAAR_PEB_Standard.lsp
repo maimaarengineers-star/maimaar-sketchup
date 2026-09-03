@@ -432,6 +432,27 @@
 ;; GRID BUBBLE = CIRCLE on GRID (ACI 150) + label on GRID-TEXT (ACI 150).
 ;;   OWNER RULE: circle bubble (not pentagon).  `dir` kept for call compatibility.
 ;;   (peb-pent remains available for any sheet that wants the pentagon variant.)
+;; ---- ONE BUBBLE RADIUS, FOR EVERY SHEET IN THE SET  (owner 3-Sep-2026) -------------------
+;; "Sync all the bubbles."  Rule 4B.31 has said since 28-Aug that a grid bubble is sized to be
+;; READ - 720 x TEXT-SCALE, staggered when the grid is tight, never shrunk - and an audit found
+;; SIX different radii in the engine:
+;;
+;;   Column Layout Plan   max(900, 720xTS)        <- the rule
+;;   Mezzanine Floor Plan max(900, 620xsc)
+;;   Roof Plan            max(900, min(720xts, 0.48xminSp))   <- the shrink 4B.31 repealed
+;;   Framing / Sheeting   1100xTS capped at 0.30xminSp
+;;   Cross Section        380xTS
+;;   Wall Elevations      whatever *PEB-BUBRAD* the PREVIOUS SHEET happened to leave behind
+;;
+;; That last one is the sharpest: the elevations set nothing and read the global, so the same
+;; job could plot different bubbles depending on which sheet rendered before them.
+;;
+;; Shrinking was the wrong lever twice over - it makes the letters smallest on exactly the big
+;; buildings whose sheets are already at 1:800, and it never buys clearance anyway, because the
+;; bubble and the gap shrink together.  Stagger instead; peb-bub-rows already does.
+(defun peb-bub-r ( )
+  (max 900.0 (* 720.0 (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0))))
+
 (defun peb-bubble (cx cy r lab dir)
   (peb-circle cx cy r "GRID")
   (peb-text cx cy (* r 0.85) 0.0 lab "GRID-TEXT"))

@@ -409,7 +409,9 @@
   (foreach p bayPts   (if prevp (setq minSp (min minSp (- p prevp)))) (setq prevp p))
   (setq prevp nil)
   (foreach p gridWpts (if prevp (setq minSp (min minSp (- p prevp)))) (setq prevp p))
-  (setq *PEB-BUBRAD* (max 900.0 (min (* 720.0 ts) (* 0.48 minSp))))
+  ;; 4B.31: sized to be READ, never shrunk against the tightest gap - the 0.48 x minSp cap that
+  ;; stood here is the very rule that repeal was written against.
+  (setq *PEB-BUBRAD* (peb-bub-r))
   (setq bubR (+ *PEB-BUBRAD* (* 60.0 ts)))
   (setq dimGap (* 1050.0 ds) topGap (* 1050.0 ds) txtGap (* 2000.0 ts))
   (setq yBayDim (+ wid topGap) yOvrDim (+ yBayDim topGap) ovrTxtH (* 490.0 ds))
