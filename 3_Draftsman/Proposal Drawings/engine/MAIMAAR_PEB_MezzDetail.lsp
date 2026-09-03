@@ -1268,12 +1268,33 @@
   ;; is not the section goes UNDER it in one band of three columns; the sheet then
   ;; lands near 2:1 whatever the module, and the band's own columns are measured
   ;; from their text rather than guessed.
+  ;; ---- VIEW B ON ITS OWN ROW, NOT AS A THIRD COLUMN  (owner 3-Sep-2026) -----------------
+  ;; "Polish the mezzanine details."  The sheet was a ribbon: measured on MSPL-26-279 it filled
+  ;; about a third of the A4 and ran close to 4:1 in a border that is 1.13:1, so the auto-fit
+  ;; framed a strip and left the rest of the page white - and the lettering, which is sized in
+  ;; PAPER millimetres against an estimate of that width, came out small with it.
+  ;;
+  ;; The 29-Aug note above is right that a tall column beside VIEW A is worse.  But VIEW B was
+  ;; then put in the BOTTOM BAND as a third column, and VIEW B is the only block on the sheet
+  ;; that carries a 48-character label ("0.70 MM PROFILED STEEL DECK | 45 RIB @ 200 PITCH"), so
+  ;; it made the band the widest thing here and the band set the sheet.
+  ;;
+  ;; VIEW B is a DRAWING, so it belongs with the drawings: its own row under VIEW A, where its
+  ;; label lane is well inside VIEW A's width and costs nothing.  The band below is then two
+  ;; text columns, DATA | NOTES, which are the two narrowest blocks on the sheet.  Rows of
+  ;; drawings, then a band of words - which is what the note below always intended.
   (setq rows (mzd-data-rows data g))
   (setq dataW 0.0)
   (foreach r rows
     (setq dataW (max dataW (mzd-tw-safe (strcat (car r) "     :   " (cadr r)) th))))
   (setq notesW (mzd-notes-w th))
-  (setq bandY (- yA (* th 1.8)))
+  ;; VIEW B, dropped clear of VIEW A's title.  Its own oy is TOP OF STEEL, so the whole block
+  ;; sits between yA and bandY once the deck build-up above that line is allowed for.
+  ;; 5.5 text heights, not 2.6: VIEW B's own callouts are drawn ABOVE its slab top, so the block
+  ;; reaches higher than the point it is placed by.  At 2.6 they printed through VIEW A's title.
+  (setq yB (mzd-view-b ox (- yA (* th 5.5) (* (+ (mzd-g g "THK") *MZD-DECK-RIB*) sc))
+                       g sc (+ ox (* *MZD-DECK-PITCH* sc 3.0) (* th 1.8))))
+  (setq bandY (- yB (* th 2.4)))
   ;; VIEW B GETS A WIDER GUTTER THAN THE TEXT COLUMNS DO.  mzd-tw-safe is an ESTIMATE of a
   ;; plotted string (0.75 of the height per character, deliberately over the measured mean),
   ;; and on the 75-character note 3 the small per-character error adds up to more than the
@@ -1281,22 +1302,18 @@
   ;; build-up printed across the end of the sentence.  Six heights clears it with room for a
   ;; longer note, and the sheet has the width to spare: there is nothing to its right.
   (setq c1 ox
-        c2 (+ c1 dataW  (* th 3.0))
-        c3 (+ c2 notesW (* th 6.0)))
+        c2 (+ c1 dataW (* th 4.0)))
   (setq yD (mzd-panel c1 bandY "MEZZANINE DATA  -  PER IF / BSF" rows))
   (setq yN (mzd-notes c2 bandY))
-  ;; the build-up hangs from the band's top line like the two text blocks beside it
-  (setq yB (mzd-view-b c3
-                       (- bandY (* (+ (mzd-g g "THK") *MZD-DECK-RIB*) sc) (* th 2.2))
-                       g sc (+ c3 (* *MZD-DECK-PITCH* sc 3.0) (* th 1.8))))
   ;; ---- sheet heading, clear below everything, centred on the REAL sheet -----
   ;; The right edge is MEASURED off the widest thing the right column actually
   ;; draws - VIEW B with its lane, the widest data row, the longest note - rather
   ;; than assumed from VIEW A's width.  Centring a heading on a guessed edge is
   ;; how a sheet ends up visibly off-centre in its border (4B.28).
-  (setq ybot (min yD yN yB))
+  (setq ybot (min yD yN))
   (setq rEdge (max (+ landR laneR)
-                   (+ c3 (* *MZD-DECK-PITCH* sc 3.0) (* th 1.8)
+                   (+ c2 notesW)
+                   (+ ox (* *MZD-DECK-PITCH* sc 3.0) (* th 1.8)
                       (mzd-lane (list (strcat (rtos thk 2 0)
                                               " mm R.C. SLAB - PER IF / BSF")
                                       (strcat (rtos *MZD-DECK-GAUGE* 2 2)
