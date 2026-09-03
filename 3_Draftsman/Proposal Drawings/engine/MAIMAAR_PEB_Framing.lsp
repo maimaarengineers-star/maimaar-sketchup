@@ -1472,6 +1472,95 @@
         (txt "MC" (list (+ ox pat) (+ base (* eaveH 0.80))) (* 230 *PEB-TEXT-SCALE*) 0 mark)))
     (setq i (1+ i)))
 
+  ;; 6b. THE MEZZANINE BEAM, ON THE END WALL  (owner 3-Sep-2026) --------------------------
+  ;; "Once we draw the End Wall Framing plan, Mezzanine Beam should also be visible b/w the post
+  ;;  columns where Joist will connect."
+  ;;
+  ;; The end wall IS a bay line, so a mezzanine main beam sits in it - and this elevation drew
+  ;; nothing of the mezzanine at all.  A reader looking for where the floor meets the end frame
+  ;; found bare girts, and the one sheet that could show the joist-to-beam connection did not.
+  ;;
+  ;; The main beams run ACROSS THE WIDTH, so on an end wall they are seen in ELEVATION - a band
+  ;; spanning between the posts.  The joists run along the LENGTH, so they are seen END-ON,
+  ;; spaced across the width at the joist spacing, their tops FLUSH under the beam top (4B.32).
+  ;;
+  ;; Every level and depth comes from the SAME derivation the mezzanine details sheet uses
+  ;; (peb-mz-* / the MZ1_CH_* levels), so the two sheets cannot state different steel.
+  (if (and isEnd (= (strcase (peb-tb-or (MSPL-Get-Str data "MZ_TOGGLE") "")) "YES"))
+    (vl-catch-all-apply (function (lambda ( / mzChb mzThk mzBd mzFfl mzTopH mzJsp mzJd mzG
+                                             mzBand mzB0 mzB1 mzX0 mzX1 mzTop mzBot jx jn)
+      (setq mzChb (atof (peb-tb-or (MSPL-Get-Str data "MZ1_CH_FFL_BEAM") "0"))
+            mzThk (atof (peb-tb-or (MSPL-Get-Str data "MZ1_FLOOR_THK") "0"))
+            mzFfl (atof (peb-tb-or (MSPL-Get-Str data "MZ1_CH_FFL_SLAB") "0"))
+            mzJsp (atof (peb-tb-or (MSPL-Get-Str data "MZ_JOIST") "0")))
+      (if (< mzThk 40.0)  (setq mzThk 150.0))
+      (if (< mzJsp 300.0) (setq mzJsp 1250.0))
+      (if (<= mzChb 0.0)  (setq mzChb 3000.0))
+      (setq mzTopH (+ 45.0 mzThk))                     ; deck rib + slab, as the detail sheet builds it
+      (setq mzBd 700.0)                                ; the detail sheet's default...
+      (if (and (> mzFfl 0.0) (> (- mzFfl mzChb mzTopH) 150.0)
+                             (< (- mzFfl mzChb mzTopH) 2500.0))
+        (setq mzBd (- mzFfl mzChb mzTopH)))            ; ...or what two STATED levels imply
+      (setq mzJd (max 250.0 (* mzBd 0.55)))            ; *MZD-JOIST-RATIO*
+      ;; ...and if the mezzanine-DETAILS module happens to be loaded on this sheet, ask IT
+      ;; instead.  The arithmetic above is a faithful copy of mzd-geom, but a copy is a second
+      ;; chance to disagree about the same floor, and 4B.7 is that the beam depth is whatever
+      ;; the two stated levels imply - stated once.  Where both are present, one of them wins.
+      (if (and (boundp 'mzd-geom) (boundp 'mzd-g))
+        (setq mzG    (mzd-geom data)
+              mzBd   (mzd-g mzG "BD")    mzJd  (mzd-g mzG "JD")
+              mzTopH (mzd-g mzG "TOPH")  mzChb (mzd-g mzG "CHB")
+              mzJsp  (mzd-g mzG "JSP")))
+      ;; the deck's own width extent, the same band the mezzanine floor plan draws
+      (setq mzBand (if (boundp 'peb-mz-width-band) (peb-mz-width-band data wid 0.0) (list 0.0 wid))
+            mzB0   (car mzBand) mzB1 (cadr mzBand))
+      ;; ...mapped into this elevation, which is viewed from OUTSIDE (see the mirror note above)
+      (setq mzX0 (+ ox (if revView (- faceLen mzB1) mzB0))
+            mzX1 (+ ox (if revView (- faceLen mzB0) mzB1)))
+      (setq mzBot (+ base mzChb) mzTop (+ base mzChb mzBd))
+      (if (> (- mzX1 mzX0) 1.0)
+        (progn
+          ;; THE JOISTS FIRST, so the heavier beam reads on top of them where they meet.
+          (peb-comp-layer "COMP-MEZZ-JOIST" 8)
+          (setq jn 1 jx (+ mzX0 mzJsp))
+          (while (< jx (- mzX1 1.0))
+            (entmake (list (cons 0 "LINE") (cons 8 "COMP-MEZZ-JOIST")
+                           (list 10 jx (- mzTop mzJd) 0.0) (list 11 jx mzTop 0.0)))
+            (setq jx (+ jx mzJsp) jn (1+ jn)))
+          ;; THE BEAM: a band between the posts, top and bottom flange.
+          (peb-comp-layer "COMP-MEZZ-BEAM" 5)
+          (foreach yy (list mzTop mzBot)
+            (entmake (list (cons 0 "LINE") (cons 8 "COMP-MEZZ-BEAM")
+                           (list 10 mzX0 yy 0.0) (list 11 mzX1 yy 0.0))))
+          (foreach xx (list mzX0 mzX1)
+            (entmake (list (cons 0 "LINE") (cons 8 "COMP-MEZZ-BEAM")
+                           (list 10 xx mzBot 0.0) (list 11 xx mzTop 0.0))))
+          ;; and the deck it carries, so the level reads as a FLOOR and not a lone beam
+          (peb-comp-layer "COMP-MEZZ-JOIST" 8)
+          (entmake (list (cons 0 "LINE") (cons 8 "COMP-MEZZ-JOIST")
+                         (list 10 mzX0 (+ mzTop mzTopH) 0.0) (list 11 mzX1 (+ mzTop mzTopH) 0.0)))
+          ;; ONE label - and it LEAVES the drawing, in this sheet's own leader idiom.
+          ;;
+          ;; The first cut laid the string along the deck line: 54 characters running through six
+          ;; columns, every girt, and the beam it was naming, with the deck line struck clean
+          ;; through the middle of the lettering.  There is no gap inside a framing elevation big
+          ;; enough for a sentence (4B.27) - the sheet answers that by taking the words OUT, on a
+          ;; leader, to the annotation row above the roof.  This is the same peb-label-with-leader
+          ;; call the GIRT TYPE mark makes, on the same row, at the opposite end so the two labels
+          ;; cannot meet; and the leader's vertical leg is set BETWEEN two posts, not on one.
+          ;;
+          ;; The row is shared, so the two labels are placed by where their text ENDS, not where
+          ;; it starts: at 0.32 this one ran to 0.81 and printed straight into "GIRT TYPE" at 0.78
+          ;; ("...WITH BEGMRTTOPPE : 200Z15").  Held at 0.13 it finishes near 0.62 - a clear bay
+          ;; and a half short of the girt mark, on both the mirrored REW and the LEW.
+          (vl-catch-all-apply (function (lambda ()
+            (peb-label-with-leader
+              "MEZZANINE BEAM - JOISTS FLUSH WITH BEAM TOP"
+              (list (+ ox (* faceLen 0.13)) (+ base eaveH rise (* 900.0 *PEB-DIM-SCALE*)))
+              (list (+ ox (* faceLen 0.08)) mzTop)
+              "S" 600.0))))))
+      (princ)))))
+
   ;; 7. grid bubbles below the base (side = numbers, end = letters) + stalk. Bigger bubble (owner 28-Jul,
   ;; KMFoods ref) via a local *PEB-BUBRAD* bump, restored after so other sheets are unaffected.
   ;; Bubble size: see peb-bub-radius.  900 x TEXT-SCALE tracked the wall's LENGTH,
