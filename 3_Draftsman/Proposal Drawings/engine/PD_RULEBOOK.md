@@ -2437,57 +2437,85 @@ stair drawn beside it on the same sheet. Parts are **named, not sized** — `STR
 — because PD is blind by default and a section size is designed-steel information. The plate
 *thickness* is stated, because that is what the customer is buying, not a designed section.
 
-### EVERY RISER IS EXACTLY 150 — AND THE ODD MILLIMETRES GO AT THE BASE
+### STANDING RULE — ALL RISERS MUST BE EQUAL
 
-**Owner, 1-Sep-2026:** *"height b/w the top of floor and landing must be same as of 150 - all equal
-steps"*, after *"our priority is to keep the rise to 150mm."*
+**Owner, 3-Sep-2026:** *"Standing Rule for staircase — All Riser Must be Equal."*
 
-Four drawers used to compute `rise = hgt / total-risers`. That is *equal* but it is not *150*: a
-5,380 mm mezzanine came out at **149.4 mm** with its landing on **+2690**, and the sheet's own note
-admitted it — *"36 STEPS AT 149MM"*.
+This **supersedes** the 1-Sep rule that held the riser at exactly 150 and took the remainder at the
+base. That rule is recorded below, because the reason it was wrong is the point.
 
-**The riser is now the constant and the climb is what gives.** `round(h/150) × 150` cannot miss the
-real storey by more than **half a riser (75 mm)**, because the count was rounded:
+**What 150-exactly actually drew.** `round(h/150) × 150` overshoots the storey by up to half a
+riser, and the leftover went into the base: a 5,380 mm storey drew 36 × 150 = 5,400 and the stair
+sprang from **−20**. So every riser measured 150 — *except the first one a person steps on*, which
+measured **130** from the finished floor. The sheet stated "ALL RISERS 150MM EXACTLY" directly
+above a drawing of an unequal flight.
 
-| storey | steps | drawn climb | leftover |
-|---|---|---|---|
-| 5380 | 36 | 5400 | 20 mm |
-| 4877 | 33 | 4950 | 73 mm |
-| 3000 | 20 | 3000 | 0 |
+A 20 mm odd riser at the foot of a flight is a trip hazard, and it fails the uniformity both
+**IBC 1011.5.4** and **BS 5395** require — risers within about 3 mm of each other. Holding a
+nominal at the cost of the one riser that varies gets the priority backwards.
 
-**The leftover is taken at the BASE, never at the top.** The top tread *is* the mezzanine floor —
-a stair that stops 20 mm short of the floor it serves is wrong in a way nobody can build around,
-and a 20 mm lip at the head of a flight is a trip hazard. The bottom is where the adjustment
-belongs and where it already exists physically: the section draws 200 mm pedestals and the
-reference carries a `non-shrink grout` layer under every base plate. Setting a base plate 20 mm
-into its grout bed is ordinary practice.
+> **THE RULE.** Equality is the invariant; 150 is the target the count aims at.
+>
+> ```
+> count = round(height / 150)     <- 150 chooses HOW MANY
+> riser = height / count          <- and the height decides the rest
+> ```
+>
+> Every riser identical. The stair springs from **F.F.L** and the head lands on the deck, because
+> `count × (height/count)` *is* the height — there is no remainder left to hide.
 
-`peb-stair-base-offset` returns it; the elevation and section start at `oy + offset` while `oy`
-stays the F.F.L datum, so level markers read the true heights and the head lands exactly on the
-mezzanine. The rule note **declares the offset** rather than hiding it — that is the difference
-between a construction instruction and a silent error.
+5,380 / 36 = **149.44 mm**, landing +2,690, head +5,380, base 0.
 
-### FOUR COLUMNS, AT THE CORNERS OF THE STAIR TOWER — FOR ANY NUMBER OF LANDINGS
+`peb-stair-rise` takes the height and returns the equal riser; `peb-stair-risers` still asks the
+**nominal** (`peb-stair-rise-nom`), because it is choosing the count and asking the actual riser
+there would be circular. `peb-stair-base-offset` returns **0.0** and is kept only because every
+drawer asks it.
 
-**Owner, 1-Sep-2026:** *"there will be 4 columns"*, *"First Landing will be full width of the stair
-and then next landing will directly to to mezzanine Floor."*
+**One riser, stated once.** The specification block used to print a hard-coded `RISE PER STEP :
+150 MM` while the note beside it derived the real figure — two risers for one staircase on one
+sheet. Both now read the same function, and the typical step detail dimensions it too.
 
-Flight 1 starts on the floor and the last flight lands on the mezzanine, so **both ends of the
-staircase are already carried — the intermediate landings are the only parts with nothing under
-them.** The landings alternate ends as the stair switches back, so a far-end landing spans the far
-pair of columns and a near-end landing spans the near pair. **Add landings and you add no columns.**
+*(Superseded, 1-Sep-2026: "every riser is exactly 150 and the odd millimetres go at the base",
+justified by the grout bed under the base plates. The grout bed is real; using it to absorb a
+20 mm error in the bottom riser was not.)*
 
-055-MSPL settles it: five flights, four intermediate landings, three storeys — and its schedule
-still reads **`CBP-01 (QTY-04)`**.
+### THE COLUMNS CARRY THE MID-LANDINGS — SO THEY STOP AT THE HIGHEST ONE
 
-> A staircase has four columns, at the four corners of the stair tower, running from the floor
-> **to the top — the mezzanine level**. Landings alternate ends; each spans the pair at its end.
+**Owner, 3-Sep-2026:** *"In case of Intermediate Floors, the columns will extend till highest
+mid-landing. In case mid-landings are > 1, 4 columns will come on 4 corners — only if the landings
+are more than 1. Overall: the columns support the mid-landing between the floors, and the stringer
+rests on the F.F.L for each floor."*
 
-**Correction, same day.** I first wrote "to the topmost intermediate landing", reasoning that the
-last flight is carried at both ends so a column above it would carry nothing. The owner's ruling is
-*"in elevation columns must go till top with 4 columns on corners"* — and it is the better answer:
-the tower is braced over its full height, and the last flight's head has to land against something.
-055-MSPL's columns run full height for the same reason.
+This **supersedes** both earlier passes — "four columns to the top, for any number of landings"
+(1-Sep) and "trim at the first landing" (2-Sep). The ruling states the *reason*, and the reason
+settles the height and the count together.
+
+**What a stair column is for.** At every floor the stringer bears on the **F.F.L** — the slab
+carries it, nothing else is needed. The one place a flight has nothing to land on is a **mid-landing
+between two floors**. That is what the columns hold up, and it is the whole of their job.
+
+> **HOW HIGH.** Columns run from the floor to the **highest mid-landing**, and stop. Above it the
+> last flight is already held at both ends — by the landing it leaves and by the deck it arrives
+> on — so steel carried higher stands in air holding nothing.
+>
+> **HOW MANY.** **Four**, at the tower corners, **when there is more than one mid-landing**:
+> landings alternate ends as the stair switches back, so each end needs a pair. With **exactly one**
+> mid-landing there is one end to hold, so **one pair**, at that landing's own end.
+
+The owner's markup that forced this: *"this side encircled column will not go in the air as there
+no support required in case of one mid landing"* — a 279-26 stair with one landing was drawing a
+second pair of columns from the floor up to a landing at the other end of the tower.
+
+On 279-26 (2 flights, 1 mid-landing at +2,690): **one pair, at the landing end, floor to +2,690.**
+
+`nland = flights − 1`. The topmost mid-landing sits above every flight but the last, so its height
+is `rise × Σ(flights[0 … n−2])`. The U alternates ends, so landing *i* is at `xhi` for even *i* and
+`xlo` for odd *i*; the topmost is at `xhi` when `nland` is odd.
+
+*(Superseded: the 1-Sep "columns go till top, 4 corners, any number of landings", which cited
+055-MSPL's `CBP-01 (QTY-04)`. That drawing has FOUR intermediate landings — four corner columns is
+the right answer for it, and this rule still gives that answer. What it no longer does is give
+four columns to a stair with one landing.)*
 
 ### THE LANDING IS A FULL LANDING, AND THERE IS NO TOP PLATFORM
 

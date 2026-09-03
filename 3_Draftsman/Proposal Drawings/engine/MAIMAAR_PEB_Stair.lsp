@@ -56,7 +56,30 @@
 (defun peb-stair-th (u) (* u 1.6))
 
 (defun peb-stair-going () 300.0)   ; TREAD
-(defun peb-stair-rise  () 150.0)   ; RISER
+
+;; ---- STANDING RULE: ALL RISERS MUST BE EQUAL  (owner 3-Sep-2026) -------------------------
+;; This REVERSES the 1-Sep implementation, and the reversal is the right way round.
+;;
+;; The riser was held at exactly 150 and the remainder taken at the base, so a 5,380 storey drew
+;; 36 x 150 = 5,400 and the stair sprang from -20.  Every riser measured 150 - except the first
+;; one a person actually steps on, which measured 130 from the finished floor.  A 20 mm odd
+;; riser at the foot of a flight is a trip hazard, and it fails the uniformity both IBC 1011.5.4
+;; and BS 5395 require (risers within about 3 mm of each other).  The sheet was drawing a stair
+;; that could not be built to code and saying so in its own note.
+;;
+;; EQUALITY IS THE INVARIANT.  150 is the target the count aims at, not a value to be held at
+;; the cost of the one riser that matters:
+;;     count = round(height / 150)          <- 150 chooses how many
+;;     riser = height / count               <- and the height decides the rest
+;; 5,380 / 36 = 149.44 mm, identical throughout.  The stair springs from F.F.L, the head lands
+;; on the deck, and there is no remainder left over to hide in a grout bed.
+;;
+;; peb-stair-rise now needs the height.  peb-stair-risers still asks the NOMINAL, because it is
+;; choosing the count - asking the actual riser there would be circular.
+(defun peb-stair-rise-nom () 150.0)          ; the target the step count is chosen against
+(defun peb-stair-rise (hgt / n)
+  (setq n (peb-stair-risers hgt))
+  (if (> n 0) (/ (float hgt) (float n)) (peb-stair-rise-nom)))
 
 ;; ---- MEMBER SIZES, off Maimaar's own issued drawing --------------------------------------
 ;; 055-MSPL Style Textile, "STAIR CASE FOR FF2 MEZZANINE", sheet 06 ELEVATION AT GRID-B.
@@ -73,7 +96,7 @@
 
 ;; Risers for a climb.  Never fewer than two - one riser is a step, not a staircase.
 (defun peb-stair-risers (hgt / n)
-  (setq n (fix (+ 0.5 (/ (max 300.0 hgt) (peb-stair-rise)))))
+  (setq n (fix (+ 0.5 (/ (max 300.0 hgt) (peb-stair-rise-nom)))))
   (max 2 n))
 
 ;; ---- HOW MANY LANDINGS  (owner 1-Sep-2026) ----------------------------------------------
@@ -208,12 +231,14 @@
 
 ;; the climb the stair actually draws: whole steps of exactly 150
 (defun peb-stair-drawn-climb (hgt)
-  (* (peb-stair-rise) (float (apply '+ (peb-stair-flights hgt)))))
+  (* (peb-stair-rise hgt) (float (apply '+ (peb-stair-flights hgt)))))
 
-;; how far BELOW F.F.L the base sits, so the head lands exactly on hgt.  Zero when the height
-;; is already a multiple of the riser.  Never more than half a riser.
-(defun peb-stair-base-offset (hgt)
-  (- hgt (peb-stair-drawn-climb hgt)))
+;; ZERO, ALWAYS - and kept as a function because every drawer asks it.
+;; With an equal riser derived from the height there is no remainder: count x (height/count) IS
+;; the height, so the stair springs from F.F.L and the head lands on the deck.  The grout-bed
+;; offset this used to return existed only to absorb the error of holding 150 exactly, and that
+;; error is what made the bottom riser 130.  See peb-stair-rise.
+(defun peb-stair-base-offset (hgt) 0.0)
 
 ;; ---- ANNOTATION BELONGS ON THE SHEET THAT CAN READ IT  (2-Sep-2026) ----------------------
 ;; The mezzanine floor plan draws the staircase with these SAME drawers - one source, so the two
@@ -459,7 +484,7 @@
   (setq u     (max 60.0 (/ wdt 12.0))
         fl    (peb-stair-flights hgt)
         nf    (length fl)
-        rise  (peb-stair-rise)                  ; EXACTLY 150 - see peb-stair-base-offset
+        rise  (peb-stair-rise hgt)               ; EQUAL - height/count, see peb-stair-rise
         well  (peb-stair-well wdt)
         dep   (+ wdt wdt well)
         nblk  (fix (/ (+ nf 1) 2))              ; pairs of flights = plan blocks = storeys
@@ -738,7 +763,7 @@
   (setq u     (max 60.0 (/ wdt 12.0))
         fl    (peb-stair-flights hgt)
         nf    (length fl)
-        rise  (peb-stair-rise)                  ; EXACTLY 150
+        rise  (peb-stair-rise hgt)               ; EQUAL - height/count
         lw    (max 900.0 wdt)
         nblk  (fix (/ (+ nf 1) 2))
         lo    (peb-stair-base-offset hgt)   ; same datum as the elevation - see the U wrapper
@@ -920,7 +945,8 @@
 
 (defun peb-stair-elev (ox oy wdt hgt topl midl lbl trd shp /
                        u th going fl nf lw tlw hr1 hr2 rise dir ybase xnext
-                       xa xcur ycur i k n x y xs xe ys ye ytxt hmid xmid xlo xhi lvls xrcc)
+                       xa xcur ycur i k n x y xs xe ys ye ytxt hmid xmid xlo xhi lvls xrcc
+                       fl nf rise nland colr colsum col-height)
   (setq u     (max 60.0 (/ wdt 12.0))
         th    (peb-stair-th u)
         going (peb-stair-going)
@@ -930,7 +956,7 @@
         tlw   (if topl lw 0.0)
         hr1   (- (peb-stair-rail-h) (peb-stair-rail-mid))   ; top rail above the mid tube
         hr2   (peb-stair-rail-mid)                        ; the intermediate tube
-        rise  (peb-stair-rise)               ; EXACTLY 150, never hgt/steps
+        rise  (peb-stair-rise hgt)            ; EQUAL - height/count, never a held 150
         ;; THE STAIR STARTS AT ITS BASE, WHICH IS NOT ALWAYS F.F.L.  With a 150 riser held
         ;; exactly, the climb is steps*150 and that overshoots the storey by up to half a
         ;; riser; the difference is taken in the grout bed under the base plates so the HEAD
@@ -1027,49 +1053,49 @@
                        (list xcur (+ ycur (* u 0.8)))))
   (setq xcur (+ xcur (* dir lw)))
   (setq xlo (min xlo xcur) xhi (max xhi xcur))
-  ;; ---- THE FOUR COLUMNS, AT THE TOWER CORNERS
-  ;; Owner, 1-Sep-2026: "in elevation columns must go till top with 4 columns on corners."
-  ;; REVISED per owner markup: "Trim the Columns at this level as marked.PNG" and
-  ;; "This side Encircled Column will not go in the Air as there no support required in
-  ;; case of one mid landing."
+  ;; ---- THE COLUMNS THAT CARRY THE MID-LANDINGS  (owner 3-Sep-2026) ---------------------
+  ;; "In case of Intermediate Floors, the columns will extend till highest mid-landing.  In case
+  ;;  mid-landings are > 1, 4 columns will come on 4 corners - only if the landings are more
+  ;;  than 1.  Overall: the columns support the mid-landing between the floors, and the stringer
+  ;;  rests on the F.F.L for each floor."
   ;;
-  ;; The STRUCTURE is four at the tower corners, but each pair carries only ONE landing.
-  ;; In a 1-landing stair: left pair goes floor→mezzanine (they carry the landing AND
-  ;; the flight above); right pair goes floor→landing (they carry the landing, full stop).
-  ;; In a 3-landing stair: they alternate — each pair trimmed at the landing it carries.
+  ;; Two things follow, and they settle what three earlier passes at this left unresolved:
   ;;
-    ;; COLUMN HEIGHT RULE (owner: "Trim the Columns at this level as marked.PNG").
-  ;; Columns carry ONLY the landing at their end; above that landing, the next flight
-  ;; is already supported at both ends (by the landing it leaves and the next landing/
-  ;; mezzanine it arrives on).  So columns trim at the LAST LANDING THEY CARRY, not at
-  ;; the mezzanine.  For a 1-landing stair, one pair goes full height (they support the
-  ;; landing AND above it), the other pair stops at the landing (they support it, full
-  ;; stop).  For 3 landings, they alternate.
+  ;; HOW HIGH.  A column exists to hold up a MID-LANDING - the one place between two floors
+  ;; where a flight has nothing else to land on.  At every floor the stringer bears on the
+  ;; F.F.L itself, so nothing needs carrying there.  The columns therefore stop at the HIGHEST
+  ;; mid-landing and go no further: above it the last flight is already held at both ends, by
+  ;; the landing it leaves and by the deck it arrives on.  Running them to the mezzanine drew
+  ;; steel standing in air carrying nothing - the markup "this side encircled column will not go
+  ;; in the air as there no support required in case of one mid landing".
   ;;
-  ;; 279-26 example: right columns trim at +2680 (the landing), left columns continue
-  ;; to +5380 (mezzanine) — the left pair has to carry flight 2 above the landing they
-  ;; support; the right pair does not.  This is not geometry changing; it's saying
-  ;; which column has which load to carry.
+  ;; HOW MANY.  Four corner columns are for a tower with SEVERAL mid-landings, which land at
+  ;; alternate ends and so need a pair at each.  With exactly ONE mid-landing there is only one
+  ;; end to hold: one pair, at that landing's own end.  The other pair was the one in the air.
   ;;
-  ;; Implemented as: all four columns still exist and are drawn (that's the structure),
-  ;; but we will need to know which landing each pair carries and trim there. For now,
-  ;; leaving this as a standing rule in the drawing and the code.
-  ;;
-  ;; An elevation looks along the depth, so the near and far column of each corner pair
-  ;; project onto the SAME x: what is drawn is TWO lines, at the two ENDS, each standing
-  ;; for two columns. Four columns, two lines. The cross bracing lies in that hidden plane.
-  ;; COLUMN TRIM: each pair runs only as high as it carries load.
-  ;; Left columns (at xlo) run to the highest odd-indexed landing at their end, or to mezzanine.
-  ;; Right columns (at xhi) run to the highest even-indexed landing at their end, or to mezzanine.
-  ;; Draw columns - TRIM RULE: extend to first landing only (owner 2-Sep-2026)
-  ;; Calculate first landing height: base + (first flight risers × 150mm)
-  (setq fl (peb-stair-flights hgt)
-        rise (peb-stair-rise)
-        first-flight-risers (nth 0 fl)
-        col-height (+ ybase (* rise first-flight-risers)))
-  (peb-comp-layer "STAIR-LANDING" 3)
-  (peb-stair-col-elev (+ xlo (/ (peb-stair-col-d) 2.0)) ybase col-height)
-  (peb-stair-col-elev (- xhi (/ (peb-stair-col-d) 2.0)) ybase col-height)
+  ;; nland = flights - 1.  The U alternates ends, so landing i is at xhi for even i and xlo for
+  ;; odd i; the topmost is at xhi when nland is odd and xlo when it is even.
+  (setq fl    (peb-stair-flights hgt)
+        nf    (length fl)
+        rise  (peb-stair-rise hgt)
+        nland (1- nf))
+  (if (> nland 0)
+    (progn
+      ;; the TOPMOST mid-landing: every flight below it, which is all of them but the last
+      (setq colr 0 colsum 0)
+      (while (< colr (1- nf))
+        (setq colsum (+ colsum (nth colr fl)) colr (1+ colr)))
+      (setq col-height (+ ybase (* rise colsum)))
+      (peb-comp-layer "STAIR-LANDING" 3)
+      (if (> nland 1)
+        ;; several landings, alternating ends -> a pair at each corner: four columns
+        (progn
+          (peb-stair-col-elev (+ xlo (/ (peb-stair-col-d) 2.0)) ybase col-height)
+          (peb-stair-col-elev (- xhi (/ (peb-stair-col-d) 2.0)) ybase col-height))
+        ;; ONE landing -> ONE pair, at the end that landing is actually on
+        (if (= (rem (1- nland) 2) 0)
+          (peb-stair-col-elev (- xhi (/ (peb-stair-col-d) 2.0)) ybase col-height)
+          (peb-stair-col-elev (+ xlo (/ (peb-stair-col-d) 2.0)) ybase col-height)))))
 
   ;; The "MEZZANINE LEVEL" leader that stood here is GONE (owner 3-Sep-2026).  It printed at the
   ;; same point as the MEZZANINE FLOOR slab label below and the two smeared into each other; the
@@ -1355,7 +1381,7 @@
         th   (* u 1.5)
         fl   (peb-stair-flights hgt)
         nf   (length fl)
-        rise (peb-stair-rise)                ; EXACTLY 150
+        rise (peb-stair-rise hgt)             ; EQUAL - height/count
         cd   (peb-stair-col-d)
         cbf  (peb-stair-col-bf)
         well (peb-stair-well wdt)        ; the stair well between the two flight bands
@@ -1391,7 +1417,7 @@
   ;;
   ;; COLUMN TRIM RULE (owner 2-Sep-2026): columns extend to first landing only
   ;; Calculate first landing height: base + (first flight risers × 150mm)
-  (setq rise (peb-stair-rise)
+  (setq rise (peb-stair-rise hgt)
         col-height (+ yb (* rise (nth 0 fl))))
   ;; Draw columns - both to first landing height
   (peb-stair-col-elev xcl yb col-height)
@@ -1508,7 +1534,10 @@
             (strcat "NO. OF STEPS : " (itoa nsteps)))
   (setq y (- y (* th 1.5)))
   (txt-bold "ML" (list ox y) (/ th (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0.0
-            (strcat "RISE PER STEP : 150 MM"))
+            ;; THE STAIR'S OWN RISER, NOT THE NOMINAL.  This printed a hard-coded 150 while the
+            ;; note beside it derived the real figure, so on any storey that is not a whole
+            ;; number of 150s the sheet stated two different risers for one staircase.
+            (strcat "RISE PER STEP : " (rtos (peb-stair-rise hgt) 2 0) " MM (ALL EQUAL)"))
   y)
 
 ;; ---- DESIGN LOADS  (owner 1-Sep-2026) ----------------------------------------------------
@@ -1664,11 +1693,11 @@
 ;; information; the detail says STRINGER and TREAD CLEAT, and the sizes belong on the approval
 ;; drawing.  The plate THICKNESS is not a section size - it is what the customer is buying - so
 ;; it is stated.
-(defun peb-stair-stepdetail (ox oy wdt lbl / u th g r nos cl x y i x0 y0)
+(defun peb-stair-stepdetail (ox oy wdt hgt lbl / u th g r nos cl x y i x0 y0)
   (setq u   (max 60.0 (/ wdt 12.0))
         th  (* u 1.4)
         g   (peb-stair-going)
-        r   (peb-stair-rise)
+        r   (peb-stair-rise hgt)
         nos 25.0                                  ; nosing, off the reference
         cl  50.0                                  ; L-50 cleat leg
         x0  ox
@@ -1749,7 +1778,7 @@
   (setvar "CLAYER" "STAIR-TEXT")
   (foreach ln
     (list
-      (strcat "NOTE: RISE " (rtos (peb-stair-rise) 2 0) "mm AND TREAD "
+      (strcat "NOTE: RISE " (rtos (peb-stair-rise hgt) 2 0) "mm AND TREAD "
               (rtos (peb-stair-going) 2 0) "mm ARE THE STANDARD.")
       "THE NUMBER OF LANDINGS IS DERIVED FROM THE STEP COUNT, NOT SPECIFIED:"
       (strcat "MAXIMUM " (itoa (peb-stair-max-risers))
@@ -1760,7 +1789,7 @@
               "mm RISE BETWEEN LANDINGS (IBC 1011.8).")
       "THE STEPS ARE THEN DIVIDED EQUALLY."
       (strcat "THIS STAIRCASE: " (rtos hgt 2 0) "mm RISE, " (itoa sum) " STEPS AT "
-              (rtos (peb-stair-rise) 2 0) "mm, " (itoa nf) " FLIGHT"
+              (rtos (peb-stair-rise hgt) 2 0) "mm, " (itoa nf) " FLIGHT"
               (if (> nf 1) "S" "") " OF " (peb-stair-flight-list fl) ", "
               (itoa (1- nf)) " INTERMEDIATE LANDING" (if (= (1- nf) 1) "" "S") ".")
       ;; DECLARE THE BASE OFFSET RATHER THAN HIDE IT.  Holding the riser at exactly 150 means
@@ -1769,12 +1798,12 @@
       ;; the sheet is the difference between a construction instruction and a silent error.
       ;; Omitted entirely when the storey happens to be a whole number of risers.
       (if (> (abs (peb-stair-base-offset hgt)) 0.5)
-        (strcat "ALL RISERS " (rtos (peb-stair-rise) 2 0)
+        (strcat "ALL RISERS " (rtos (peb-stair-rise hgt) 2 0)
                 "mm EXACTLY. STAIRCASE BASE SET " (rtos (abs (peb-stair-base-offset hgt)) 2 0)
                 "mm "
                 (if (< (peb-stair-base-offset hgt) 0.0) "BELOW" "ABOVE")
                 " F.F.L, TAKEN UP IN THE GROUT BED UNDER THE BASE PLATES.")
-        (strcat "ALL RISERS " (rtos (peb-stair-rise) 2 0)
+        (strcat "ALL RISERS " (rtos (peb-stair-rise hgt) 2 0)
                 "mm EXACTLY, BASE AT F.F.L.")))
     (txt-bold "ML" (list ox y) (/ th (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0.0 ln)
     (setq y (- y (* th 1.55))))
@@ -1987,7 +2016,7 @@
                                      wdt hgt nil)
                 ;; TYPICAL STEP DETAIL - the one thing the plan and elevation draw at a scale too
                 ;; coarse to show: what a step actually is.
-                (peb-stair-stepdetail (+ (nth 1 ext) (* wdt 5.5)) (- oy (* wdt 6.0)) wdt nil)
+                (peb-stair-stepdetail (+ (nth 1 ext) (* wdt 5.5)) (- oy (* wdt 6.0)) wdt hgt nil)
                 ;; SPEC + LOADS, both read off the BSF.  Drawn once, under the elevation.
                 (setq hrail (MSPL-Get-Str data (strcat tag "HANDRAILS")))
                 ;; Close under the elevation.  Parking the notes 13 widths down stretched the
