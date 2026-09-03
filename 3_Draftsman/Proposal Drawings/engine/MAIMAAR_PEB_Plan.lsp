@@ -8008,7 +8008,7 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   (princ))
 
 (defun peb-draw-mezz-floor-plan (data len wid floorNum / spList bayPts glF glT offF offT fx0 fx1 fy0 fy1
-                                 ys xs acc s2 x y colD savedWeb jx i gbr letterIdx sc band inset
+                                 ys xs acc s2 x y colD savedWeb jx i gbr wMods sc band inset
                                  mzRcc rccXs rccYs floorSys jspSys lvl lvlStr specStr mzJoist
                                  dimX yprev yy jy beamHalf joistHalf secHalf secSp sx isGrating
                                  bayA bayB legX legY rowH sampleLen L colR
@@ -8342,16 +8342,41 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
 
   ;; SHOW THE MEZZANINE COLUMN SPACING (owner 11-Jul) — a vertical dim chain of the column lines, just
   ;; inside the deck's left edge.
+  (setq gbr (peb-bub-r))          ; 4B.31 - one radius for every sheet; the dim chain measures off it
+  ;; -- THE CHAIN READS LIKE THE COLUMN LAYOUT PLAN'S (owner 3-Sep-2026) ------------------
+  ;; "make similar dim as of CLP."  This drew one native stretched dim per gap, INSIDE the deck's
+  ;; left edge, so eleven of them stacked on top of the joists as a column of rotated numbers.
+  ;; The CLP states the same grid as a CHAIN outside the drawing with an OVERALL bar under it,
+  ;; which is 4B.11's shape and is what a reader compares the two sheets on.
+  ;;
+  ;; peb-fr-overall-v is the set's own chain-and-overall drawer (open arrows, DIM rung, the
+  ;; ft-in on the overall) - the same one the framing elevations use, so the mezzanine plan and
+  ;; the CLP are drawn by the same hand rather than by two that happen to agree.
   (if (> (length ys) 1)
     (progn
-      (setq dimX (+ fx0 (* (min len wid) 0.03)) yprev (car ys))
-      (foreach yy (cdr ys)
-        (vl-catch-all-apply (function (lambda ()
-          (peb-dim-height-stretch fx0 dimX yprev yy (peb-comma (rtos (- yy yprev) 2 0))))))
-        (setq yprev yy))))
+      (setq dimX (- fx0 (* gbr 4.2)) yprev (car ys))
+      ;; the chain: one bar per column bay, stated in millimetres
+      (if (boundp 'peb-fr-overall-v)
+        (progn
+          (foreach yy (cdr ys)
+            (vl-catch-all-apply (function (lambda ()
+              (peb-fr-overall-v dimX yprev yy (peb-comma (rtos (- yy yprev) 2 0))))))
+            (setq yprev yy))
+          ;; and the OVERALL, one step further out, carrying feet (4B.11)
+          (vl-catch-all-apply (function (lambda ()
+            (peb-fr-overall-v (- dimX (* gbr 2.6)) (car ys) (last ys)
+                              (peb-dim-mmft (- (last ys) (car ys))))))))
+        ;; Framing.lsp not loaded (a page filter that omits it) - the old per-gap native dim
+        ;; rather than nothing at all.  An undefined helper here would blank the sheet silently.
+        (progn
+          (setq dimX (+ fx0 (* (min len wid) 0.03)) yprev (car ys))
+          (foreach yy (cdr ys)
+            (vl-catch-all-apply (function (lambda ()
+              (peb-dim-height-stretch fx0 dimX yprev yy (peb-comma (rtos (- yy yprev) 2 0))))))
+            (setq yprev yy)))))) 
 
   ;; grid bubbles — building bay NUMBERS along the top, width LETTERS down the left (A at the top)
-  (setq gbr (peb-bub-r) i 0)          ; 4B.31 - one radius for every sheet
+  (setq i 0)
   (foreach x bayPts
     (if (and (>= x (- fx0 1.0)) (<= x (+ fx1 1.0)))
       (progn (setvar "CLAYER" "GRID-LINES")
@@ -8359,13 +8384,20 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
              (setvar "CLAYER" "GRID")
              (grid-bubble x (+ fy1 (* 2.0 gbr) gbr) (itoa (1+ i)) "D")))
     (setq i (1+ i)))
-  (setq letterIdx 0)
+  ;; -- THE SAME MARKS THE COLUMN LAYOUT PLAN USES (owner 3-Sep-2026) --------------------
+  ;; "Fix the bubbles on the mezzanine floor plan and sync with Column Layout Plan."
+  ;;
+  ;; This lettered its own column rows straight through - A B C D E F G H J K L - while the CLP
+  ;; letters the SAME lines A A' B B' C C' D D' E E' F, because the CLP knows which of them are
+  ;; width-MODULE lines and which are infill posts (4B.61) and this loop did not.  Eleven letters
+  ;; against six-and-five primes: two sheets describing one grid in two languages, which is
+  ;; exactly what 4B.8 forbids.  It asks peb-width-mark now, like every other sheet.
+  (setq wMods (peb-width-mods data wid))
   (foreach y (reverse ys)
     (setvar "CLAYER" "GRID-LINES")
     (entmake (list (cons 0 "LINE") (cons 8 "GRID-LINES") (list 10 fx0 y 0.0) (list 11 (- fx0 (* 2.0 gbr)) y 0.0)))
     (setvar "CLAYER" "GRID")
-    (grid-bubble (- fx0 (* 2.0 gbr) gbr) y (peb-grid-letter letterIdx) "R")
-    (setq letterIdx (1+ letterIdx)))
+    (grid-bubble (- fx0 (* 2.0 gbr) gbr) y (peb-width-mark y ys wMods) "R"))
 
   ;; deck spec note (what the floor IS).  The members are distinguished by their flange width + BYLAYER
   ;; line-weight ("material" = line thickness, owner 12-Jul) and are NAMED on the plan (MAIN BEAM / JOISTS
