@@ -1571,6 +1571,13 @@
     ((= mode "FT")   (peb-mm-to-ft-in value))
     (T               (peb-comma (rtos value 2 0)))))
 
+;; An OVERALL extent always carries its feet, whatever *PEB-DIM-DISPLAY* says (4B.11 / 4B.14):
+;; mm is the sheet's language - General Note 1 states it - and feet are what the reader checks the
+;; size against, so the two overalls get both and nothing else does.  This is the same string the
+;; framing elevations' overall prints, comma-grouped like every other number on the set.
+(defun peb-fmt-overall (value)
+  (strcat (peb-comma (rtos value 2 0)) " [" (peb-mm-to-ft-in value) "]"))
+
 (defun peb-fmt-labelled (prefix value suffix / mode)
   ;;  Format a labelled dim like "BUILDING LENGTH : 40000 OUT TO OUT OF STEEL"
   ;;  per *PEB-DIM-DISPLAY* mode.  Inserts the value (mm / mm-and-ft / ft)
@@ -6097,8 +6104,23 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                          (strcat (peb-chain-text (MSPL-Get-Str data "BAYEXPR") bayPts) " " (peb-basis-suffix lref)))
       (peb-recolor-last-dim 0)              ; ByBlock
       ;; Overall length dim — real VALUE (nth 0); witness/arrows on the DRAWN plane (nth 3/4).
+      ;; -- THE LABEL THAT WAS COSTING THE SHEET HALF ITS SCALE (owner 3-Sep-2026) ------
+      ;; "Fix the bubbles issue as well."  The bubbles were the symptom.  This dim used to read
+      ;; "BUILDING LENGTH : 54,860 [180'-0\"] O/O STEEL COLUMN" - fifty characters, which at this
+      ;; sheet's lettering is WIDER than the 54,860 it measures.  A stretched dim whose text will
+      ;; not fit between its own extension lines puts the text OUTSIDE, so the whole string hung
+      ;; off the right of grid 8 and became the sheet's rightmost ink.  The auto-fit frames the
+      ;; extents, so ONE label doubled the sheet's width and took the plan from about 1:400 to
+      ;; 1:608 - and a bubble drawn at 4B.31's model radius then plots two-thirds the size it
+      ;; does on the framing elevations of the same building.  That is the "bubbles are not the
+      ;; same" the eye actually sees: not a different radius, a different SHEET SCALE.
+      ;;
+      ;; The overall carries its value and its feet (4B.11) and nothing else - exactly as the
+      ;; framing elevations' overall does, which is the point of 4B.8.  The BASIS is not lost:
+      ;; the bay chain immediately below states "... O/O STEEL COLUMN" on the same stack, and
+      ;; the subtitle above states the size.  Each fact once.
       (peb-dim-h-stretch (nth 3 ldim) (+ len (nth 4 ldim)) yOvrDim
-                         (peb-fmt-labelled "BUILDING LENGTH" (nth 0 ldim) (peb-basis-suffix lref)))
+                         (peb-fmt-overall (nth 0 ldim)))
       (peb-recolor-last-dim 0)))                   ; ByBlock for overall length
 
   ;; ── WIDTH DIMENSIONS: 3 NESTED CHAINS (owner 4-Jul) ─────────────────────────────
@@ -6127,8 +6149,11 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                               (strcat (peb-chain-text (MSPL-Get-Str data "MODEXPR") widthPts) " " wmSuffix))
       (peb-recolor-last-dim 0)))              ; LEW width module (middle)
   ;; (3) OVERALL WIDTH — LEW outermost (-4800). Real VALUE (nth 0); witness on the DRAWN plane (nth 3/4).
+  ;; Same treatment as the overall LENGTH above: value + feet, no prefix and no basis - the two
+  ;; nested chains inboard of it already carry "O/O STEEL COLUMN", and rotated up the margin this
+  ;; string was the tallest thing on the sheet as well as a second voice for the same fact.
   (peb-dim-height-stretch 0.0 (- (* 3.0 dimGap)) (nth 3 wdim) (+ wid (nth 4 wdim))
-                          (peb-fmt-labelled "BUILDING WIDTH" (nth 0 wdim) (peb-basis-suffix wref)))
+                          (peb-fmt-overall (nth 0 wdim)))
   (peb-recolor-last-dim 0)))                    ; LEW overall width (outermost)
 
   ;; ── Title (Phase-2A: compact dim × dim with area) ────────────

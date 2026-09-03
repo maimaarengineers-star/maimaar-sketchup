@@ -466,7 +466,12 @@
         ft (fix (/ ti 12.0))
         in (fix (+ 0.5 (- ti (* ft 12.0)))))
   (if (>= in 12) (setq ft (1+ ft) in 0))
-  (strcat (rtos mm 2 0) " [" (itoa ft) "'-" (itoa in) "\"]"))
+  ;; COMMA-GROUPED, like every other number on the set (the owner's number-presentation
+  ;; standard).  This printed "76200 [250'-0\"]" on the mezzanine floor plan while the framing
+  ;; elevation printed "76,200 [250'-0\"]" for the SAME extent, two sheets apart - one number,
+  ;; two presentations, which is the small end of exactly what 4B.8 is about.
+  (strcat (if (boundp 'peb-comma) (peb-comma (rtos mm 2 0)) (rtos mm 2 0))
+          " [" (itoa ft) "'-" (itoa in) "\"]"))
 
 ;; LEADER = line tip->elbow + filled arrowhead at the tip + text at the elbow.
 ;; Batch-safe MLEADER stand-in, drawn entirely on the given layer.
