@@ -1134,7 +1134,22 @@
   ;; extents 7 m further left and cost the whole drawing a scale step for one duplicate word.
   ;; LEVEL MARKERS: the base, every landing, and the head - measured from the finished floor.
   (setq lvls (append lvls (list ycur)))
-  (foreach lv lvls (peb-stair-level (+ xhi (* u 1.2)) lv oy th))
+  ;; -- THE HEAD IS NAMED WHERE IT IS MEASURED (owner 3-Sep-2026) ---------------------
+  ;; "MEZZANINE FLOOR" used to be a mark of its own on the LEFT, and its fifteen characters
+  ;; ran from three units left of the flight straight INTO the flight's top corner and its
+  ;; handrail - and on a multi-landing stair into the plan's own "PLAN" caption above it as
+  ;; well.  Right-justifying it instead would hang 3.6 m of text off the left edge and cost
+  ;; the sheet a scale step for one word.
+  ;;
+  ;; The level marker on the RIGHT already measures that same line, and has clear paper beside
+  ;; it.  So the head is NAMED there - "+5380mm   MEZZANINE FLOOR" - and the left-hand mark is
+  ;; gone.  Each fact once: the marker measures the level and names it in the same breath, the
+  ;; way the numeric levels below it already read.
+  (setq k 0 n (length lvls))
+  (foreach lv lvls
+    (peb-stair-level (+ xhi (* u 1.2)) lv oy th
+                     (if (= k (1- n)) "MEZZANINE FLOOR" ""))
+    (setq k (1+ k)))
   ;; The "F.F.L" elbow that stood here is GONE (owner 3-Sep-2026), for the same reason the
   ;; "MEZZANINE LEVEL" leader above it went.  ONE level was being named THREE times: this elbow
   ;; hung off the left edge, the GROUND FLOOR mark with its triangle sat a few millimetres under
@@ -1174,7 +1189,9 @@
     (entmake (list (cons 0 "LINE") (cons 8 "STAIR-LANDING")
                    (list 10 (- xlo (* u 3.0)) (+ ycur i) 0.0)
                    (list 11 xrcc (+ ycur i) 0.0))))
-  (peb-stair-floor-mark (- xlo (* u 3.0)) ycur th "MEZZANINE FLOOR" 1 (+ 100.0 (* u 2.0)))
+  ;; the mezzanine level mark keeps its triangle and line - the concrete has to be read as a
+  ;; FLOOR - but not its name: peb-stair-level names it on the right (see above).
+  (peb-stair-floor-mark (- xlo (* u 3.0)) ycur th "" 1 (+ 100.0 (* u 2.0)))
 
   ;; --- LABELLING: the LEVELS carry this view, nothing else needs to.
   ;; A reader of an elevation wants to know how high each landing is and where it meets the
@@ -1211,13 +1228,14 @@
 ;;
 ;; These are GEOMETRY, not designed member sizes, so they belong on a proposal drawing: the
 ;; heights come from the BSF's own mezzanine floor height and the landing split.
-(defun peb-stair-level (x y base th / t2 s)
+(defun peb-stair-level (x y base th name / t2 s)
   ;; SIGN THE LEVEL, DO NOT ASSUME IT IS POSITIVE.  The "+" used to be hard-coded, which was
   ;; harmless while every level was above the datum - and became "+-20mm" on the drawing the
   ;; moment the stair base dropped below F.F.L to hold the 150 riser exactly.  rtos already
   ;; writes the minus sign, so the prefix belongs only on a positive value.
   (setq t2 (* th 0.85)
-        s  (strcat (if (< (- y base) -0.5) "" "+") (rtos (- y base) 2 0) "mm"))
+        s  (strcat (if (< (- y base) -0.5) "" "+") (rtos (- y base) 2 0) "mm"
+                   (if (and name (/= name "")) (strcat "   " name) "")))
   (peb-comp-layer "STAIR-TEXT" 7)
   ;; the level line
   (entmake (list (cons 0 "LINE") (cons 8 "STAIR-TEXT")
@@ -1265,8 +1283,9 @@
                  (list 11 (+ x (* t2 2.6)) (+ yl (* dir t2 1.1)) 0.0)
                  (list 12 (+ x (* t2 1.8)) yl 0.0) (list 13 (+ x (* t2 1.8)) yl 0.0)))
   (setvar "CLAYER" "STAIR-TEXT")
-  (txt-bold "BL" (list (+ x (* t2 3.2)) ytx)
-            (/ th (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0.0 name))
+  (if (and name (/= name ""))
+    (txt-bold "BL" (list (+ x (* t2 3.2)) ytx)
+              (/ th (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0.0 name)))
 
 ;; A sloping member of depth `d`, drawn as a closed band from (x0,y0) to (x1,y1).
 (defun peb-stair-slab (x0 y0 x1 y1 d)
@@ -1503,9 +1522,16 @@
 
   ;; ---- labels: column identification and structural rule -----------------------------------
   (peb-comp-layer "STAIR-TEXT" 7)
-  ;; Main label: Column identification with quantity
+  ;; Main label: column identification WITH THE QUANTITY THIS STAIR ACTUALLY HAS.
+  ;; "4 NOS." was hard-coded, and the elevation beside it draws the rule the owner set on
+  ;; 3-Sep: four corner columns only when there is MORE THAN ONE mid-landing, because a single
+  ;; mid-landing has only one end to hold and the other pair would stand in air.  On 279-26 the
+  ;; elevation therefore drew ONE pair while this label claimed four - the same drawing
+  ;; contradicting itself across two views (4B.8).  It counts now.
   (peb-stair-note-elbow xcr (+ yb (* hgt 0.30)) (+ yb (* hgt 0.30)) (+ xcr (* u 3.0)) 1 th
-                        "STAIRCASE COLUMNS (4 NOS.)")
+                        (strcat "STAIRCASE COLUMNS ("
+                                (itoa (if (> (1- (length (peb-stair-flights hgt))) 1) 4 2))
+                                " NOS.)"))
   ;; Sub-label: Explain the trim rule clearly
   (peb-stair-note-elbow xcr (+ yb (* hgt 0.20)) (+ yb (* hgt 0.20)) (+ xcr (* u 3.0)) 1 th
                         "TRIMMED TO LANDING HEIGHTS")
@@ -2018,7 +2044,16 @@
                                      (nth 2 ext) (nth 3 ext)
                                      (max 60.0 (/ wdt 12.0)) (* (max 60.0 (/ wdt 12.0)) 1.6)))
                 ;; Drop clear of the plan and its notes, then the elevation of the SAME stair.
-                (setq oy (- oy (peb-stair-elev-drop shp hgt wdt)))
+                ;; -- MEASURED OFF THE PLAN, NOT ESTIMATED (owner 3-Sep-2026, rule 4B.27) -----
+                ;; peb-stair-elev-drop is a formula, and on a 10 m stair - three landings, TWO
+                ;; plan blocks - it came up short: the elevation's own head mark printed into the
+                ;; plan's "PLAN" caption ("MEZZANINE FLOORPLAN" on the sheet).  The plan drawer
+                ;; already RETURNS its true extents (xlo xhi ylo yhi), so the elevation is placed
+                ;; from ylo and can never be caught out by a plan that grew.  The formula is kept
+                ;; as the other half of a `min`, so a plan that reports a tight box cannot pull
+                ;; the elevation up into it either - whichever wants more room, wins.
+                (setq oy (min (- oy (peb-stair-elev-drop shp hgt wdt))
+                              (- (nth 2 ext) (* (max 60.0 (/ wdt 12.0)) 15.0) hgt)))
                 (peb-stair-elev 0.0 oy wdt hgt topl midl lbl trd shp)
                 ;; SECTION A-A BESIDE the plan, not beneath everything.  The section is tall
                 ;; and narrow while the plan and elevation are long and low, so stacking all
@@ -2041,7 +2076,14 @@
                                      wdt hgt nil)
                 ;; TYPICAL STEP DETAIL - the one thing the plan and elevation draw at a scale too
                 ;; coarse to show: what a step actually is.
-                (peb-stair-stepdetail (+ (nth 1 ext) (* wdt 5.5)) (- oy (* wdt 6.0)) wdt hgt nil)
+                ;; -- IN THE BOTTOM BAND, NOT ADRIFT BELOW IT (owner: "remove this & organize all
+                ;; the placement of staircases").  Tucked under the SECTION at 5.5 widths it fell
+                ;; six widths below the elevation, two widths lower than the specification beside
+                ;; it, with clear paper on either side and the largest void on the sheet - under
+                ;; the base plate plan - left empty.  It now sits in that void, on the same line
+                ;; as the specification, so the sheet reads as two rows of drawings over one band
+                ;; of notes instead of four blocks scattered down a page.
+                (peb-stair-stepdetail (+ (nth 1 ext) (* wdt 10.0)) (- oy (* wdt 2.5)) wdt hgt nil)
                 ;; SPEC + LOADS, both read off the BSF.  Drawn once, under the elevation.
                 (setq hrail (MSPL-Get-Str data (strcat tag "HANDRAILS")))
                 ;; Close under the elevation.  Parking the notes 13 widths down stretched the
