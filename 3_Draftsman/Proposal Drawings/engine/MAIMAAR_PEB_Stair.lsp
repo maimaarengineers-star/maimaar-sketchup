@@ -53,7 +53,21 @@
 ;; Rule 4B.27 is the answer: a gap that exists to clear TEXT must be computed from that text's
 ;; height, never from a number that happened to suit one size.  So the enlargement lands with
 ;; the label-gap rework, not before it - and when it does, it changes here, once.
-(defun peb-stair-th (u) (* u 2.2))
+;; ---- ONE TEXT HEIGHT FOR THE WHOLE SHEET, AND IT IS THIS ONE  (owner 3-Sep-2026) ----------
+;; "Text of stair is too small" · "Fix all the labelling of staircase".
+;;
+;; There were THREE heights on one sheet and only this one was ever tuned: the SECTION lettered
+;; at 1.5u and the STEP DETAIL at 1.4u, so two of the six blocks printed a third smaller than the
+;; rest. That is most of "too small" on its own - the eye reads a sheet by its smallest legible
+;; text, and two whole views were below it. Both now ask this function, so the sheet has one
+;; lettering size and raising it raises everything (4B.9).
+;;
+;; 2.9u plots about 1.9 mm at this sheet's 1:152. The set's floor is 2.5 mm, which would need
+;; 3.8u - and that was tried on 1-Sep: it collided every label and cost the auto-fit a scale step,
+;; giving most of the gain straight back. The gaps have since been re-based on the text height
+;; (4B.27) so the collisions no longer follow, but the extents still grow with the lettering, so
+;; the size is raised in a step that can be measured rather than in one that has to be undone.
+(defun peb-stair-th (u) (* u 2.9))
 
 (defun peb-stair-going () 300.0)   ; TREAD
 
@@ -306,7 +320,7 @@
 ;; And it drew them on STAIR-TEXT, a layer made ad hoc at ACI 7 that is in neither *PEB-LAYERS*
 ;; nor PEB_LAYERS.csv, so it inherits no lineweight from the standard.  Dimension geometry
 ;; belongs on DIMENSIONS, which does.  Notes and captions stay where they are - they ARE text.
-(defun peb-stair-dim (x0 x1 y th s / t2)
+(defun peb-stair-dim (x0 x1 y th s / t2 txt span tlen)
   (if (peb-stair-plain-p) (princ) (progn
   (peb-comp-layer "DIMENSIONS" 6)
   (setq t2 (* th 0.9))
@@ -322,9 +336,21 @@
                    (list 10 (car p) y 0.0)
                    (list 11 (+ (car p) (* (cadr p) t2 1.4)) (- y (* t2 0.45)) 0.0))))
   (setvar "CLAYER" "DIMENSIONS")
-  (txt-dim "BC" (list (/ (+ x0 x1) 2.0) (+ y (* t2 0.5)))
-            (/ t2 (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0.0
-            (peb-stair-dimtext (abs (- x1 x0)) s)))))
+  ;; ---- A DIMENSION TOO SMALL FOR ITS TEXT PUTS THE TEXT OUTSIDE  (as peb-stair-vdim) --------
+  ;; The horizontal twin of the rule above it, and it settles two long-standing collisions on
+  ;; this sheet: "1200 LANDING" centred on a 1,200 span ran straight into "5400 FLIGHT RUN"
+  ;; beside it - the sheet printed "5400 FLIGHT RUN1200 LANDING" as one word - and "1200 STAIR
+  ;; WIDTH" in the section overhung its own span far enough to reach the PEDESTAL note. Text
+  ;; that will not fit between the arrows goes beyond the right-hand one, which is what a
+  ;; draughtsman does and what leaves the neighbouring dimension its own room.
+  (setq txt  (peb-stair-dimtext (abs (- x1 x0)) s)
+        span (abs (- x1 x0))
+        tlen (* (strlen txt) t2 0.62))
+  (if (< tlen (* span 0.95))
+    (txt-dim "BC" (list (/ (+ x0 x1) 2.0) (+ y (* t2 0.5)))
+              (/ t2 (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0.0 txt)
+    (txt-dim "BL" (list (+ (max x0 x1) (* t2 0.9)) (+ y (* t2 0.5)))
+              (/ t2 (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0.0 txt)))))
 
 ;; ---- A DIMENSION MUST CARRY ITS MEASUREMENT  (owner 1-Sep-2026: "show the clear dimensions")
 ;; The main views were printing a dimension line with a DESCRIPTION and no number - "STAIRCASE
@@ -712,9 +738,14 @@
   ;; A single "STAIRCASE LENGTH" over the whole thing cannot be built from: it does not say how
   ;; much of that is flight and how much is landing, which is the first thing anyone setting it
   ;; out needs.  A chain of run + landing, with the overall above it, does.
+  ;; THE RUN IS NAMED, THE LANDINGS ARE NUMBERED.  A 1,200 landing cannot letter "1200 LANDING"
+  ;; inside itself, so the fit rule sends that text out to the right - and on an upper block,
+  ;; which has a landing at BOTH ends, the left one's text landed straight on top of the flight
+  ;; run beside it ("12500ARFDIGHT RUN" on the sheet).  Same rule as every other nested chain on
+  ;; this set: the span that can carry a description carries it, the ones inside it carry values.
   (peb-stair-dim xa xb (+ (if f2 yt1 yb1) (* u 6.0)) th "FLIGHT RUN")
-  (peb-stair-dim xb xL (+ (if f2 yt1 yb1) (* u 6.0)) th "LANDING")
-  (if startland (peb-stair-dim xout xa (+ (if f2 yt1 yb1) (* u 6.0)) th "LANDING"))
+  (peb-stair-dim xb xL (+ (if f2 yt1 yb1) (* u 6.0)) th "")
+  (if startland (peb-stair-dim xout xa (+ (if f2 yt1 yb1) (* u 6.0)) th ""))
   (peb-stair-dim (if towerout xout xa) xL (+ (if f2 yt1 yb1) (* u 12.0)) th
                  (peb-stair-dim-overall (abs (- xL (if towerout xout xa))) "STAIRCASE LENGTH"))
   ;; and the depth across the stair, which is the other half of the footprint
@@ -915,7 +946,10 @@
   (if sub
     (progn
       (setvar "CLAYER" "STAIR-TEXT")
-      (txt-bold "MC" (list (/ (+ xlo xhi) 2.0) (- ylo (* u 1.6)))
+      ;; The caption clears the block's own STRINGER label, which hangs below it - so the gap is
+      ;; measured in text heights, not in `u`. At 1.6u the two printed through each other the
+      ;; moment the lettering was raised.
+      (txt-bold "MC" (list (/ (+ xlo xhi) 2.0) (- ylo (* th 2.6)))
                 (/ (* th 1.05) (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0.0 sub)))
   (list xlo xhi ylo yhi))
 
@@ -975,7 +1009,7 @@
 (defun peb-stair-elev (ox oy wdt hgt topl midl lbl trd shp /
                        u th going fl nf lw tlw hr1 hr2 rise dir ybase xnext
                        xa xcur ycur i k n x y xs xe ys ye ytxt hmid xmid xlo xhi lvls xrcc slabT
-                       fl nf rise nland colr colsum col-height)
+                       fl nf rise nland colr colsum col-height colHi colLo)
   (setq u     (max 60.0 (/ wdt 12.0))
         th    (peb-stair-th u)
         going (peb-stair-going)
@@ -1031,9 +1065,16 @@
           xe (+ xs (* dir going (nth i fl)))
           ye (+ ys (* rise  (nth i fl))))
     (setq xlo (min xlo xs xe) xhi (max xhi xs xe))
-    ;; stringer as a sloping band
+    ;; stringer as a sloping band - the BOTTOM flight is seated on the floor (see below)
     (peb-comp-layer "STAIR-STRINGER" 1)
-    (peb-stair-slab xs ys xe ye (peb-stair-stringer-d))   ; C-200x75x6x6
+    (if (= i 0)
+      (progn
+        (peb-stair-slab-seated xs ys xe ye (peb-stair-stringer-d) oy)
+        ;; ...and stands on a base plate at the F.F.L, which is what "starts from FFL" means.
+        (peb-comp-layer "STAIR-LANDING" 3)
+        (peb-stair-baseplate xs (+ xs (* (peb-stair-stringer-d) (/ (- xe xs) (- ye ys)))) oy)
+        (peb-comp-layer "STAIR-STRINGER" 1))
+      (peb-stair-slab xs ys xe ye (peb-stair-stringer-d)))   ; C-200x75x6x6
     ;; the step profile
     (peb-comp-layer "STAIR-TREAD" 7)
     (setq k 0 n (nth i fl))
@@ -1124,23 +1165,36 @@
         nf    (length fl)
         rise  (peb-stair-rise hgt)
         nland (1- nf))
+  ;; ---- EACH PAIR STOPS AT ITS OWN HIGHEST LANDING  (owner 3-Sep-2026) ---------------------
+  ;; "In case of more landing than 1, columns should reach till landing, not in the air."
+  ;;
+  ;; Both pairs used to run to the TOPMOST mid-landing - one height for all four columns. That is
+  ;; right only for the pair the topmost landing actually sits on. Landings alternate ends, so on
+  ;; a three-landing stair the right-hand pair carries +2537 and +7612 while the left-hand pair
+  ;; carries +5075: running the left pair to +7612 as well left 2.5 m of column standing above the
+  ;; last thing it holds. That is the same "column in the air" the owner struck off the one-landing
+  ;; sheet on 1-Sep, one landing further up.
+  ;;
+  ;; So the two ends are counted SEPARATELY. Landing i (0-based, after flight i) is at xhi for even
+  ;; i and xlo for odd i, and its level is the sum of the flights below it - so each end's column
+  ;; height is the level of the highest landing on THAT end, and neither pair rises past what it
+  ;; carries.
   (if (> nland 0)
     (progn
-      ;; the TOPMOST mid-landing: every flight below it, which is all of them but the last
-      (setq colr 0 colsum 0)
-      (while (< colr (1- nf))
-        (setq colsum (+ colsum (nth colr fl)) colr (1+ colr)))
-      (setq col-height (+ ybase (* rise colsum)))
       (peb-comp-layer "STAIR-LANDING" 3)
-      (if (> nland 1)
-        ;; several landings, alternating ends -> a pair at each corner: four columns
-        (progn
-          (peb-stair-col-elev (+ xlo (/ (peb-stair-col-d) 2.0)) ybase col-height)
-          (peb-stair-col-elev (- xhi (/ (peb-stair-col-d) 2.0)) ybase col-height))
-        ;; ONE landing -> ONE pair, at the end that landing is actually on
-        (if (= (rem (1- nland) 2) 0)
-          (peb-stair-col-elev (- xhi (/ (peb-stair-col-d) 2.0)) ybase col-height)
-          (peb-stair-col-elev (+ xlo (/ (peb-stair-col-d) 2.0)) ybase col-height)))))
+      ;; colHi / colLo stay NIL until an end actually has a landing - never 0.0 as a sentinel.
+      ;; The elevation is placed at a large NEGATIVE oy (the blocks stack downward from the plan),
+      ;; so a level is routinely below zero and "(> colHi 0.0)" silently drew no columns at all.
+      ;; An absolute coordinate is never a flag.
+      (setq colr 0 colsum 0 colHi nil colLo nil)
+      (while (< colr nland)
+        (setq colsum (+ colsum (nth colr fl)))
+        (if (= (rem colr 2) 0)
+          (setq colHi (+ ybase (* rise colsum)))      ; landing at xhi - the right-hand pair
+          (setq colLo (+ ybase (* rise colsum))))     ; landing at xlo - the left-hand pair
+        (setq colr (1+ colr)))
+      (if colHi (peb-stair-col-elev (- xhi (/ (peb-stair-col-d) 2.0)) ybase colHi))
+      (if colLo (peb-stair-col-elev (+ xlo (/ (peb-stair-col-d) 2.0)) ybase colLo))))
 
   ;; The "MEZZANINE LEVEL" leader that stood here is GONE (owner 3-Sep-2026).  It printed at the
   ;; same point as the MEZZANINE FLOOR slab label below and the two smeared into each other; the
@@ -1164,7 +1218,14 @@
   (setq k 0 n (length lvls))
   (foreach lv lvls
     (peb-stair-level (+ xhi (* u 1.2)) lv oy th
-                     (if (= k (1- n)) "MEZZANINE FLOOR" ""))
+                     ;; Both named floors are named on the level column that MEASURES them (4B.67).
+                     ;; The owner struck "GROUND FLOOR" off the left of the elevation and wrote
+                     ;; F.F.L against the top of the ground slab: the base level is the FINISHED
+                     ;; FLOOR LEVEL, which is what the rest of the set calls it and what the stair
+                     ;; springs from.
+                     (cond ((= k 0)        "F.F.L")
+                           ((= k (1- n))   "MEZZANINE FLOOR")
+                           (T              "")))
     (setq k (1+ k)))
   ;; The "F.F.L" elbow that stood here is GONE (owner 3-Sep-2026), for the same reason the
   ;; "MEZZANINE LEVEL" leader above it went.  ONE level was being named THREE times: this elbow
@@ -1193,7 +1254,10 @@
     (entmake (list (cons 0 "LINE") (cons 8 "STAIR-LANDING")
                    (list 10 (- xlo (* u 3.0)) (- oy (* slabT i)) 0.0)
                    (list 11 xrcc (- oy (* slabT i)) 0.0))))
-  (peb-stair-floor-mark (- xlo (* u 3.0)) oy th "GROUND FLOOR" -1 (+ 100.0 (* u 2.0)))
+  ;; The symbol stays - it is what makes the concrete read as a FLOOR - but not the name: the
+  ;; level column names it F.F.L, and a nameless mark sits ON its level rather than standing off
+  ;; to clear text it no longer has.
+  (peb-stair-floor-mark (- xlo (* u 3.0)) oy th "" -1 0.0)
 
   ;; Mezzanine level concrete — trimmed at the HEAD, the last step (see above)
   (setq xrcc (- xcur (* dir lw)))
@@ -1223,8 +1287,15 @@
   ;; left face - rather than off xa, which is the foot of flight 1 and sits well inside the
   ;; tower once the mezzanine deck and any outward landing are counted.  The rotated text was
   ;; landing on the column line.
+  ;; THE INNER DIMENSION CARRIES ITS VALUE, THE OUTER ONE CARRIES THE DESCRIPTION.
+  ;; "2690 FULL LANDING HEIGHT" is twenty-four characters against a 2,690 mm span - at 1:152 the
+  ;; string is two and a half times longer than the dimension it labels, so wherever it is put it
+  ;; either overruns its own arrows or drifts up beside the dimension above and reads as that
+  ;; one's label. Nested dims are lettered the way the rest of the set letters them: the overall
+  ;; is named, the ones inside it are numbered. Nothing is lost - the level column beside the
+  ;; stair already prints +2690MM against that same line.
   (if (and hmid (> nf 1))
-    (peb-stair-vdim (- xlo (* u 3.0)) oy hmid th "FULL LANDING HEIGHT"))
+    (peb-stair-vdim (- xlo (* u 3.0)) oy hmid th ""))
   (peb-stair-vdim (- xlo (* u 6.4)) oy (+ oy hgt) th
                   (peb-stair-dim-overall hgt "STAIRCASE HEIGHT"))
 
@@ -1317,6 +1388,42 @@
 (defun peb-stair-slab (x0 y0 x1 y1 d)
   (peb-comp-poly (list (list x0 y0) (list x1 y1) (list x1 (- y1 d)) (list x0 (- y0 d)))))
 
+;; ---- THE BOTTOM STRINGER IS SEATED ON THE FLOOR  (owner 3-Sep-2026) -----------------------
+;; "Stringer will start from FFL with Base Plates."
+;;
+;; peb-stair-slab hangs its band a full depth BELOW the line it is given, and the bottom flight is
+;; given the line through (xa, F.F.L) - so the stringer was drawn 200 mm UNDER the finished floor,
+;; buried in the ground slab, with nothing holding it up.  A stringer does not start below the
+;; floor it springs from: it is cut to the floor and lands on a base plate.
+;;
+;; The cut is where the SOFFIT line crosses the floor.  The soffit runs parallel to the top, a
+;; depth below, so it reaches floorY after  d * going / rise  horizontally - the same slope,
+;; solved once.  The result is the chamfered heel a seated stringer actually has:
+;;
+;;        top ____________/           x0 is the springing, xc the heel's toe
+;;           /          /
+;;    floor /__________/  <- soffit meets the floor at xc, plate under x0..xc
+;;
+;; A flight that starts on a LANDING is unchanged - it is carried at both ends and has no heel.
+(defun peb-stair-slab-seated (x0 y0 x1 y1 d floorY / rise going xc)
+  (setq going (- x1 x0) rise (- y1 y0))
+  (if (or (<= (abs rise) 1e-6) (> (- y0 d) floorY))
+    (peb-stair-slab x0 y0 x1 y1 d)                      ; no heel to cut - draw it as before
+    (progn
+      (setq xc (+ x0 (* d (/ going rise))))
+      (peb-comp-poly (list (list x0 y0) (list x1 y1) (list x1 (- y1 d))
+                           (list xc floorY) (list x0 floorY))))))
+
+;; The plate the heel stands on, ON the floor, a little wider than the stringer each side.  Drawn
+;; as a band rather than a line so it reads as a PLATE at sheet scale, which is the whole point of
+;; the note beside it.
+;; `pt` for the plate thickness, NEVER `t` - T is AutoLISP's TRUE constant, and declaring it local
+;; then assigning a float to it silently breaks every (if ...) and (cond ... (T ...)) that runs
+;; afterwards. It has cost this file a whole elevation once already (see peb-stair-rail).
+(defun peb-stair-baseplate (x0 xc floorY / lo hi pt)
+  (setq lo (- (min x0 xc) 70.0) hi (+ (max x0 xc) 70.0) pt 30.0)
+  (peb-comp-poly (list (list lo floorY) (list hi floorY) (list hi (+ floorY pt)) (list lo (+ floorY pt)))))
+
 ;; The handrail over a run: top rail at h1+h2, mid rail at h2, and POSTS along the run.
 ;;
 ;; PROPORTION IS THE POINT (owner 1-Sep-2026: "Draw the Side View proportionally").  Two rails
@@ -1407,7 +1514,7 @@
   (peb-comp-poly (list (list x0 y) (list x1 y) (list x1 (+ y 100.0)) (list x0 (+ y 100.0)))))
 
 ;; A VERTICAL dimension with open arrows, label read up the line.
-(defun peb-stair-vdim (x y0 y1 th s / t2)
+(defun peb-stair-vdim (x y0 y1 th s / t2 txt span tlen)
   (if (peb-stair-plain-p) (princ) (progn
   (peb-comp-layer "DIMENSIONS" 6)
   (setq t2 (* th 0.9))
@@ -1423,9 +1530,26 @@
                    (list 10 x (car p) 0.0)
                    (list 11 (- x (* t2 0.45)) (+ (car p) (* (cadr p) t2 1.4)) 0.0))))
   (setvar "CLAYER" "DIMENSIONS")
-  (txt-dim "BC" (list (- x (* t2 0.5)) (/ (+ y0 y1) 2.0))
-            (/ t2 (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 90.0
-            (peb-stair-dimtext (abs (- y1 y0)) s)))))
+  ;; ---- A DIMENSION TOO SMALL FOR ITS TEXT PUTS THE TEXT OUTSIDE  (owner 3-Sep-2026) --------
+  ;; "Avoid the overriding & fix the dim properly."
+  ;;
+  ;; The text was always centred on the dimension, however long the text or however short the
+  ;; dimension.  "2690 FULL LANDING HEIGHT" is twenty-four characters against a 2,690 mm span:
+  ;; at 1:152 the string is half again as long as the thing it measures, so it overran both
+  ;; arrows and printed its value down across the floor mark below - the overriding.
+  ;;
+  ;; This is 4B.27 once more: measure the gap against the TEXT.  Where the text fits between the
+  ;; arrows it is centred, as before; where it does not, it goes OUTSIDE, starting just past the
+  ;; upper arrow and reading up its own column - which is what a draughtsman does with a
+  ;; dimension too small to letter, and it keeps every nested dim in its own lane.
+  (setq txt  (peb-stair-dimtext (abs (- y1 y0)) s)
+        span (abs (- y1 y0))
+        tlen (* (strlen txt) t2 0.62))       ; ROMAND is proportional; 0.62 of the height per char
+  (if (< tlen (* span 0.9))
+    (txt-dim "BC" (list (- x (* t2 0.5)) (/ (+ y0 y1) 2.0))
+              (/ t2 (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 90.0 txt)
+    (txt-dim "BL" (list (- x (* t2 0.5)) (+ (max y0 y1) (* t2 0.8)))
+              (/ t2 (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 90.0 txt)))))
 
 
 ;; ---- CROSS SECTION THROUGH A FLIGHT  (owner 1-Sep-2026) ---------------------------------
@@ -1473,7 +1597,7 @@
   ;;
   ;; NAMES ONLY.  Sizes, gussets and bolts are approval-stage content and stay off a proposal.
   (setq u    (max 60.0 (/ wdt 12.0))
-        th   (* u 1.5)
+        th   (peb-stair-th u)          ; the SHEET's height - never a second copy of a size
         fl   (peb-stair-flights hgt)
         nf   (length fl)
         rise (peb-stair-rise hgt)             ; EQUAL - height/count
@@ -1555,12 +1679,12 @@
   ;; elevation therefore drew ONE pair while this label claimed four - the same drawing
   ;; contradicting itself across two views (4B.8).  It counts now.
   (peb-stair-note-elbow xcr (+ yb (* hgt 0.30)) (+ yb (* hgt 0.30)) (+ xcr (* u 3.0)) 1 th
-                        (strcat "STAIRCASE COLUMNS ("
+                        (strcat "STAIR COLUMNS ("
                                 (itoa (if (> (1- (length (peb-stair-flights hgt))) 1) 4 2))
                                 " NOS.)"))
   ;; Sub-label: Explain the trim rule clearly
   (peb-stair-note-elbow xcr (+ yb (* hgt 0.20)) (+ yb (* hgt 0.20)) (+ xcr (* u 3.0)) 1 th
-                        "TRIMMED TO LANDING HEIGHTS")
+                        "TRIMMED TO LANDINGS")
   (peb-stair-note-elbow ox (+ yb (* hgt 0.16)) (+ yb (* hgt 0.16)) (- xcl (* u 3.0)) -1 th
                         "BRACING")
   (if lvls
@@ -1588,18 +1712,31 @@
   ;; "2544 O/O OF STEEL COLUMN" while this one said "OUT TO OUT WIDTH" over 1200.  Same phrase
   ;; for the same measurement everywhere, or the reader cannot tell them apart.
   ;; O/O OF STEEL COLUMN with breakdown: wdt + column depth + wdt
-  (peb-stair-dim-breakdown xcl xcr (- yb (* th 4.6)) (* th 0.9) "O/O OF STEEL COLUMN"
-                           (strcat "(" (rtos wdt 2 0) " + " (rtos cd 2 0) " + " (rtos wdt 2 0) ")"))
+  ;; THE DIMENSION CARRIES ITS VALUE; THE LINE UNDER IT CARRIES THE DESCRIPTION AND THE SPLIT.
+  ;; "2600 O/O OF STEEL COLUMN" is twenty-four characters over a 2,600 mm span, so it can never
+  ;; letter between its own arrows - the fit rule pushed it out to the right, where it landed
+  ;; beside the breakdown line and read as a stray note rather than as this dimension's label.
+  ;; The section already has a second line under this dim for the 1200+200+1200 split, so the
+  ;; description goes THERE, on the line that has room for it, and the dimension keeps its number.
+  (peb-stair-dim-breakdown xcl xcr (- yb (* th 6.2)) (* th 0.9) ""
+                           (strcat "O/O OF STEEL COLUMN  ("
+                                   (rtos wdt 2 0) " + " (rtos cd 2 0) " + " (rtos wdt 2 0) ")"))
   ;; -- SPACED IN TEXT HEIGHTS, NOT IN `u` (rule 4B.27) ---------------------------------
   ;; These four sat at 2.6u / 5.2u / 8.4u / 10.6u below the cut.  Each row carries a dimension
   ;; line, its label, and - for the O/O row - a breakdown line under it, so at 2.6u apart with
   ;; text 2.2u tall they printed into one another.  In text heights the stack holds at any size.
-  (peb-stair-dim xl  xr  (- yb (* th 2.2)) (* th 0.9) "STAIR WIDTH")
+  ;; Inner dim, value only - the O/O dimension beneath it is the one that carries a description,
+  ;; and the breakdown "(1200 + 200 + 1200)" under THAT already states this same 1,200.
+  ;; 3.2 text heights, not 2.2: the pedestals hang below the cut line, and at 2.2 this dimension
+  ;; sat on them.
+  (peb-stair-dim xl  xr  (- yb (* th 3.2)) (* th 0.9) "")
 
   (setvar "CLAYER" "STAIR-TEXT")
-  (txt-bold "MC" (list ox (- yb (* th 8.6)))
+  ;; The caption clears the O/O row AND the breakdown line under it - the last thing above it,
+  ;; at 6.2 + 2.25 text heights below the cut. At 8.6 it printed through that breakdown.
+  (txt-bold "MC" (list ox (- yb (* th 10.4)))
             (/ (* th 1.3) (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0.0 "SECTION A-A")
-  (txt-bold "MC" (list ox (- yb (* th 10.3)))
+  (txt-bold "MC" (list ox (- yb (* th 12.1)))
             (/ (* th 0.95) (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0.0 "AT LANDING")
   ;; the stair's title is drawn once, under the elevation - `lbl` is accepted and ignored here
   (princ))
@@ -1800,7 +1937,12 @@
   (peb-stair-dim xa xL (+ yb1 (* th 3.8)) th
                  "C/C OF STEEL COLUMN")
   (peb-stair-dim (+ ox (* u 3.0)) xL (- yb0 (* th 2.6)) th
-                 "C/C OF STEEL COLUMN TO BASE PLATE OF STRINGER")
+                 ;; SHORTENED, because this one label was setting the width of the whole sheet.
+                 ;; At 44 characters it is longer than the 6,300 it measures, so the fit rule sent
+                 ;; it outside the right-hand arrow and it became the rightmost ink on the page -
+                 ;; the drawing paying scale for a phrase. "STEEL COLUMN" and "STRINGER" are both
+                 ;; already in this view's own title, so the words are not lost.
+                 "C/C TO STRINGER BASE PLATE")
   (peb-stair-vdim (- xa (* th 2.4)) yb0 yb1 th
                   "O/O OF STEEL COLUMN")
 
@@ -1833,13 +1975,27 @@
 ;; information; the detail says STRINGER and TREAD CLEAT, and the sizes belong on the approval
 ;; drawing.  The plate THICKNESS is not a section size - it is what the customer is buying - so
 ;; it is stated.
-(defun peb-stair-stepdetail (ox oy wdt hgt lbl / u th g r nos cl x y i x0 y0)
+;; ---- THE STEP DETAIL IS DRAWN ENLARGED  (owner 3-Sep-2026: "refinement of all the labelling")
+;; A step is 300 x 149. At the sheet's 1:152 that is 2 mm by 1 mm, and the shortest label on it -
+;; "300 GOING" - is already four times wider than the step it points at, while "STEEL CHECKERED
+;; PLATE, THICKNESS 6mm" is TEN times wider. No amount of moving labels fixes a view whose
+;; subject is smaller than its own lettering: the view has to grow.
+;;
+;; So the geometry is drawn at SCD x true size while the lettering stays the sheet's, exactly as
+;; the mezzanine sheet's floor build-up is drawn (its caption says ENLARGED X9). The DIMENSIONS
+;; still state the TRUE value - they are handed a pre-formatted string, which peb-stair-dimtext
+;; passes through untouched when it already starts with a digit - so nothing on the sheet reports
+;; the drawing's size instead of the steel's.
+(defun peb-stair-stepdetail (ox oy wdt hgt lbl / u th g r nos cl x y i x0 y0 scd gT rT)
   (setq u   (max 60.0 (/ wdt 12.0))
-        th  (* u 1.4)
-        g   (peb-stair-going)
-        r   (peb-stair-rise hgt)
-        nos 25.0                                  ; nosing, off the reference
-        cl  50.0                                  ; L-50 cleat leg
+        th  (peb-stair-th u)                      ; the SHEET's height (see peb-stair-th)
+        scd 4.0                                   ; the enlargement - see the note above
+        gT  (peb-stair-going)                     ; TRUE going / rise, for the dimension TEXT
+        rT  (peb-stair-rise hgt)
+        g   (* gT scd)
+        r   (* rT scd)
+        nos (* 25.0 scd)                          ; nosing, off the reference
+        cl  (* 50.0 scd)                          ; L-50 cleat leg
         x0  ox
         y0  oy)
 
@@ -1851,13 +2007,13 @@
     ;; the checkered plate tread, 6 mm thick, oversailing the step below by the nosing
     (peb-comp-poly (list (list (- x nos) y)
                          (list (+ x g) y)
-                         (list (+ x g) (+ y 6.0))
-                         (list (- x nos) (+ y 6.0))))
+                         (list (+ x g) (+ y (* 6.0 scd)))
+                         (list (- x nos) (+ y (* 6.0 scd)))))
     ;; the angle cleat under it, welded to the stringer
     (peb-comp-layer "STAIR-STRINGER" 1)
-    (peb-comp-poly (list (list x (- y cl)) (list (+ x 6.0) (- y cl))
-                         (list (+ x 6.0) y) (list x y)))
-    (peb-comp-poly (list (list x (- y 6.0)) (list (+ x cl) (- y 6.0))
+    (peb-comp-poly (list (list x (- y cl)) (list (+ x (* 6.0 scd)) (- y cl))
+                         (list (+ x (* 6.0 scd)) y) (list x y)))
+    (peb-comp-poly (list (list x (- y (* 6.0 scd))) (list (+ x cl) (- y (* 6.0 scd)))
                          (list (+ x cl) y) (list x y)))
     (peb-comp-layer "STAIR-TREAD" 7)
     (setq i (1+ i)))
@@ -1865,7 +2021,7 @@
   ;; --- THE STRINGER: the sloping channel the cleats are welded to, behind the steps.
   (peb-comp-layer "STAIR-STRINGER" 1)
   (peb-stair-slab (- x0 (* g 0.4)) (- y0 (* r 0.4))
-                  (+ x0 (* g 3.0)) (+ y0 (* r 3.0)) (peb-stair-stringer-d))
+                  (+ x0 (* g 3.0)) (+ y0 (* r 3.0)) (* (peb-stair-stringer-d) scd))
 
   ;; --- DIMENSIONS: the two numbers that define every step, plus the nosing.
   (peb-comp-layer "STAIR-TEXT" 7)
@@ -1875,22 +2031,33 @@
   ;; CLEAT sat on STRINGER.  Every offset here is now a multiple of the text height, so the
   ;; labels keep their clearance whatever the lettering is set to (rule 4B.27).
   (peb-stair-dim (+ x0 g) (+ x0 (* 2.0 g)) (+ y0 (* 3.0 r) (* th 2.4)) th
-                 "GOING")
+                 (strcat (rtos gT 2 0) " GOING"))
   (peb-stair-vdim (- x0 (* th 1.8)) (+ y0 r) (+ y0 (* 2.0 r)) th
-                  "RISER")
-  (peb-stair-dim (- (+ x0 (* 2.0 g)) nos) (+ x0 (* 2.0 g)) (+ y0 (* 2.0 r) (* th 0.9)) th
-                 "NOSING")
+                  (strcat (rtos rT 2 0) " RISER"))
+  ;; NOSING sits LOW on its tread, not high: its text is always sent outside the arrows (25 mm
+  ;; will never letter inside itself) and it arrives from the left at exactly the height of the
+  ;; plate note's leader on the tread above, which struck through it.
+  (peb-stair-dim (- (+ x0 (* 2.0 g)) nos) (+ x0 (* 2.0 g)) (+ y0 (* 2.0 r) (* th 0.15)) th
+                 "25 NOSING")
 
   ;; --- NAMES.  The reference's own wording for the plate; generic names for the steel.
-  (peb-stair-note-r (+ x0 (* 3.0 g)) (+ y0 (* 3.0 r)) (+ x0 (* 3.0 g) (* th 1.0)) th
-                    "STEEL CHECKERED PLATE, THICKNESS 6mm")
+  ;; The plate note lands clear of the NOSING dimension below it. NOSING measures 25 mm - even
+  ;; enlarged that is a hundred model units, so its text will ALWAYS be sent outside the arrows by
+  ;; the fit rule, and it arrives from the left at very nearly this note's height. Three text
+  ;; heights of leader is what puts this note past the end of it.
+  (peb-stair-note-r (+ x0 (* 3.0 g)) (+ y0 (* 3.0 r)) (+ x0 (* 3.0 g) (* th 6.0)) th
+                    "6mm STEEL CHECKERED PLATE")
   (peb-stair-note (+ x0 (* 1.5 g)) (+ y0 (* 1.5 r) (- cl)) (- y0 (* th 2.2)) th "TREAD CLEAT")
   (peb-stair-note (+ x0 (* 0.3 g)) (- y0 (* r 0.2)) (- y0 (* th 3.7)) th "STRINGER")
 
   (setvar "CLAYER" "STAIR-TEXT")
-  (txt-bold "MC" (list (+ x0 (* 1.5 g)) (- y0 (* th 6.4)))
+  ;; LEFT-JUSTIFIED, not centred on the detail. Centred, a sixty-character caption on a block
+  ;; four steps wide reaches half its own length either side - far enough left to print through
+  ;; the STAIRCASE SPECIFICATION in the column beside it. A caption belongs to its block, so it
+  ;; starts where the block starts.
+  (txt-bold "ML" (list x0 (- y0 (* th 6.4)))
             (/ (* th 1.2) (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0.0
-            "TYPICAL DETAIL OF STEEL CHECKERED PLATE STEP")
+            "TYPICAL DETAIL OF STEEL CHECKERED PLATE STEP  (ENLARGED, N.T.S.)")
   (if lbl
     (txt-bold "MC" (list (+ x0 (* 1.5 g)) (- y0 (* th 8.1)))
               (/ (* th 1.0) (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0.0 lbl))
@@ -1952,8 +2119,13 @@
 ;; said dep+15u, so the elevation was placed 11u per block too high and printed through the
 ;; plan captions.  Exactly the fault this module keeps producing: one fact, two copies.
 (defun peb-stair-plan-u-pitch (wdt / u)
+  ;; The gap between stacked plan blocks has to clear the LOWER block's dimension row and the
+  ;; UPPER one's caption, and both are text - so it is measured in text heights, not in `u`.
+  ;; At the old flat 26u the two blocks of a three-landing stair printed the second block's
+  ;; dimensions through the first one's "PLAN FROM F.F.L TO 5075MM LEVEL" caption the moment the
+  ;; lettering was raised (4B.27, once more).
   (setq u (max 60.0 (/ wdt 12.0)))
-  (+ wdt wdt (peb-stair-well wdt) (* u 26.0)))
+  (+ wdt wdt (peb-stair-well wdt) (* u 12.0) (* (peb-stair-th u) 5.0)))
 
 (defun peb-stair-plan-u-drop (hgt wdt)
   (* (1- (peb-stair-plan-u-blocks hgt)) (peb-stair-plan-u-pitch wdt)))
@@ -1993,7 +2165,8 @@
       (+ wdt tall lw (* u 6.0)))))
 
 (defun peb-draw-stair-sheet (data / i tag wdt hgt topl midl typ oy lbl trd pfl shp
-                                    usage mzlive hrail drawn ext nland err)
+                                    usage mzlive hrail drawn ext nland err
+                                    uu thh cw dep lvlR noteL col2 secCX c2y)
   (if (= (strcase (MSPL-Get-Str data "ST_TOGGLE")) "YES")
     (progn
       (setq usage  (MSPL-Get-Str data "USAGE")
@@ -2081,35 +2254,63 @@
                 (setq oy (min (- oy (peb-stair-elev-drop shp hgt wdt))
                               (- (nth 2 ext) (* (max 60.0 (/ wdt 12.0)) 15.0) hgt)))
                 (peb-stair-elev 0.0 oy wdt hgt topl midl lbl trd shp)
-                ;; SECTION A-A BESIDE the plan, not beneath everything.  The section is tall
-                ;; and narrow while the plan and elevation are long and low, so stacking all
-                ;; three down one A4 is what drove the sheet to 1:139.  Putting the section in
-                ;; the space to the right of the views uses the page instead of fighting it.
-                (peb-stair-section (+ (nth 1 ext) (* wdt 5.5)) (+ oy (* wdt 1.5))
-                                   wdt hgt lbl trd pfl)
-                ;; THE RIGHT-HAND COLUMN OF THE SHEET, AND WHY IT IS PACKED THIS WAY.
+                ;; ============================================================================
+                ;;  THE SHEET IS A MEASURED TWO-COLUMN GRID  (owner 3-Sep-2026: "do the best
+                ;;  refinement", after "fix all the labelling" and "text of stair is too small")
                 ;;
-                ;; Adding two views costs scale, and the sheet pays for empty space.  Laid out in
-                ;; a row - section, then layout plan, then step detail, each a few widths further
-                ;; right - the extents went from 19.7 m to 32.8 m and the plot fell from 1:96 to
-                ;; 1:119.  A fifth of the drawing's legibility for nothing.
+                ;;  Every block used to be placed at a CONSTANT number of stair-widths from the
+                ;;  plan - 5.5 for the section, 10.0 for the layout plan and the step detail. That
+                ;;  holds only while the lettering never changes, and the moment the text was
+                ;;  raised the whole sheet folded in on itself: the step detail landed inside the
+                ;;  base plate plan, SECTION A-A's caption printed through the layout plan's, and
+                ;;  the section's own leader notes ran across the layout plan's dimension. It is
+                ;;  the same fault as every other one on this sheet - a gap that has to clear TEXT
+                ;;  measured in something other than the text (4B.27) - just at block scale.
                 ;;
-                ;; So the right-hand space is filled in BOTH directions: the layout plan sits
-                ;; beside the section, because it is long and low like the plan it explains, and
-                ;; the step detail tucks UNDER the section, because it is small and the space
-                ;; below a tall narrow section is otherwise wasted.  Same three views, ~1:98.
-                (peb-stair-collayout (+ (nth 1 ext) (* wdt 10.0)) (+ oy (* wdt 1.5))
-                                     wdt hgt nil)
-                ;; TYPICAL STEP DETAIL - the one thing the plan and elevation draw at a scale too
-                ;; coarse to show: what a step actually is.
-                ;; -- IN THE BOTTOM BAND, NOT ADRIFT BELOW IT (owner: "remove this & organize all
-                ;; the placement of staircases").  Tucked under the SECTION at 5.5 widths it fell
-                ;; six widths below the elevation, two widths lower than the specification beside
-                ;; it, with clear paper on either side and the largest void on the sheet - under
-                ;; the base plate plan - left empty.  It now sits in that void, on the same line
-                ;; as the specification, so the sheet reads as two rows of drawings over one band
-                ;; of notes instead of four blocks scattered down a page.
-                (peb-stair-stepdetail (+ (nth 1 ext) (* wdt 10.0)) (- oy (* wdt 2.5)) wdt hgt nil)
+                ;;  So the columns are measured from what they must clear:
+                ;;
+                ;;      column 1                    column 2
+                ;;      PLAN                        BASE PLATE LAYOUT PLAN   (both long and low)
+                ;;      ELEVATION                   SECTION A-A              (both tall)
+                ;;      SPECIFICATION               TYPICAL STEP DETAIL      (both small)
+                ;;
+                ;;  Pairing them by SHAPE is what lets the sheet stay narrow: two long-and-low
+                ;;  plans on one line, two tall views on the next. The old arrangement put the
+                ;;  section and the layout plan side by side on the SAME line as the elevation -
+                ;;  three views across - which is what forced the sheet wide and the scale down.
+                (setq uu    (max 60.0 (/ wdt 12.0))
+                      thh   (peb-stair-th uu)
+                      cw    (* thh 0.62)              ; one ROMAND character, near enough
+                      dep   (+ wdt wdt (peb-stair-well wdt))    ; the section's own width
+                      ;; the widest thing hanging off the RIGHT of column 1 - the elevation's
+                      ;; level column, "+5380mm   MEZZANINE FLOOR"
+                      lvlR  (+ (* uu 1.2) (* cw 26.0))
+                      ;; ...and off the LEFT of the section - "LANDING PLATFORM - CHECKERED PLATE"
+                      noteL (+ (* uu 3.0) (* cw 34.0))
+                      col2  (+ (nth 1 ext) lvlR (* wdt 0.6))
+                      secCX (+ col2 noteL (/ dep 2.0))
+                      c2y   0.0)
+                ;; ...and column 2 STACKS on measured gaps too, for the same reason the columns
+                ;; are measured: the layout plan is 2,600 deep plus its dimension and caption, the
+                ;; section is `hgt` tall plus notes above and dimensions below, and both grow with
+                ;; the lettering. Placed on the elevation's line the three of them printed through
+                ;; each other - the base plate caption through LANDING PLATFORM, SECTION A-A
+                ;; through the step detail's plate note.
+                (setq c2y (nth 3 ext))                       ; top right, level with the plan
+                (peb-stair-collayout col2 c2y wdt hgt nil)
+                (setq c2y (- c2y 2600.0 (* thh 7.0)))        ; layout plan depth + its dim + caption
+                (peb-stair-section secCX (- c2y hgt (* thh 3.0)) wdt hgt lbl trd pfl)
+                ;; The step detail grows UP from the point it is given - three risers at the
+                ;; enlargement, plus its own dimension row - so its ORIGIN has to be dropped by
+                ;; its own height as well as by the section's dimensions and caption. Allowing
+                ;; only for the section put its plate note straight through SECTION A-A's own
+                ;; width dimension: a block placed by its origin still has to be cleared by its
+                ;; extent.
+                (setq c2y (- c2y hgt (* thh 3.0)              ; down past the section's base
+                             (* thh 11.0)                     ; its dimensions + caption below
+                             (* (peb-stair-rise hgt) 12.0)    ; the step detail's own 3 risers x4
+                             (* thh 3.0)))                    ; and its dimension row on top
+                (peb-stair-stepdetail col2 c2y wdt hgt nil)
                 ;; SPEC + LOADS, both read off the BSF.  Drawn once, under the elevation.
                 (setq hrail (MSPL-Get-Str data (strcat tag "HANDRAILS")))
                 ;; Close under the elevation.  Parking the notes 13 widths down stretched the
