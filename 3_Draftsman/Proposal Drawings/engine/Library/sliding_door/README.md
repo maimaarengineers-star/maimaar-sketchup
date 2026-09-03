@@ -1,9 +1,14 @@
 # SLIDING DOOR
 
 A sliding door is a **leaf hung from a track**, not a hole in a wall. Everything that makes it
-read as one on a drawing — the track running well past the opening, the stile-and-rail grid, the
-diagonal brace, the wall it needs to park in — is what the old placement loop threw away when it
-drew every accessory as a `RECTANG` with two diagonals.
+read as one on a drawing — the track running well past the opening, the sandwich-panel bays
+between cover trims, the floor rail on its stubs, the wall it needs to park in — is what the old
+placement loop threw away when it drew every accessory as a `RECTANG` with two diagonals.
+
+> **Every number here was measured off the issued drawings' VECTORS** (golden rule 19), not read
+> off their text stream. `reference/view_reference.js` imported both sheets; the measurement
+> overturned three things this file first had wrong. They are set out under *What the vectors
+> corrected* below, because each one is a trap the next component will meet too.
 
 ```
 peb-sld-elevation   the whole door on a wall elevation
@@ -29,7 +34,13 @@ rule 2 / 24): `geometryRules.js` computes, the BSF stores, this draws what it is
 | leaf width | opening + 2 × 75 cover | opening / 2 + 75 cover |
 | parks into | one pocket, one side | one pocket each side |
 | wall needed | opening + 1 leaf + 100 | opening + 2 leaves + 200 |
-| real example | MSPL-027 SSD-01 — 4500 opening | MSPL-030 SDS-01 — 7972 track |
+| real example | **MSPL-030 SDS-01** — 3936 opening, 4039 leaf, parks over 3936 of wall | the bow-tie on the approval sheet |
+
+**The leaf is not symmetric.** MSPL-030 dimensions it `539 | 302 | 1448 | 1448 | 302`: a wide
+**leading strip** carrying the meeting stile and its cover trim, then the panel field, then a
+narrow cover trim at the jamb end. Drawing it symmetric put an equal closer at both ends and lost
+the meeting stile altogether. `peb-sld-leaf` takes a `lead` argument; on a bi-parting pair the
+two leaves lead at each other.
 
 `peb-sld-elevation` takes `leaves` = 1 or 2 and `hand` = ±1. One drawer, both doors — the same
 rule as one panel being a wall light or a sky light depending on the surface (golden rule 1).
@@ -76,24 +87,45 @@ That is the module this module draws to.
 
 ---
 
-## The module is chosen, not assumed
+## What the vectors corrected
 
-A leaf is never an exact multiple of 1500, so `peb-sld-ndiv` divides it into the whole number of
-panels nearest the target and spaces them equally. One rule, and it reproduces both sources:
+**1 · There is no diagonal brace.** The first version drew one, from a shop drawing listing
+`DOOR_ROUND_BAR DRB-1 = D12 x 4500` with a 45° note. Both elevations show what that bar really
+is: the **floor guide rail**, running the whole slide length below FFL on short stubs, with L50×5
+clips at ~830 centres. `ROUND_BAR` on MSPL-030 points at the same rail. A sliding door leaf is a
+panel in a frame; it is not braced like a portal.
 
-| leaf | divisions | module | matches |
-|---|---|---|---|
-| 3000 (manual DSD) | 2 | 1500 | manual p755–758 |
-| 3075 (this sample) | 2 | 1537 | — |
-| 3936 (MSPL-030) | 3 | 1312 | job used 990 + 890 + 125 ends |
+**2 · There is no stile grid on the elevation.** The manual designs the leaf on a 1500 × 1500
+stile-and-rail grid (p755–758) and that design is real — but the stiles are **behind the panel**
+and neither issued drawing shows them. What the drawings show is the sandwich-panel field between
+cover trims. The manual sizes the members; the drawing draws the door. The member sizes stay in
+the schedule; the elevation stops inventing lines.
 
-MSPL-030 is the honest disagreement: the job put a 125 edge and an 890 end panel either side of a
-990 run rather than dividing equally. Equal division is the simpler rule and the one the manual
-designs to; the difference is a panel-joint position, not a member size, and it does not change
-what the customer is being sold. **If a job ever needs the exact as-built spacing, that belongs in
-the BSF as a stile-spacing field, not in this file.**
+**3 · MSPL-030 SDS-01 is a SINGLE leaf, not a pair.** The `3936` on that sheet labels the **wall
+the leaf parks over**, not a second leaf — the leaf is 4039 and the total run is 7972. Reading
+`3936 / 3937` out of the text stream as two leaves is exactly the mistake the text invites, and
+the hatch pattern in the geometry settles it: the region is masonry, not door.
 
----
+## The panel field is chosen, not assumed
+
+MSPL-030 divides a 3495 field as `302 | 1448 | 1448 | 302` — whole panels in the middle, the
+remainder split evenly between two closers. `peb-sld-joints` applies that rule, not those
+numbers, so any leaf width comes out the same way. On the reproduced sheet it lands at
+`539 | 291 | 1448 | 1448 | 291` against the issued `539 | 302 | 1448 | 1448 | 302`: **the leading
+strip and both full panels exact, the closers 11 mm out.**
+
+There is a guard — a closer narrower than a fraction of a panel reads as a slip rather than a
+closer, so one whole panel is dropped and the closers grow. **The threshold is calibrated, not
+guessed.** It was first set at 0.20, and MSPL-030's own closer is 302 on a 1448 panel = 0.209 —
+the guard threw away the very drawing it was derived from and collapsed `302|1448|1448|302` into
+`1002|1448|1002`. It is 0.12.
+
+## The sandwich bays are left clear
+
+MSPL-027 (2021) ribs the panel across the whole leaf; MSPL-030 (2022) leaves the bays clean and
+shows only the joints. At proposal scale a 184 module across a 4 m leaf is 22 lines and reads as
+a solid block, so the newer, cleaner convention is the one drawn. The rib field is still there —
+`peb-sld-leaf` takes a `ribs` flag — for a detail drawn at size.
 
 ## Traced vs stylised
 
@@ -102,13 +134,13 @@ not.* (Golden rule 20.)
 
 **TRACED** — measured off the sources above, and safe to quote:
 
-- the 1500 stile-and-rail module and the 3 × 6 leaf
-- L50 × 5 perimeter and rail angle
-- Ø12 round-bar diagonal
-- U-channel track PL 3 × 214, and its 200 clear above the leaf top
-- 12 clear under the leaf, floor guide 200 below FFL
-- 120 mm C leaf framing; 200C / 250C jamb and header
-- leaf overrun past the jamb, and the wall needed to park a leaf
+- the leaf's own layout: leading strip **539**, panel **1448**, cover trim **70**
+- leaf height **2430** (2462 over trims), underside **12** clear of FFL
+- floor rail stubs at **125 / 890 / 990**, guide **200** below FFL
+- L50 × 5 perimeter angle, Ø12 round bar — **as the floor rail**
+- U-channel track PL 3 × 214, hood trim over it, clips PL 3 × 100
+- 120 mm C leaf framing; 200C / 250C jamb and header (manual p750)
+- the assembly set **410** off the grid, and the wall a leaf needs to park in
 
 **STYLISED** — drawn to look right, not measured:
 
@@ -123,10 +155,11 @@ not.* (Golden rule 20.)
 - **the wall context** (`peb-sld-context`) is development scaffolding so the door can be judged
   in a wall. The building engine draws its own wall; do not call it from a sheet.
 
-**NOT YET VERIFIED AGAINST THE VECTORS.** Golden rule 19 — the seam-lock skylight was traced at
-637 from the text layer and turned out to be 484 across the finished panel. Every job number in
-the table above was read from the PDF's **extracted text stream**, not from its geometry. Run
-`reference/view_reference.js` and check before quoting any of them as an as-built.
+**VERIFIED AGAINST THE VECTORS**, 3-Sep-2026 — both sheets imported with
+`reference/view_reference.js` and measured; the DXFs are kept beside them. The three corrections
+above are what that pass found. The one number still taken on trust is the **sandwich panel width
+1448**, which the text dimensions and the geometry disagree about (the field is drawn as three
+equal bays); the drawn field is reproduced, the dimension is quoted.
 
 ---
 
@@ -196,17 +229,14 @@ the same job disagree, which is the whole reason the library exists.
 
 ## The sample
 
-`sample/render_sample.js` → `sample/last_render.png`, about 18 seconds.
+`sample/render_sample.js` → `sample/last_render.png`, about 18 seconds. No BSF, no inquiry — the
+drawers are pure geometry and take their size as arguments.
 
-A **double sliding door in a 6000 × 6000 framed opening**. That size is not chosen to look tidy —
-it is the exact case the manual designs on p753–758, so every member on the sample has a published
-calculation behind it. It is drawn in a piece of wall, with both leaves shown parked, because a
-sliding door elevation that shows only the closed leaf tells the customer nothing about the wall
-the door needs.
-
-Needs no BSF and no inquiry — the drawers are pure geometry and take their size as arguments.
-
----
+It reproduces **MSPL-030 SDS-01** at the sizes measured off that sheet: a single sliding door,
+opening 3936, leaf 4086, height 2430, parking over 3936 of wall, total run 7972. It is drawn in a
+piece of wall with the leaf shown parked, so it can be laid beside
+`reference/MSPL-030_2022_SDS-01_*.pdf` and compared line for line. That is the point — a sample
+at an invented "standard size" cannot be checked against anything.
 
 ## Syncing into the building drawings
 
