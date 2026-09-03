@@ -29,6 +29,17 @@ found the 2021 jobs and missed the approval sheet that turned out to matter most
 | `MSPL-067_2022_sliding-door-accessories-BOQ.pdf` | MSPL-067 Awan Sports | Rev 00, 2022 | What is BOUGHT rather than made — wheels, locks, stops. This is why the wheel is stylised in the drawer: its diameter is a supplier number, not ours. |
 | `MSPL-075_2023_supplier-BOQ-sliding-doors.png` | MSPL-075 NBC Boiler House | 2023 | Supplier BOQ. |
 
+### The 2024/25 sets — the CURRENT convention
+
+Found only by the full-content scan; none of these has "sliding" in a folder name.
+
+| File | Job | Date | What it settles |
+|---|---|---|---|
+| `MSPL-121_2024_door-details_Rev-01_30ft.pdf` (+ Rev-00) | MSPL-121 PAECO, Fruits Processing & Cold Store, Skardu | Rev 01, 02-Jul-2024 | **The most complete PD-level sliding door in the archive** — a DOOR PLAN and a DOOR ELEVATION on one sheet, plus a wall cross-section. Double sliding door 9144 [30′] × 2438 [8′], run 18288 [60′]. Tube gauge 14 SWG, C-channel 200×60×1.5, prime sheet 16 SWG ribbed across the leaf, **WICKET DOOR 914 × 1981 at sill 305**, angle 50×50×5, **WHEEL Ø20 on a RAILING**. Everything is in feet. |
+| `MSPL-176_2025_APPROVAL_sliding-door-details.pdf` | MSPL-176 Maria B. Designs, EME Lahore | 2025 | `SLIDING DOOR SECTION DETAILS` + the full **MEMBER TABLE** — the current schedule member by member, and CP-01 (150 × 60 × 5, bolt Ø12). The section draws the **wheel sitting on the Ø12 round bar** in a double-angle vee: a bottom-rolling door, top-guided. |
+| `MSPL-135_2024_APPROVAL-E05_sliding-door-on-elevation.pdf` | MSPL-135 PAECO, Dry Dates, D I Khan | Rev 06, 2024 | The door on a customer elevation. |
+| `MSPL-206_2025_APPROVAL-sheet16_sliding-door.pdf` | MSPL-206 Dairylac, Faisalabad | Rev 01, 2025 | The door on a customer elevation. |
+
 **Also found, not copied** (whole-building sets, too large for the library — go to the job):
 
 - `2021/027/.../Approval Package/Rev-01/Drawings/MSPL-027-21_Approval_Final/MSPL-027-21_Approval_01.dwg`
@@ -62,6 +73,11 @@ door-leaf design**, which is where the member sizes come from:
 - `D:\Design Manual` — all 932 manual pages searched for `sliding`, `stile`, `DSD`, `jamb`,
   `header`, `framed opening`, `roll-up`.
 
-**Nothing on E: is named "sliding" except three folders.** The 2019 and 2020 jobs have
-`DOOR_HEADER & JAMB` sheets but no sliding door; the first sliding door in the archive is
-**MSPL-027, November 2021**, and the second is MSPL-030 five months later. Both are Awan Sports.
+**Nothing on E: is named "sliding" except three folders**, and that is why the content scan
+mattered: it found 444 pages naming a sliding door, of which 75 are actually drawings — including
+every one of the 2024/25 sheets above, which a filename search misses completely.
+
+The first sliding door in the archive is **MSPL-027, November 2021**; MSPL-030 follows five months
+later (both Awan Sports). The 2019 and 2020 jobs have `DOOR_HEADER & JAMB` sheets but no sliding
+door. **The convention then changed**: 2024/25 doors are tube-framed, bottom-rolling on a Ø12 rail,
+carry a wicket door, and are dimensioned in feet.

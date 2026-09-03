@@ -127,6 +127,58 @@ shows only the joints. At proposal scale a 184 module across a 4 m leaf is 22 li
 a solid block, so the newer, cleaner convention is the one drawn. The rib field is still there —
 `peb-sld-leaf` takes a `ribs` flag — for a detail drawn at size.
 
+## The current standard — 2024/25, and it is not the 2021/22 one
+
+The first pass traced MSPL-027 (2021) and MSPL-030 (2022) because those were the only files on
+E: with "sliding" in a folder name. A **content** scan of all 29,287 job PDFs then turned up four
+newer sets, and the newest of them are the current convention:
+
+| | |
+|---|---|
+| **MSPL-121** · PAECO Skardu · 02-Jul-2024 | `DOOR DETAILS` — a **DOOR PLAN and a DOOR ELEVATION on one sheet**, which is exactly what the proposal set has to emit. Double sliding door, opening **9144 [30′] × 2438 [8′]**, run **18288 [60′]**, leaf ribbed prime sheet 16 SWG, tube frame 14 SWG, C-channel 200×60×1.5, **wicket door 914 × 1981**, angle 50×50×5, **wheel Ø20 running on a railing**. |
+| **MSPL-176** · Maria B. · 2025 | `SLIDING DOOR SECTION DETAILS` + a full **MEMBER TABLE** — the current schedule, member by member, with a connection plate detail. |
+
+**Maimaar sizes these doors in FEET.** 9144 = 30′, 3048 = 10′, 2438 = 8′, 914 = 3′, 1981 = 6′-6″,
+305 = 1′. Every metric figure on these sheets is a conversion, which is why they look arbitrary.
+
+### The member table (MSPL-176, 2025)
+
+| member | profile | what it is |
+|---|---|---|
+| U-CHANNEL # 01 | 96 × 70 × 3 | top track, full run |
+| U-CHANNEL # 02 | 80 × 50 × 2 | leaf top rail |
+| U-CHANNEL # 03 | 85 × 50 × 3 | leaf bottom rail |
+| U-CHANNEL # 04 | 50 × 50 × 3 | |
+| U-CHANNEL # 05 | 200 × 60 × 20 × 1.5 | jamb and header — the manual's 200C, confirmed |
+| TUBE | 40 × 40 × 2 | the leaf frame (14 SWG) |
+| L-ANGLE # 01 | 38 × 38 × 3 | full run |
+| L-ANGLE # 02 | 50 × 50 × 3 × 100 | clips, 8 no. |
+| DOUBLE ANGLE # 01 | 50 × 50 × 3 | the floor vee |
+| ROUND BAR | Ø 12 | **the floor rail** |
+| WHEEL | Ø 20 | 2 no. — **it runs on the rail** |
+| CONNECTION PLATE | 150 × 60 × 5, bolt Ø12 | CP-01 |
+
+**It is a bottom-rolling door.** The wheel sits on the Ø12 round bar in the double-angle vee; the
+top channel only guides. That is the third independent confirmation that the round bar is not a
+brace — a shop list, two elevations, and now a section with the wheel drawn on it.
+
+**The leaf frame is TUBE 40×40×2, not 120 mm C.** The manual's 120C design (p750) is the older,
+heavier one. Both are in the schedule; the tube is what is built now.
+
+### The wicket door
+
+A personnel door **inside the leaf**, so the sliding door need not be opened to walk through. It
+was missing from the first version entirely. Traced from MSPL-121: **914 [3′] × 1981 [6′-6″],
+sill 305 [1′] above FFL**, set 305 in from the trailing end of the leaf — away from the meeting
+stile, so it clears the jamb when the door is closed. `peb-sld-leaf` takes a `wicket` flag; on a
+bi-parting pair only ONE leaf gets it.
+
+### And the bays are ribbed after all
+
+MSPL-030 (2022) leaves the sandwich bays clean; MSPL-027 (2021) and MSPL-121 (2024) both rib the
+leaf across its full width. Two out of three, and the newer of them, so the rib field is **on**.
+`peb-sld-leaf` still takes the flag.
+
 ## Traced vs stylised
 
 Rulebook 4B.24 — *a stylised shape under correct dimensions is honest; invented dimensions are
@@ -232,11 +284,12 @@ the same job disagree, which is the whole reason the library exists.
 `sample/render_sample.js` → `sample/last_render.png`, about 18 seconds. No BSF, no inquiry — the
 drawers are pure geometry and take their size as arguments.
 
-It reproduces **MSPL-030 SDS-01** at the sizes measured off that sheet: a single sliding door,
-opening 3936, leaf 4086, height 2430, parking over 3936 of wall, total run 7972. It is drawn in a
-piece of wall with the leaf shown parked, so it can be laid beside
-`reference/MSPL-030_2022_SDS-01_*.pdf` and compared line for line. That is the point — a sample
-at an invented "standard size" cannot be checked against anything.
+It reproduces **MSPL-121 DOOR DETAILS** — the current PD-level sheet: a double sliding door,
+opening 9144 [30′] × 2438 [8′], each leaf parking its own width clear, run 18288 [60′], with the
+wicket door in one leaf and the MSPL-176 member table beside it. It is drawn in a piece of wall
+with both leaves shown parked, so it can be laid beside `reference/MSPL-121_2024_door-details_*`
+and compared line for line. That is the point — a sample at an invented "standard size" cannot be
+checked against anything.
 
 ## Syncing into the building drawings
 

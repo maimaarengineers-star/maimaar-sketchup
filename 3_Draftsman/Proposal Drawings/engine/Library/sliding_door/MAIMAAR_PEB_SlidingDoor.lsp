@@ -105,7 +105,19 @@
 (defun peb-sld-stub-end   ()  125.0)   ; first stub in from the end                 — MSPL-030
 (defun peb-sld-stub-2nd   ()  890.0)   ; then                                       — MSPL-030
 (defun peb-sld-stub-typ   ()  990.0)   ; and typical                                — MSPL-030
-(defun peb-sld-bar-dia    ()   12.0)   ; DOOR_ROUND_BAR D12 — the FLOOR RAIL, not a brace
+(defun peb-sld-bar-dia    ()   12.0)   ; ROUND BAR D12 — the FLOOR RAIL, not a brace  MSPL-176
+(defun peb-sld-wheel-dia  ()   20.0)   ; WHEEL DIA 20, running ON the rail          — MSPL-121
+
+;; ---- THE WICKET DOOR ------------------------------------------------------------------
+;; A personnel door inside the leaf, so the sliding door need not be opened to walk through.
+;; It is STANDARD on the current sheets and was missing entirely from the first version.
+;; Traced from MSPL-121 (2024): 914 [3'-0"] x 1981 [6'-6"], sill 305 [1'-0"] above FFL, set
+;; 305 in from the trailing end of the leaf. Maimaar sizes these doors in FEET and the metric
+;; figures are the conversions — 9144 = 30', 3048 = 10', 2438 = 8', 914 = 3', 1981 = 6'-6".
+(defun peb-sld-wicket-w    () 914.0)
+(defun peb-sld-wicket-h    () 1981.0)
+(defun peb-sld-wicket-sill () 305.0)
+(defun peb-sld-wicket-off  () 305.0)
 
 ;; the opening
 (defun peb-sld-jamb-dep   ()  200.0)   ; framed-opening jamb / header, 200C — manual p750
@@ -230,7 +242,7 @@
 ;;    Order matters: rib field first at 0.05, then the panel joints, then the trims, so every
 ;;    member plots over the fill and nothing competes with the outline.
 ;; ---------------------------------------------------------------------------
-(defun peb-sld-leaf (x0 y0 w h lead ribs / x1 y1 tw lw th fx0 fx1 x mod)
+(defun peb-sld-leaf (x0 y0 w h lead ribs wicket / x1 y1 tw lw th fx0 fx1 x mod)
   ;; lead = +1 the leaf leads to the RIGHT (its meeting strip is at the right-hand end),
   ;;        -1 it leads to the LEFT. On a bi-parting pair the two leaves lead at each other.
   (peb-sld-layer-ensure)
@@ -260,17 +272,44 @@
     (peb-sld-ln (+ x0 (* lw 0.45)) (+ y0 th) (+ x0 (* lw 0.45)) (- y1 th) (peb-sld-lw-mem)))
   (peb-sld-ln fx0 (+ y0 th) fx1 (+ y0 th) (peb-sld-lw-mem))
   (peb-sld-ln fx0 (- y1 th) fx1 (- y1 th) (peb-sld-lw-mem))
-  ;; -- the leaf outline last, heaviest
+  ;; -- the wicket door (ONE per door, not one per leaf), then the outline last, heaviest
+  (if wicket (peb-sld-wicket x0 y0 w h lead))
   (peb-sld-box x0 y0 x1 y1 (peb-sld-lw-out))
+  (princ))
+
+;; THE WICKET DOOR in the leaf. Drawn as the opening it is: a frame, the leaf line inside it,
+;; a handle, and the sill it stands on. lead says which end of the leaf to set it in from — it
+;; goes at the TRAILING end, away from the meeting stile, so it clears the jamb when closed.
+(defun peb-sld-wicket (x0 y0 w h lead / wx wy ww wh f)
+  (peb-sld-layer-ensure)
+  (setq ww (peb-sld-wicket-w) wh (peb-sld-wicket-h)
+        wy (+ y0 (peb-sld-wicket-sill))
+        wx (if (> lead 0)
+             (+ x0 (peb-sld-lead-w) (peb-sld-wicket-off))      ; leads right -> wicket at the left
+             (- (+ x0 w) (peb-sld-lead-w) (peb-sld-wicket-off) ww))
+        f  38.0)
+  ;; only if it actually fits inside the panel field with something to spare
+  (if (and (> w (+ ww (* 3.0 (peb-sld-lead-w)))) (> h (+ wh (peb-sld-wicket-sill) 150.0)))
+    (progn
+      (peb-sld-box wx wy (+ wx ww) (+ wy wh) (peb-sld-lw-out))
+      (peb-sld-box (+ wx f) (+ wy f) (- (+ wx ww) f) (- (+ wy wh) f) (peb-sld-lw-mem))
+      ;; the handle, on the side it opens from
+      (peb-sld-ln (- (+ wx ww) (* f 4.0)) (+ wy (* wh 0.45))
+                  (- (+ wx ww) (* f 4.0)) (+ wy (* wh 0.55)) (peb-sld-lw-clip))
+      (peb-sld-tx (+ wx (/ ww 2.0)) (- wy (* (peb-sld-dim-th) 1.1)) (peb-sld-dim-th) 0.0
+                  "WICKET DOOR" "TEXT" 1 2)))
   (princ))
 
 ;; a U-CLIP / DOOR_WHEEL bracket — the little square that sits on the bottom rail under each
 ;; leaf corner and each panel joint (MSPL-027 UCL-1/2, MSPL-030 DOOR_WHEEL)
-(defun peb-sld-clip (cx y / c)
-  (setq c (/ (peb-sld-clip-w) 2.0))
+(defun peb-sld-clip (cx y / c r)
+  ;; the bracket, and the WHEEL in it. MSPL-121 draws the wheels as filled discs on the rail and
+  ;; calls them WHEEL DIA 20mm; MSPL-176 lists 2 no. per leaf. This is a BOTTOM-ROLLING door -
+  ;; the wheel runs ON the D12 round bar and the top channel only guides it.
+  (setq c (/ (peb-sld-clip-w) 2.0) r (/ (peb-sld-wheel-dia) 2.0))
   (peb-sld-box (- cx c) (- y c) (+ cx c) (+ y c) (peb-sld-lw-clip))
   (entmake (list (cons 0 "CIRCLE") (cons 8 (peb-sld-layer)) (cons 370 (peb-sld-lw-clip))
-                 (list 10 cx y 0.0) (cons 40 (* c 0.22))))
+                 (list 10 cx (- y c) 0.0) (cons 40 (max r (* c 0.30)))))
   (princ))
 
 (defun peb-sld-leaf-clips (x0 y0 w lead / tw lw fx0 fx1)
@@ -395,8 +434,8 @@
       (peb-sld-floor tx0 tx1 oy)
       (peb-sld-ghost (- xL run) lb lw lh)
       (peb-sld-ghost (+ xR lw 100.0) lb lw lh)
-      (peb-sld-leaf xL lb lw lh  1 nil)        ; left leaf leads to the RIGHT, at the centre
-      (peb-sld-leaf xR lb lw lh -1 nil)        ; right leaf leads to the LEFT
+      (peb-sld-leaf xL lb lw lh  1 T T)        ; left leaf leads RIGHT, and carries the wicket
+      (peb-sld-leaf xR lb lw lh -1 T nil)      ; right leaf leads LEFT
       (peb-sld-leaf-clips xL lb lw  1)
       (peb-sld-leaf-clips xR lb lw -1)
       (peb-sld-arrow (+ xL (* lw 0.5)) (+ lb (* lh 0.62)) (* lw 0.30) -1)
@@ -411,7 +450,7 @@
       (peb-sld-hood  tx0 tx1 ytop)
       (peb-sld-floor tx0 tx1 oy)
       (peb-sld-ghost (if (> hand 0) (+ xL lw 100.0) (- xL run)) lb lw lh)
-      (peb-sld-leaf xL lb lw lh (- 0 hand) nil) ; the leading edge is the one that closes
+      (peb-sld-leaf xL lb lw lh (- 0 hand) T T) ; the leading edge is the one that closes
       (peb-sld-leaf-clips xL lb lw (- 0 hand))
       (peb-sld-arrow (+ xL (* lw 0.5)) (+ lb (* lh 0.62)) (* lw 0.22) hand)))
   (if lbl
@@ -529,67 +568,73 @@
   (peb-sld-layer-ensure)
   (peb-sld-layer-need "TEXT" 7)
   (peb-sld-layer-need "DIMENSIONS" 6)
-  ;; MSPL-030 SDS-01, measured off its own vectors. IT IS A SINGLE LEAF, not a pair: the
-  ;; "3936" on the sheet labels the WALL the leaf parks over, not a second leaf. Reading it as
-  ;; two leaves is exactly the mistake the text stream invites - the leaf is 4039 (539 leading
-  ;; strip + 302 | 1448 | 1448 | 302) and it slides right over 3936 of wall, total run 7972.
-  (setq ow 3936.0 oh 2430.0)
+  ;; MSPL-121 DOOR DETAILS, PAECO Skardu, issued for approval 02-Jul-2024 - the most complete
+  ;; PD-level sliding door sheet in the archive, and the current convention. It carries a DOOR
+  ;; PLAN and a DOOR ELEVATION, which is exactly what the proposal set has to emit.
+  ;;   opening   9144 [30'] x 2438 [8']      DOUBLE SLIDING DOOR
+  ;;   run       18288 [60'] = 9144 + 2 x 4572, i.e. each leaf parks its own width clear
+  ;;   wicket    914 [3'] x 1981 [6'-6"], sill 305 [1'], in one leaf
+  ;; Maimaar sizes these doors in FEET; every metric figure here is the conversion.
+  (setq ow 9144.0 oh 2438.0)
   (peb-sld-set-txt (* oh 0.048))
 
   ;; the wall the door sits in - development scaffolding, not part of the component
-  (peb-sld-context -2600.0 10600.0 0.0 4200.0 0.0 ow nil 1500.0)
+  (peb-sld-context -6500.0 15700.0 0.0 4000.0 0.0 ow nil 1500.0)
 
-  (setq ext (peb-sld-elevation 0.0 0.0 ow oh 1 1
-              "SINGLE SLIDING DOOR  3936 x 2430  -  MSPL-030 SDS-01 REPRODUCED"))
+  (setq ext (peb-sld-elevation 0.0 0.0 ow oh 2 nil
+              "DOUBLE SLIDING DOOR  9144 [30'] x 2438 [8']  -  MSPL-121 REPRODUCED"))
   (setq tx0 (nth 0 ext) tx1 (nth 2 ext))
 
   ;; ---- the dimension strings the issued sheet carries
-  (peb-sld-dim-h 0.0 ow (+ oh 1500.0) -1 "3936  FRAMED OPENING")
+  (peb-sld-dim-h 0.0 ow (+ oh 1500.0) -1 "9144 [30]  FRAMED OPENING")
   (peb-sld-dim-h tx0 tx1 (+ oh 2200.0) -1
-                 "7972  TRACK  -  THE LEAF PARKS OVER 3936 OF WALL")
-  (setq lw (+ ow (* 2.0 (peb-sld-meet-lap)))
-        f0 (+ (- 0.0 (peb-sld-meet-lap)) (peb-sld-lead-w))
-        f1 (- (+ ow (peb-sld-meet-lap)) (peb-sld-trim-w)))
-  (peb-sld-dim-h (- 0.0 (peb-sld-meet-lap)) (+ ow (peb-sld-meet-lap)) (- 0.0 900.0) 1
-                 "4086  LEAF")
-  ;; the panel field, joint by joint - the sheet reads 539 | 302 | 1448 | 1448 | 302
-  (peb-sld-dim-h (- 0.0 (peb-sld-meet-lap)) f0 (- 0.0 1500.0) 1 "539")
+                 "18288 [60]  RUN  -  EACH LEAF PARKS ITS OWN WIDTH CLEAR OF THE OPENING")
+  (setq lw (+ (/ ow 2.0) (peb-sld-meet-lap))
+        f0 (+ (- 0.0 (peb-sld-meet-lap)) (peb-sld-trim-w))
+        f1 (- (/ ow 2.0) (peb-sld-lead-w)))
+  (peb-sld-dim-h (- 0.0 (peb-sld-meet-lap)) (/ ow 2.0) (- 0.0 900.0) 1 "4647  LEAF")
+  (peb-sld-dim-h (/ ow 2.0) (+ ow (peb-sld-meet-lap)) (- 0.0 900.0) 1 "4647  LEAF")
+  ;; the panel field of the left leaf, joint by joint
   (setq x f0)
   (foreach j (peb-sld-joints (- f1 f0))
     (peb-sld-dim-h x (+ f0 j) (- 0.0 1500.0) 1 (rtos (- (+ f0 j) x) 2 0))
     (setq x (+ f0 j)))
   (peb-sld-dim-h x f1 (- 0.0 1500.0) 1 (rtos (- f1 x) 2 0))
-  (peb-sld-dim-v (peb-sld-sill-clr) (+ oh (peb-sld-head-lap)) (- tx0 900.0) 1 "2518  LEAF")
-  (peb-sld-dim-v 0.0 oh (- tx0 1800.0) 1 "2430  CLEAR")
+  (peb-sld-dim-h f1 (/ ow 2.0) (- 0.0 1500.0) 1 "539")
+  (peb-sld-dim-v (peb-sld-sill-clr) (+ oh (peb-sld-head-lap)) (- tx0 900.0) 1 "2526  LEAF")
+  (peb-sld-dim-v 0.0 oh (- tx0 1800.0) 1 "2438 [8]  CLEAR")
 
   ;; ---- the plan symbol, as issued on the approval sheet
-  (peb-sld-plan 0.0 -3600.0 ow 150.0 1 "3936 x 2430")
+  (peb-sld-plan 0.0 -3600.0 ow 150.0 2 "9144 x 2438")
   (peb-sld-tx (/ ow 2.0) -4700.0 (* (peb-sld-dim-th) 1.3) 0.0
               "PLAN SYMBOL  -  AS ISSUED ON THE APPROVAL DRAWING" "TEXT" 1 2)
 
-  ;; ---- the schedule, so the sample carries its own provenance
+  ;; ---- the member table, as MSPL-176 issues it (the current schedule)
   (setq y -5800.0)
-  (foreach s '("SLIDING DOOR  -  MEMBER SCHEDULE   (MSPL-027 SSD-01 / MSPL-030 SDS-01)"
-               "LEAF INFILL             SANDWICH PANEL, 1448 WIDE WITH END CLOSERS"
-               "LEADING STRIP           539   MEETING STILE AND ITS COVER TRIM"
-               "COVER TRIM              70    AT THE JAMB END, PLUS TOP AND BOTTOM BANDS"
-               "LEAF FRAMING            120 mm DEEP C-SECTIONS   (BEHIND THE PANEL)"
-               "  INNER STILE           120C20            SPAN 1500"
-               "  CENTRAL STILE         2 x 120C20        SPAN 6000"
-               "PERIMETER ANGLE         L 50 x 5          DOOR_ANGLE"
-               "TOP TRACK               U-CHANNEL  PL 3 x 214    ON CLIPS PL 3 x 100"
-               "HOOD TRIM               OVER THE TRACK AND WHEELS"
-               "FLOOR GUIDE RAIL        ROUND BAR  D 12   ON STUBS AT 125 / 890 / 990"
-               "JAMB AND HEADER         200C25 OR HOT-ROLLED"
-               "BOLTS                   12 mm DIA. HSB GR. 8.8"
+  (foreach s '("SLIDING DOOR  -  MEMBER TABLE   (MSPL-176 2025, THE CURRENT SCHEDULE)"
+               "U-CHANNEL # 01     96 x 70 x 3           TOP TRACK, FULL RUN"
+               "U-CHANNEL # 02     80 x 50 x 2           LEAF TOP RAIL"
+               "U-CHANNEL # 03     85 x 50 x 3           LEAF BOTTOM RAIL"
+               "U-CHANNEL # 04     50 x 50 x 3"
+               "U-CHANNEL # 05     200 x 60 x 20 x 1.5   JAMB AND HEADER"
+               "TUBE               40 x 40 x 2           LEAF FRAME  (14 SWG)"
+               "L-ANGLE # 01       38 x 38 x 3           FULL RUN"
+               "L-ANGLE # 02       50 x 50 x 3 x 100     CLIPS, 8 No."
+               "DOUBLE ANGLE # 01  50 x 50 x 3           FLOOR VEE"
+               "ROUND BAR          D 12                  THE FLOOR RAIL"
+               "WHEEL              D 20                  2 No. - IT RUNS ON THE RAIL"
+               "CONNECTION PLATE   150 x 60 x 5, BOLT D 12"
+               "INFILL             SANDWICH PANEL        (MSPL-121 USED PRIME SHEET 16 SWG)"
+               "WICKET DOOR        914 [3] x 1981 [6-6], SILL 305 [1]"
                ""
-               "NOTE  -  THERE IS NO DIAGONAL BRACE. THE D12 ROUND BAR IS THE FLOOR RAIL."
+               "NOTE  -  THERE IS NO DIAGONAL BRACE. THE D12 ROUND BAR IS THE FLOOR RAIL AND"
+               "         THE WHEEL RUNS ON IT: THIS IS A BOTTOM-ROLLING DOOR, TOP-GUIDED."
                "         THE STILE GRID IS BEHIND THE PANEL AND IS NOT DRAWN IN ELEVATION."
-               "         THE SANDWICH BAYS ARE LEFT CLEAR, AS MSPL-030 DRAWS THEM.")
+               "         MAIMAAR SIZES THESE DOORS IN FEET; THE METRIC FIGURES CONVERT.")
     (peb-sld-tx (- tx0 1000.0) y (* (peb-sld-dim-th) 1.25) 0.0 s "TEXT" 0 2)
     (setq y (- y (* (peb-sld-dim-th) 2.1))))
   (princ "
-SLIDING DOOR sample drawn: MSPL-030 SDS-01, single leaf, 3936 x 2430.")
+SLIDING DOOR sample drawn: MSPL-121, double leaf, 9144 x 2438, with wicket.")
   (princ))
 
 
