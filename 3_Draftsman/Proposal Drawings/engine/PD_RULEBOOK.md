@@ -2545,6 +2545,45 @@ absolute coordinate is never a flag; use `nil`.
 
 ---
 
+### 4B.73 A position is stated ONCE, and every sheet that draws it asks the same function
+
+**Owner, 3-Sep-2026:** *"Sync all the details with each other of stair and its sync with
+mezzanine plan and CLP, then audit."*
+
+`ST<n>_OFFSET_Y` is one number in the BSF. Three sheets drew from it and two of them read it
+differently:
+
+```
+   mezzanine floor plan   offY = the CENTRE of the stairwell, spanning offY +/- 1,300
+   column lay-out plan    offY = the LOWER edge,  columns at offY and offY + 1,200
+```
+
+So one stated offset put the same staircase in two places 1,300 mm apart, and - worse - the CLP
+called the column spacing **1,200** while the staircase sheet's own base plate plan dimensioned
+the very same pair at **2,600 O/O OF STEEL COLUMN**. A contractor setting out from the CLP would
+have cast the bases on the flight lines instead of the tower corners.
+
+Neither sheet was "wrong" in isolation. The fault is that each did the arithmetic itself.
+
+> **Where two sheets draw the same thing, ONE of them owns the geometry and the other asks it.**
+> The CLP now calls `peb-mzfp-stair-org` - the mezzanine plan's own placer - and stands its
+> columns on what comes back. `offY` is the stairwell CENTRE everywhere, the columns are on the
+> tower's outer lines everywhere, and the clamp that keeps a stair on the deck it serves now
+> applies to both plans instead of one.
+
+**The same rule caught the label.** `onREW` was set only on the fallback path, so a stair placed
+from its BSF offsets always printed `(LEW)` - ST2, at 42,260 of a 54,860 m building and hard
+against the right end wall, was labelled as being at the left one. **An end is not an input; it
+is a consequence of the position.** Read it off the column that has just been placed.
+
+**And an audit is a program, not a squint.** `_syncaudit.js` reads the generated PEB data and
+asserts across sheets - stair height against `MZ_FLOOR_HT`, offsets inside the building extents,
+the two end walls carrying the same post chain. It found `ST1_HEIGHT 5380` against
+`MZ_FLOOR_HT 5379`: a stair climbing to a level one millimetre off the floor it lands on, which
+no drawing would ever show but every dimension would carry.
+
+---
+
 ---
 
 ## STAIRCASE — the Mammut convention, harvested 1-Sep-2026

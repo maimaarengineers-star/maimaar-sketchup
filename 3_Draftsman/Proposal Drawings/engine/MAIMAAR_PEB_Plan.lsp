@@ -4840,7 +4840,7 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
 (defun peb-draw-stairs
        (data len wid /
         u inset i tag wdt hgt typ midl th mzStr mezzNum foot
-        nOnMezz onREW xcol yb0 yt1 r lab any)
+        nOnMezz onREW xcol yb0 yt1 r lab any offX offY orient dep org)
   ;; ============================================================================
   ;; COLUMN LAYOUT PLAN: THE STAIRCASE COLUMNS, AND NOTHING ELSE  (owner 1-Sep-2026)
   ;; ----------------------------------------------------------------------------
@@ -4893,8 +4893,6 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                 (if (null offX) (setq offX 0.0))
                 (if (null offY) (setq offY 6000.0))
                 (if (null orient) (setq orient "Longitudinal"))
-                (setq *SLOG* (open "C:/maimaar_render/st_log.txt" "a"))
-                (if *SLOG* (progn (write-line (strcat tag "entered wdt=" (rtos wdt 2 0) " offX=" (rtos offX 2 0) " offY=" (rtos offY 2 0)) *SLOG*) (close *SLOG*)))
                 (setq mzStr   (MSPL-Get-Str data (strcat tag "IN_MEZZ"))
                       mezzNum (peb-mezz-num mzStr)
                       foot    (if (and mezzNum *PEB-MEZZ-FOOTS*) (assoc mezzNum *PEB-MEZZ-FOOTS*) nil))
@@ -4903,31 +4901,49 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                 ;; all; my first cut simply skipped the stair, so the columns silently vanished
                 ;; from the sheet.  A stair whose mezzanine cannot be found still HAS columns -
                 ;; place them against the building instead and let the drawing show them.
-                (setq *SLOG* (open "C:/maimaar_render/st_log.txt" "a"))
-                (if *SLOG* (progn (write-line (strcat tag "foot=" (if foot "yes" "nil")) *SLOG*) (close *SLOG*)))
                 (progn
-                    ;; USE BSF OFFSETS if provided (owner 2-Sep-2026), else fall back to mezzanine-based placement
-                    ;; For Longitudinal: staircase runs along length (NSW→FSW), width is in X-direction
-                    ;;   xcol = offX, yb0 = offY, yt1 = offY + width
-                    ;; For Transverse: staircase runs across width (LEW→REW), width is in Y-direction
-                    ;;   xcol = offX, yb0 = offY, yt1 = offY + width (rotated in drawing, not position-math)
+                    ;; ---- THE SAME STAIR, IN THE SAME PLACE, ON EVERY SHEET  (owner 3-Sep-2026) ----
+                    ;; "Sync all the details of stair and its sync with mezzanine plan and CLP."
+                    ;;
+                    ;; This sheet read ST<n>_OFFSET_Y as the stair's LOWER edge and put its two columns
+                    ;; `wdt` (1,200) apart on the flight lines.  The mezzanine floor plan - which draws
+                    ;; the whole staircase, through peb-mzfp-stair-org - reads the SAME number as the
+                    ;; stairwell's CENTRE line and spans it `dep` (1,200 + 200 well + 1,200 = 2,600).
+                    ;; So one offset put the stair in two places, 1,300 apart, and the staircase sheet's
+                    ;; own base plate plan called the column spacing 2,600 while this one drew 1,200.
+                    ;;
+                    ;; So this sheet no longer does the arithmetic at all: where the mezzanine
+                    ;; footprint is known it ASKS peb-mzfp-stair-org - the one function the mezzanine
+                    ;; floor plan itself uses - and stands its columns on what comes back.  That is
+                    ;; 4B.8 at sheet level: one producer, so the two plans cannot drift apart, and the
+                    ;; clamp that keeps a stair on the deck it serves now applies to both of them
+                    ;; rather than to one.  offY is the CENTRE of the stairwell, and the columns stand
+                    ;; on the tower's outer lines - where the base plates are, and what the staircase
+                    ;; sheet's own "2600 O/O OF STEEL COLUMN" measures.
+                    (setq dep (+ wdt wdt (peb-stair-well wdt))
+                          org (if foot
+                                (peb-mzfp-stair-org data tag (nth 1 foot) (nth 2 foot)
+                                                              (nth 3 foot) (nth 4 foot))
+                                nil))
+                    (if org
+                      (setq xcol (car org)
+                            yb0  (- (cadr org) (/ dep 2.0))
+                            yt1  (+ (cadr org) (/ dep 2.0)))
                     (if (and offX (> offX 0.0))
-                      ;; Use BSF offsets as primary positioning
+                      ;; no mezzanine footprint to clamp against - the stated offsets, unchanged
                       (progn
                         (setq xcol offX)
-                        (setq yb0 offY yt1 (+ offY wdt)))
+                        (setq yb0 (- offY (/ dep 2.0)) yt1 (+ offY (/ dep 2.0))))
                       ;; Fall back to mezzanine-based placement if offsets not provided
                       (progn
                         (setq onREW (= (rem nOnMezz 2) 1))
                         (setq xcol (if foot
                                      (if onREW (- (nth 2 foot) inset) (+ (nth 1 foot) inset))
                                      (if onREW (- len inset) inset)))
-                        ;; the two columns straddle the stair width, on its outer lines
+                        ;; the two columns straddle the STAIRWELL, on the tower's outer lines
                         (setq yb0 (if foot (+ (nth 3 foot) inset) inset)
-                              yt1 (+ yb0 wdt))))
+                              yt1 (+ yb0 dep)))))
                     (setq r (max 250.0 (* u 0.55)))
-                    (setq *SLOG* (open "C:/maimaar_render/st_log.txt" "a"))
-                    (if *SLOG* (progn (write-line (strcat tag "drawing at x=" (rtos xcol 2 0) " y=" (rtos yb0 2 0)) *SLOG*) (close *SLOG*)))
                     (foreach cy (list yb0 yt1)
                       ;; the column itself, drawn as the I-section this sheet uses everywhere
                       (vl-catch-all-apply
@@ -4935,6 +4951,13 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                       ;; and the ring that says "this one is the staircase's"
                       (entmake (list (cons 0 "CIRCLE") (cons 8 "COMP-STAIRS")
                                      (list 10 xcol cy 0.0) (cons 40 r))))
+                    ;; ---- AND THE LABEL NAMES THE END THE STAIR IS ACTUALLY AT ------------------
+                    ;; onREW was only ever set on the fallback path, so a stair placed from its BSF
+                    ;; offsets was labelled "(LEW)" whichever end it stood at - ST2 at 42,260 of a
+                    ;; 54,860 building, hard against the RIGHT end wall, printed "(LEW)" beside it.
+                    ;; The end is not an input, it is a consequence of where the stair is: read it
+                    ;; off the column that has just been placed.
+                    (setq onREW (> xcol (/ len 2.0)))
                     ;; one label per stair, on a leader out from the upper column
                     (setq lab (strcat "STAIR COLUMNS - ST" (itoa i)
                                       (if onREW " (REW)" " (LEW)")))
