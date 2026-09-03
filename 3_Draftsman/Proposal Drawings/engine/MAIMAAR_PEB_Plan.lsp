@@ -3012,6 +3012,7 @@ PEB-VP: could not enter viewport " (vl-princ-to-string vpn)
   ;; UP to the next whole number — still an integer in the title block, never overfit,
   ;; and never more than 1 unit of slack.
   (setq sc (peb-fit-scale (max (/ mw (- dawX1 dawX0)) (/ mh (- dawY1 dawY0)))))
+  (peb-log-sheet sheetNo sc)          ; diagnostic, off unless *PEB-SCALE-LOG* names a file
   ;; patch title-block fields for a paperspace A4 sheet
   (setq tbData (peb-tb-set tbData "SCALE"     (strcat "1:" (rtos sc 2 (if (< sc 20.0) 1 0)))))
   (setq tbData (peb-tb-set tbData "SHEETSIZE" "A4"))
@@ -5485,6 +5486,7 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   (setq *PEB-TEXT-SCALE*
         (max 0.80 (min 4.00 (/ maxSize 45000.0))))
   (setq *PEB-DIM-SCALE* *PEB-TEXT-SCALE*)
+  (setq *PEB-BUB-FIT* (peb-bub-fit "PLAN"))     ; see peb-bub-fit - never inherited
 
   ;; ── End wall columns ─────────────────────────────────────────
   ;; the rule now lives in peb-ew-auto-cols so the END WALL FRAMING elevation
@@ -8948,6 +8950,7 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
       (if (or (null wid) (<= wid 0)) (setq wid 20000.0))
       (setq floorNum (if (and (boundp '*PEB-MEZZ-FLOOR-NUM*) *PEB-MEZZ-FLOOR-NUM*) *PEB-MEZZ-FLOOR-NUM* 1))
       (setq *PEB-TEXT-SCALE* (max 0.80 (min 4.00 (/ (max len wid 1.0) 45000.0))) *PEB-DIM-SCALE* *PEB-TEXT-SCALE*)
+      (setq *PEB-BUB-FIT* (peb-bub-fit "MEZZ-PLAN"))
       (vl-catch-all-apply (function (lambda () (peb-draw-mezz-floor-plan data len wid floorNum))))
       (setvar "CLAYER" "0")
       (vl-catch-all-apply (function (lambda () (peb-frame-and-titleblock data (strcat "MEZZANINE FLOOR-" (itoa floorNum) " LAYOUT PLAN")))))

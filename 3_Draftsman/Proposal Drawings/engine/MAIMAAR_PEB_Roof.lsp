@@ -322,6 +322,7 @@
   ;; ── Scales (same continuous formula as the plan) ─────────────────
   (setq maxSize (max len wid))
   (setq *PEB-TEXT-SCALE* (max 0.80 (min 4.00 (/ maxSize 45000.0))))
+  (setq *PEB-BUB-FIT* (peb-bub-fit "ROOF"))
   (setq *PEB-DIM-SCALE* *PEB-TEXT-SCALE* ts *PEB-TEXT-SCALE* ds *PEB-DIM-SCALE*)
 
   ;; text styles + linetypes + linetype scale

@@ -70,6 +70,7 @@
   ;; extents and threw away most of the scale the split had just won (owner 26-Aug).
   (setq *PEB-TEXT-SCALE* (max 0.80 (min 4.00 (/ (max len wid 1.0) 45000.0)))
         *PEB-DIM-SCALE*  *PEB-TEXT-SCALE*)
+  (setq *PEB-BUB-FIT* (peb-bub-fit "ROOF"))
   (setq midY (+ oy (/ wid 2.0)) prev (getvar "CLAYER"))
 
   ;; building outline / eave lines
@@ -2191,6 +2192,9 @@
     (setq faceMax (/ faceMax (float *PEB-PART-N*))))
   (setq *PEB-TEXT-SCALE* (max 0.80 (min 4.00 (/ faceMax 45000.0)))
         *PEB-DIM-SCALE*  *PEB-TEXT-SCALE*)
+  ;; a SHEETING elevation carries the panel/liner spec bands a framing one does not, so it is
+  ;; fitted smaller and its bubble plots smaller.  Same drawer, two sheet profiles.
+  (setq *PEB-BUB-FIT* (peb-bub-fit (if (= kind "F") "FRAME-ELEV" "SHEET-ELEV")))
   ;; VERTICAL PITCH between stacked elevations.  (* 9000 ts) was a guess, and it
   ;; stopped being true the moment the overall metres/feet dim line went in below
   ;; each wall: the FSW dim line landed on the NSW heading.  Size it from what is
@@ -2239,6 +2243,7 @@
                     (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))))
       ;; same continuous scale rule as the Plan (0.80 floor, 4.00 cap)
       (setq *PEB-TEXT-SCALE* (max 0.80 (min 4.00 (/ ms 45000.0))) *PEB-DIM-SCALE* *PEB-TEXT-SCALE*)
+  (setq *PEB-BUB-FIT* (peb-bub-fit "FRAME-ELEV"))
       (apply drawFn (list data))))
   (setq *PEB-DATA-FILE* nil)
   (if (boundp 'peb-tile-place)
@@ -2343,6 +2348,7 @@
   ;; extents and threw away most of the scale the split had just won (owner 26-Aug).
   (setq *PEB-TEXT-SCALE* (max 0.80 (min 4.00 (/ (max len wid 1.0) 45000.0)))
         *PEB-DIM-SCALE*  *PEB-TEXT-SCALE*)
+  (setq *PEB-BUB-FIT* (peb-bub-fit "ROOF"))
   (setq midY   (+ oy (/ wid 2.0))
         prev   (getvar "CLAYER")
         stype  (strcase (peb-tb-or (MSPL-Get-Str data "STYPE") "CS")))
@@ -3080,6 +3086,7 @@
   ;; Keeping the whole sheet inside ~1000 x 900 lets it plot at 1:5, so the section
   ;; is ~200 mm across the page instead of a stamp in the corner.
   (setq *PEB-TEXT-SCALE* (/ 1000.0 45000.0) *PEB-DIM-SCALE* *PEB-TEXT-SCALE*)
+  (setq *PEB-BUB-FIT* (peb-bub-fit "DETAILS"))
 
   ;; ONLY THE PROFILE THE BSF SELECTS IS DRAWN (owner 27-Aug).  When the roof and the
   ;; wall are the SAME product there is one detail, titled for both; when they differ -

@@ -450,8 +450,44 @@
 ;; Shrinking was the wrong lever twice over - it makes the letters smallest on exactly the big
 ;; buildings whose sheets are already at 1:800, and it never buys clearance anyway, because the
 ;; bubble and the gap shrink together.  Stagger instead; peb-bub-rows already does.
-(defun peb-bub-r ( )
-  (max 900.0 (* 720.0 (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0))))
+;; ---- A BUBBLE IS THE SAME SIZE ON EVERY SHEET  (owner 3-Sep-2026) -----------------------
+;; "Fix the bubbles issue."  Four passes in, the radius was already ONE rule everywhere
+;; (4B.31, 720 x TEXT-SCALE) and the bubbles still did not match, because a model radius plots
+;; at 1440 x TS / sc and the two sheets only agree when TS and sc agree.  TS is ESTIMATED from
+;; the building's face; sc is MEASURED from the drawn extents - the face plus every paper-sized
+;; dim chain, bubble stack, legend and heading hung off it.  A sheet carrying three nested
+;; chains and a legend is fitted smaller than a bare elevation of the same building, and its
+;; bubble plots smaller with it.  Measured on MSPL-26-279, in true plotted millimetres:
+;;
+;;   Cross Section          6.01      Column Layout Plan     4.58
+;;   End Wall Framing       6.04      Mezzanine Floor Plan   4.74
+;;   Side Wall Framing      5.91      Roof Framing / Sheeting 4.84
+;;   Sheeting Elevations    5.21
+;;
+;; A third bigger on one sheet than another, and perfectly consistent WITHIN each sheet type -
+;; which is the tell: it is not noise, it is the annotation profile of the sheet.
+;;
+;; So each sheet declares its own profile and the bubble is corrected for it.  The factor is
+;; MEASURED, not guessed (peb-log-sheet above is what measured it), and it is deliberately the
+;; BUBBLE that is corrected and not TEXT-SCALE: scaling all the lettering to close the same gap
+;; costs the Column Layout Plan 13% of its drawing scale, because bigger text means bigger
+;; extents means a smaller fit.  Correcting the bubble alone costs about 2%.
+;;
+;; The reference (1.00) is the framing elevation and the cross section - the two that already
+;; land near 6 mm, so nothing on the set gets smaller.
+(defun peb-bub-fit (kind)
+  (cond ((= kind "PLAN")       1.31)     ; Column Layout Plan     4.58 -> 6.0
+        ((= kind "MEZZ-PLAN")  1.31)     ; Mezzanine Floor Plan   4.74 -> 6.0
+        ((= kind "ROOF")       1.24)     ; Roof framing / sheeting 4.84 -> 6.0
+        ((= kind "SHEET-ELEV") 1.15)     ; Sheeting elevations    5.21 -> 6.0
+        (T                     1.00)))   ; framing elevations, cross section - the reference
+
+;; EVERY sheet-level drawer sets *PEB-BUB-FIT* beside its *PEB-TEXT-SCALE*, and none inherits.
+;; That is the whole lesson of the old *PEB-BUBRAD*, which the wall elevations read without ever
+;; setting, so their bubble size depended on which sheet rendered before them.
+(defun peb-bub-r ( / f)
+  (setq f (if (and (boundp '*PEB-BUB-FIT*) *PEB-BUB-FIT*) *PEB-BUB-FIT* 1.0))
+  (* f (max 900.0 (* 720.0 (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)))))
 
 (defun peb-bubble (cx cy r lab dir)
   (peb-circle cx cy r "GRID")
@@ -461,6 +497,36 @@
 ;; Shared in Standard.lsp (loaded before Section+Plan) so ANY sheet's dimension can read
 ;; in BOTH mm and architectural feet-inches, matching the Section's DIMALT dual display and
 ;; the Plan's *PEB-DIM-DISPLAY* = MMFT default.  ft-inches rounded to the nearest inch.
+;; ---- SHEET SCALE LOG  (owner 3-Sep-2026) ------------------------------------------------
+;; "Fix the bubbles issue" — and after four passes the honest answer was that the bubble RADIUS
+;; is already one rule on every sheet (4B.31), and what differs is the SCALE each sheet is
+;; fitted to.  A bubble drawn at 720 x TEXT-SCALE plots at 1440 x TS / sc, so two sheets agree
+;; only when TS and sc move together, and TS is estimated from the building's face while sc is
+;; measured from the drawn extents - face PLUS every paper-sized dim chain, bubble and note
+;; hung off it.  A sheet that carries three dim chains and a legend is fitted smaller than a
+;; bare elevation of the same building, and its bubble plots smaller with it.
+;;
+;; That is a calibration, and a calibration wants MEASUREMENTS, not a fourth guess.  This writes
+;; one CSV line per sheet - sheet number, TEXT-SCALE, fitted scale - so the ratio can be read off
+;; the real set instead of derived from an assumption about how much annotation each sheet hangs.
+;;
+;; OFF unless *PEB-SCALE-LOG* names a file.  open/write-line/close only: no `command`, so it
+;; cannot leave a prompt open and eat the render script (the 2-Sep failure class).
+(if (not (boundp '*PEB-SCALE-LOG*)) (setq *PEB-SCALE-LOG* nil))   ; set to a path to re-measure
+
+(defun peb-log-sheet (sheetNo sc / f)
+  (if *PEB-SCALE-LOG*
+    (vl-catch-all-apply (function (lambda ()
+      (setq f (open *PEB-SCALE-LOG* "a"))
+      (if f
+        (progn
+          (write-line (strcat (if sheetNo sheetNo "?") ","
+                              (rtos (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0) 2 4) ","
+                              (rtos sc 2 2))
+                      f)
+          (close f)))))))
+  (princ))
+
 (defun peb-dim-mmft (mm / ti ft in)
   (setq ti (/ (abs mm) 25.4)
         ft (fix (/ ti 12.0))

@@ -324,6 +324,7 @@
         maxSize (max len wid 1.0))
   (setq *PEB-TEXT-SCALE* (max 0.80 (min 4.00 (/ maxSize 45000.0))))
   (setq *PEB-DIM-SCALE*  *PEB-TEXT-SCALE*)
+  (setq *PEB-BUB-FIT* (peb-bub-fit "SHEET-ELEV"))
   (setq su     (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)
         below  (* 6000 su)      ; grid bubbles (-3200) + title (-4400) + condition note (-5250) live below oy
         gap    (* 3500 su)

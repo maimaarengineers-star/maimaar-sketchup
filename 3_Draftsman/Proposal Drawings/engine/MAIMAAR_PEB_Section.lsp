@@ -8528,6 +8528,7 @@
                           (max (/ widInput      35000.0)
                                (/ (+ H rise)    10000.0))))))
   (setq *PEB-DIM-SCALE*  *PEB-TEXT-SCALE*)
+  (setq *PEB-BUB-FIT* (peb-bub-fit "SECTION"))
   ;; (setup-maimaar-dim is defined above and was used by the
   ;;  peb-dim-*-native helpers, but the current code path uses the
   ;;  hand-rolled dim-line-h / draw-height-dim functions which don't
