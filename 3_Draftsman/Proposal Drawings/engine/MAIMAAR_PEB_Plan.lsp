@@ -592,6 +592,44 @@
   (foreach st stations (setq out (append out (list (peb-width-mark st stations mods)))))
   out)
 
+;; ---- MERGING TWO CHAINS ACROSS ONE WIDTH  (owner 3-Sep-2026) -----------------------------
+;; The grid every sheet letters is the MERGED one - the width-module lines together with the
+;; end-wall / mezzanine posts between them (4B.61).  The Column Layout Plan has always merged
+;; them inline; these are the same three steps, named, so the mezzanine floor plan can ask for
+;; the identical list instead of building a second one that agrees only by luck.
+;;
+;; The tolerance is 5 mm, not 1 mm, and deliberately: two chains written across the SAME width
+;; from two different expressions land a millimetre or two apart on the lines they share, and at
+;; 1 mm those stop coinciding - every shared line doubles into two bubbles a hair's breadth apart.
+(defun peb-merge-ys (lst tol / srt out)
+  (if (null tol) (setq tol 5.0))
+  (setq srt (vl-sort lst '<) out '())
+  (foreach v srt
+    (if (or (null out) (> (abs (- v (last out))) tol))
+      (setq out (append out (list v)))))
+  out)
+
+;; Do two station lists describe the same lines?  Used to decide whether a chain is worth its own
+;; dimension rung, or is already being stated by the one beside it.
+(defun peb-ys-same (a b tol / ok i)
+  (if (null tol) (setq tol 5.0))
+  (if (or (null a) (null b) (/= (length a) (length b)))
+    nil
+    (progn
+      (setq ok T i 0)
+      (while (< i (length a))
+        (if (> (abs (- (nth i a) (nth i b))) tol) (setq ok nil))
+        (setq i (1+ i)))
+      ok)))
+
+;; A chain's stations, or NIL when the BSF states no chain - peb-width-stations answers a blank
+;; expression with the two end lines, which reads as a real chain and would print "76,200" as if
+;; the estimator had entered it.
+(defun peb-mzfp-stations (expr total)
+  (if (and expr (/= expr "") (vl-string-search "@" expr))
+    (peb-width-stations expr total)
+    nil))
+
 ;; index of the station nearest y, for the no-module fallback above
 (defun peb-station-index (y stations / i best bd d)
   (setq i 0 best 0 bd 1e12)
@@ -2439,7 +2477,11 @@
         ;; so neither the value nor the unit can touch the strip border (owner 29-Jul: values were spilling).
         (tb-mtext lx (+ yCur (* rh 0.5)) (tb-fith (car r) (* W 0.60) sm) 0 4 (car r) white)
         (tb-mtext (+ X0 (* W 0.80)) (+ yCur (* rh 0.5)) (tb-fith (cadr r) (* W 0.14) val) 0 6 (cadr r) green)
-        (if (/= (caddr r) "")
+        ;; A UNIT BELONGS TO A NUMBER (owner 3-Sep-2026).  MZ1_CH_FFL_SLAB on MSPL-26-279 is the
+        ;; text "As per Design", and the panel appended MM to it regardless, so the sheet read
+        ;; "F.F.L (FROM G.F.)   AS PER DESIGN  MM".  A row whose value is a sentence carries no
+        ;; unit - and these panels exist precisely so a blank BSF field can say so out loud.
+        (if (and (/= (caddr r) "") (wcmatch (cadr r) "#*"))
           (tb-mtext (+ X0 (* W 0.82)) (+ yCur (* rh 0.5)) (tb-fith (caddr r) (* W 0.155) (* sm 0.90)) 0 4 (caddr r) grey)))
       (setq rh (* s 0.044) yCur (- yCur rh))
       (tb-mtext (+ X0 (* W 0.04)) (+ yCur (* rh 0.74))
@@ -2486,7 +2528,11 @@
         (setq rh (* s 0.0200) yCur (- yCur rh))
         (tb-mtext lx (+ yCur (* rh 0.5)) (tb-fith (car r) (* W 0.60) sm) 0 4 (car r) white)
         (tb-mtext (+ X0 (* W 0.80)) (+ yCur (* rh 0.5)) (tb-fith (cadr r) (* W 0.14) val) 0 6 (cadr r) green)
-        (if (/= (caddr r) "")
+        ;; A UNIT BELONGS TO A NUMBER (owner 3-Sep-2026).  MZ1_CH_FFL_SLAB on MSPL-26-279 is the
+        ;; text "As per Design", and the panel appended MM to it regardless, so the sheet read
+        ;; "F.F.L (FROM G.F.)   AS PER DESIGN  MM".  A row whose value is a sentence carries no
+        ;; unit - and these panels exist precisely so a blank BSF field can say so out loud.
+        (if (and (/= (caddr r) "") (wcmatch (cadr r) "#*"))
           (tb-mtext (+ X0 (* W 0.82)) (+ yCur (* rh 0.5)) (tb-fith (caddr r) (* W 0.155) (* sm 0.90)) 0 4 (caddr r) grey)))
       ;; the floor system spelled out, on its own line - it is a sentence, not a number
       (setq rh (* s 0.044) yCur (- yCur rh))
@@ -2507,7 +2553,11 @@
         (setq rh (* s 0.0280) yCur (- yCur rh))
         (tb-mtext lx (+ yCur (* rh 0.5)) (tb-fith (car r) (* W 0.52) sm) 0 4 (car r) white)
         (tb-mtext (+ X0 (* W 0.80)) (+ yCur (* rh 0.5)) (tb-fith (cadr r) (* W 0.16) val) 0 6 (cadr r) green)
-        (if (/= (caddr r) "")
+        ;; A UNIT BELONGS TO A NUMBER (owner 3-Sep-2026).  MZ1_CH_FFL_SLAB on MSPL-26-279 is the
+        ;; text "As per Design", and the panel appended MM to it regardless, so the sheet read
+        ;; "F.F.L (FROM G.F.)   AS PER DESIGN  MM".  A row whose value is a sentence carries no
+        ;; unit - and these panels exist precisely so a blank BSF field can say so out loud.
+        (if (and (/= (caddr r) "") (wcmatch (cadr r) "#*"))
           (tb-mtext (+ X0 (* W 0.82)) (+ yCur (* rh 0.5)) (tb-fith (caddr r) (* W 0.155) (* sm 0.90)) 0 4 (caddr r) grey)))
       (setq rh (* s 0.050) yCur (- yCur rh))
       (tb-mtext (+ X0 (* W 0.04)) (+ yCur (* rh 0.72))
@@ -2546,7 +2596,11 @@
         (setq rh (* s 0.0280) yCur (- yCur rh))
         (tb-mtext lx (+ yCur (* rh 0.5)) (tb-fith (car r) (* W 0.52) sm) 0 4 (car r) white)
         (tb-mtext (+ X0 (* W 0.80)) (+ yCur (* rh 0.5)) (tb-fith (cadr r) (* W 0.16) val) 0 6 (cadr r) green)
-        (if (/= (caddr r) "")
+        ;; A UNIT BELONGS TO A NUMBER (owner 3-Sep-2026).  MZ1_CH_FFL_SLAB on MSPL-26-279 is the
+        ;; text "As per Design", and the panel appended MM to it regardless, so the sheet read
+        ;; "F.F.L (FROM G.F.)   AS PER DESIGN  MM".  A row whose value is a sentence carries no
+        ;; unit - and these panels exist precisely so a blank BSF field can say so out loud.
+        (if (and (/= (caddr r) "") (wcmatch (cadr r) "#*"))
           (tb-mtext (+ X0 (* W 0.82)) (+ yCur (* rh 0.5)) (tb-fith (caddr r) (* W 0.155) (* sm 0.90)) 0 4 (caddr r) grey)))
       (setq rh (* s 0.090) yCur (- yCur rh))
       (tb-mtext (+ X0 (* W 0.04)) (- (+ yCur rh) (* sm 1.1))
@@ -3946,6 +4000,40 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
 ;;   3. Clip to the footprint [fy0, fy1] and dedupe.
 ;; The caller's existing-column skip (peb-main-column-ys ± mainTol) then drops the stubs that land on a
 ;; main column line, leaving the interior subdivisions as the NEW encircled mezzanine columns.
+;; ---- A COLUMN STANDS ON ITS OWN CENTRELINE, NOT ON THE OUT-TO-OUT LINE  (owner 3-Sep-2026)
+;;
+;; "Still arrows are passing from middle of columns, it must be from outer line of sheeting."
+;;
+;; The BSF states the width OUT TO OUT OF STEEL COLUMN - 76,200 on MSPL-26-279 - and the chain
+;; that divides it, 5@15240, is written against that same out-to-out line.  Walking that chain
+;; from y=0 therefore puts the first and last station ON the out-to-out line, and a column drawn
+;; centred there straddles it: half the section outside the building, and the dimension arrow
+;; landing in the middle of the steel instead of on its face.
+;;
+;; The Column Layout Plan has always known this - peb-main-column-ys starts at colOff and ends at
+;; wid-colOff, and only the INTERIOR module lines sit on the raw sums.  This is that same
+;; correction, applied where the mezzanine builds its own stations, so the two sheets put the
+;; same column in the same place:
+;;
+;;      out-to-out  0 |<--------------- 76,200 --------------->| 76,200
+;;      centrelines   |  700                            75,500 |
+;;                    +--+------------------------------+------+
+;;                    |==|                              |==|          <- 1,400 deep column
+;;
+;; The chain still PRINTS 15,240 - that is the estimator's out-to-out module and what was
+;; quoted (4B.8).  Only where the steel is drawn changes; the arrows then reach the outer face,
+;; which is where a reader measures an out-to-out dimension from.
+(defun peb-mezz-snap-ends (lst wid / co)
+  (setq co (/ (peb-col-web-depth wid) 2.0))
+  (if (or (null lst) (< (length lst) 2))
+    lst
+    (progn
+      (if (< (abs (car lst)) 1.0)
+        (setq lst (cons co (cdr lst))))
+      (if (< (abs (- (last lst) wid)) 1.0)
+        (setq lst (append (reverse (cdr (reverse lst))) (list (- wid co)))))
+      lst)))
+
 (defun peb-mezz-col-ys (data wid fy0 fy1 targetSp / expr bnds acc out prev b0 b1 n k g y s sp2 sumSp sc2 span)
   (if (or (null targetSp) (<= targetSp 0.0)) (setq targetSp 6000.0))
   (setq span (- fy1 fy0))
@@ -3976,7 +4064,7 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
       (setq sc2 (if (< (abs (- sumSp span)) (* 0.02 span)) 1.0 (/ span sumSp)))
       (setq out (list fy0) acc fy0)
       (foreach s sp2 (setq acc (+ acc (* s sc2))) (if (< acc (- fy1 1.0)) (setq out (append out (list acc)))))
-      (append out (list fy1)))
+      (peb-mezz-snap-ends (append out (list fy1)) wid))
     ;; else AUTO-DIVIDE each MAIN width module (the default) — columns between the main PEB columns
     (progn
       (setq expr (MSPL-Get-Str data "MODEXPR") bnds (list 0.0) acc 0.0)
@@ -3993,7 +4081,7 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
       (foreach y out
         (if (and (>= y (- fy0 1.0)) (<= y (+ fy1 1.0)) (or (null prev) (> (- y prev) 1.0)))
           (progn (setq bnds (append bnds (list y))) (setq prev y))))
-      bnds)))
+      (peb-mezz-snap-ends bnds wid))))
 
 ;; ---- component drawer: peb-draw-mezzanine (merged from comp_mezzanine.lsp) ----
 ;; ============================================================================
@@ -8037,7 +8125,9 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                                  mzRcc rccXs rccYs floorSys jspSys lvl lvlStr specStr mzJoist
                                  dimX yprev yy jy beamHalf joistHalf secHalf secSp sx isGrating
                                  bayA bayB legX legY rowH sampleLen L colR
-                                 jbi jxa jxb thS mzThk fflLvl mainYs mzOnly bubR2 stVoids)
+                                 jbi jxa jxb thS mzThk fflLvl mainYs mzOnly bubR2 stVoids
+                                 gYs ewSt sufW sufL chainMod chainEW rungX rungY
+                                 wModsOO ewStOO)
   (setq sc (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0))
   ;; -- RULE 4B.26 - EVERY NOTE ON THIS SHEET IS SIZED FROM THE LADDER (owner 29-Aug) --
   ;; "Floors Details are Also Missing ... We had already developed it."  They were not missing.
@@ -8099,6 +8189,11 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
   (if (not (vl-some (function (lambda (v) (< (abs (- v fx0)) 1.0))) xs)) (setq xs (cons fx0 xs)))
   (if (not (vl-some (function (lambda (v) (< (abs (- v fx1)) 1.0))) xs)) (setq xs (append xs (list fx1))))
   (setq xs (vl-sort xs '<))
+  ;; ...and the two END bay lines carry columns as well, so they get the same centreline
+  ;; correction the width stations get (see peb-mezz-snap-ends).  Without it the end-wall
+  ;; column straddles the out-to-out line and the length arrow lands inside the steel.
+  (if (and (< (abs (car xs)) 1.0) (< (abs (- (last xs) len)) 1.0))
+    (setq xs (peb-mezz-snap-ends xs len)))
 
   ;; THE WHOLE FLOOR PLATE FIRST (owner 29-Aug): the building outline, then every part of it the
   ;; mezzanine does NOT cover, crossed and labelled. Up to four bands — below / above the deck
@@ -8181,7 +8276,16 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
   ;; precast / hollow-core (jspSys nil).
   (if jspSys
     (progn
-      (peb-comp-layer "COMP-MEZZ-JOIST" 8)
+      ;; ---- THE JOIST COLOUR  (owner 3-Sep-2026) ----------------------------------------------
+      ;; "Change the colour of joist to a bit more visible while working."
+      ;;
+      ;; COMP-MEZZ-JOIST was ACI 8 - dark grey.  On paper it plots black like everything else, so the
+      ;; PDF never showed the problem; in the model, which is where the drawing is actually worked on,
+      ;; a mezzanine floor is mostly joists and every one of them was the dimmest colour in the index.
+      ;; ACI 3 (green) reads on either background and stays clearly apart from the beam's ACI 5 (blue),
+      ;; which matters more here than on any other sheet: beam and joist are drawn as the same kind of
+      ;; line and are told apart by weight and colour alone.
+      (peb-comp-layer "COMP-MEZZ-JOIST" 3)
       (setvar "CLAYER" "COMP-MEZZ-JOIST")
       ;; -- A JOIST SPANS ONE BAY, BETWEEN TWO BEAMS (owner 29-Aug) ---------------------
       ;; "Joists are not Shown Properly."  Each joist was ONE line the full 93 m length of the
@@ -8216,7 +8320,7 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
         ;; synced onto this sheet; the bubbles are centred at fy1 + 3r and the note printed
         ;; straight across them.  4B.27 again: a gap that has to clear something is measured
         ;; from that thing - here the bubble radius, so the two move together for ever after.
-        (txt "MC" (list (/ (+ fx0 fx1) 2.0) (+ (max fy1 wid) (* (peb-bub-r) 5.2))) (peb-th 'SMALL) 0.0
+        (txt "MC" (list (/ (+ fx0 fx1) 2.0) (+ (max fy1 wid) (* (peb-bub-r) 10.6))) (peb-th 'SMALL) 0.0
              "JOISTS ALONG LENGTH, SPANNING BAY TO BAY - SPACING AS PER DESIGN"))))))
 
   ;; SECONDARY JOISTS — grating / chequered plate only: 100mm double-line flange PERPENDICULAR to the
@@ -8224,7 +8328,7 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
   ;; representative bay as TYPICAL (a full grid of them across the floor buries the plan) — owner 12-Jul.
   (if (and jspSys isGrating (> (length xs) 1))
     (progn
-      (peb-comp-layer "COMP-MEZZ-JOIST-SEC" 8)
+      (peb-comp-layer "COMP-MEZZ-JOIST-SEC" 4)
       (setvar "CLAYER" "COMP-MEZZ-JOIST-SEC")
       (setq secSp (/ jspSys 2.0) bayA (nth 0 xs) bayB (nth 1 xs) sx (+ bayA secSp))
       (while (< sx (- bayB 1.0))
@@ -8370,64 +8474,161 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
                  "COLUMN REQUIRED FOR MEZZANINE ONLY (STOPS AT BEAM SOFFIT)"))))))))
   (setq *PEB-COL-WEB* savedWeb)
 
-  ;; SHOW THE MEZZANINE COLUMN SPACING (owner 11-Jul) — a vertical dim chain of the column lines, just
-  ;; inside the deck's left edge.
-  (setq gbr (peb-bub-r))          ; 4B.31 - one radius for every sheet; the dim chain measures off it
-  ;; -- THE CHAIN READS LIKE THE COLUMN LAYOUT PLAN'S (owner 3-Sep-2026) ------------------
-  ;; "make similar dim as of CLP."  This drew one native stretched dim per gap, INSIDE the deck's
-  ;; left edge, so eleven of them stacked on top of the joists as a column of rotated numbers.
-  ;; The CLP states the same grid as a CHAIN outside the drawing with an OVERALL bar under it,
-  ;; which is 4B.11's shape and is what a reader compares the two sheets on.
+  ;; ======================================================================================
+  ;;  THE SAME GRID, AND THE SAME CHAINS, AS THE COLUMN LAYOUT PLAN  (owner 3-Sep-2026)
   ;;
-  ;; peb-fr-overall-v is the set's own chain-and-overall drawer (open arrows, DIM rung, the
-  ;; ft-in on the overall) - the same one the framing elevations use, so the mezzanine plan and
-  ;; the CLP are drawn by the same hand rather than by two that happen to agree.
-  (if (> (length ys) 1)
-    (progn
-      (setq dimX (- fx0 (* gbr 4.2)) yprev (car ys))
-      ;; the chain: one bar per column bay, stated in millimetres
-      (if (boundp 'peb-fr-overall-v)
-        (progn
-          (foreach yy (cdr ys)
-            (vl-catch-all-apply (function (lambda ()
-              (peb-fr-overall-v dimX yprev yy (peb-comma (rtos (- yy yprev) 2 0))))))
-            (setq yprev yy))
-          ;; and the OVERALL, one step further out, carrying feet (4B.11)
-          (vl-catch-all-apply (function (lambda ()
-            (peb-fr-overall-v (- dimX (* gbr 2.6)) (car ys) (last ys)
-                              (peb-dim-mmft (- (last ys) (car ys))))))))
-        ;; Framing.lsp not loaded (a page filter that omits it) - the old per-gap native dim
-        ;; rather than nothing at all.  An undefined helper here would blank the sheet silently.
-        (progn
-          (setq dimX (+ fx0 (* (min len wid) 0.03)) yprev (car ys))
-          (foreach yy (cdr ys)
-            (vl-catch-all-apply (function (lambda ()
-              (peb-dim-height-stretch fx0 dimX yprev yy (peb-comma (rtos (- yy yprev) 2 0))))))
-            (setq yprev yy)))))) 
+  ;;  "BSF showing out to out dimensions but mezzanine floor plan showing in to in of the
+  ;;   columns - sync all the dim and bubbles grids."
+  ;;
+  ;;  Held side by side, the two sheets described ONE grid in two languages.
+  ;;
+  ;;    Column Layout Plan     A A' B B' C C' D D' E E' F        (eleven bubbles)
+  ;;                           10@7620 O/O STEEL COLUMN
+  ;;                           5@15240 O/O STEEL COLUMN
+  ;;                           76,200 [250'-0"]
+  ;;
+  ;;    Mezzanine Floor Plan   A B C D E F                       (six bubbles)
+  ;;                           15,240  15,240  15,240  15,240  15,240
+  ;;                           76200 [250'-0"]
+  ;;
+  ;;  Every number on the mezzanine sheet was measured off ITS OWN drawn stations and printed
+  ;;  bare.  Nowhere on it did the word O/O appear - so a reader holding the BSF, which states
+  ;;  76,200 OUT TO OUT OF STEEL COLUMN, has no way to know whether the 15,240 in front of them
+  ;;  is that same out-to-out module or a centre-to-centre or in-to-in distance the drawing
+  ;;  happened to measure.  On a drawn grid whose end lines sit on the column CENTRES that
+  ;;  difference is a real 700 mm a side, and it is the estimator's module that is quoted.
+  ;;
+  ;;  So this sheet stops speaking for itself and repeats what the BSF says:
+  ;;    * the BUBBLES come off the MERGED building grid - width modules, end-wall posts and the
+  ;;      mezzanine's own column lines, merged at 5 mm exactly as the CLP merges them.  A grid
+  ;;      line is a grid line: 4B.8 is that the same line carries the same mark on every sheet,
+  ;;      whether or not THIS sheet happens to draw a member on it.
+  ;;    * the CHAINS are the estimator's own expressions with their BASIS spelled out - the
+  ;;      same three strings the CLP prints, in the same order, so the two can be read against
+  ;;      each other word for word.
+  ;;    * the mezzanine's OWN column chain is drawn as a fourth, innermost rung ONLY when it
+  ;;      differs from both of them.  On the 50 ft option it IS the module chain and on the
+  ;;      25 ft option it IS the post chain, so it is not repeated in either.
+  ;;    * and the LENGTH is dimensioned at all, which it never was: the sheet carried bay
+  ;;      bubbles 1..8 over a building whose length it never stated.
+  ;; ======================================================================================
+  (setq gbr (peb-bub-r))          ; 4B.31 - one radius for every sheet; the chains measure off it
+  ;; Both chains are written OUT TO OUT, so both start at 0 and end at wid - the same
+  ;; straddle peb-mezz-snap-ends corrects on the mezzanine's own stations.  They are snapped
+  ;; here too, BEFORE the merge: leave one list on 0 and another on 700 and the 5 mm merge
+  ;; keeps them apart, which prints two bubbles a hair's breadth apart both lettered A.
+  ;; TWO lists of the same chain, and they are not interchangeable.
+  ;;   *OO  - as the BSF writes it, 0 .. wid, out to out.  This is what the chain TEXT is
+  ;;          checked against: peb-chain-text prints the estimator's expression verbatim only
+  ;;          while that expression still FITS the stations it is handed.  Hand it the snapped
+  ;;          list and "5@15240" stops fitting, so it silently falls back to measuring the gaps
+  ;;          and prints "1@14540 + 3@15240 + 1@14540" - the centre-to-centre chain, which is
+  ;;          precisely the in-to-in number the owner rejected.
+  ;;   snapped - where the STEEL is, ends pulled back to the column centrelines.  This is what
+  ;;          the bubbles and the members are placed on.
+  (setq wModsOO (peb-width-mods data wid))
+  (setq ewStOO  (peb-mzfp-stations (MSPL-Get-Str data "EWLEXPR") wid))
+  (setq wMods (peb-mezz-snap-ends wModsOO wid))
+  (setq ewSt  (peb-mezz-snap-ends ewStOO  wid))
+  ;; the merged grid, clipped to the deck - a bubble on a line the deck never reaches labels nothing
+  (setq gYs (peb-merge-ys (append (if wMods wMods '()) (if ewSt ewSt '()) ys) 5.0))
+  (setq gYs (vl-remove-if (function (lambda (v) (or (< v (- fy0 1.0)) (> v (+ fy1 1.0))))) gYs))
+  (if (< (length gYs) 2) (setq gYs ys))
 
-  ;; grid bubbles — building bay NUMBERS along the top, width LETTERS down the left (A at the top)
+  ;; ---- the chain STRINGS, straight from the BSF ----------------------------------------
+  (setq sufW (peb-basis-suffix (peb-tb-or (MSPL-Get-Str data "WIDTH_MOD_REF")
+                                          (MSPL-Get-Str data "WIDTH_REF"))))
+  (setq chainMod (if wModsOO
+                   (strcat (peb-chain-text (MSPL-Get-Str data "MODEXPR") wModsOO) " " sufW)))
+  (setq chainEW  (if (and ewStOO (> (length ewStOO) 2))
+                   (strcat (peb-chain-text (MSPL-Get-Str data "EWLEXPR") ewStOO) " " sufW)))
+
+  ;; ---- the width stack, outside the deck's left edge, innermost first -------------------
+  ;; PLACEMENT (owner 3-Sep-2026: "dimensions placement should be as per the established rules").
+  ;; The order was already right - finest chain nearest the drawing, the OVERALL furthest out, per
+  ;; the 4-Jul three-nested-chains rule - but the whole stack sat OUTSIDE the grid bubbles, which
+  ;; is the opposite of the Column Layout Plan.  On the CLP a reader goes: drawing, chains, bubbles.
+  ;; Here they went: drawing, bubbles, chains, so the bubbles were buried mid-annotation and the
+  ;; two sheets read outward in different orders.
+  ;;
+  ;; So the rungs march out from the deck edge and the BUBBLE COLUMN is placed from wherever the
+  ;; outermost rung finished - not from a constant (4B.27).  Add a rung and the bubbles move with
+  ;; it; that is the whole point of measuring the gap from the thing it has to clear.
+  (setq rungX (- fx0 (* gbr 1.6)))
+  (if (and (> (length gYs) 1) (boundp 'peb-fr-overall-v))
+    (progn
+      ;; (a) the mezzanine's OWN chain - and only when it is not already one of the two below.
+      ;; It prints MZ_COL_SPACING verbatim with its basis, like every other chain on the sheet.
+      ;; Measuring the DRAWN gaps instead would print 14,540 at each end - the centre-to-centre
+      ;; distance - against a BSF that says 15,240 out to out.  That is the in-to-in / out-to-out
+      ;; split the owner caught, and it is why no chain on this sheet is measured any more.
+      (if (and (> (length ys) 1)
+               (not (peb-ys-same ys wMods 5.0)) (not (peb-ys-same ys ewSt 5.0)))
+        (progn
+          (vl-catch-all-apply (function (lambda ()
+            (peb-fr-overall-v rungX 0.0 wid
+              (strcat (peb-chain-text (peb-tb-or (MSPL-Get-Str data "MZ_COL_SPACING") "")
+                                      (peb-width-stations
+                                        (peb-tb-or (MSPL-Get-Str data "MZ_COL_SPACING") "") wid))
+                      " " sufW)))))
+          (setq rungX (- rungX (* gbr 2.6)))))
+      ;; (b) the end-wall / post chain, verbatim
+      (if chainEW
+        (progn
+          (vl-catch-all-apply (function (lambda ()
+            (peb-fr-overall-v rungX 0.0 wid chainEW))))
+          (setq rungX (- rungX (* gbr 2.6)))))
+      ;; (c) the width MODULE chain, verbatim
+      (if chainMod
+        (progn
+          (vl-catch-all-apply (function (lambda ()
+            (peb-fr-overall-v rungX 0.0 wid chainMod))))
+          (setq rungX (- rungX (* gbr 2.6)))))
+      ;; (d) the OVERALL - the BSF's width, with its feet (4B.11)
+      (vl-catch-all-apply (function (lambda ()
+        (peb-fr-overall-v rungX 0.0 wid (peb-fmt-overall wid)))))
+      (setq rungX (- rungX (* gbr 2.6)))))       ; clear of the overall's own rotated label
+
+  ;; ---- the LENGTH chains, in the same order the CLP reads outward in -------------------
+  ;; drawing -> bay chain -> overall -> bubbles.  The bay expression carries its basis and the
+  ;; overall carries its feet; this sheet used to bubble 1..8 over a building whose length it
+  ;; never stated at all.
+  (setq rungY (+ fy1 (* gbr 1.6)))
+  (if (boundp 'peb-fr-overall-h)
+    (progn
+      (setq sufL (peb-basis-suffix (peb-tb-or (MSPL-Get-Str data "LENGTH_REF")
+                                              (MSPL-Get-Str data "BAY_REF"))))
+      (vl-catch-all-apply (function (lambda ()
+        (peb-fr-overall-h (if (< (abs fx0) 1.0) 0.0 fx0) (if (< (abs (- fx1 len)) 1.0) len fx1) rungY
+                          (strcat (peb-chain-text (MSPL-Get-Str data "BAYEXPR") bayPts) " " sufL)))))
+      (setq rungY (+ rungY (* gbr 2.6)))
+      (vl-catch-all-apply (function (lambda ()
+        (peb-fr-overall-h 0.0 len rungY (peb-fmt-overall len)))))
+      (setq rungY (+ rungY (* gbr 2.6)))))       ; clear of the overall's own label
+
+  ;; grid bubbles - bay NUMBERS along the top, width LETTERS down the left (A at the top),
+  ;; both OUTSIDE their dimension stack, which is where the Column Layout Plan puts them.
   (setq i 0)
   (foreach x bayPts
     (if (and (>= x (- fx0 1.0)) (<= x (+ fx1 1.0)))
       (progn (setvar "CLAYER" "GRID-LINES")
-             (entmake (list (cons 0 "LINE") (cons 8 "GRID-LINES") (list 10 x fy1 0.0) (list 11 x (+ fy1 (* 2.0 gbr)) 0.0)))
+             ;; A TICK, NOT A LINE BACK TO THE DRAWING.  With the chains now between the plan
+             ;; and the bubbles, a stalk drawn all the way to the deck edge rules straight
+             ;; through every chain bar and every chain label on its way.  The bubble points
+             ;; at its line; the line is already drawn on the plan.
+             (entmake (list (cons 0 "LINE") (cons 8 "GRID-LINES")
+                            (list 10 x rungY 0.0) (list 11 x (- rungY (* gbr 0.9)) 0.0)))
              (setvar "CLAYER" "GRID")
-             (grid-bubble x (+ fy1 (* 2.0 gbr) gbr) (itoa (1+ i)) "D")))
+             (grid-bubble x (+ rungY (* gbr 1.5)) (itoa (1+ i)) "D")))
     (setq i (1+ i)))
-  ;; -- THE SAME MARKS THE COLUMN LAYOUT PLAN USES (owner 3-Sep-2026) --------------------
-  ;; "Fix the bubbles on the mezzanine floor plan and sync with Column Layout Plan."
-  ;;
-  ;; This lettered its own column rows straight through - A B C D E F G H J K L - while the CLP
-  ;; letters the SAME lines A A' B B' C C' D D' E E' F, because the CLP knows which of them are
-  ;; width-MODULE lines and which are infill posts (4B.61) and this loop did not.  Eleven letters
-  ;; against six-and-five primes: two sheets describing one grid in two languages, which is
-  ;; exactly what 4B.8 forbids.  It asks peb-width-mark now, like every other sheet.
-  (setq wMods (peb-width-mods data wid))
-  (foreach y (reverse ys)
+
+  ;; the LETTERS, on the merged grid
+  (foreach y (reverse gYs)
     (setvar "CLAYER" "GRID-LINES")
-    (entmake (list (cons 0 "LINE") (cons 8 "GRID-LINES") (list 10 fx0 y 0.0) (list 11 (- fx0 (* 2.0 gbr)) y 0.0)))
+    (entmake (list (cons 0 "LINE") (cons 8 "GRID-LINES")
+                   (list 10 rungX y 0.0) (list 11 (+ rungX (* gbr 0.9)) y 0.0)))
     (setvar "CLAYER" "GRID")
-    (grid-bubble (- fx0 (* 2.0 gbr) gbr) y (peb-width-mark y ys wMods) "R"))
+    (grid-bubble (- rungX (* gbr 1.5)) y (peb-width-mark y gYs wMods) "R"))
 
   ;; deck spec note (what the floor IS).  The members are distinguished by their flange width + BYLAYER
   ;; line-weight ("material" = line thickness, owner 12-Jul) and are NAMED on the plan (MAIN BEAM / JOISTS

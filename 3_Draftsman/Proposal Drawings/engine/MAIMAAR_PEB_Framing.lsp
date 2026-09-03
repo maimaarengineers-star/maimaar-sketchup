@@ -1521,7 +1521,7 @@
       (if (> (- mzX1 mzX0) 1.0)
         (progn
           ;; THE JOISTS FIRST, so the heavier beam reads on top of them where they meet.
-          (peb-comp-layer "COMP-MEZZ-JOIST" 8)
+          (peb-comp-layer "COMP-MEZZ-JOIST" 3)
           (setq jn 1 jx (+ mzX0 mzJsp))
           (while (< jx (- mzX1 1.0))
             (entmake (list (cons 0 "LINE") (cons 8 "COMP-MEZZ-JOIST")
@@ -1536,7 +1536,7 @@
             (entmake (list (cons 0 "LINE") (cons 8 "COMP-MEZZ-BEAM")
                            (list 10 xx mzBot 0.0) (list 11 xx mzTop 0.0))))
           ;; and the deck it carries, so the level reads as a FLOOR and not a lone beam
-          (peb-comp-layer "COMP-MEZZ-JOIST" 8)
+          (peb-comp-layer "COMP-MEZZ-JOIST" 3)
           (entmake (list (cons 0 "LINE") (cons 8 "COMP-MEZZ-JOIST")
                          (list 10 mzX0 (+ mzTop mzTopH) 0.0) (list 11 mzX1 (+ mzTop mzTopH) 0.0)))
           ;; ONE label - and it LEAVES the drawing, in this sheet's own leader idiom.

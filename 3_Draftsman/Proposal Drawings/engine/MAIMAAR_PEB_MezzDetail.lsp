@@ -137,7 +137,7 @@
 (setq *MZD-CONC-SCALE*   10.0)   ; AR-CONC pattern scale at true size
 ;; column bays in VIEW A is now DERIVED from the module (mzd-geom "BAYS"):
 ;; a 15,240 module shows one bay, a tight one shows two.  Nothing reads this.
-(setq *MZD-DIM-DUAL*      T)     ; standing rule 3: dimensions read mm [ft-in]
+(setq *MZD-DIM-DUAL*      nil)   ; 4B.11 / 4B.14 - see mzd-mmft
 (setq *MZD-LEG*           5.0)   ; M-Ladder VERTICAL LEG, in text heights (owner
                                  ; 1-Sep: "increase the vertical legs").  It is
                                  ; the L's upright, so it has to read AS a leg -
@@ -262,7 +262,7 @@
       (vl-catch-all-apply
         (function (lambda () (command "_.-LINETYPE" "_Load" "DASHED" "acad.lin" ""))))))
   (mzd-layer "COMP-MEZZ-BEAM"      "5" "Continuous" 0.50)
-  (mzd-layer "COMP-MEZZ-JOIST"     "8" "Continuous" 0.25)
+  (mzd-layer "COMP-MEZZ-JOIST"     "3" "Continuous" 0.30)   ; owner 3-Sep-2026 - see the joist-colour note in Plan.lsp
   (mzd-layer "CLADDING"            "5" "Continuous" 0.18)
   (mzd-layer "RCC-COLUMN"          "8" "Continuous" 0.35)
   (mzd-layer "GROUND"              "7" "Continuous" 0.50)
@@ -428,13 +428,30 @@
 ;;  as AutoCAD DIM entities, so a detail at its own scale cannot inherit the
 ;;  building sheet's DIMSCALE.  Arrow size derives from the DIM rung (4B.27).
 ;; ---------------------------------------------------------------------------
+;; ---- WHICH DIMENSIONS CARRY FEET, AND HOW A NUMBER IS WRITTEN  (owner 3-Sep-2026) -------
+;; Two corrections, both from rules the rest of the set already follows.
+;;
+;; FEET.  3.8b reads as "mm and ft-in everywhere"; 4B.11 and 4B.14 are narrower, and they are the
+;; ones that hold - feet belong on an OVERALL EXTENT (the building's length, width, height), and
+;; 4B.14's own worked example writes a clear height bare: "no ft needed on a derived value".
+;; This sheet carries no overall extent at all: 4,877 is a clear height and 15,240 is ONE column
+;; module.  Both were printing [16'-0"] and [50'-0"] after them for nothing.
+;;
+;; COMMAS.  The number-presentation standard is comma-grouped, and this was the last drawer in
+;; the set still emitting "4877" and "15240" while the sheet beside it printed "76,200".
 (defun mzd-mmft (mm / ti ft inch)
   (if (not *MZD-DIM-DUAL*)
-    (rtos mm 2 0)
+    (if (boundp 'peb-comma) (peb-comma (rtos mm 2 0)) (rtos mm 2 0))
     (progn
       (setq ti (fix (+ 0.5 (/ mm 25.4))))
       (setq ft (/ ti 12) inch (- ti (* ft 12)))
       (strcat (rtos mm 2 0) " [" (itoa ft) "'-" (itoa inch) "\"]"))))
+
+(defun mzd-beam-label (g)
+  (if (mzd-g g "BD-OK")
+    (strcat "MAIN BEAM  " (if (boundp 'peb-comma) (peb-comma (rtos (mzd-g g "BD") 2 0))
+                                                  (rtos (mzd-g g "BD") 2 0)) " DEEP")
+    "MAIN BEAM  -  DEPTH PER DESIGN"))
 
 (defun mzd-asz ( ) (* (mzd-h 'DIM) 0.343))   ; the 240/700 the engine's dims use
 
@@ -956,13 +973,18 @@
   (setq above (list (list (+ fx0 (* (- fx1 fx0) 0.74)) (+ tos (* topH 0.55))
                           (mzd-floor-label sys thk))
                     (list (+ fx0 (* (- fx1 fx0) 0.88)) (+ (- tos bd) (* *MZD-BEAM-TF* 0.5))
-                          (strcat "MAIN BEAM  " (rtos bd 2 0) " DEEP"))))
+                          ;; ...and the beam is NAMED without a depth unless the BSF's two
+                          ;; levels actually imply one (BD-OK).  700 is this drawer's house
+                          ;; default; printing it bare on the section states as fact a figure
+                          ;; nobody entered, while the data panel beside it honestly marks the
+                          ;; very same number (INDICATIVE).  One sheet, two standards.
+                          (mzd-beam-label g))))
   (if (> jd 0.0)
     ;; land the arrow on a REAL joist station, not on a fraction of the width
     (setq above (append above
                   (list (list (+ fx0 (* jsp (+ 0.5 (fix (/ (* (- fx1 fx0) 0.62) jsp)))))
                               (- tos *MZD-BEAM-TF* (* jd 0.5))
-                              (strcat "STEEL JOISTS @ " (rtos jsp 2 0) " C/C"))))))
+                              "STEEL JOISTS  -  SPACING AS PER DESIGN")))))   ; 4B.49
   (mzd-callouts above landR)
   (mzd-callouts (list (list x0 (+ oy (* chb 0.55)) "MEZZANINE COLUMN")) landL)
   ;; ---- title ---------------------------------------------------------------
@@ -1061,6 +1083,17 @@
   (setvar "CLAYER" prev)
   (+ y (* th 0.6)))
 
+;; ---- RULE 4B.49 - DO NOT PUBLISH A SPACING DESIGN WILL SET  (owner 3-Sep-2026) ----------
+;; "Do not show the joist spacing; spacing remains as per design."  The MEZZANINE FLOOR PLAN has
+;; obeyed this since 29-Aug, and the title block's design-data panel has the row deliberately
+;; removed - and this sheet, three inches away in the same PDF, printed "STEEL JOISTS @ 1250 C/C"
+;; on the section AND "JOIST SPACING : 1250 MM C/C" in a panel headed PER IF / BSF.  A proposal
+;; drawing that states 1,250 c/c is read as a commitment; the spacing is settled at design
+;; against the real floor loading.  The joists are still DRAWN on a spacing - they have to be
+;; drawn somewhere, and the estimate prices that spacing - but the sheet does not print it.
+(defun mzd-mm (v)  ;; a millimetre value written the house way: comma-grouped, then " mm"
+  (strcat (if (boundp 'peb-comma) (peb-comma (rtos v 2 0)) (rtos v 2 0)) " mm"))
+
 (defun mzd-data-rows (data g / sys rows dl ll cl fl n)
   (setq sys (mzd-g g "SYS") rows '())
   (setq fl (mzd-str data "MZ1_FLOOR"))
@@ -1079,26 +1112,25 @@
   ;; A derived figure is therefore MARKED, never passed off as stated.
   (setq rows (list (mzd-row "FLOOR SYSTEM" (strcase fl))
                    (mzd-row "FLOOR THICKNESS"
-                            (strcat (rtos (mzd-g g "THK") 2 0) " mm"))))
+                            (mzd-mm (mzd-g g "THK")))))
   (setq rows (append rows
     (list (mzd-row "F.F.L. MEZZANINE"
                    (if (mzd-g g "FFL-OK")
-                     (strcat (rtos (mzd-g g "FFL") 2 0) " mm")
+                     (mzd-mm (mzd-g g "FFL"))
                      "NOT STATED ON THE BSF"))
           (mzd-row "CLEAR HEIGHT UNDER BEAM"
                    (if (mzd-g g "CHB-OK")
-                     (strcat (rtos (mzd-g g "CHB") 2 0) " mm")
+                     (mzd-mm (mzd-g g "CHB"))
                      "NOT STATED ON THE BSF"))
           (mzd-row "MAIN BEAM DEPTH"
-                   (strcat (rtos (mzd-g g "BD") 2 0) " mm"
+                   (strcat (mzd-mm (mzd-g g "BD"))
                            (if (mzd-g g "BD-OK") "" "   (INDICATIVE)"))))))
   (if (> (mzd-g g "JD") 0.0)
     (setq rows (append rows
-      (list (mzd-row "JOIST SPACING"
-                     (strcat (rtos (mzd-g g "JSP") 2 0) " mm C/C"))))))
+      (list (mzd-row "JOIST SPACING" "AS PER DESIGN")))))          ; rule 4B.49
   (setq rows (append rows
     (list (mzd-row "COLUMN SPACING"
-                   (strcat (rtos (mzd-g g "CSP") 2 0) " mm")))))
+                   (mzd-mm (mzd-g g "CSP"))))))
   (setq n (mzd-num data "MZ_NUM_FLOORS" 1.0))
   (if (> n 1.0)
     (setq rows (append rows
@@ -1204,12 +1236,17 @@
   ;; the LEFT lane now also carries the F.F.L. tag, so it is measured with it.
   (setq laneL (mzd-lane (list "MEZZANINE COLUMN" "F.F.L. MEZZANINE   00000")))
   (setq laneR (mzd-lane (list (mzd-floor-label sys thk)
-                              (strcat "MAIN BEAM  " (rtos bd 2 0) " DEEP")
-                              (strcat "STEEL JOISTS @ " (rtos jsp 2 0) " C/C")
+                              (mzd-beam-label g)                            ; see mzd-beam-label
+                              "STEEL JOISTS  -  SPACING AS PER DESIGN"      ; 4B.49
                               (strcat (rtos thk 2 0) " mm R.C. SLAB - PER IF / BSF"))))
   ;; ---- horizontal layout ---------------------------------------------------
+;; THE LANE IS MEASURED TO THE DECK, NOT TO THE COLUMN (owner 3-Sep-2026).  VIEW A's floor
+  ;; oversails its end columns by 0.16 of a bay and its ground line by 0.26 - a mezzanine has an
+  ;; edge, and a slab stopping dead on its last column reads as a beam.  The lane was set 3.6 text
+  ;; heights off the COLUMN, about 1,500 mm here, while the ground line reached ~4,000 mm further
+  ;; left: so F.F.L. MEZZANINE and MEZZANINE COLUMN both printed into the drawing they name.
   (setq landL (+ ox laneL))                       ; VIEW A's left landing
-  (setq axo   (+ landL (* th 3.6)))               ; VIEW A origin (first column)
+  (setq axo   (+ landL (* th 3.6) (* csp 0.26)))  ; VIEW A origin (first column)
   ;; the landing sits just past the floor's own edge - any further out and the
   ;; bars lengthen for no reason (the lane beyond it holds the text).
   (setq landR (+ axo (* csp (mzd-g g "BAYS")) (* csp 0.16) (* th 1.2)))
@@ -1343,7 +1380,7 @@
                           (mzd-floor-label sys thk))))
   (setq above (append above
                 (list (list cx (- yb (* bd 0.82))
-                            (strcat "MAIN BEAM  " (rtos bd 2 0) " DEEP"
+                            (strcat (mzd-beam-label g)
                                     (if (mzd-g g "BD-OK") "" "  (INDICATIVE)"))))))
   (if (> jd 0.0)
     (setq above (append above
@@ -1357,7 +1394,7 @@
                   ;; cannot drift apart when a size changes.
                   (list (list (+ x0 (* (- cx x0) 0.70)) (- jt (* jd 0.30))
                               (strcat "STEEL JOIST @ " (rtos (mzd-g g "JSP") 2 0)
-                                      " C/C - TOP FLUSH"))
+                                      "  -  SPACING AS PER DESIGN, TOPS FLUSH"))     ; 4B.49
                         (list (- cx (/ *MZD-BEAM-WEB* 2.0) (* *MZD-JOIST-WEB* 0.7))
                               (- jt (* jd 0.75))
                               "CLIP ANGLE - BOLTED CONNECTION")))))
