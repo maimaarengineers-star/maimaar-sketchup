@@ -8080,9 +8080,7 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
         (while (< jbi (1- (length xs)))
           (setq jxa (+ (nth jbi xs) beamHalf) jxb (- (nth (1+ jbi) xs) beamHalf))
           (if (> (- jxb jxa) beamHalf)
-            ;; Skip joist if it intersects a staircase void
-            (if (not (peb-line-intersects-void jxa jy jxb jy stVoids))
-              (vl-catch-all-apply (function (lambda () (peb-mezz-mainbeam jxa jy jxb jy joistHalf))))))
+            (peb-mezz-member-broken jxa jy jxb jy joistHalf stVoids))
           (setq jbi (1+ jbi)))
         (setq jy (+ jy jspSys)))
       (vl-catch-all-apply (function (lambda ()
@@ -8105,9 +8103,7 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
       (setvar "CLAYER" "COMP-MEZZ-JOIST-SEC")
       (setq secSp (/ jspSys 2.0) bayA (nth 0 xs) bayB (nth 1 xs) sx (+ bayA secSp))
       (while (< sx (- bayB 1.0))
-        ;; Skip secondary joist if it intersects a staircase void
-        (if (not (peb-line-intersects-void sx fy0 sx fy1 stVoids))
-          (vl-catch-all-apply (function (lambda () (peb-mezz-mainbeam sx fy0 sx fy1 secHalf)))))
+        (peb-mezz-member-broken sx fy0 sx fy1 secHalf stVoids)
         (setq sx (+ sx secSp)))
       (vl-catch-all-apply (function (lambda ()
         ;; rule 4B.49 — the secondary spacing is a design number too
@@ -8116,12 +8112,12 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
 
   ;; MAIN BEAMS — 200mm double-line flange (heaviest), in the WIDTH direction, column to column, one at
   ;; each length column line (xs).  Drawn LAST so the heavy beams read on top of the joists + secondaries.
+  ;; The beam RUNS THE WHOLE GRID LINE and BREAKS over the stairwell - see
+  ;; peb-mezz-member-broken.  Deleting it wholesale is what took grids 2 and 7 off 279-26.
   (peb-comp-layer "COMP-MEZZ-BEAM" 5)
   (setvar "CLAYER" "COMP-MEZZ-BEAM")
   (foreach x xs
-    ;; Skip main beam if it intersects a staircase void
-    (if (not (peb-line-intersects-void x fy0 x fy1 stVoids))
-      (vl-catch-all-apply (function (lambda () (peb-mezz-mainbeam x fy0 x fy1 beamHalf))))))
+    (peb-mezz-member-broken x fy0 x fy1 beamHalf stVoids))
   ;; The rotated "MAIN BEAM (TYP.)" tag that used to stand here is GONE (owner 29-Aug,
   ;; "austhetic is not good").  It named a member the legend below already names, and it stood
   ;; ON the second beam, crossing every joist in that bay - a label obscuring the thing it
@@ -8328,32 +8324,69 @@ PEB-MZFP-DIAG band=" (rtos fy0 2 1) ".." (rtos fy1 2 1)
     (function (lambda () (peb-mzfp-stairs data fx0 fx1 fy0 fy1))))
   (princ))
 
-;; ---- helper: does a line cross any staircase void? ---------------------------------------
-;; AutoLISP HAS NO `catch`, NO `throw` AND NO `let` (2-Sep-2026).  The first version of this
-;; test was written in Common Lisp and used all three, so the FIRST joist that asked the
-;; question raised "no function definition: CATCH" - and because the joist loop sits in the
-;; middle of peb-draw-mezz-floor-plan, that error took the WHOLE sheet down from there on.
-;; The caller's vl-catch-all-apply swallowed it, so the mezzanine floor plan plotted with its
-;; deck outline and nothing else: no joists, no beams, no grid bubbles, no dimensions, no
-;; legend, no title - and the only geometry left on it was the pair of staircases that the
-;; void PASS had already drawn.  A sheet that looked deliberate and was a crash.
+;; ---- A MEMBER STOPS AT THE OPENING - IT IS NOT DELETED, AND IT DOES NOT CROSS -----------
+;; Owner, 3-Sep-2026, in two passes on the same sheet:
+;;   "main beam should not be removed along GR. 2 & 7"   then   "Beams Must break at the point
+;;   of staircase".
+;; Both at once, and they are one rule: the member RUNS THE WHOLE GRID LINE and is BROKEN over
+;; the stairwell.  The first cut of this asked a yes/no question - does this member touch a void
+;; - and threw the whole member away on a yes.  So a main beam that clipped the corner of a stair
+;; vanished from column to column, and grids 2 and 7 on 279-26 lost their beam over 76 m because
+;; a 6.6 m stair stood on them.  A floor plan that deletes a primary member is not a drawing of a
+;; floor that can stand.
 ;;
-;; Written in the AutoLISP the rest of this file is written in, it cannot fail.  It also no
-;; longer assumes x1<x2 / y1<y2: the beam loop hands it its ends in whatever order it holds
-;; them, and a reversed pair used to test as "no overlap" and put a beam through the stairwell.
-(defun peb-line-intersects-void (x1 y1 x2 y2 voids / hit vx0 vx1 vy0 vy1)
-  (setq hit nil)
+;; This is now measured instead of judged: the blocked runs are subtracted from the member's
+;; span and what is left is drawn.  Every member on the sheet goes through it - main beams,
+;; joists, secondaries - so the whole deck reads one way: nothing crosses the hole, and nothing
+;; disappears because of it.
+
+;; The runs of `voids` that block an axis-aligned member, as (lo hi) pairs along its own axis.
+(defun peb-mezz-void-blocks (x0 y0 x1 y1 voids / blocks vx0 vx1 vy0 vy1 horiz)
+  (setq horiz (equal y0 y1 0.1) blocks nil)
   (foreach v voids
     (setq vx0 (min (nth 0 v) (nth 1 v)) vx1 (max (nth 0 v) (nth 1 v))
           vy0 (min (nth 2 v) (nth 3 v)) vy1 (max (nth 2 v) (nth 3 v)))
-    (if (or (and (equal y1 y2 0.1)                                  ; horizontal member
-                 (> y1 vy0) (< y1 vy1)
-                 (> (max x1 x2) vx0) (< (min x1 x2) vx1))
-            (and (equal x1 x2 0.1)                                  ; vertical member
-                 (> x1 vx0) (< x1 vx1)
-                 (> (max y1 y2) vy0) (< (min y1 y2) vy1)))
-      (setq hit T)))
-  hit)
+    (if horiz
+      (if (and (> y0 vy0) (< y0 vy1))
+        (setq blocks (append blocks (list (list vx0 vx1)))))
+      (if (and (> x0 vx0) (< x0 vx1))
+        (setq blocks (append blocks (list (list vy0 vy1)))))))
+  blocks)
+
+;; [lo hi] minus the blocked runs -> the clear runs.  Overlapping blocks are merged by the walk,
+;; and a leftover shorter than a millimetre is dropped rather than drawn as a stub.
+(defun peb-span-subtract (lo hi blocks / sorted cur out b)
+  (setq sorted (vl-sort blocks (function (lambda (p q) (< (car p) (car q)))))
+        cur lo out nil)
+  (foreach b sorted
+    (if (> (car b) cur) (setq out (append out (list (list cur (min hi (car b)))))))
+    (if (> (cadr b) cur) (setq cur (cadr b))))
+  (if (< cur hi) (setq out (append out (list (list cur hi)))))
+  (vl-remove-if (function (lambda (r) (<= (- (cadr r) (car r)) 1.0))) out))
+
+;; Draw one member, broken over every void it runs through.
+(defun peb-mezz-member-broken (x0 y0 x1 y1 half voids / horiz lo hi blocks)
+  (setq horiz  (equal y0 y1 0.1)
+        lo     (if horiz (min x0 x1) (min y0 y1))
+        hi     (if horiz (max x0 x1) (max y0 y1))
+        blocks (peb-mezz-void-blocks x0 y0 x1 y1 voids))
+  (if (null blocks)
+    (vl-catch-all-apply (function (lambda () (peb-mezz-mainbeam x0 y0 x1 y1 half))))
+    (foreach r (peb-span-subtract lo hi blocks)
+      (vl-catch-all-apply
+        (function (lambda ()
+          (if horiz
+            (peb-mezz-mainbeam (car r) y0 (cadr r) y0 half)
+            (peb-mezz-mainbeam x0 (car r) x0 (cadr r) half)))))))
+  (princ))
+
+;; (The predecessor of these three, peb-line-intersects-void, is gone.  It answered only
+;; "does this member touch a void" - which is why a member that clipped a stair was deleted
+;; whole - and it was written in Common Lisp: `catch`, `throw` and `let`, none of which exist
+;; in AutoLISP.  The first joist that asked it raised "no function definition: CATCH" and took
+;; the rest of peb-draw-mezz-floor-plan with it, so the sheet plotted its deck outline and
+;; nothing else.  Both faults are answered above: the question is now "which part is blocked",
+;; and the answer is written in the AutoLISP the rest of this file is written in.)
 
 ;; ---- ONE PLACE DECIDES WHERE A STAIRCASE STANDS ------------------------------------------
 ;; Both passes below - the void pass that clears the joists and the draw pass that puts the

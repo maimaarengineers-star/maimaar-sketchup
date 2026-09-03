@@ -2182,6 +2182,37 @@ into a grey smear. Sheeting lines pass the same test and are drawn, because they
 **vertical**, at the 1000 cover width, **2.7 mm** apart. Legibility at the plotted scale is the test,
 not whether the part exists.
 
+### 4B.60 A member STOPS at an opening — it is not deleted, and it does not cross
+
+Owner, 3-Sep-2026, in three passes on the same sheet:
+
+> *"main beam should not be removed along GR. 2 & 7"* … *"Beams Must break at the point of
+> staircase"* … *"you cut main beam also at the point of staircase"*.
+
+Three notes, one rule: **the member runs its whole line and is BROKEN over the opening.**
+
+The standing rule for a staircase is *remove joists & beams in the staircase void*, and it was
+first implemented as a yes/no question — *does this member touch a void* — with the whole member
+thrown away on a yes. So a main beam that a 6.6 m stair merely stood across vanished from column
+to column: on MSPL-26-279 grids 2 and 7 lost their beam over the full 76 m width. A floor plan
+that deletes a primary member is not a drawing of a floor that can stand.
+
+The first correction over-shot the other way and drew the beam straight THROUGH the stairwell,
+which is a beam passing through a hole.
+
+> **THE RULE.** Every member — main beam, joist, secondary — is drawn in the runs of its own line
+> that are **clear of every opening**. It stops at the opening edge and starts again on the far
+> side. Nothing crosses a hole; nothing disappears because of one.
+
+Measured, not judged: `peb-mezz-void-blocks` returns the blocked runs along the member's own axis,
+`peb-span-subtract` takes them out of its span, and `peb-mezz-member-broken` draws what is left.
+All three member loops in `peb-draw-mezz-floor-plan` go through it, so the whole deck reads one
+way. A leftover under a millimetre is dropped rather than drawn as a stub.
+
+The same reading applies to any future opening on this sheet — a lift well, a floor hatch: the
+hole interrupts the members where it actually is, and nowhere else.
+
+
 ---
 
 ## STAIRCASE — the Mammut convention, harvested 1-Sep-2026
