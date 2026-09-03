@@ -1739,25 +1739,30 @@
   )
 )
 
+;; ---- DIMENSION ARROWHEADS ARE OPEN  (owner 19-Jul, enforced 3-Sep-2026) ------------------
+;; These drew a closed PLINE triangle and then HATCHed it SOLID - a filled head, against the
+;; standing rule stated in this file's own header ("DIMENSIONS: text style = ROMAND; arrowheads
+;; = OPEN type") and repeated at three more places in it.  The same file's rm-arrow-h drew them
+;; open, so ONE SHEET carried both kinds: the cross-section's own dims filled, the roof
+;; monitor's open, eight inches apart.
+;;
+;; Now two barbs meeting at the tip and no fill - the DIMBLK "_OPEN" look every other sheet
+;; plots - at the 240/85 the open heads already used, so the whole set matches.
+;; (Leader and callout heads stay FILLED; that is the other half of the rule, and is why this
+;;  is fixed here in the DIM arrows rather than by changing every arrow in the engine.)
 (defun dim-arrow-h (x y dir / a b)
-  (setq a (* 260 *PEB-DIM-SCALE*))
-  (setq b (* 120 *PEB-DIM-SCALE*))
+  (setvar "PLINEWID" 0.0)
+  (setq a (* 240 *PEB-DIM-SCALE*) b (* 85 *PEB-DIM-SCALE*))
   (if (= dir "R")
-    (command "PLINE" (list x y) (list (+ x a) (+ y b)) (list (+ x a) (- y b)) "C")
-    (command "PLINE" (list x y) (list (- x a) (+ y b)) (list (- x a) (- y b)) "C")
-  )
-  (command "HATCH" "SOLID" "L" "")
-)
+    (command "_.PLINE" (list (+ x a) (+ y b)) (list x y) (list (+ x a) (- y b)) "")
+    (command "_.PLINE" (list (- x a) (+ y b)) (list x y) (list (- x a) (- y b)) "")))
 
 (defun dim-arrow-v (x y dir / a b)
-  (setq a (* 260 *PEB-DIM-SCALE*))
-  (setq b (* 120 *PEB-DIM-SCALE*))
+  (setvar "PLINEWID" 0.0)
+  (setq a (* 240 *PEB-DIM-SCALE*) b (* 85 *PEB-DIM-SCALE*))
   (if (= dir "U")
-    (command "PLINE" (list x y) (list (- x b) (+ y a)) (list (+ x b) (+ y a)) "C")
-    (command "PLINE" (list x y) (list (- x b) (- y a)) (list (+ x b) (- y a)) "C")
-  )
-  (command "HATCH" "SOLID" "L" "")
-)
+    (command "_.PLINE" (list (- x b) (+ y a)) (list x y) (list (+ x b) (+ y a)) "")
+    (command "_.PLINE" (list (- x b) (- y a)) (list x y) (list (+ x b) (- y a)) "")))
 
 ;; OPEN dimension arrowheads (standing rule: dim arrows = OPEN type, NOT filled) for the monitor's
 ;; custom dims (rm-dim-*).  Two barbs meeting at the tip, no fill — the DIMBLK _OPEN look, on DIMENSIONS.
@@ -6896,7 +6901,8 @@
   (setvar "CLAYER" "DIMENSIONS")
   (setvar "PLINEWID" 0.0)
   (setq midY (/ (+ y1 y2) 2.0))
-  (setq extLen 100.0)
+  ;; scaled, like its horizontal sibling: a bare 100.0 collapses to invisible on a big building
+  (setq extLen (* 100.0 *PEB-DIM-SCALE*))
   (setq sideSign (if (< dimX objX) -1 1))
   ;; Extension lines (horizontal from object to past dim line)
   (command "LINE" (list objX y1) (list (+ dimX (* sideSign extLen)) y1) "")

@@ -781,8 +781,8 @@
 ;; through both of them.
 (defun peb-fr-overall-h (x0 x1 y label / ts aL aW tick)
   (setq ts   (if *PEB-DIM-SCALE* *PEB-DIM-SCALE* 1.0)
-        aL   (* 300 ts)
-        aW   (* 95 ts)
+        aL   (* 240 ts)      ; 240/85 - the set's one OPEN arrowhead, see peb-fr-dimarrow
+        aW   (* 85 ts)
         tick (* 300 ts))
   (setvar "CLAYER" "DIMENSIONS")
   (command "_.LINE" (list x0 y) (list x1 y) "")
@@ -798,8 +798,8 @@
 ;; every other number on the sheet.  Same style, same ladder entry, reads 90 deg.
 (defun peb-fr-overall-v (x y0 y1 label / ts aL aW tick)
   (setq ts   (if *PEB-DIM-SCALE* *PEB-DIM-SCALE* 1.0)
-        aL   (* 300 ts)
-        aW   (* 95 ts)
+        aL   (* 240 ts)      ; 240/85 - the set's one OPEN arrowhead, see peb-fr-dimarrow
+        aW   (* 85 ts)
         tick (* 300 ts))
   (setvar "CLAYER" "DIMENSIONS")
   (command "_.LINE" (list x y0) (list x y1) "")
@@ -816,8 +816,11 @@
   (if (< (length stations) 2) nil
     (progn
       (setq ts (if *PEB-DIM-SCALE* *PEB-DIM-SCALE* 1.0)
-            aL (* 300 ts)                    ; open-arrow length along the dim line
-            aW (* 95 ts)                     ; half-width -> slim open "V" like DIMBLK _OPEN
+            ;; 240/85, the size every other OPEN head in the set uses (Section's rm-arrow-*,
+            ;; MezzDetail's mzd-open-v via the DIM rung).  These were 300/95 - a fourth arrow
+            ;; length in a set that is supposed to have one (owner: "sync ... the dimensions").
+            aL (* 240 ts)                    ; open-arrow length along the dim line
+            aW (* 85 ts)                     ; half-width -> slim open "V" like DIMBLK _OPEN
             i  0)
       ;; TEXT HEIGHT (owner 26-Aug: "dim sizes are very large", then "it should not
       ;; be too small or too big").  This passed (* 230 ts) to `txt`, and `txt`

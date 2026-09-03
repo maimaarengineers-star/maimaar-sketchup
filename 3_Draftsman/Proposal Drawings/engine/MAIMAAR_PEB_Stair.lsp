@@ -293,22 +293,36 @@
             (/ th (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0.0 s))))
 
 ;; An overall dimension: extension lines, OPEN arrowheads (never a solid), label above.
+;; ---- A DIMENSION IS NOT A HEADING  (owner 3-Sep-2026) ------------------------------------
+;; "Do the audit of labelling of staircase and fix, and also apply the default text - I think
+;;  ROMAND was selected."  ROMAND is right and is the universal rule (Standard.lsp: ALL drawing
+;; text is romand.shx).  What this sheet got wrong was WHICH ROMAND STYLE, and on WHAT LAYER.
+;;
+;; Every label here - dimensions included - went through txt-bold, which sets TEXTSTYLE to
+;; PEB-TITLE and CELWEIGHT to 30.  So the staircase sheet drew its DIMENSIONS in the title style
+;; at heading weight, where every other sheet in the set uses txt-dim / PEB-DIM at normal
+;; weight.  Same font, wrong voice: on this one sheet a dimension shouted like a caption.
+;;
+;; And it drew them on STAIR-TEXT, a layer made ad hoc at ACI 7 that is in neither *PEB-LAYERS*
+;; nor PEB_LAYERS.csv, so it inherits no lineweight from the standard.  Dimension geometry
+;; belongs on DIMENSIONS, which does.  Notes and captions stay where they are - they ARE text.
 (defun peb-stair-dim (x0 x1 y th s / t2)
   (if (peb-stair-plain-p) (princ) (progn
+  (peb-comp-layer "DIMENSIONS" 6)
   (setq t2 (* th 0.9))
-  (entmake (list (cons 0 "LINE") (cons 8 "STAIR-TEXT") (list 10 x0 y 0.0) (list 11 x1 y 0.0)))
+  (entmake (list (cons 0 "LINE") (cons 8 "DIMENSIONS") (list 10 x0 y 0.0) (list 11 x1 y 0.0)))
   (foreach xx (list x0 x1)
-    (entmake (list (cons 0 "LINE") (cons 8 "STAIR-TEXT")
+    (entmake (list (cons 0 "LINE") (cons 8 "DIMENSIONS")
                    (list 10 xx (- y (* t2 1.2)) 0.0) (list 11 xx (+ y (* t2 1.2)) 0.0))))
   (foreach p (list (list x0 1.0) (list x1 -1.0))
-    (entmake (list (cons 0 "LINE") (cons 8 "STAIR-TEXT")
+    (entmake (list (cons 0 "LINE") (cons 8 "DIMENSIONS")
                    (list 10 (car p) y 0.0)
                    (list 11 (+ (car p) (* (cadr p) t2 1.4)) (+ y (* t2 0.45)) 0.0)))
-    (entmake (list (cons 0 "LINE") (cons 8 "STAIR-TEXT")
+    (entmake (list (cons 0 "LINE") (cons 8 "DIMENSIONS")
                    (list 10 (car p) y 0.0)
                    (list 11 (+ (car p) (* (cadr p) t2 1.4)) (- y (* t2 0.45)) 0.0))))
-  (setvar "CLAYER" "STAIR-TEXT")
-  (txt-bold "BC" (list (/ (+ x0 x1) 2.0) (+ y (* t2 0.5)))
+  (setvar "CLAYER" "DIMENSIONS")
+  (txt-dim "BC" (list (/ (+ x0 x1) 2.0) (+ y (* t2 0.5)))
             (/ t2 (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0.0
             (peb-stair-dimtext (abs (- x1 x0)) s)))))
 
@@ -326,9 +340,21 @@
 ;; LINE").  A caller that passes a string already starting with a digit has done its own
 ;; measuring and is left alone; a caller that passes nothing gets the bare number.
 (defun peb-stair-dimtext (v s)
+  ;; MILLIMETRES, and feet only on an OVERALL extent (rules 4B.11 / 4B.14).  General Note 1 on
+  ;; every sheet already says ALL DIMENSIONS ARE IN MM, and 4B.14's own worked example shows a
+  ;; derived value as a bare number - "no ft needed".  Putting [ft'-in"] on EVERY dimension here
+  ;; was tried and it doubled the length of every label on a sheet whose views are 6 m wide:
+  ;; "5400 [17'-9"] FLIGHT RUN" ran straight into "1200 [3'-11"] LANDING", and the step detail's
+  ;; five labels collapsed into each other.  The two OVERALL dims - staircase length and
+  ;; staircase height - carry the feet, and they ask peb-dim-mmft themselves.
   (cond ((or (null s) (= s "")) (rtos v 2 0))
         ((wcmatch s "#*")       s)                     ; already carries its own value
         (T (strcat (rtos v 2 0) " " s))))
+
+;; An OVERALL extent: millimetres and feet-inches together, per 4B.11.  Passed as the label so
+;; peb-stair-dimtext's "#*" branch leaves it alone.
+(defun peb-stair-dim-overall (v s)
+  (strcat (if (boundp 'peb-dim-mmft) (peb-dim-mmft v) (rtos v 2 0)) " " s))
 
 ;; Draw dimension with breakdown below (for compound dimensions like width = flight + column + flight)
 (defun peb-stair-dim-breakdown (x0 x1 y th s breakdown / t2)
@@ -445,7 +471,8 @@
   ;; --- LABELLING: climb direction and caption only.  See the note in peb-stair-plan-u.
   (setq ytxt (+ y1 (* u 2.4)))
 
-  (peb-stair-dim xa xe (+ ytxt (* u (if (> nf 1) 9.6 4.0))) th "STAIRCASE LENGTH")
+  (peb-stair-dim xa xe (+ ytxt (* u (if (> nf 1) 9.6 4.0))) th
+                 (peb-stair-dim-overall (abs (- xe xa)) "STAIRCASE LENGTH"))
   (setvar "CLAYER" "STAIR-TEXT")
   (txt-bold "MC" (list (/ (+ xa xe) 2.0) (- y0 (* u 9.2)))
             (/ (* th 1.25) (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0.0 "PLAN")
@@ -688,7 +715,8 @@
   (peb-stair-dim xa xb (+ (if f2 yt1 yb1) (* u 6.0)) th "FLIGHT RUN")
   (peb-stair-dim xb xL (+ (if f2 yt1 yb1) (* u 6.0)) th "LANDING")
   (if startland (peb-stair-dim xout xa (+ (if f2 yt1 yb1) (* u 6.0)) th "LANDING"))
-  (peb-stair-dim (if towerout xout xa) xL (+ (if f2 yt1 yb1) (* u 12.0)) th "STAIRCASE LENGTH")
+  (peb-stair-dim (if towerout xout xa) xL (+ (if f2 yt1 yb1) (* u 12.0)) th
+                 (peb-stair-dim-overall (abs (- xL (if towerout xout xa))) "STAIRCASE LENGTH"))
   ;; and the depth across the stair, which is the other half of the footprint
   (peb-stair-vdim (- (if towerout xout xa) (* u 3.4)) yb0 (if f2 yt1 yb1) th
                   "O/O OF STEEL COLUMN")
@@ -880,7 +908,8 @@
                         "TOP LANDING PLATFORM")))
 
   (setq xlo x0 xhi x1 ylo (- yb0 (* u 5.6)) yhi (if topl (+ yt lw) yt))
-  (peb-stair-dim xlo xhi (+ yhi (* u 2.6)) th "STAIRCASE LENGTH")
+  (peb-stair-dim xlo xhi (+ yhi (* u 2.6)) th
+                 (peb-stair-dim-overall (abs (- xhi xlo)) "STAIRCASE LENGTH"))
   ;; The block's own caption - which LEVEL it is.  nil for a stair that needs one plan, whose
   ;; single "PLAN" caption is drawn by the wrapper underneath the set.
   (if sub
@@ -1151,7 +1180,8 @@
   ;; landing on the column line.
   (if (and hmid (> nf 1))
     (peb-stair-vdim (- xlo (* u 3.0)) oy hmid th "FULL LANDING HEIGHT"))
-  (peb-stair-vdim (- xlo (* u 6.4)) oy (+ oy hgt) th "STAIRCASE HEIGHT")
+  (peb-stair-vdim (- xlo (* u 6.4)) oy (+ oy hgt) th
+                  (peb-stair-dim-overall hgt "STAIRCASE HEIGHT"))
 
   (setvar "CLAYER" "STAIR-TEXT")
   ;; -- THE CAPTION PAIR CLEARS THE FLOOR MARKS, AND EACH OTHER (rule 4B.27) --------------
@@ -1321,20 +1351,21 @@
 ;; A VERTICAL dimension with open arrows, label read up the line.
 (defun peb-stair-vdim (x y0 y1 th s / t2)
   (if (peb-stair-plain-p) (princ) (progn
+  (peb-comp-layer "DIMENSIONS" 6)
   (setq t2 (* th 0.9))
-  (entmake (list (cons 0 "LINE") (cons 8 "STAIR-TEXT") (list 10 x y0 0.0) (list 11 x y1 0.0)))
+  (entmake (list (cons 0 "LINE") (cons 8 "DIMENSIONS") (list 10 x y0 0.0) (list 11 x y1 0.0)))
   (foreach yy (list y0 y1)
-    (entmake (list (cons 0 "LINE") (cons 8 "STAIR-TEXT")
+    (entmake (list (cons 0 "LINE") (cons 8 "DIMENSIONS")
                    (list 10 (- x (* t2 1.2)) yy 0.0) (list 11 (+ x (* t2 1.2)) yy 0.0))))
   (foreach p (list (list y0 1.0) (list y1 -1.0))
-    (entmake (list (cons 0 "LINE") (cons 8 "STAIR-TEXT")
+    (entmake (list (cons 0 "LINE") (cons 8 "DIMENSIONS")
                    (list 10 x (car p) 0.0)
                    (list 11 (+ x (* t2 0.45)) (+ (car p) (* (cadr p) t2 1.4)) 0.0)))
-    (entmake (list (cons 0 "LINE") (cons 8 "STAIR-TEXT")
+    (entmake (list (cons 0 "LINE") (cons 8 "DIMENSIONS")
                    (list 10 x (car p) 0.0)
                    (list 11 (- x (* t2 0.45)) (+ (car p) (* (cadr p) t2 1.4)) 0.0))))
-  (setvar "CLAYER" "STAIR-TEXT")
-  (txt-bold "BC" (list (- x (* t2 0.5)) (/ (+ y0 y1) 2.0))
+  (setvar "CLAYER" "DIMENSIONS")
+  (txt-dim "BC" (list (- x (* t2 0.5)) (/ (+ y0 y1) 2.0))
             (/ t2 (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 90.0
             (peb-stair-dimtext (abs (- y1 y0)) s)))))
 
