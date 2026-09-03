@@ -1877,7 +1877,7 @@
 ;; The dimension wording is the reference's, verbatim, including its habit of putting the
 ;; measured value first and the description after it.
 (defun peb-stair-collayout (ox oy wdt hgt lbl /
-                            u th fl going lw run1 xa xL yb0 yb1 dep well y out)
+                            u th fl going lw run1 xa xL yb0 yb1 dep well y out nland)
   (setq u     (max 60.0 (/ wdt 12.0))
         th    (peb-stair-th u)
         fl    (peb-stair-flights hgt)
@@ -1901,8 +1901,20 @@
   (peb-comp-layer "STAIR-LANDING" 3)
   (peb-comp-poly (list (list xa yb0) (list xL yb0) (list xL yb1) (list xa yb1)))
 
-  ;; --- FOUR COLUMNS: a pair on each of the two column lines, on the outer stringer lines.
-  (foreach cx (list xa xL)
+  ;; --- THE COLUMNS THIS STAIR ACTUALLY HAS  (owner 3-Sep-2026, 4B.72 applied here too) -----
+  ;; This plan used to draw FOUR columns, a pair on each line, and call them CBP-01 (QTY-04) -
+  ;; whatever the stair. On a one-landing U-stair that is a column line invented out of nothing:
+  ;; the near end is the FOOT of flight 1, where the two stringer base plates below already carry
+  ;; it, and the only thing needing a column is the landing at the far end. The elevation on this
+  ;; same sheet drew one pair (4B.72 - "columns should reach till landing, not in the air") and
+  ;; the column lay-out plan drew two, so the sheet contradicted itself and the set: three
+  ;; drawings of one staircase gave four columns, two columns and two columns.
+  ;;
+  ;; Landings alternate ends, so the count is the landing count, read the same way the elevation
+  ;; reads it: landing 0 turns at the FAR line, landing 1 turns back at the NEAR line. One
+  ;; landing therefore means one pair at xL; two or more means a pair on each line.
+  (setq nland (1- (length fl)))
+  (foreach cx (append (list xL) (if (>= nland 2) (list xa) nil))
     (foreach cy (list (+ yb0 (/ (peb-stair-col-bf) 2.0)) (- yb1 (/ (peb-stair-col-bf) 2.0)))
       (peb-stair-col-plan (if (= cx xa)
                             (+ cx (/ (peb-stair-col-d) 2.0))
@@ -1923,7 +1935,8 @@
   (peb-comp-layer "STAIR-TEXT" 7)
   (setvar "CLAYER" "STAIR-TEXT")
   (peb-stair-note-r (+ ox (* u 4.4)) (+ yb0 (/ wdt 2.0)) (+ ox (* u 5.4)) th "SBP-01 (QTY-02)")
-  (peb-stair-note-r xL (- yb1 (/ (peb-stair-col-bf) 2.0)) (+ xL (* u 2.0)) th "CBP-01 (QTY-04)")
+  (peb-stair-note-r xL (- yb1 (/ (peb-stair-col-bf) 2.0)) (+ xL (* u 2.0)) th
+                    (strcat "CBP-01 (QTY-" (if (>= nland 2) "04" "02") ")"))
 
   ;; --- DIMENSIONS, in the reference's words.  It writes the measured value then what the
   ;; measurement is between - "6318 C/C OF STEEL LINE" - so we build the label the same way.
@@ -1931,11 +1944,16 @@
   ;; The long "C/C OF STEEL COLUMN TO BASE PLATE OF STRINGER" row ran at 4.2u under the plan
   ;; while the vertical O/O dim stood 3.2u to its left: once the lettering grew, the rotated
   ;; text and the horizontal label crossed each other.  Both are now measured off the text.
+  ;; ...and the dimensions name what is actually on the two lines. With a single column line
+  ;; there is no column-to-column C/C to state, and the overall is the STAIRCASE out-to-out, not
+  ;; a distance between steel columns - the near line is the stringer, which the third dimension
+  ;; below already measures to.
   (peb-stair-dim (- xa (/ (peb-stair-col-d) 2.0)) (+ xL (/ (peb-stair-col-d) 2.0))
                  (+ yb1 (* th 1.9)) th
-                 "O/O OF STEEL COLUMN")
-  (peb-stair-dim xa xL (+ yb1 (* th 3.8)) th
-                 "C/C OF STEEL COLUMN")
+                 (if (>= nland 2) "O/O OF STEEL COLUMN" "O/O OF STAIRCASE"))
+  (if (>= nland 2)
+    (peb-stair-dim xa xL (+ yb1 (* th 3.8)) th
+                   "C/C OF STEEL COLUMN"))
   (peb-stair-dim (+ ox (* u 3.0)) xL (- yb0 (* th 2.6)) th
                  ;; SHORTENED, because this one label was setting the width of the whole sheet.
                  ;; At 44 characters it is longer than the 6,300 it measures, so the fit rule sent

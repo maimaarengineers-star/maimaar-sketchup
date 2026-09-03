@@ -2543,6 +2543,24 @@ landing". The elevation is placed at a large NEGATIVE origin - blocks stack down
 plan - so every level is below zero and **every column silently vanished from the sheet**. An
 absolute coordinate is never a flag; use `nil`.
 
+**And the same count governs whether a column exists at all** *(3-Sep, on the sync pass)*. The
+base plate lay-out plan drew FOUR columns whatever the stair and tagged them `CBP-01 (QTY-04)`,
+so one staircase was drawn three ways in one set:
+
+```
+   base plate lay-out plan   4 columns      column lay-out plan   2 columns
+   staircase elevation       2 columns  (one landing - correct per this rule)
+```
+
+On a one-landing U-stair the near line is the FOOT of flight 1, carried by the two stringer base
+plates the same view already draws - `SBP-01 (QTY-02)`. There is no column there to put a plate
+under. Landing 0 turns at the far line and landing 1 turns back at the near one, so **one landing
+is one pair at the far line; two or more is a pair on each.**
+
+The dimensions follow the columns: with a single column line there is no column-to-column C/C to
+state, and the overall across the tower is `O/O OF STAIRCASE`, not `O/O OF STEEL COLUMN`. The
+`C/C TO STRINGER BASE PLATE` dimension already measures the near line for what it actually is.
+
 ---
 
 ### 4B.73 A position is stated ONCE, and every sheet that draws it asks the same function
@@ -2576,7 +2594,8 @@ from its BSF offsets always printed `(LEW)` - ST2, at 42,260 of a 54,860 m build
 against the right end wall, was labelled as being at the left one. **An end is not an input; it
 is a consequence of the position.** Read it off the column that has just been placed.
 
-**And an audit is a program, not a squint.** `_syncaudit.js` reads the generated PEB data and
+**And an audit is a program, not a squint.** `2_Sales CRM/scripts/drawingSyncAudit.js` reads the
+generated PEB data and
 asserts across sheets - stair height against `MZ_FLOOR_HT`, offsets inside the building extents,
 the two end walls carrying the same post chain. It found `ST1_HEIGHT 5380` against
 `MZ_FLOOR_HT 5379`: a stair climbing to a level one millimetre off the floor it lands on, which
