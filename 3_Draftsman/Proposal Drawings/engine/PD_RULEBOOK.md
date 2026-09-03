@@ -2283,6 +2283,181 @@ size is never a one-number change unless the gaps are already expressed in it.
 
 ---
 
+### 4B.63 A chain is STATED from the BSF, never measured off the drawing
+
+**Owner, 3-Sep-2026:** *"BSF showing out to out dimensions but mezzanine floor plan showing in
+to in of the columns - sync all the dim and bubbles grids."*
+
+A width chain is written **out to out of steel column**: `5@15240` starting at 0 and ending at
+76,200. A column centred on the first station therefore *straddles* the out-to-out line - half
+the section outside the building, and the dimension arrow landing in the middle of the steel
+instead of on its face. The Column Layout Plan has always known this (`peb-main-column-ys`
+starts at `colOff` and ends at `wid - colOff`; only the INTERIOR lines sit on the raw sums).
+Anything that builds its own stations must apply the same correction - `peb-mezz-snap-ends`.
+
+That leaves **two lists of the same chain, and they are not interchangeable**:
+
+| list | what it is | what it is for |
+|---|---|---|
+| `*OO` | the BSF's, `0 .. wid` | the chain **TEXT** |
+| snapped | ends on the column centrelines | where the **STEEL** is drawn, and the bubbles |
+
+`peb-chain-text` prints the estimator's expression verbatim **only while that expression still
+fits the stations it is handed**. Hand it the snapped list and `5@15240` stops fitting, so it
+falls back to measuring the gaps and prints `1@14540 + 3@15240 + 1@14540` - the centre-to-centre
+chain. That is the in-to-in number, arrived at silently, on a sheet headed by a BSF that says
+15,240.
+
+> **Every chain on every sheet is the estimator's expression with its basis spelled out.
+> Nothing is measured off drawn stations. The arrows run to the out-to-out line, because that
+> is the line the number describes.**
+
+The same rule kills the duplicates: a mezzanine column chain that *is* the module chain, or a
+footprint dimension that *is* the building's own width, says nothing new and is not drawn.
+
+---
+
+### 4B.64 Placement: drawing -> chains -> bubbles, outward, on every sheet
+
+The three-nested-chains order (4-Jul) says finest inboard, overall outermost. It says nothing
+about where the **bubbles** go, and the Column Layout Plan and the Mezzanine Floor Plan had
+settled on opposite answers - one read outward as drawing -> chains -> bubbles, the other as
+drawing -> bubbles -> chains. Same grid, two reading orders.
+
+> **Bubbles are OUTSIDE the dimension stack, in both directions, on every sheet.**
+
+And the bubble column is placed **from wherever the outermost rung finished**, never from a
+constant: add a rung and the bubbles move with it (4B.27). The stalk is then a **tick**, not a
+line back to the drawing - run it back to the deck edge and it rules straight through every
+chain bar and every chain label on the way.
+
+---
+
+### 4B.65 One bubble size on every sheet - and why it is the BUBBLE that is corrected
+
+**Owner, 3-Sep-2026, four times over:** *"Fix the bubbles issue."*
+
+4B.31 gives one radius, `720 x TEXT-SCALE`, and every sheet obeyed it - and the bubbles still
+did not match, because a **model** radius plots at `1440 x TS / sc`. TS is *estimated* from the
+building's face; `sc` is *measured* from the drawn extents, which is that face **plus every
+paper-sized dim chain, bubble stack, legend and heading hung off it**. A sheet carrying three
+nested chains and a legend is fitted smaller than a bare elevation of the same building, and its
+bubble plots smaller with it. Measured on MSPL-26-279, in true plotted millimetres:
+
+```
+Cross Section        6.01     Column Layout Plan       4.58
+End Wall Framing     6.04     Mezzanine Floor Plan     4.74
+Side Wall Framing    5.91     Roof Framing / Sheeting  4.84
+Sheeting Elevations  5.21
+```
+
+A third bigger on one sheet than another - and *perfectly consistent within each sheet type*,
+which is the tell: not noise, but the annotation profile of the sheet.
+
+> **Each sheet declares its profile (`peb-bub-fit`) and the bubble is corrected for it. The
+> factor is MEASURED - `peb-log-sheet` writes sheet no. / TEXT-SCALE / fitted scale to a CSV -
+> never guessed.**
+
+**It is deliberately the BUBBLE and not TEXT-SCALE.** Scaling all the lettering to close the same
+gap costs the Column Layout Plan **13% of its drawing scale**, because bigger text means bigger
+extents means a smaller fit. Correcting the bubble alone costs about 2%. The reference (1.00) is
+set at the framing elevation and cross section - the two already near 6 mm - so nothing on the
+set gets smaller. Result: **6.7-6.9 mm everywhere**, spread 33% -> 6%, and the plan held its
+1:532.
+
+Every sheet-level drawer sets `*PEB-BUB-FIT*` beside its `*PEB-TEXT-SCALE*`, and **none
+inherits** - the whole lesson of the old `*PEB-BUBRAD*`, which the wall elevations read without
+ever setting, so their bubble size depended on which sheet rendered before them.
+
+---
+
+### 4B.66 Masonry stops at the steel it meets
+
+MSPL-26-279 states `BP_BRICK_HT` 5,029 (16'-6") and `MZ1_CH_FFL_BEAM` 4,877 (16'-0"). Both are
+deliberate round imperial figures and **both are right** - they describe different places. The
+brick dado is 16'-6" where nothing crosses it; the clear height under the mezzanine beam is
+16'-0".
+
+They meet only on the **end wall**, where the mezzanine main beam lies in the wall plane. There
+the brick was drawn straight through 152 mm of steel, under a label reading H=5,029 on a sheet
+that had just drawn the soffit at 4,877.
+
+> **Where the mezzanine reaches an end wall, the masonry stops at the beam soffit - and the
+> label says which level stopped it: `BRICK WALL (BY OTHERS) - H=4,877 (TO MEZZ. BEAM SOFFIT)`.**
+
+H=4,877 under a stated 16'-6" dado reads as a mistake until the reader is told why. No BSF value
+is changed; the drawing simply stops being unbuildable. Gated on the mezzanine actually reaching
+that end, and on end walls only - on a side wall the beams frame in end-on, so the wall is
+notched at each beam rather than capped.
+
+---
+
+### 4B.67 A named floor is named where it is MEASURED
+
+The staircase elevation carried `MEZZANINE FLOOR` as a mark of its own on the left, and its
+fifteen characters ran into the top flight's corner and its handrail - and, on a stair with two
+plan blocks, into the plan's own `PLAN` caption, printing **MEZZANINE FLOORPLAN**.
+Right-justifying it hangs 3.6 m of text off the left edge and costs a scale step for one word.
+
+> **The level marker that MEASURES a line also NAMES it: `+5380mm   MEZZANINE FLOOR`. The mark
+> on the far side keeps its triangle and its level line, but not the name.**
+
+Corollary, and the reason the `F.F.L` elbow went the same way: one level, one name. Three labels
+crowding a single line is not emphasis.
+
+---
+
+### 4B.68 Reserve space by MEASURING the block, not by a formula for it
+
+`peb-stair-elev-drop` computed how far to drop the elevation below the plan. It is a formula,
+and on a 10 m stair - three landings, **two** plan blocks - it came up short and the elevation's
+head mark printed into the plan's caption. The plan drawer already **returns its true extents**.
+
+> **Where a drawer returns its extents, place the next block from those. Keep the formula as the
+> other half of a `min`, so whichever wants more room wins.**
+
+This is 4B.27 one level up: a gap that has to clear something is measured from that thing -
+including when the "something" is a whole block whose size depends on the job.
+
+---
+
+### 4B.69 A floor's TOP FACE is its F.F.L - so the last tread is one riser below it
+
+**Owner, 3-Sep-2026:** *"Distance b/w the final step and FFL should be 150mm."*
+
+It was 249. The two floors on the staircase elevation were drawn in **opposite directions**:
+
+```
+  ground     slab from  oy - 100  UP TO  oy        top face = F.F.L      correct
+  mezzanine  slab from  ycur      UP TO  ycur+100  top face = F.F.L+100  wrong
+```
+
+So the flight arrived at the **soffit** of the floor it serves, and the step from the final tread
+onto the finished floor measured one riser *plus the slab*.
+
+The sheet was already contradicting itself, which is the tell: the level marker prints **+5,380 at
+`ycur`** and calls it MEZZANINE FLOOR, while the concrete drawn there put the walking surface at
++5,480. One of the two had to be wrong, and it was not the marker.
+
+> **Every floor on the sheet is drawn the same way: top face ON the level, concrete hanging BELOW
+> it. The last tread of a flight then sits exactly one riser under the F.F.L - which is what a
+> final riser IS.**
+
+Two things follow, and both were wrong for the same reason:
+
+- **Hatching goes INSIDE the slab.** Both bands were hatched over a 150-200 range against a 100
+  band, so at ground two of four lines were drawn on or above the finished floor. Hatch is what
+  tells a reader the band is concrete; outside the band it says the floor is somewhere it is not.
+- **A level mark with no text gets no standoff.** `peb-stair-floor-mark` offsets its symbol to keep
+  the *text* clear of the hatch. Once the mezzanine's name moved to the right-hand level column
+  (4B.67) that mark had no text left, and kept standing a quarter of a metre clear of the line it
+  points at - a level symbol in the wrong place, on a drawing whose subject is levels.
+
+Verified on MSPL-26-279 by measuring the plot: floor line to top tread **2.88 pt** against a riser
+pitch of **2.82 pt** - one riser, 149.44 mm, which is the 150 nominal the equal-riser rule aims at.
+
+---
+
 ---
 
 ## STAIRCASE — the Mammut convention, harvested 1-Sep-2026

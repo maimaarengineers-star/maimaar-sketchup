@@ -974,7 +974,7 @@
 
 (defun peb-stair-elev (ox oy wdt hgt topl midl lbl trd shp /
                        u th going fl nf lw tlw hr1 hr2 rise dir ybase xnext
-                       xa xcur ycur i k n x y xs xe ys ye ytxt hmid xmid xlo xhi lvls xrcc
+                       xa xcur ycur i k n x y xs xe ys ye ytxt hmid xmid xlo xhi lvls xrcc slabT
                        fl nf rise nland colr colsum col-height)
   (setq u     (max 60.0 (/ wdt 12.0))
         th    (peb-stair-th u)
@@ -993,6 +993,22 @@
         ;; still measured from it - but the first tread springs from ybase.
         ybase (+ oy (peb-stair-base-offset hgt))
         xa    ox xcur ox ycur ybase
+        ;; ---- A FLOOR'S TOP FACE IS ITS F.F.L  (owner 3-Sep-2026) -------------------------------
+        ;; "Distance b/w the final step and FFL should be 150mm."
+        ;;
+        ;; It was 249.  The two floors on this elevation were drawn in opposite directions: the
+        ;; ground slab from oy-100 UP TO oy, so its top face is the F.F.L the stair springs from -
+        ;; correct - and the mezzanine slab from ycur UP TO ycur+100, so its top face sat 100 mm
+        ;; ABOVE the level the last riser lands on.  The flight therefore arrived at the SOFFIT of
+        ;; the floor it serves, and the step from the final tread onto the finished floor measured
+        ;; one riser plus the slab.
+        ;;
+        ;; The sheet was already contradicting itself: the level marker prints +5,380 AT ycur and
+        ;; calls it MEZZANINE FLOOR, while the concrete drawn there put the walking surface at
+        ;; +5,480.  Both floors are now drawn the same way - top face on the level, concrete
+        ;; hanging below it - so the last tread sits exactly one riser under the F.F.L, which is
+        ;; what a final riser is.
+        slabT 100.0
         lvls  (list ybase))       ; the base first; each landing and the head are added below
 
 
@@ -1077,9 +1093,9 @@
   ;; a platform in front of the deck, i.e. a step that does not exist.  The deck itself is
   ;; drawn as a short run of floor so the flight visibly arrives ON something.
   (peb-comp-layer "STAIR-LANDING" 3)
-  (peb-comp-poly (list (list xcur ycur) (list (+ xcur (* dir lw)) ycur)
-                       (list (+ xcur (* dir lw)) (+ ycur (* u 0.8)))
-                       (list xcur (+ ycur (* u 0.8)))))
+  (peb-comp-poly (list (list xcur (- ycur slabT)) (list (+ xcur (* dir lw)) (- ycur slabT))
+                       (list (+ xcur (* dir lw)) ycur)
+                       (list xcur ycur)))
   (setq xcur (+ xcur (* dir lw)))
   (setq xlo (min xlo xcur) xhi (max xhi xcur))
   ;; ---- THE COLUMNS THAT CARRY THE MID-LANDINGS  (owner 3-Sep-2026) ---------------------
@@ -1172,26 +1188,32 @@
   ;; Ground level concrete (F.F.L)
   (peb-comp-poly (list (list (- xlo (* u 3.0)) (- oy 100.0)) (list xrcc (- oy 100.0))
                              (list xrcc oy) (list (- xlo (* u 3.0)) oy)))
-  ;; Concrete hatch pattern at ground
-  (foreach i (list (* u 0.5) (* u 1.0) (* u 1.5) (* u 2.0))
+  ;; Concrete hatch pattern at ground - INSIDE the slab (see the mezzanine note below).
+  (foreach i (list 0.33 0.67)
     (entmake (list (cons 0 "LINE") (cons 8 "STAIR-LANDING")
-                   (list 10 (- xlo (* u 3.0)) (- oy (- i 100.0)) 0.0)
-                   (list 11 xrcc (- oy (- i 100.0)) 0.0))))
+                   (list 10 (- xlo (* u 3.0)) (- oy (* slabT i)) 0.0)
+                   (list 11 xrcc (- oy (* slabT i)) 0.0))))
   (peb-stair-floor-mark (- xlo (* u 3.0)) oy th "GROUND FLOOR" -1 (+ 100.0 (* u 2.0)))
 
   ;; Mezzanine level concrete — trimmed at the HEAD, the last step (see above)
   (setq xrcc (- xcur (* dir lw)))
   ;; Mezzanine level concrete
-  (peb-comp-poly (list (list (- xlo (* u 3.0)) ycur) (list xrcc ycur)
-                             (list xrcc (+ ycur 100.0)) (list (- xlo (* u 3.0)) (+ ycur 100.0))))
-  ;; Concrete hatch pattern at mezzanine
-  (foreach i (list (* u 0.5) (* u 1.0) (* u 1.5) (* u 2.0))
+  (peb-comp-poly (list (list (- xlo (* u 3.0)) (- ycur slabT)) (list xrcc (- ycur slabT))
+                             (list xrcc ycur) (list (- xlo (* u 3.0)) ycur)))
+  ;; Concrete hatch pattern at mezzanine - INSIDE the slab, which now hangs BELOW its F.F.L.
+  ;; Hatching is what tells a reader the band is concrete; drawn outside the band it says the
+  ;; floor is somewhere it is not, which is the whole fault being corrected here.
+  (foreach i (list 0.33 0.67)
     (entmake (list (cons 0 "LINE") (cons 8 "STAIR-LANDING")
-                   (list 10 (- xlo (* u 3.0)) (+ ycur i) 0.0)
-                   (list 11 xrcc (+ ycur i) 0.0))))
+                   (list 10 (- xlo (* u 3.0)) (- ycur (* slabT i)) 0.0)
+                   (list 11 xrcc (- ycur (* slabT i)) 0.0))))
   ;; the mezzanine level mark keeps its triangle and line - the concrete has to be read as a
   ;; FLOOR - but not its name: peb-stair-level names it on the right (see above).
-  (peb-stair-floor-mark (- xlo (* u 3.0)) ycur th "" 1 (+ 100.0 (* u 2.0)))
+  ;; `clear` is how far the mark must stand off to miss the slab's ink - and the mezzanine slab now
+  ;; hangs BELOW this line, so there is nothing above it to clear. It was 300, which floated the
+  ;; triangle a third of a metre over the level it points at; on a drawing whose subject is levels
+  ;; that is the marker telling a small lie.
+  (peb-stair-floor-mark (- xlo (* u 3.0)) ycur th "" 1 0.0)
 
   ;; --- LABELLING: the LEVELS carry this view, nothing else needs to.
   ;; A reader of an elevation wants to know how high each landing is and where it meets the
@@ -1272,8 +1294,12 @@
   ;; MEZZANINE FLOOR, drawn by the same call in the other direction, read perfectly - the classic
   ;; sign of a gap that was tuned in one direction and mirrored into the other.  2.75 is measured
   ;; off the plot: this sheet's bold lettering caps out near 2.3 x t2, and 0.35 clears it (4B.27).
+  ;; THE STANDOFF EXISTS FOR THE TEXT, so a mark with no text does not get one: it is drawn ON the
+  ;; level it marks. The mezzanine's mark lost its name when the head was named on the right-hand
+  ;; level column, and kept standing a quarter of a metre clear of the line it points at - a level
+  ;; symbol in the wrong place, on a drawing whose subject is levels.
   (setq t2  (* th 0.85)
-        yl  (+ y (* dir (+ clear (* t2 1.3))))
+        yl  (if (or (null name) (= name "")) y (+ y (* dir (+ clear (* t2 1.3)))))
         ytx (if (> dir 0) (+ yl (* t2 0.35)) (- yl (* t2 2.75))))
   (peb-comp-layer "STAIR-TEXT" 7)
   (entmake (list (cons 0 "LINE") (cons 8 "STAIR-TEXT")
