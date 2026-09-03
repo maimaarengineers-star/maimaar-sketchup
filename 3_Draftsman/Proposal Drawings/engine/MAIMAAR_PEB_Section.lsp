@@ -6696,7 +6696,7 @@
 ;; clear span called its two columns A and B while the plan called the same two
 ;; lines A and D (with B and C the end-wall columns between them).  Falls back to
 ;; the plain index if the merged grid is unavailable.
-(defun peb-sec-grid-letter (cx wgrid idx / k best bd)
+(defun peb-sec-grid-letter (cx wgrid idx mods / k best bd)
   (if (null wgrid)
     (chr (+ 65 idx))
     (progn
@@ -6707,9 +6707,11 @@
       ;; peb-width-letter, not (chr 65+best): the plan letters the width REVERSED (A at
       ;; the far side wall), so this printed the section back to front - A where the plan
       ;; says F (owner 26-Aug).  See the audit table on peb-width-letter.
-      (if (boundp 'peb-width-letter)
-        (peb-width-letter best (length wgrid))
-        (chr (+ 65 best))))))
+      ;; peb-width-mark: the merged grid carries the infill posts too, and a post takes the
+      ;; primed letter of the main line above it rather than a letter of its own (4B.61).
+      (if (boundp 'peb-width-mark)
+        (peb-width-mark (nth best wgrid) wgrid mods)
+        (if (boundp 'peb-width-letter) (peb-width-letter best (length wgrid)) (chr (+ 65 best)))))))
 
 (defun draw-grid-bubble (cx cy r label)
   ;;  Single circle grid bubble (bottom of column), with grid letter inside.
@@ -9808,7 +9810,9 @@
     ;; cx is SECTION space (mirrored above); wgrid is PLAN space, so un-mirror to look
     ;; the letter up.  peb-width-letter then still returns A for the far side wall -
     ;; which the mirror has just placed on the LEFT.  Rule 4B.37.
-    (draw-grid-bubble bubX bubY bubR (peb-sec-grid-letter (- wid cx) wgrid i))   ; letters follow the PLAN grid
+    (draw-grid-bubble bubX bubY bubR
+                      (peb-sec-grid-letter (- wid cx) wgrid i
+                        (if (boundp 'peb-width-mods) (peb-width-mods data wid) nil)))   ; letters follow the PLAN grid
     ;; Connector tick - a single continuous vertical line from FFL all
     ;; the way down to the top of the bubble, passing through the dim
     ;; lines so the chain visually merges into one column.

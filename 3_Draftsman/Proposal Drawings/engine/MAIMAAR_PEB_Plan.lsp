@@ -549,6 +549,61 @@
 (defun peb-width-letter (i nSt)
   (peb-grid-letter (+ (- nSt 1 i) (if *PEB-GRID-LET-OFS* *PEB-GRID-LET-OFS* 0))))
 
+;; ---- A MAIN LINE TAKES A LETTER, AN INFILL POST TAKES A PRIME  (owner 3-Sep-2026) --------
+;; "Bubble of dimension should be based on post columns & in case the main columns are not
+;;  aligned, then use A', B' like this."
+;;
+;; The width grid every sheet letters is the MERGED one: the width-module lines (the multi-span
+;; frame columns) plus the end-wall / mezzanine posts between them.  Lettering it straight through
+;; gives every station equal billing, so a reader cannot tell a primary frame line from a wind
+;; post - and they carry different connections.  The prime says which is which without adding a
+;; second bubble shape, which would only re-open "the bubbles are not the same".
+;;
+;;   A  A'  B  B'  C  C'  D  D'  E  E'  F        <- 5@15,240 split at 7,620
+;;
+;; A is at the FAR side wall and the letters run downward (rule 4B.34), so a station's letter is
+;; the number of MAIN lines strictly above it, and a post carries the letter of the main line
+;; above it with a prime.  Skip-I comes free from peb-grid-letter, and the cross-area offset is
+;; applied exactly as the plain lettering applies it.
+(defun peb-is-main-station (y mods / hit)
+  (setq hit nil)
+  (foreach m mods (if (< (abs (- y m)) 5.0) (setq hit T)))
+  hit)
+
+(defun peb-width-mark (y stations mods / n ofs)
+  (if (null mods)
+    ;; no module chain to judge against - every station is a main line, as before
+    (peb-width-letter (peb-station-index y stations) (length stations))
+    (progn
+      (setq n 0 ofs (if *PEB-GRID-LET-OFS* *PEB-GRID-LET-OFS* 0))
+      (foreach st stations
+        (if (and (> st (+ y 5.0)) (peb-is-main-station st mods)) (setq n (1+ n))))
+      (if (peb-is-main-station y mods)
+        (peb-grid-letter (+ n ofs))
+        (strcat (peb-grid-letter (+ (max 0 (1- n)) ofs)) "'")))))
+
+;; The whole merged grid's marks, in PLAN ORDER (index 0 = y=0 = the near side wall), so a
+;; caller that already works in station indices can look one up instead of re-deriving it.
+(defun peb-width-marks (stations mods / out)
+  (setq out nil)
+  (foreach st stations (setq out (append out (list (peb-width-mark st stations mods)))))
+  out)
+
+;; index of the station nearest y, for the no-module fallback above
+(defun peb-station-index (y stations / i best bd d)
+  (setq i 0 best 0 bd 1e12)
+  (foreach st stations
+    (setq d (abs (- st y)))
+    (if (< d bd) (setq bd d best i))
+    (setq i (1+ i)))
+  best)
+
+;; The MAIN width-module stations for this area, in the same coordinates the grid is drawn in.
+(defun peb-width-mods (data wid)
+  (if (boundp 'peb-width-stations)
+    (peb-width-stations (peb-tb-or (MSPL-Get-Str data "MODEXPR") "") wid)
+    nil))
+
 (defun peb-grid-letter-index (ch / a)
   (setq a (ascii (strcase ch)))
   (- a 65 (if (> a 73) 1 0)))
@@ -1029,13 +1084,25 @@
 ;; elevation used to fall back to the width module instead, so a clear span drew
 ;; only its two corner columns while the plan lettered A..D — the girt then
 ;; appeared to span the full width unsupported (owner 25-Aug audit).
-(defun peb-ew-auto-cols (wid / n sp)
-  (setq n (fix (/ wid 6250.0)))
-  (if (< n 1) (setq n 1))
-  (setq sp (/ wid n))
-  (if (< sp 6000) (progn (setq n (1- n)) (if (< n 1) (setq n 1)) (setq sp (/ wid n))))
-  (if (> sp 6500) (setq n (1+ n)))
+;; ---- THE FALLBACK DIVISION, ON THE SAME RULE AS EVERYONE ELSE  (owner 3-Sep-2026) --------
+;; Used only when the data carries no end-wall spacing string at all.  It used to divide at
+;; 6250 mm with `fix` (truncate) - a THIRD rule, matching neither geometryRules.js in the browser
+;; nor geometryDivision.ts on the server, so a building with a blank spacing drew one chain and
+;; was priced on another.
+;;
+;; The rule is now the owner's: every WIDTH-MODULE line carries a column, and a module wider than
+;; the cap is split equally into the fewest parts that fit under it.  A blank spacing therefore
+;; falls back to the same chain the forms would have filled in.
+(defun peb-post-split-max () 8000.0)             ; mm - the ONE cap, mirroring POST_SPLIT_MAX
+
+;; The fewest equal parts of `m` that each come in at or under the cap.
+(defun peb-post-split-count (m / n)
+  (setq n 1)
+  (while (and (> (/ m (float n)) (peb-post-split-max)) (< n 200)) (setq n (1+ n)))
   n)
+
+;; How many end-wall bays across a plain width, when there is no module chain to follow.
+(defun peb-ew-auto-cols (wid) (peb-post-split-count wid))
 
 ;; The stations themselves: (0, sp, 2sp, ... wid).
 (defun peb-ew-auto-stations (wid / n sp out i)
@@ -4939,7 +5006,7 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   (princ))
 
 (defun C:PEB-PLAN
-  ( / dataFile data
+  ( / dataFile data wMods
     project client propinput propno fulldate
     len wid btype rooftype stype widthPts windspeed exposure collateral bldgno revno
     ppY1 ppY2 ridgeY bfVy
@@ -5596,7 +5663,7 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   ;; ascending (y=0 NSW bottom → y=wid FSW top), so letter index counts DOWN.
   ;; owner 5-Jul (multi-area): the LEFT width grid sits on the LEW side — skip it when LEW is the shared
   ;; end wall (Left/Right side-by-side); the outer area carries the one width grid.
-  (setq j 0 nWid (length gridWpts))
+  (setq j 0 nWid (length gridWpts) wMods (peb-width-mods data wid))
   ;; ... and skip the letter column when an area is attached to THIS area's LEW (mirror of the FSW case)
   (if (not (peb-hide-wall-label-p "LEW"))
   (foreach y gridWpts
@@ -5612,7 +5679,9 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
         (setq bubOfs (* (peb-bub-row j bubRowsY) bubStep))
         (command "LINE" (list (- (- 0.0 (* 3.0 dimGap)) ovrTxtH) y) (list (+ (- gridX1 bubOfs) bubStand) y) "")   ; stop clear of the pointer apex (owner 10-Jul)
         (setvar "CLAYER" "GRID")
-        (grid-bubble (- gridX1 bubOfs) y (peb-grid-letter (+ (- nWid 1 j) (if *PEB-GRID-LET-OFS* *PEB-GRID-LET-OFS* 0))) "R")))   ; owner 5-Jul: letter offset -> grid CONTINUES across stacked areas; skip-I via peb-grid-letter
+        ;; peb-width-mark, not a straight count: a station that is a width-MODULE line takes a
+        ;; plain letter and an infill post takes the primed letter of the main above it (4B.61).
+        (grid-bubble (- gridX1 bubOfs) y (peb-width-mark y gridWpts wMods) "R")))   ; owner 5-Jul: letter offset -> grid CONTINUES across stacked areas; skip-I via peb-grid-letter
     (setq j (1+ j))
   ))
 

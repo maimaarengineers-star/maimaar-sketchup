@@ -39,7 +39,7 @@
        (peb-th 'ANNOT) 0 (strcat "1:" (rtos slopeD 2 0)))
   (setvar "CLAYER" prev))
 
-(defun peb-draw-roof-framing (data ox oy / len wid slopeD bayPts purlSp nRows i x y
+(defun peb-draw-roof-framing (data ox oy / len wid slopeD bayPts purlSp nRows i x y wMods
                               prev cnt pre psurf pat pw mark midY j bubGap bubR ovr
                               prng pi0 pi1 px0 pOfs
                               stype mgGables mgGableW mgRid mgVal base hiNSW mgi k
@@ -300,11 +300,16 @@
   (if (or (vl-catch-all-error-p wgrid) (not (listp wgrid)) (< (length wgrid) 2)) (setq wgrid nil))
   ;; y=0 is the NEAR side wall, which the plan letters LAST — not "A" (owner 26-Aug).
   ;; See the audit table on peb-width-letter.
+  ;; ;; peb-width-mark, not peb-width-letter: the merged grid now carries the infill POSTS as well as
+  ;; the module lines, so counting straight through it gave the far wall a letter that counted the
+  ;; posts too - K where the plan says F.  A main line takes its letter, a post takes a prime.
+  (setq wMods (vl-catch-all-apply (function (lambda () (peb-width-mods data wid)))))
+  (if (vl-catch-all-error-p wMods) (setq wMods nil))
   (grid-bubble (- ox bubGap bubR) oy
-               (if wgrid (peb-width-letter 0 (length wgrid)) "A") "R")
+               (if wgrid (peb-width-mark (nth 0 wgrid) wgrid wMods) "A") "R")
   (command "_.LINE" (list ox (+ oy wid)) (list (- ox bubGap) (+ oy wid)) "")
   (grid-bubble (- ox bubGap bubR) (+ oy wid)
-               (if wgrid (peb-width-letter (1- (length wgrid)) (length wgrid)) "B") "R")
+               (if wgrid (peb-width-mark (nth (1- (length wgrid)) wgrid) wgrid wMods) "B") "R")
   (setq *PEB-BUBRAD* ovr)
   ;; MATCH LINE on whichever edge of this part is a cut (owner 26-Aug).  It names the
   ;; sheet the drawing continues onto, so the two halves can be read as one building.
@@ -364,9 +369,16 @@
 ;; multi-area building the grid CONTINUES across areas instead of restarting.
 ;;
 ;; nSt = how many stations this wall has; i = 0-based station index along the wall.
-(defun peb-fr-grid-label (i nSt isEnd)
+;; `marks` is the merged width grid's marks in plan order (peb-width-marks): a width-MODULE line
+;; takes a plain letter, an infill post takes the primed letter of the main above it (4B.61).
+;; Without it every station counted as a main and the far wall came out K where the plan says F.
+;; nil `marks` keeps the old straight-count behaviour, which is right when there is no module
+;; chain to judge against.
+(defun peb-fr-grid-label (i nSt isEnd marks)
   (if isEnd
-    (peb-grid-letter (+ (- nSt 1 i) (if *PEB-GRID-LET-OFS* *PEB-GRID-LET-OFS* 0)))
+    (if (and marks (>= i 0) (< i (length marks)))
+      (nth i marks)
+      (peb-grid-letter (+ (- nSt 1 i) (if *PEB-GRID-LET-OFS* *PEB-GRID-LET-OFS* 0))))
     (itoa (+ (1+ i) (if *PEB-GRID-NUM-OFS* *PEB-GRID-NUM-OFS* 0)))))
 
 ;; Retained: still used where a plain running letter is wanted, with no plan to match.
@@ -998,7 +1010,7 @@
 (defun peb-draw-framing-elev (surf ox oy data / len wid slopeD stype rtype
                               eaveH clrH eaveHi eaveLo brickH hiName hiSide wallEave
                               faceLen stations isEnd base colhw rise ridgeRise
-                              i x g yTop pts cx prev braced b x0 x1 y0 y1 lbl bubGap bubR revView hdTxt
+                              i x g yTop pts cx prev braced b x0 x1 y0 y1 lbl bubGap bubR revView hdTxt gMarks
                               prng pi0 pi1 px0 pOfs pnTot
                               gsp gy cnt pre psurf pat pw mark expr ov noteY
                               ewHang hangHt cnt2 gbase
@@ -1043,6 +1055,15 @@
           stations (peb-fr-ew-stations data wid surf))
     (setq faceLen len
           stations (peb-fr-scaled-stations (peb-tb-or (MSPL-Get-Str data "BAYEXPR") "") len)))
+  ;; The marks for this merged width grid, in plan order - see peb-fr-grid-label.  Only an END
+  ;; wall letters the width; a side wall numbers the bays and never asks for these.
+  (setq gMarks nil)
+  (if isEnd
+    (progn
+      (setq gMarks (vl-catch-all-apply
+                     (function (lambda ()
+                       (peb-width-marks stations (peb-width-mods data wid))))))
+      (if (vl-catch-all-error-p gMarks) (setq gMarks nil))))
   ;; ── AN ELEVATION IS VIEWED FROM OUTSIDE (owner 26-Aug) ────────────────────
   ;; Standing outside a wall, the along-wall axis runs one way for two of the four
   ;; walls and the OTHER way for the other two.  The engine drew all four left to
@@ -1463,7 +1484,7 @@
     ;; pOfs keeps the numbers TRUE on a match-line part: part 2 starts at grid 9.
     (setq lbl (peb-fr-grid-label
                 (+ pOfs (if revView (- (length stations) 1 i) i))
-                pnTot isEnd))
+                pnTot isEnd gMarks))
     (setvar "CLAYER" "GRID-LINES")
     (command "_.LINE" (list (+ ox g) base) (list (+ ox g) (- base (* bubGap 0.45))) "")
     (vl-catch-all-apply (function (lambda () (grid-bubble (+ ox g) (- base bubGap) lbl "U"))))
@@ -1720,7 +1741,7 @@
 (defun peb-draw-sheeting-elev (surf ox oy data / len wid slopeD stype rtype eaveH eaveHi eaveLo hiName hiSide
                               wallEave faceLen stations isEnd base rise ridgeRise i g x yTop pts cx prev lbl
                               bubGap bubR ov gbase owText sp sx cnt pre psurf pat pw noteY owU revView hdTxt
-                              prng pi0 pi1 px0 pOfs pnTot
+                              prng pi0 pi1 px0 pOfs pnTot gMarks
                               rbOn rbFrom rbTo rbFloor rbBase nLen ewGrid ewRaised rx0 rx1 hasR gbaseR bc sbase sgb)
   (setq len (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
         wid (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
@@ -1754,6 +1775,15 @@
           stations (peb-fr-ew-stations data wid surf))
     (setq faceLen len
           stations (peb-fr-scaled-stations (peb-tb-or (MSPL-Get-Str data "BAYEXPR") "") len)))
+  ;; The same marks the FRAMING elevation letters with - one grid, one set of marks, on both
+  ;; sheets and on the plan (rule 4B.8).
+  (setq gMarks nil)
+  (if isEnd
+    (progn
+      (setq gMarks (vl-catch-all-apply
+                     (function (lambda ()
+                       (peb-width-marks stations (peb-width-mods data wid))))))
+      (if (vl-catch-all-error-p gMarks) (setq gMarks nil))))
   ;; viewed from OUTSIDE — same rule as the framing elevation, see the note there
   ;; ── MATCH-LINE PART SLICE, BEFORE THE MIRROR (owner 27-Aug) ──────────────
   ;; A 122 m x 6 m wall stacked two-up is about 4:1 once its annotation is counted, and
@@ -1950,7 +1980,7 @@
     ;; pOfs keeps the numbers TRUE on a match-line part: part 2 starts at grid 9.
     (setq lbl (peb-fr-grid-label
                 (+ pOfs (if revView (- (length stations) 1 i) i))
-                pnTot isEnd))
+                pnTot isEnd gMarks))
     (setvar "CLAYER" "GRID-LINES")
     (command "_.LINE" (list (+ ox g) base) (list (+ ox g) (- base (* bubGap 0.45))) "")
     (vl-catch-all-apply (function (lambda () (grid-bubble (+ ox g) (- base bubGap) lbl "U"))))
@@ -2191,7 +2221,7 @@
 ;;   * Skylights come FROM THE BSF (RA_SKYLIGHTS) through the same
 ;;     peb-draw-roof-accessories the plan uses.  One source, no second opinion —
 ;;     if the BSF says zero, this sheet draws none (owner: "if applicable").
-(defun peb-draw-roof-sheeting (data ox oy / len wid slopeD bayPts prev midY i x y
+(defun peb-draw-roof-sheeting (data ox oy / len wid slopeD bayPts prev midY i x y wMods
                                cover nRuns stype mgGables mgGableW base mgi ry mgRid
                                mgVal bubGap bubR ovr j fx hiNSW wgrid lbl
                                prng pi0 pi1 px0 pOfs bi mBnd mX0 mX1 mB mT lblX)
@@ -2412,11 +2442,16 @@
   (command "_.LINE" (list ox oy) (list (- ox bubGap) oy) "")
   ;; y=0 is the NEAR side wall, which the plan letters LAST — not "A" (owner 26-Aug).
   ;; See the audit table on peb-width-letter.
+  ;; ;; peb-width-mark, not peb-width-letter: the merged grid now carries the infill POSTS as well as
+  ;; the module lines, so counting straight through it gave the far wall a letter that counted the
+  ;; posts too - K where the plan says F.  A main line takes its letter, a post takes a prime.
+  (setq wMods (vl-catch-all-apply (function (lambda () (peb-width-mods data wid)))))
+  (if (vl-catch-all-error-p wMods) (setq wMods nil))
   (grid-bubble (- ox bubGap bubR) oy
-               (if wgrid (peb-width-letter 0 (length wgrid)) "A") "R")
+               (if wgrid (peb-width-mark (nth 0 wgrid) wgrid wMods) "A") "R")
   (command "_.LINE" (list ox (+ oy wid)) (list (- ox bubGap) (+ oy wid)) "")
   ;; peb-grid-letter, not (chr 65+n): the plan skips I, so this must too
-  (setq lbl (if wgrid (peb-width-letter (1- (length wgrid)) (length wgrid)) "B"))
+  (setq lbl (if wgrid (peb-width-mark (nth (1- (length wgrid)) wgrid) wgrid wMods) "B"))
   (grid-bubble (- ox bubGap bubR) (+ oy wid) lbl "R")
   (setq *PEB-BUBRAD* ovr)
 
