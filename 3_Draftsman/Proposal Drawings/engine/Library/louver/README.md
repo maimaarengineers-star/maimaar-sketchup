@@ -145,6 +145,42 @@ estimator prices them; they are resolved to **one** set of drawing keys there �
 `LV_TYPE`, `LV_W`, `LV_H`, `LV_MAT`, `LV_COLOR`, `LV_SCREEN`, `LV_WALLS`, `LV_MODE`,
 `LV_PER_BAY` — so the LISP never compares a card name. The BSF computes, the drawing reads.
 
+## Where a louver sits — it is the AIR INTAKE
+
+> "Louver are used for the Air-Intake" · "Top Level of Louver must be 300mm below the top of
+> brickwork level, as sometime there is beam on the top" — owner, 4-Sep-2026
+
+The louver is the **inlet** of the ventilation system; the ridge/turbine ventilators are the
+outlet. Air enters low, warms, rises and leaves at the ridge — so the louver belongs in the low
+band of the wall. The reference manual says the same in its arithmetic: the louvers supply the
+building's **free inlet area**, which must exceed **150% of the ventilation (exhaust) area**.
+
+**The rule** (`geometryRules.louver()`): `head = brick − 300`, `sill = head − height`.
+
+The 300 is **beam clearance**, not a margin for looks — a capping / tie beam commonly runs along
+the top of the masonry, and a louver whose head is on the brick line fouls it. Leaving the gap is
+right whether or not a given job has the beam, which is the only way one rule serves every job.
+
+| Case | Sill |
+|---|---|
+| Fits in the dado | `brick − 300 − height` — the normal case, clear of the beam |
+| Dado too short | `brick + 300` — clears the beam from **above**, in the sheeting |
+| No brickwork | `0.9` — no masonry, no beam; the engine's own non-door default |
+
+On MSPL-26-266 (brick 3048, louver 914): **head 2748, sill 1834**.
+
+**The level is derived, never read.** There is no louver sill field on the BSF card, because
+where a louver sits is settled by what it is for and by the beam above it. `drawingData.ts`
+derives it, which also corrects 266 — whose placements still carry 2134 from the first draft —
+without anyone re-touching the BSF. Each wall reads its own dado.
+
+**If a building needs more air, add louver AREA — do not drop the sill.** Stack flow goes as the
+square root of stack height but linearly with free area: on 266, dropping the sill from 2134 to
+600 buys about +18%, while one more louver per bay buys +100%.
+
+**The masonry is removed where a louver comes** — a guarded `WIPEOUT` over the framed opening, so
+the brick coursing stops at the louver instead of running through it.
+
 ## Status — SYNCED, and drawing on MSPL-26-266
 
 All three sync edits are done, and the louvers now draw in the brickwall on both side-wall
