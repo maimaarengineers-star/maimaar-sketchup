@@ -892,8 +892,124 @@
 ;;  THE VIEW IS FROM OUTSIDE, so `stations` is already mirrored for FSW/LEW: plan grid g sits at
 ;;  position n-g.  Getting that wrong puts the entrance door at the far end of the building.
 ;; ============================================================================
+;; DISCONTINUOUS RUN — `perBay` panels centred in each bay, plain sheeting between the groups.
+;; The two end sheets are kept clear the same way: a bay is skipped when its group would fall
+;; inside them. Returns how many panels were drawn, so the leader reports what is on the wall.
+(defun peb-fr-wl-per-bay (data surf ox base faceLen stations sill panL cover perBay endSheets
+                          / nSt i x0 x1 grpW gx k drawn clearL clearR)
+  (setq nSt (length stations) drawn 0 i 0
+        grpW   (* perBay cover)
+        clearL (* endSheets cover)
+        clearR (- faceLen (* endSheets cover)))
+  (while (< (1+ i) nSt)
+    (setq x0 (nth i stations) x1 (nth (1+ i) stations))
+    ;; centre the group in the bay
+    (setq gx (- (/ (+ x0 x1) 2.0) (/ grpW 2.0)))
+    (if (and (>= gx clearL) (<= (+ gx grpW) clearR) (< grpW (abs (- x1 x0))))
+      (progn
+        (setq k 0)
+        (while (< k perBay)
+          (peb-acc-light-elev (+ ox gx (* k cover)) (+ base sill) cover panL surf)
+          (setq drawn (1+ drawn) k (1+ k)))))
+    (setq i (1+ i)))
+  drawn)
+
+;; ── WALL LIGHTS ON THE WALL SHEETING ELEVATION ─────────────────────────────────────────
+;; STANDING RULE (owner 3-Sep-2026): "wall lights will come on the Walls Sheeting Plan". It is a
+;; CLADDING item - it replaces a sheet on the sheet module - so it is drawn where the sheeting is
+;; drawn, not on the framing elevation.
+;;
+;; Everything comes from the BSF and nothing is re-derived here (golden rule 24):
+;;   WA_LIGHT_ON     the Include tick - the gate, same as every other accessory
+;;   WA_LIGHT_WALLS  which walls carry the band
+;;   WA_LIGHT_SILL   already computed as clear height - panel length, so the head lands on the
+;;                   clear-height line; the drawing just reads it
+;;   WA_LIGHT_L/_W   the panel, _W being the sheet cover
+;;
+;; The panel is drawn by the COMPONENT LIBRARY - the same drawer the roof plan and the sample
+;; use (rule 1). No panel geometry lives in this file.
+(defun peb-fr-wall-lights (data surf ox base faceLen stations
+                           / on walls sill panL cover n i px lay qty ts czone usable x0
+                             lenMm widMm eaveMm endSheets cont perBay)
+  (setq on    (strcase (peb-tb-or (MSPL-Get-Str data "WA_LIGHT_ON") "No"))
+        walls (strcase (peb-tb-or (MSPL-Get-Str data "WA_LIGHT_WALLS") ""))
+        sill  (MSPL-Get-Num data "WA_LIGHT_SILL")
+        panL  (MSPL-Get-Num data "WA_LIGHT_L")
+        cover (MSPL-Get-Num data "WA_LIGHT_W")
+        cont  (peb-tb-or (MSPL-Get-Str data "WA_LIGHT_CONTINUITY") "Continuous")
+        perBay (max 1 (MSPL-Get-Int data "WA_LIGHT_PER_BAY"))
+        qty   (MSPL-Get-Int data "WA_LIGHT_QTY")
+        ts    (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)
+        lenMm (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
+        widMm (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
+        eaveMm (+ (peb-clear-height data) (peb-eave-add data)))
+  (if (or (null cover) (<= cover 0.0)) (setq cover 1000.0))
+  (if (and (= on "YES") (boundp 'peb-acc-light-elev)
+           sill panL (> panL 0.0) (>= sill 0.0) (> faceLen cover)
+           (or (wcmatch walls "*ALL*4*") (wcmatch walls (strcat "*" surf "*"))
+               (and (wcmatch walls "*BOTH*SIDEWALL*") (member surf '("NSW" "FSW")))))
+    (progn
+      (setq lay (getvar "CLAYER"))
+      ;; ── TWO PLAIN SHEETS AT EACH END, THEN THE LIGHTS IN THE MIDDLE ─────────────────────
+      ;; "we always must have sheeting on both side 2 sheets same sheeting and then apply in the
+      ;; middle" - and "on side walls if have 48 meter then after deduction of 2 wall lights on
+      ;; both sides, balance should left 44 No's" (owner 4-Sep-2026).
+      ;;
+      ;; TWO. FLAT. This briefly read `max(2, ceil(cornerZone / cover))`, which rounded the clear
+      ;; end up to 3 sheets on this building and left 42 where 44 was expected. The wind vortices
+      ;; at the corner are the REASON the two sheets are there; they are not a second calculation
+      ;; to layer on top of the number. And two is the visual limit as well - "if we will leave
+      ;; more panels on sides, then it do not look good": stop three or four sheets short and the
+      ;; wall reads as two blank ends with a strip in the middle.
+      (setq endSheets 2)
+      (setq usable (- faceLen (* 2.0 endSheets cover)))
+      (setq n (if (> usable cover) (fix (/ usable cover)) 0))
+      (setq x0 (+ ox (* endSheets cover)) i 0)
+      ;; CONTINUOUS fills that middle run; DISCONTINUOUS puts `perBay` panels in each bay and
+      ;; leaves plain sheeting between the groups (owner: the No. per Bay dropdown).
+      (if (and (wcmatch (strcase cont) "*DISCONT*") stations (> (length stations) 1))
+        (setq n (peb-fr-wl-per-bay data surf ox base faceLen stations sill panL cover perBay endSheets))
+        (while (< i n)
+          (setq px (+ x0 (* i cover)))
+          (peb-acc-light-elev px (+ base sill) cover panL surf)
+          (setq i (1+ i))))
+      ;; ── A GIRT ON BOTH SIDES OF THE BAND (owner 4-Sep-2026) ─────────────────────────────
+      ;; "Fiberglass Wall Lights ... needs the Girts on Both Sides." A fiberglass panel is the
+      ;; weakest sheet on the wall and it is not self-supporting across its length: it has to be
+      ;; fixed along BOTH edges, so a girt runs at the SILL and another at the HEAD of the band.
+      ;; Without them the panel is held only by the sheets it laps, which is what fails first
+      ;; under the suction the corner rule is also guarding against.
+      ;; Drawn the full length of the wall, because that is how a girt runs - it does not start
+      ;; and stop with the band.
+      (if (> n 0)
+        (progn
+          (peb-comp-layer "GIRTS" 6)
+          (peb-acc-line ox (+ base sill)      (+ ox faceLen) (+ base sill)      "GIRTS" 13)
+          (peb-acc-line ox (+ base sill panL) (+ ox faceLen) (+ base sill panL) "GIRTS" 13)))
+      ;; ONE leader per ELEVATION, carrying THIS WALL'S OWN COUNT (owner 4-Sep-2026: "Give
+      ;; separate no. on each elevation ... if on the endwall 10 No's skylights are coming, then
+      ;; we may write 10 No's").
+      ;;
+      ;; It used to print WA_LIGHT_QTY - the BSF's TOTAL for the whole building - on every wall,
+      ;; so a 93-panel job read "93 No." on the NSW and "93 No." again on the FSW: 186 to anyone
+      ;; reading the sheet. An elevation must describe what that elevation shows. The building
+      ;; total belongs to the accessory schedule and the estimate, not to four separate leaders.
+      ;; `n` is the whole panels actually drawn on THIS wall, so the label and the drawing agree
+      ;; by construction.
+      (if (boundp 'peb-label-with-leader)
+        (vl-catch-all-apply
+          (function (lambda ()
+            (peb-label-with-leader
+              (strcat (itoa n) " No. FIBERGLASS WALL LIGHT - TYPE")
+              (list (+ ox faceLen (* 2000.0 ts)) (+ base sill panL))
+              (list (+ x0 (* 1.5 cover)) (+ base sill (/ panL 2.0)))
+              "V" (peb-th 'ANNOT))))))
+      (setvar "CLAYER" lay)))
+  (princ))
+
 (defun peb-fr-doors (data surf ox base faceLen stations revView
-                     / nSt dk qty gf gt dw dh dtyp dop x0 x1 cx bayClear di dsy lab prev)
+                     / nSt dk qty gf gt dw dh dtyp dop x0 x1 cx bayClear di dsy lab prev
+                       sldOK)
   (setq qty (MSPL-Get-Int data (strcat "DR_" surf "_N")))
   (if (or (null stations) (< (length stations) 2) (null qty) (< qty 1))
     (princ)
@@ -920,9 +1036,39 @@
               (progn
                 (peb-comp-layer "COMP-DOOR" 4)
                 (setvar "CLAYER" "COMP-DOOR")
-                (command "_.RECTANG" (list (+ ox cx (/ dw -2.0)) base)
-                                     (list (+ ox cx (/ dw  2.0)) (+ base dh)))
-                ;; a roll-up reads by its slats; a swing door does not have them
+                ;; ── A SLIDING DOOR IS DRAWN BY ITS OWN COMPONENT ──────────────────────────
+                ;; Every accessory on this elevation used to be the RECTANG below, so a louver,
+                ;; a light panel and a sliding door plotted identically. Library/Sliding Doors
+                ;; draws the real thing: leaf, cover trims, panel field at the cladding's own
+                ;; pitch, top track and hood, floor rail on its stubs, wheels, and the pilot
+                ;; door when the BSF says there is one.
+                ;;   NO PARKED GHOST on a building elevation - it would run into the next bay.
+                ;;   The label below is left to this file, so every door on the sheet is named
+                ;;   the same way whatever drew it.
+                ;; TRY the component, and fall back to the rectangle if it is not loaded or
+                ;; it throws. A type test would have answered only the first of those, and when
+                ;; it answered wrongly the sheet fell through to a plain rectangle with nothing
+                ;; anywhere to say so - the silent-failure class this engine keeps meeting.
+                (setq sldOK nil)
+                (if (wcmatch dtyp "*SLID*")
+                  (setq sldOK
+                    (not (vl-catch-all-error-p
+                      (vl-catch-all-apply 'peb-sld-elevation
+                        (list (+ ox cx (/ dw -2.0)) base dw dh
+                              (peb-sld-leaves-of dop)
+                              -1
+                              (peb-sld-ptype-of
+                                (MSPL-Get-Str data
+                                  (strcat "DR_" surf "_" (itoa dk) "_CLADDING")))
+                              (peb-sld-wicket-of
+                                (MSPL-Get-Str data
+                                  (strcat "DR_" surf "_" (itoa dk) "_PILOT")))
+                              nil nil))))))
+                (if (not sldOK)
+                  (command "_.RECTANG" (list (+ ox cx (/ dw -2.0)) base)
+                                       (list (+ ox cx (/ dw  2.0)) (+ base dh))))
+                ;; a roll-up reads by its slats; a swing door does not have them, and a
+                ;; sliding door has already drawn its own face
                 (if (wcmatch dtyp "*ROLL*")
                   (progn
                     (setq di 1)
@@ -943,12 +1089,20 @@
                             (if (and dop (wcmatch (strcase dop) "*ELECTRIC*"))
                               "AUTO SHUTTER DOOR" "ROLL-UP SHUTTER DOOR")
                             dtyp))
+                ;; WHERE THE LABEL GOES depends on whether the door has a FACE.
+                ;; An empty rectangle has room inside it and that is where the label belongs -
+                ;; above the door it collided with the canopy fascia callout. A SLIDING door is
+                ;; no longer empty: it has a leaf, a panel face, cover trims and a meeting stile,
+                ;; and the two lines landed unreadably across all of them. So a drawn door hangs
+                ;; its label BELOW the floor rail, clear of everything it names.
+                (setq dsy (if sldOK (- base 900.0) (+ base (* dh 0.60))))
                 (vl-catch-all-apply (function (lambda ()
-                  (txt "MC" (list (+ ox cx) (+ base (* dh 0.60)))
+                  (txt "MC" (list (+ ox cx) dsy)
                        (peb-fit-txt-h lab (* dw 0.80) (peb-th 'SMALL)) 0 lab))))
                 (setq lab (strcat (peb-comma (rtos dw 2 0)) " x " (peb-comma (rtos dh 2 0))))
+                (setq dsy (if sldOK (- base 1500.0) (+ base (* dh 0.40))))
                 (vl-catch-all-apply (function (lambda ()
-                  (txt "MC" (list (+ ox cx) (+ base (* dh 0.40)))
+                  (txt "MC" (list (+ ox cx) dsy)
                        (peb-fit-txt-h lab (* dw 0.55) (peb-th 'SMALL)) 0 lab))))))))
         (setq dk (1+ dk)))
       (setvar "CLAYER" prev)
@@ -1033,6 +1187,22 @@
   ;; exactly what the title block on this very sheet prints. Holding both in one variable
   ;; is what drew the wall 1,300 mm short and then dimensioned it as the full height.
   (setq eaveH (+ clrH (peb-eave-add data)))
+  ;; ── FEED RULE G1 (owner 4-Sep-2026) ────────────────────────────────────────────────────
+  ;; The girt levels are anchored on the clear height and on the light band's sill and head, so
+  ;; peb-fr-wallface needs all three. They travel as specials because AutoLISP is dynamically
+  ;; scoped and wallface is called from five places mid-way through a wall of locals - threading
+  ;; three more parameters through every call site would be a bigger change than the rule.
+  ;; The band levels are what the BSF already settled (WA_LIGHT_SILL / _HEAD); nothing is
+  ;; re-derived here (golden rule 24).
+  ;; NO `let` HERE - AutoLISP has no such function. Using it threw "no function definition: LET",
+  ;; which killed the drawer and produced a BLANK sheeting elevation with a title block and
+  ;; nothing else. Plain setq, and a nil when the value is absent or zero.
+  (setq *PEB-WF-CLEAR* clrH)
+  (setq *PEB-WF-SILL* (MSPL-Get-Num data "WA_LIGHT_SILL"))
+  (if (or (null *PEB-WF-SILL*) (<= *PEB-WF-SILL* 0.0)) (setq *PEB-WF-SILL* nil))
+  (setq *PEB-WF-HEAD* (MSPL-Get-Num data "WA_LIGHT_HEAD"))
+  (if (or (null *PEB-WF-HEAD*) (<= *PEB-WF-HEAD* 0.0)) (setq *PEB-WF-HEAD* nil))
+
   (if (<= slopeD 0.0) (setq slopeD 10.0))
   (if (<= eaveH 0.0)  (setq eaveH 6000.0))
   (if (= stype "ACS") (setq stype "CS"))     ; arched plans mirror straight geometry
@@ -1793,14 +1963,47 @@
     (setq ggY (+ ggY ggSp)))
   (princ))
 
-(defun peb-fr-wallface (ox0 flen wbase gbase colhw owText eaveTop skipBaseLine / gsp pdep i gy owU isRcc hEnt bc bx0 by0 bx1 by1)
+(defun peb-fr-wallface (ox0 flen wbase gbase colhw owText eaveTop skipBaseLine
+                        / gsp pdep i gy owU isRcc hEnt bc bx0 by0 bx1 by1 lv)
   (setvar "CLAYER" "GIRTS")
-  (setq gsp 1400.0 pdep 60.0 i 1)
-  (while (< (+ wbase gbase (* i gsp)) (- eaveTop 200.0))
-    (setq gy (+ wbase gbase (* i gsp)))
-    (command "_.LINE" (list ox0 gy) (list (+ ox0 flen) gy) "")
-    (command "_.LINE" (list ox0 (+ gy pdep)) (list (+ ox0 flen) (+ gy pdep)) "")
-    (setq i (1+ i)))
+  ;; ── RULE G1: THE GIRTS ARE ANCHORED, NOT STEPPED (owner 4-Sep-2026) ────────────────────
+  ;; This was `gsp 1400.0` stepped up from the dado while below `eaveTop - 200`. Two things were
+  ;; wrong with it:
+  ;;   * the -200 exactly cancels the purlin depth inside peb-eave-add, so the real ceiling was
+  ;;     `clear height + HAUNCH` - 700 mm at a 15 m span, 1100 at 50 m. The ladder was allowed to
+  ;;     climb up to 1100 mm ABOVE the clear height, i.e. above the column it fixes to, with
+  ;;     nothing to carry it at either end of the wall. That is the defect the owner spotted:
+  ;;     "top girts is going up from the Clear Height and there is not support for that on both
+  ;;      sides columns."
+  ;;   * it was a fixed step, so the last space was whatever was left over.
+  ;;
+  ;; Now the levels come from peb-acc-girt-levels in the component library: anchored on the dado
+  ;; top, the light band's sill and head, and a top girt at `clear - 200`, with each zone between
+  ;; anchors divided into equal spaces no greater than the maximum. ONE source, shared with the
+  ;; sheeting elevation, so the same wall cannot show girts at two different heights on two
+  ;; sheets (golden rule 3).
+  (setq pdep 60.0)
+  (setq lv (if (and (boundp 'peb-acc-girt-levels)
+                    (boundp '*PEB-WF-CLEAR*) *PEB-WF-CLEAR* (> *PEB-WF-CLEAR* 0.0))
+             (peb-acc-girt-levels (+ wbase gbase)
+                                  (+ wbase (if (boundp '*PEB-WF-CLEAR*) *PEB-WF-CLEAR* 0.0))
+                                  (if (and (boundp '*PEB-WF-SILL*) *PEB-WF-SILL*)
+                                    (+ wbase *PEB-WF-SILL*) nil)
+                                  (if (and (boundp '*PEB-WF-HEAD*) *PEB-WF-HEAD*)
+                                    (+ wbase *PEB-WF-HEAD*) nil))
+             nil))
+  (if lv
+    (foreach gy lv
+      (command "_.LINE" (list ox0 gy) (list (+ ox0 flen) gy) "")
+      (command "_.LINE" (list ox0 (+ gy pdep)) (list (+ ox0 flen) (+ gy pdep)) ""))
+    ;; fallback: the old ladder, for a standalone load with no library present
+    (progn
+      (setq gsp 1400.0 i 1)
+      (while (< (+ wbase gbase (* i gsp)) (- eaveTop 200.0))
+        (setq gy (+ wbase gbase (* i gsp)))
+        (command "_.LINE" (list ox0 gy) (list (+ ox0 flen) gy) "")
+        (command "_.LINE" (list ox0 (+ gy pdep)) (list (+ ox0 flen) (+ gy pdep)) "")
+        (setq i (1+ i)))))
   (if (> gbase 200.0)
     (progn
       (if (not skipBaseLine)
@@ -1951,6 +2154,22 @@
   ;; exactly what the title block on this very sheet prints. Holding both in one variable
   ;; is what drew the wall 1,300 mm short and then dimensioned it as the full height.
   (setq eaveH (+ clrH (peb-eave-add data)))
+  ;; ── FEED RULE G1 (owner 4-Sep-2026) ────────────────────────────────────────────────────
+  ;; The girt levels are anchored on the clear height and on the light band's sill and head, so
+  ;; peb-fr-wallface needs all three. They travel as specials because AutoLISP is dynamically
+  ;; scoped and wallface is called from five places mid-way through a wall of locals - threading
+  ;; three more parameters through every call site would be a bigger change than the rule.
+  ;; The band levels are what the BSF already settled (WA_LIGHT_SILL / _HEAD); nothing is
+  ;; re-derived here (golden rule 24).
+  ;; NO `let` HERE - AutoLISP has no such function. Using it threw "no function definition: LET",
+  ;; which killed the drawer and produced a BLANK sheeting elevation with a title block and
+  ;; nothing else. Plain setq, and a nil when the value is absent or zero.
+  (setq *PEB-WF-CLEAR* clrH)
+  (setq *PEB-WF-SILL* (MSPL-Get-Num data "WA_LIGHT_SILL"))
+  (if (or (null *PEB-WF-SILL*) (<= *PEB-WF-SILL* 0.0)) (setq *PEB-WF-SILL* nil))
+  (setq *PEB-WF-HEAD* (MSPL-Get-Num data "WA_LIGHT_HEAD"))
+  (if (or (null *PEB-WF-HEAD*) (<= *PEB-WF-HEAD* 0.0)) (setq *PEB-WF-HEAD* nil))
+
   (if (<= slopeD 0.0) (setq slopeD 10.0))
   (if (<= eaveH 0.0) (setq eaveH 6000.0))
   (if (= stype "ACS") (setq stype "CS"))
@@ -2264,7 +2483,11 @@
     (peb-fr-canopy data surf ox base faceLen stations revView wallEave))))
   ;; rule 4B.47 - shutter / personnel doors, one per bay
   (vl-catch-all-apply (function (lambda ()
-    (peb-fr-doors data surf ox base faceLen stations revView))))
+    (peb-fr-doors data surf ox base faceLen stations revView)
+     ;; ...and the WALL-LIGHT BAND. Only here, on the SHEETING elevation - the wall light is a
+     ;; cladding item, so it is drawn where the sheeting is drawn (standing rule, owner 3-Sep-2026).
+     ;; The framing elevation above deliberately does NOT get it.
+     (peb-fr-wall-lights data surf ox base faceLen stations))))
   (setvar "CLAYER" prev)
   (princ))
 

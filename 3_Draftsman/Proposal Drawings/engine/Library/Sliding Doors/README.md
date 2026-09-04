@@ -291,7 +291,47 @@ with both leaves shown parked, so it can be laid beside `reference/MSPL-121_2024
 and compared line for line. That is the point — a sample at an invented "standard size" cannot be
 checked against anything.
 
-## Syncing into the building drawings
+## SYNCED — 4-Sep-2026, live on MSPL-26-266
+
+The three edits are made and the door is on the sheet.
+
+1. `services/drawingData.ts` `loadLines` — `Library/Sliding Doors/MAIMAAR_PEB_SlidingDoor.lsp`.
+2. `MAIMAAR_PEB_Framing.lsp` `peb-fr-doors` — a `*SLID*` door goes to `peb-sld-elevation`
+   instead of the `RECTANG` every accessory used to be. The call goes through
+   `vl-catch-all-apply` and falls back to the rectangle if the component is not loaded **or if it
+   throws** — a type test would have covered only the first, and when a type test answered wrongly
+   the first time, the sheet quietly fell through to a plain rectangle with nothing anywhere
+   saying so.
+3. The **placement rule**, on the BSF side where it belongs. The BSF offers "Per bay" as well as
+   "Specific grid" and only the grid mode was ever resolved: with no `placeGridFrom` the range
+   list came out empty, so nothing was positioned and **nothing was drawn**. MSPL-26-266 ticks
+   two sliding doors — priced, written into the proposal, and absent from the sheet. The count is
+   what the estimate prices, so the count is what is drawn, spread evenly along the wall.
+
+Two more facts now travel with the door because they change how it is DRAWN, not just what it
+costs: `DR_*_CLADDING` (→ EPS / PIR / SINGLE) and `DR_*_PILOT` (→ the wicket).
+
+**A drawn door cannot hold a label on its face.** `peb-fr-doors` put its two label lines at 0.60
+and 0.40 of the door height, which was right while every door was an empty rectangle. A sliding
+door now has a leaf, a panel face, trims and a meeting stile there. A drawn door hangs its label
+below the floor rail; a roll-up keeps its label inside, where there is still nothing.
+
+**No parked ghost on a building elevation** — it would run into the next bay and into the door
+beside it. The caller says whether to show it; the sample does, the sheet does not.
+
+### Verified on MSPL-26-266
+
+Inquiry 5403. Two sliding doors, `Double (Top/Dual) sliding`, 3658 × 3658, *"cladding similar as
+wall cladding"* → **PIR**, pilot *"Without"* → no wicket. One per sidewall at bay 3–4. 237
+entities on the `SLIDING DOOR` layer of `MSPL-26-266_B-01`, on the NSW and FSW sheeting
+elevations, rendered in 52 s.
+
+**Open clash, not this component's to fix:** a fiberglass wall light is placed in the same bay and
+lands on top of the door. The wall-light placer does not know a door is there. That is a
+`geometryRules.js` decision — the two placers need to see each other — and it belongs on the BSF
+side, not in either drawer.
+
+## The original three-edit sync, for the next component
 
 Three small, reviewable edits (golden rules, *Syncing*):
 

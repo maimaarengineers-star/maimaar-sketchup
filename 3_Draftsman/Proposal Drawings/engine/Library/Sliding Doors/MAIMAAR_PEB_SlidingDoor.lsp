@@ -466,7 +466,7 @@
 ;;    Returns (xmin ymin xmax ymax), so a caller placing it on a sheeting elevation knows what
 ;;    to keep clear — the door needs far more wall than the opening.
 ;; ---------------------------------------------------------------------------
-(defun peb-sld-elevation (ox oy ow oh leaves hand ptype lbl
+(defun peb-sld-elevation (ox oy ow oh leaves hand ptype wicket ghost lbl
                           / lw lh lb lt ytop tx0 tx1 xL xR run th)
   (peb-sld-layer-ensure)
   (if (null hand) (setq hand -1))
@@ -486,10 +486,13 @@
       (peb-sld-track tx0 tx1 ytop)
       (peb-sld-hood  tx0 tx1 ytop)
       (peb-sld-floor tx0 tx1 oy)
-      (peb-sld-ghost (- xL run) lb lw lh)
-      (peb-sld-ghost (+ xR lw 100.0) lb lw lh)
-      (peb-sld-leaf xL lb lw lh  1 ptype T)    ; left leaf leads RIGHT, carries the wicket
-      (peb-sld-leaf xR lb lw lh -1 ptype nil)  ; right leaf leads LEFT
+      ;; the PARKED leaf is a component-sample device: on a real wall elevation it would run
+      ;; into the next bay and into the door beside it, so the caller says whether to show it.
+      (if ghost
+        (progn (peb-sld-ghost (- xL run) lb lw lh)
+               (peb-sld-ghost (+ xR lw 100.0) lb lw lh)))
+      (peb-sld-leaf xL lb lw lh  1 ptype wicket)   ; left leaf leads RIGHT, carries the wicket
+      (peb-sld-leaf xR lb lw lh -1 ptype nil)      ; right leaf leads LEFT
       (peb-sld-leaf-clips xL lb lw  1)
       (peb-sld-leaf-clips xR lb lw -1)
       (peb-sld-arrow (+ xL (* lw 0.5)) (+ lb (* lh 0.62)) (* lw 0.30) -1)
@@ -503,11 +506,11 @@
       (peb-sld-track tx0 tx1 ytop)
       (peb-sld-hood  tx0 tx1 ytop)
       (peb-sld-floor tx0 tx1 oy)
-      (peb-sld-ghost (if (> hand 0) (+ xL lw 100.0) (- xL run)) lb lw lh)
+      (if ghost (peb-sld-ghost (if (> hand 0) (+ xL lw 100.0) (- xL run)) lb lw lh))
       ;; hand +1 = parks RIGHT, so the leaf's RIGHT edge is the one that seals against the far
       ;; jamb - that is where the leading strip goes, and the wicket therefore sits at the LEFT
       ;; end, the last part of the leaf to clear the opening. MSPL-121 draws it exactly there.
-      (peb-sld-leaf xL lb lw lh hand ptype T)
+      (peb-sld-leaf xL lb lw lh hand ptype wicket)
       (peb-sld-leaf-clips xL lb lw hand)
       (peb-sld-arrow (+ xL (* lw 0.5)) (+ lb (* lh 0.62)) (* lw 0.22) hand)))
   (if lbl
@@ -642,7 +645,7 @@
   ;; the wall the door sits in - development scaffolding, not part of the component
   (peb-sld-context -6500.0 15700.0 0.0 4000.0 0.0 ow nil 1500.0)
 
-  (setq ext (peb-sld-elevation 0.0 0.0 ow oh 1 1 "EPS"
+  (setq ext (peb-sld-elevation 0.0 0.0 ow oh 1 1 "EPS" T T
               "SLIDING DOOR  9144 [30'] x 2438 [8']  -  MSPL-121, EPS SANDWICH"))
   (setq tx0 (nth 0 ext) tx1 (nth 2 ext))
 
@@ -698,6 +701,35 @@
 SLIDING DOOR sample drawn: MSPL-121, single leaf, 9144 x 2438, with wicket.")
   (princ))
 
+
+
+;;; ============================================================================
+;;;  13) READING THE BSF'S OWN WORDS
+;;;  The BSF states the door in the words a salesman picked from a dropdown. These turn those
+;;;  words into the drawer's arguments, and they live HERE rather than in the sheet file because
+;;;  the drawer owns what its own arguments mean. The DATA still belongs to the BSF (rule 24) -
+;;;  nothing below reads it, each takes the string it is handed.
+;;; ============================================================================
+
+;; "Double (Top/Dual) sliding" -> 2 · anything else -> 1
+(defun peb-sld-leaves-of (op)
+  (if (and op (wcmatch (strcase op) "*DOUBLE*")) 2 1))
+
+;; "cladding similar as wall cladding" -> PIR (it reads as the wall)
+;; "...EPS..." -> EPS · "...single skin..." / "...framed..." -> SINGLE · else the default
+(defun peb-sld-ptype-of (cl / c)
+  (setq c (strcase (if cl cl "")))
+  (cond ((wcmatch c "*SINGLE SKIN*")   "SINGLE")
+        ((wcmatch c "*SINGLE*SHEET*")  "SINGLE")
+        ((wcmatch c "*EPS*")           "EPS")
+        ((wcmatch c "*PIR*")           "PIR")
+        ((wcmatch c "*SIMILAR AS WALL*") "PIR")
+        ((wcmatch c "*AS WALL*")       "PIR")
+        (T (peb-sld-ptype-default))))
+
+;; the pilot / wicket door: "With" draws it, "Without" does not
+(defun peb-sld-wicket-of (p)
+  (if (and p (wcmatch (strcase p) "WITH*") (not (wcmatch (strcase p) "WITHOUT*"))) T nil))
 
 ;; command wrapper, so the sample can also be drawn by hand inside an open AutoCAD
 (defun c:SLDSAMPLE () (peb-sld-sample))
