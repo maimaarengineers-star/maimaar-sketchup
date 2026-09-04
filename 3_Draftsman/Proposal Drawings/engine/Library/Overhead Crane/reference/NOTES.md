@@ -200,3 +200,57 @@ lineweight are the only two variables left. Both are used together:
 
 The motor reads almost solid, which is the point — it is the part that must be picked out at a
 glance. Everything stays dotted, because none of it is Maimaar's steel.
+
+---
+
+# SIZING RULES — bridge girder and crane beam (5-Sep-2026)
+
+## Anchored on a built job, not a table
+
+Owner: *"Recently we have done the production of bridge which was almost **1000mm deep for 50 Ft
+span of 10 Tons Capacity**."*
+
+    50 ft = 15,240 mm · 10 MT · 1,000 mm deep   ->   span / 15.24
+
+That one measured point replaced the **span/18** this component had been carrying, which was a
+stylised guess and was printed on the sheet as such. A girder that was actually fabricated
+outranks any rule of thumb (rule 20).
+
+### Bridge girder depth
+
+    d = (span / 15.24) x (capacity / 10) ^ 0.20      clamped span/22 .. span/11
+
+Depth is driven by span first; capacity matters but weakly — a 50 MT bridge on the same span is
+deeper than a 10 MT one, not five times deeper. Checked:
+
+| case | span | cap | rule gives |
+|---|---|---|---|
+| **the built job** | 15,240 | 10 MT | **1,000** ✓ exact |
+| Thal 125-23 | 21,335 | 10 MT | 1,400 |
+| Thal 125-23 | 21,335 | 50 MT | 1,932 |
+| MSPL-26-276 | 17,690 | 10 MT | 1,161 |
+
+### The end taper
+
+Owner: *"at the Edges It Reduces to 300-350mm from the Bottom Side"* — and *"Top View of Crane
+Bridge is Straight and Web from the Bottom Side Turns to Reduce on Both Edges."*
+
+* the **TOP runs straight** the whole span — it has to, the trolley runs on that flange and a
+  taper there would put a kink in its running surface;
+* the depth comes off the **SOFFIT**, rising **325 mm** (300–350) toward each end;
+* a fixed rise, not a percentage — that is how it was described and how it is cut, the same
+  whatever the span. Floored at 40% of mid-span depth so a shallow girder cannot taper away.
+
+So the 1,000 girder finishes about **675 deep** at the end carriage.
+
+### Crane beam (runway)
+
+A different member with a different rule — it spans the **bay**, not the crane span:
+
+    d = bay / 12   (cap <= 15 MT)      d = bay / 10   (above)      min 400
+
+The break at 15 MT is Thal's own construction note: *"All runway beams for crane lifts less than
+or equal to 15MT are built-up sections with double side fillet weld."* At and below 15 MT it is a
+plate girder; above, a heavier section — hence the steeper rule.
+
+Girder width in plan = 0.55 x depth (a box girder is about half as wide as it is deep).
