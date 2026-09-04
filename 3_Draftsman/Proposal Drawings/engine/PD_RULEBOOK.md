@@ -322,6 +322,27 @@ or in the price. Standalone insulation is single-skin only.
 
 **S43 — The proposal sheet shows the COVER WIDTH; the folds belong to the approval drawing.**
 → **4B.50**
+⭐ **And that applies to the FACE, not only the detail: a sheeted surface shows ONE LINE PER PANEL
+JOINT at the cover width, plus the two end edges** (owner 4-Sep-2026: *"if we have 22m length of
+end wall, there must be 22 or 23 lines to show 2 side lines of each panel, for all roofs and all
+walls"*). `n = L ÷ cover` panels → `n+1` lines. **22 m at 1000 cover = 22 panels, 23 lines.**
+- **The cover is the DEVELOPED profile's own** (owner: *"place exactly same sheeting profile of
+  sheeting developed M35-250"*). M35-250 is a 35 mm rib on a **250** pitch and FOUR pitches make
+  the **1000** cover — taken from `peb-sheet-cover` (Framing.lsp), never retyped. It rides the
+  wire as `PN_<KEY>_COVER`, so a **LOCK SEAM** surface lays out at **470**, matching what its own
+  DETAILS sheet prints.
+- **A part panel is a panel.** 22.3 m is 22 full + a 300 closer = 23 panels, 24 lines. Flooring
+  the count left a short band that read as a full panel.
+- **Ribs are not drawn on the face.** They are a roll-forming dimension; the DETAILS sheet draws
+  the true profile. The wall face used to step **333** — neither the rib (250) nor the panel
+  (1000) — so a 22 m wall carried ~66 identical lines with no readable joint while the roof band
+  above it drew 23.
+- **The legibility floor is in PAPER mm.** Joint spacing on A4 ≈ `219 × cover ÷ L`; below
+  **1.5 mm** the lines plot as a grey band (GOLDEN_RULES M2, and the PDF is monochrome), so
+  `peb-panel-lines` thins to every 2nd joint, then every 3rd. The old guard was *"more than 400
+  runs"* — a model-space count, the wrong unit, which never fired on the sheets that went grey.
+- One source for all five surfaces: `peb-panel-cover` / `peb-panel-lines` (Standard.lsp). Guarded
+  by `tests/sheetingPanelLines.test.js`. Fixed 4-Sep-2026. → §0.10/C24
 
 **S44 — Do not publish a number DESIGN will set** — and LOAD the file to prove it parses.
 → **4B.49**
@@ -387,8 +408,13 @@ fact, not a curiosity.**
 every sheet. The only exception is the title-block **company name**, which stays bold Arial.
 The Arial/`romans.shx` literals in Standard.lsp are overridden at runtime. → **3.7**
 
-**S55 — Dimension arrowheads are the OPEN V. Leader and callout heads stay FILLED.** That is
-both halves of the rule. Ticks are retired. → **3.7, 4B.62**
+**S55 — Dimension arrowheads are the OPEN V, at `300/95`. Leader and callout heads stay FILLED.**
+That is both halves of the rule. Ticks are retired. One size across the set — Framing (3 sites)
+and Section (4 sites, monitor dims included) all draw `300/95 × scale`; the staircase sizes its
+own ticks off the text height. Native `DIMASZ` is separate and unchanged (320 plan / 600 section).
+**The head is 300/95, not 240/85** — the 3-Sep unification shrank it as a side effect and it was
+restored 4-Sep on the owner's call: at A4 the finer head stopped reading as an arrow.
+→ **3.7, 4B.62**
 
 **S56 — EVERY dimension is in MILLIMETRES.** General Note 1 says so, so a bare number needs no
 unit. **Feet belong on the OVERALL extent — length, width, height — and nothing else.**
@@ -703,6 +729,8 @@ now marked superseded at its source.
 
 | C22 | **Slope/fall symbol deviates between the CLP and the roof sheets.** `peb-fall-glyph-set` is correctly shared, but it branches on `stype`, and Plan.lsp normalised the type while Framing.lsp (PRO-05a/05b) read `STYPE` raw. `Roof.lsp` had the normalisation — and is dead code. | **FIXED 4-Sep.** One resolver, `peb-plan-stype` (Standard.lsp); CLP and both roof drawers call it. The CLP's own result is unchanged (the body moved verbatim). |
 | C23 | **The golden-rule check passed vacuously.** `renderDwg` wrapped the read of `_bbox.txt`/`_vpview.txt` in `catch { return [] }`, so a run that wrote no measurements was filed as fully checked; and the check walked only the drawn sheets, so a layout with nothing behind it was invisible. | **FIXED 4-Sep.** Fails closed on missing/empty evidence, and walks the tabs as well as the sheets. Two new tests. |
+
+| C24 | **Four sheeting drawers, four different panel layouts.** Three hardcoded `1000`; the WALL FACE on the sheeting elevations stepped `333` — neither the M35-250 rib (250) nor its cover (1000). A 22 m wall drew ~66 lines with no readable joint while the roof band above it drew 23; and a lock-seam job drew 1000-wide panels while its own DETAILS sheet printed "470 COVER" (4B.7). | **FIXED 4-Sep.** `peb-panel-cover` / `peb-panel-lines` (Standard.lsp) are the one source; the cover comes off the wire (`PN_<KEY>_COVER`) and falls back to `peb-sheet-cover`, the DETAILS sheet's own M35-250 accessor. Part panel drawn; legibility floor moved into paper mm. |
 
 **Still open, deliberately.**
 - `peb-comp-fall` draws the old FALL glyph on canopy strips (C9).
@@ -2970,7 +2998,12 @@ it drew a second kind of bubble into the same set.
 
 **Arrowheads — four sizes and two styles became one.** The cross section drew its dimension heads
 as a filled triangle (`PLINE` + `HATCH SOLID`) against the 19-Jul rule, while the *same file's*
-monitor dims drew them open. Every dimension arrowhead in the set is now the OPEN `240/85` V.
+monitor dims drew them open. Every dimension arrowhead in the set is now the OPEN **`300/95`** V.
+⚠ **Size, restored 4-Sep-2026.** This unification also SHRANK the head — the framing and elevation
+arrows had been `300/95` and were taken to `240/85` in the same commit, which was never the point
+of the change. At A4 the finer head stopped reading as an arrow. The one size is `300/95`; the
+STYLE (open, not solid) is what 4B.62 is actually about, and that is unchanged. Native `DIMASZ`
+(320 on the plan, 600 in the section) was never part of this and was not touched.
 Leader and callout heads stay **filled** — that is the other half of the rule.
 
 **Feet belong on the OVERALL extent, not on every dimension.** 3.8b reads as "mm + ft-in

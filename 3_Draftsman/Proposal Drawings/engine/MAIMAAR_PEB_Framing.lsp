@@ -2210,11 +2210,16 @@
       ;; is a different member from a girt. Without it the sheet between the top girt and the
       ;; eave is drawn hanging on nothing - which was the other half of the defect.
       ;; eaveTop is absolute; the strut sits just under it, like the purlin it shares a line with.
-      (setq esY (- eaveTop 100.0))
+      ;; ONE MEMBER, SHARING THE EAVE LINE (owner 4-Sep-2026: "Framing Elevation is disturbed,
+      ;; top lines are closing"). This drew at eaveTop-100 with its OWN 60 mm web, so the sheet
+      ;; got three lines inside 100 mm - 6376 / 6436 / 6476 on this building, about 0.4 mm apart
+      ;; at 1:259, reading as one thick smudge along the top of the wall.
+      ;; It was wrong in principle too: on a framing elevation THE EAVE LINE ALREADY IS the top
+      ;; of the eave strut, so a separate member below it draws the same steel twice. One line at
+      ;; eaveTop - pdep makes the eave line its other flange - exactly how a girt is drawn.
+      (setq esY (- eaveTop pdep))
       (if (> esY (+ wbase gbase))
-        (progn
-          (command "_.LINE" (list ox0 esY) (list (+ ox0 flen) esY) "")
-          (command "_.LINE" (list ox0 (+ esY pdep)) (list (+ ox0 flen) (+ esY pdep)) ""))))
+        (command "_.LINE" (list ox0 esY) (list (+ ox0 flen) esY) "")))
     ;; fallback: the old ladder, for a standalone load with no library present
     (progn
       (setq gsp 1400.0 i 1)

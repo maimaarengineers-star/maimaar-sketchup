@@ -639,6 +639,73 @@
     (setq s "CS"))
   s)
 
+;; ---------------------------------------------------------------------------
+;; peb-panel-cover / peb-panel-lines - THE panel layout for every sheeting surface.
+;;
+;; RULE (owner 4-Sep-2026): "if we have 22m length of end wall, there must be 22 or 23
+;; lines to show 2 side lines of each panel, for all roofs and all walls", and
+;; "place exactly same sheeting profile of sheeting developed M35-250".
+;;
+;; So a sheeting sheet shows ONE LINE PER PANEL JOINT at the COVER width, plus the two end
+;; edges: n = L/cover panels -> n+1 lines.  22 m at 1000 cover = 22 panels, 23 lines.
+;; That is 4B.50 applied to the FACE instead of the detail - the proposal states the COVER
+;; and nothing finer; ribs and folds are roll-forming dimensions and belong to the DETAILS
+;; sheet, which draws the true developed profile.
+;;
+;; THE COVER IS THE DEVELOPED PROFILE'S OWN.  M35-250 is a 35 mm rib on a 250 pitch and
+;; FOUR pitches make the 1000 cover, so the number is taken from peb-sheet-cover (the
+;; DETAILS-sheet accessor, Framing.lsp) and never retyped here.  Its own comment already
+;; said "these accessors make the sheet the SOURCE, and every other drawer reads the
+;; profile from it" - the sheeting drawers were the ones that did not.  S83: a 100% match
+;; means ONE SOURCE, not two literals that agree today.
+;;
+;; WHAT WAS WRONG.  Three drawers hardcoded 1000 and a fourth - the WALL FACE on the
+;; sheeting elevations - stepped 333, which is not a pitch of anything: the real rib is
+;; 250.  A 22 m wall came out with ~66 identical lines and no readable joint while the roof
+;; beside it drew 23.  And because the number was a constant, a LOCK SEAM job drew
+;; 1000-wide panels on PRO-04/05 while its own DETAILS sheet printed "470 COVER" from
+;; peb-sd-lockseam: one set contradicting itself, which is 4B.7.
+;;
+;; key is "ROOF" or "WALL" (the PN_ family the surface belongs to).
+(defun peb-panel-cover (data key / v c)
+  (setq v (MSPL-Get-Str data (strcat "PN_" key "_COVER")))
+  (setq c (if (= v "") 0.0 (atof v)))
+  ;; Blank or nonsense = a legacy row with no profile captured, which means the standard
+  ;; developed profile.  Never 0: it would divide by zero or draw a line per millimetre.
+  (if (< c 100.0)
+    (setq c (if (boundp 'peb-sheet-cover) (peb-sheet-cover) 1000.0)))
+  c)
+
+;; The joint stations across a face of length len, EXCLUDING the two end edges (every drawer
+;; already closes its own outline; drawing them again doubles the edge pen).
+;;
+;; THE PART PANEL IS REAL.  22.3 m of wall is 22 full panels and a 300 mm closer, so the
+;; remainder gets its own station - flooring the count left a short band at the end that
+;; read as a full panel.
+;;
+;; AND THE LINES MUST STILL READ.  Every sheet is framed on the same A4 drawing area, so the
+;; paper spacing of the joints is (areaW x cover / len) mm and the drawer can work it out
+;; for itself - no plot scale needed.  Below ~1.5 mm the lines stop being information and
+;; plot as a grey band (the frequency clash GOLDEN_RULES M2 warns about; the proposal PDF is
+;; monochrome, so tone carries nothing).  Thin to every 2nd joint, then every 3rd, rather
+;; than going grey.  The old guard was "more than 400 runs" - a model-space count, which is
+;; the wrong unit: it never fires on the sheets that actually go grey.
+(defun peb-panel-lines (len cover / out x step areaW minMm)
+  (setq areaW 219.0      ; A4 landscape less margins and the title-block strip (peb-add-layout)
+        minMm   1.5
+        step  cover)
+  (if (and (> len 0.0) (> cover 0.0))
+    (while (and (< (/ (* areaW step) len) minMm) (< step len))
+      (setq step (+ step cover))))
+  (setq out '() x step)
+  (while (< x (- len 1.0))          ; 1 mm: never sit a joint on top of the end edge
+    (setq out (cons x out))
+    (setq x (+ x step)))
+  ;; The closer needs no station of its own: the last full joint plus the face's own end edge
+  ;; already bound it.  22.3 m gives joints at 1000..22000 and the edge at 22300 - 23 panels,
+  ;; the last one 300 wide.  22.0 m gives 1000..21000 and the two edges: 22 panels, 23 lines.
+  (reverse out))
+
 (defun peb-all-sheets (path)
   (if (boundp 'peb-cover-from-file)        (peb-cover-from-file path))
   (if (boundp 'peb-plan-from-file)         (peb-plan-from-file path))
