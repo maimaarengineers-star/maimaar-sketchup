@@ -569,3 +569,43 @@ principles — and when they disagree with the reasoning, they win.
 `peb-panel-lines` thins to every 2nd joint, then every 3rd. Never bypass it with a hard-coded
 step — `MAIMAAR_PEB_Elevation.lsp` stepped a literal 1500 (neither rib nor cover) and so escaped
 the guard entirely.
+
+## 35. NEVER NAME A LOCAL `t` — IT IS THE TRUE CONSTANT, AND THE DRAWING JUST STOPS
+
+`(defun peb-crn-hook (cx cy R t lw / a) …)` — `t` as a parameter — cost the entire bottom half of
+the crane sample sheet: the hoist detail, the enlarged beam detail and the data block, all gone.
+
+`T` is AutoLISP's **true** constant. Binding it as a local rebinds truth for the whole dynamic
+extent of the call, and it is not reliably handed back. Everything downstream that closes a `cond`
+with `(T …)` — which is most helpers, `txt` among them — then falls straight through and returns
+nil.
+
+**Nothing errors.** `vl-catch-all-apply` reported "no error" through five separate diagnostic
+runs. The sheet does not break; it *ends early*, and an early-ending sheet looks exactly like a
+sheet that finished.
+
+How it was finally caught, in the order that worked:
+
+1. `parencheck.js` — clean. It proves the FILE balances, which is not the question.
+2. `scratchpad/defunspan.js` (written for this) — prints the LINE SPAN of every top-level `defun`.
+   This is the tool that rules out "a stray `)` closed the function 60 lines early", which was the
+   leading theory and was wrong.
+3. Export a DXF and **list every TEXT with its coordinates**. The last one drawn names the exact
+   statement execution reached. Everything after it is the suspect region.
+4. Read that region for a `command` left open, or for a **local shadowing a built-in**.
+
+Also on this list, from the same file: never name a nested local after a function you call, and
+`(vl-catch-all-apply 'f)` with **no argument list** is itself malformed — it errors uncaught, the
+`setq` never happens, and the harness then cheerfully prints "no error". It must be
+`(vl-catch-all-apply (function f) (list …))`.
+
+## 36. A LIBRARY SAMPLE IS VERIFIED BY ZOOMING INTO IT, NOT BY ITS FILE SIZE
+
+The sheet PNG is a viewport grab at screen aspect. A drawing taller than the screen loses
+everything below the fold, so a truncated sheet and a complete one produce PNGs that look alike.
+Use `scratchpad/zoomshot.js <dwg> x0 y0 x1 y1` to shoot a named region, and get the region from
+the DXF (`measure_dxf.js --type TEXT`) rather than from arithmetic — the first guess at where a
+block sat was 12,000 units out, and an empty shot was read as "the code never ran".
+
+PDF byte size is a real signal though: this sheet went 30 KB → 121 KB the moment the truncation
+was fixed. A deliverable that suddenly shrinks has lost something.

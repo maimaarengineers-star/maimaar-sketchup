@@ -94,95 +94,241 @@
 ;;
 ;; Degrades honestly: too shallow to carry flanges (under ~4 stiffener widths) and it draws the
 ;; plain box it always did, rather than inventing detail it has no room for.
-(defun peb-crn-bridge-elev (x0 y0 x1 y1 / w d fl st n i x tp ed)
+;; THE END WEB. Owner 5-Sep-2026, the sentence that closed it:
+;;   "Actually Girder Depth is more but once it reach to Ends, End Web Reduces to 300-350mm to
+;;    Keep on the End Carriage"
+;; So the two 300-350 figures are the SAME figure, and now the reason is plain: the girder's end
+;; web is cut down to the depth of the end carriage BECAUSE that is what it lands on. It is not a
+;; proportion of the girder - it is the carriage's depth, and the GH table gives 345 for a 250
+;; wheel, which sits inside the quoted band.
+;; The band was given three times and settled upward each time: "300-350mm", then "Girder Depth
+;; Reduce form 1200mm to 350mm-400 with one Tapered Cut Just Before the It Reaches to End
+;; Carriage", then "which reduces to 350-450mm on Edges". 400 is the middle of the last and
+;; sits inside the one before it. ONE tapered cut, just before the carriage - not a long wedge,
+;; and not two cuts.
+(defun peb-crn-girder-end-web () 400.0)
+
+(defun peb-crn-bridge-elev (x0 y0 x1 y1 / w d fl tp ed ep)
   (setq w (abs (- x1 x0))
         d (abs (- y1 y0)))
   (if (or (< w 1.0) (< d 1.0))
     (princ)
     (progn
-      ;; ── THE WEB REDUCES AT THE ENDS (owner 5-Sep-2026: "Draw the Geometry of Section on
-      ;;    Edges the Web of Bridge Reduces") ─────────────────────────────────────────────────
-      ;; A welded box girder is deepest at mid-span where the moment is, and tapers toward each
-      ;; end where it only has to deliver shear into the end truck. Drawn as a constant-depth
-      ;; box it reads as a piece of tube, not a designed member. The taper runs over the outer
-      ;; 12% of the span each side and takes the end down to 55% of the mid-span depth.
-      ;; THE TOP STAYS STRAIGHT; THE REDUCTION IS TAKEN FROM UNDERNEATH (owner 5-Sep-2026: "Top
-      ;; View of Crane Bridge is Straight and Web from the Bottom Side Turns to Reduce on Both
-      ;; Edges"). It has to be: the trolley runs on the TOP flange, so that line is level for the
-      ;; whole span and cannot taper. The depth comes off the SOFFIT, which rises toward each end
-      ;; where the girder only has shear left to deliver. Tapering both faces, as this did, would
-      ;; put a kink in the trolley's own running surface.
-      (setq tp (* w 0.12)
-            ed (max (* d 0.40) (- d (peb-crn-end-reduction))))   ; END depth, after the soffit rise
+      ;; ── A DEEP STRAIGHT BOX THAT DROPS TO THE CARRIAGE AT EACH END ─────────────────────────
+      ;; Three messages, in order, and the drawing only settled when all three were held at once:
+      ;;
+      ;;   "Crane Bridge is Deep Rectangular Box & Stiffners Hide inside & do not visible on
+      ;;    Side View"
+      ;;   "Shape is not like a Notch but Straight Box Rest on on Crane End Carriage on Both
+      ;;    Sides"                                   <- marked in red on this very view
+      ;;   "Actually Girder Depth is more but once it reach to Ends, End Web Reduces to 300-350mm
+      ;;    to Keep on the End Carriage"
+      ;;
+      ;; The reduction is REAL, and it was drawn wrong twice before this. First over the outer
+      ;; 12% of the span, which turns a 21 m girder into a 2.5 m long wedge at each end - that is
+      ;; the NOTCH the owner circled. Then removed altogether, which lost the landing.
+      ;;
+      ;; What is right: the box runs STRAIGHT AND FULL DEPTH almost to the end, then the soffit
+      ;; rises over a SHORT length - about one girder depth - to leave 350-450 where it sits on
+      ;; the carriage. On this sheet that is 1.4 m of taper in a 21.3 m span, 6% not 24%, and it
+      ;; reads as a box landing on a carriage rather than as a wedge.
+      ;;
+      ;; THE TOP STAYS STRAIGHT, ALWAYS. The trolley runs on it, so it cannot taper.
+      ;; The end depth is the CARRIAGE's depth, not a fraction of the girder's - see
+      ;; peb-crn-girder-end-web above.
+      ;;
+      ;; Pen: peb-crn-dash - the CRANEBRG short-dash, because the bridge is the crane supplier's
+      ;; scope and not Maimaar's.
+      ;; THE END PIECE IS SHORT. Owner 5-Sep-2026: "and Pieces Length is hardly may be 400mm" /
+      ;; "which Just Rest on Crane End Carriage". So the reduced end is a STUB about 400 long -
+      ;; just enough to seat on the carriage - and the taper is ONE cut running from the stub
+      ;; back up to full depth. Not a wedge that eats a tenth of the span.
+      (setq ed (min (* d 0.55) (peb-crn-girder-end-web))     ; never deeper than the girder
+            ep (min (* w 0.03) 400.0)                        ; the stub that rests on the carriage
+            tp (min (* w 0.09) (* 1.2 (- d ed))))            ; the single tapered cut
       (peb-crn-dash x0 y1 x1 y1)                                    ; TOP - straight, full span
-      (peb-crn-dash x0 (- y1 ed) (+ x0 tp) y0)                      ; soffit rising into the end
-      (peb-crn-dash (+ x0 tp) y0 (- x1 tp) y0)                      ; soffit, full depth run
-      (peb-crn-dash (- x1 tp) y0 x1 (- y1 ed))                      ; soffit rising into the end
-      (peb-crn-dash x0 (- y1 ed) x0 y1)                             ; the reduced ends
+      (peb-crn-dash x0 (- y1 ed) (+ x0 ep) (- y1 ed))               ; the 400 stub, on the carriage
+      (peb-crn-dash (+ x0 ep) (- y1 ed) (+ x0 ep tp) y0)            ; ONE tapered cut, up to depth
+      (peb-crn-dash (+ x0 ep tp) y0 (- x1 ep tp) y0)                ; soffit - straight, full depth
+      (peb-crn-dash (- x1 ep tp) y0 (- x1 ep) (- y1 ed))
+      (peb-crn-dash (- x1 ep) (- y1 ed) x1 (- y1 ed))
+      (peb-crn-dash x0 (- y1 ed) x0 y1)                             ; the end web, on the carriage
       (peb-crn-dash x1 (- y1 ed) x1 y1)
-      (setq fl (* d 0.18))                        ; flange thickness as a fraction of the depth
-      (if (> d (* fl 4.0))
+      ;; the box's own top and bottom plates. At 0.18 d the plate came to 216 on a 1,200 girder,
+      ;; and the guard below - twice the plate must fit inside the 400 end web - then failed, so
+      ;; the girder plotted as a bare outline with no plates at all. 0.11 d is both nearer a real
+      ;; box girder's plate and thin enough to survive into the reduced end.
+      (setq fl (* d 0.11))
+      (if (and (> d (* fl 4.0)) (> ed (* fl 2.0)))
         (progn
-          (peb-crn-dash x0 (- y1 fl) x1 (- y1 fl))                       ; top flange - straight
-          (peb-crn-dash (+ x0 tp) (+ y0 fl) (- x1 tp) (+ y0 fl))         ; bottom flange, full run
-          (peb-crn-dash x0 (- y1 ed (- 0 fl)) (+ x0 tp) (+ y0 fl))       ; and up the taper
-          (peb-crn-dash (- x1 tp) (+ y0 fl) x1 (- y1 ed (- 0 fl)))))
-      ;; stiffeners at roughly 1.5 x depth, which is what a welded plate girder actually carries;
-      ;; clamped so a very long shallow bridge does not turn into a comb.
-      (setq st (max (* d 1.5) (/ w 12.0))
-            n  (max 1 (min 10 (fix (/ w st))))
-            i  1)
-      (while (< i n)
-        (setq x (+ x0 (* (/ w (float n)) i)))
-        (peb-crn-dash x (+ y0 fl) x (- y1 fl))
-        (setq i (1+ i)))
+          (peb-crn-dash x0 (- y1 fl) x1 (- y1 fl))                             ; top plate
+          (peb-crn-dash (+ x0 ep tp) (+ y0 fl) (- x1 ep tp) (+ y0 fl))         ; bottom plate
+          (peb-crn-dash x0 (+ (- y1 ed) fl) (+ x0 ep) (+ (- y1 ed) fl))        ; along the stub
+          (peb-crn-dash (- x1 ep) (+ (- y1 ed) fl) x1 (+ (- y1 ed) fl))
+          (peb-crn-dash (+ x0 ep) (+ (- y1 ed) fl) (+ x0 ep tp) (+ y0 fl))     ; up the cut
+          (peb-crn-dash (- x1 ep tp) (+ y0 fl) (- x1 ep) (+ (- y1 ed) fl))))
+      ;; NO STIFFENERS. Owner: "No Need to show the Stiffners and they hide in the Box of Crane
+      ;; Bridge". A closed box carries its diaphragms inside; nothing of them shows on an
+      ;; elevation, so the comb of vertical lines this used to draw was inventing a detail that
+      ;; does not exist on the real machine. (The crane BEAM keeps its stiffeners - an I-section
+      ;; carries them on the OUTSIDE of the web, and they are on Maimaar's own cutting list as
+      ;; ST4, 128 off.)
       (princ))))
 
-;; ═══════════════════════════════════════════════════════════════════════════════════════════
-;;  SIZING RULES — BRIDGE GIRDER AND CRANE BEAM, BY SPAN
-;;  (owner 5-Sep-2026: "Develop the Rules for Size of Bridge and Crane Beams for Different Spans")
-;; ═══════════════════════════════════════════════════════════════════════════════════════════
+;; ── WHAT THE "300-350" ACTUALLY WAS ────────────────────────────────────────────────────────
+;; Owner 5-Sep-2026, settling it: "It is straight Box but Depth of only 300-350mm while other
+;; Bridge Depth is 1000mm-1400mm sometime."
 ;;
-;; ANCHORED ON A BUILT JOB, NOT A RULE OF THUMB. Owner: "Recently we have done the production of
-;; bridge which was almost 1000mm deep for 50 Ft span of 10 Tons Capacity."
+;; So the 300-350 is the END CARRIAGE, not a taper in the girder. Two earlier messages -
+;; "the Web of Bridge Reduces" at the edges, and "at the Edges It Reduces to 300-350mm from the
+;; Bottom Side" - were read here as a girder that thins toward its ends, and a peb-crn-end-depth
+;; rule was built on that reading. It was wrong twice over: first as a fixed 325, then as a
+;; 0.325 ratio, and the drawing that came out of it was the wedge the owner circled and called a
+;; notch.
 ;;
-;;      50 ft = 15,240 mm span · 10 MT · 1,000 mm deep   ->   span / 15.24
+;; The truth is simpler and the whole assembly now agrees with it:
+;;      BRIDGE GIRDER   straight box, 1000-1400 deep   (span/15.24 -> 1000 at 15,240; 1400 at 21,335)
+;;      END CARRIAGE    straight box, 300-350 deep     (GH table A10 = 345 for a 250 wheel)
+;; The girder is deep because it spans; the carriage is shallow because it only has to carry the
+;; girder onto two wheels. The step between the two is what the eye reads at the end of the
+;; bridge - not a taper in the girder itself.
 ;;
-;; That one measured point replaces the span/18 this component had been carrying, which was a
-;; stylised guess and was labelled as such on the sheet. A number from a girder that was actually
-;; fabricated outranks any table (rule 20).
-;;
-;; CAPACITY MATTERS TOO, but weakly — depth is driven by span first. A 50 MT bridge on the same
-;; span is deeper than a 10 MT one, not five times deeper. The exponent 0.20 puts Thal's 50 MT at
-;; 21.335 m span at about 1,940 mm, which is the right order for that machine.
-;;
-;;      d = (span / 15.24) x (capacity / 10) ^ 0.20
-;;
-;; Clamped to span/22 .. span/11 so an odd capacity can never produce a silly section.
-;; THE END REDUCTION IS A FIXED AMOUNT, NOT A RATIO (owner 5-Sep-2026: "at the Edges It Reduces
-;; to 300-350mm from the Bottom Side"). Read as the soffit RISING 300-350 mm toward each end, so
-;; the 1,000 mm girder finishes about 675 deep where it meets the end carriage — which is the
-;; normal proportion for that connection. Taken as a fixed rise rather than a percentage because
-;; that is how it was described and how it is fabricated: the same cut whatever the span.
-;; Floored at 40% of mid-span depth so a shallow girder cannot taper away to nothing.
-(defun peb-crn-end-reduction () 325.0)
+;; peb-crn-end-depth is GONE rather than kept "in case": a rule nobody calls is a rule nobody
+;; maintains, and this one encoded a misreading.
 
 (defun peb-crn-girder-depth (span cap / d)
   (if (or (null cap) (<= cap 0.0)) (setq cap 10.0))
-  (setq d (* (/ span 15.24) (expt (/ cap 10.0) 0.20)))
-  (max (/ span 22.0) (min (/ span 11.0) d)))
+  (setq d (* (+ 500.0 (/ span 30.5)) (expt (/ cap 10.0) 0.20)))
+  (max (/ span 30.0) (min (/ span 11.0) d)))
 
-;; THE CRANE BEAM spans the BAY, not the crane span — a different member with a different rule.
-;; Depth about bay/12 is the working proportion for a built-up runway in this class. Thal 125-23
-;; states the construction: "All runway beams for crane lifts less than or equal to 15MT are
-;; built-up sections with double side fillet weld" — so at and below 15 MT it is a plate girder,
-;; and above that a heavier section, which is why the rule steepens there.
+;; ── THE CRANE BEAM — READ OFF THE MSPL-032 SINGLE-PART SHEET ───────────────────────────────
+;; Owner 5-Sep-2026: "i am talking about MSPL-032" / "Show the Solid Thickness of Crane Beam
+;; Plates Webs and Flanges". So this is no longer a recollection — it is the fabrication sheet.
+;;
+;; reference/MSPL-032_crane-beams-and-plates.pdf, single parts (the sheet is RASTER: neither
+;; PDFIMPORT nor the text layer reads it, the five embedded crops in reference/single-parts/ are
+;; the source):
+;;
+;;      CRB-1   PL 8 X 400    5936 long    4 off      web plate
+;;      CRB-2   PL 8 X 400    6086 long    4 off      web plate
+;;      OF34    PL 10 X 225   5936 long    4 off      flange
+;;      OF37    PL 10 X 225   5936 long    4 off      flange
+;;      OF35    PL 10 X 225   6086 long    4 off      flange
+;;      OF33    PL 10 X 225   6086 long    4 off      flange
+;;      ST4     FL 8 X 108    400 tall     128 off    web stiffener
+;;
+;; Two web marks, four flange marks, two flanges to a beam: eight runway beams, 5936 and 6086
+;; long, which are the 6096 (20 ft) runway bays less the end gaps. The building is 30480 O/O
+;; across in two 15240 (50 ft) spans — the 50 ft crane span the owner quoted.
+;;
+;; THE THREE PARTS AGREE WITH EACH OTHER, which is what makes them trustworthy:
+;;      (225 - 8) / 2 = 108.5  ->  ST4 is FL 8 X 108
+;; the stiffener runs from the web face to the flange tip, so its 108 confirms both the 225
+;; flange and the 8 web independently. Overall section depth = 400 + 10 + 10 = 420.
+;;
+;; The owner recalled "400mm Web and 300mm Flange". The web is exactly 400; the flange on the
+;; sheet is 225, not 300, and the stiffener proves it. The sheet wins — golden rule 19.
+;;
+;; It spans the BAY, not the crane span. bay/12 — the figure this carried — needs a 4.8 m bay to
+;; produce 400, and real bays are 6 to 8 m, so it was over-sizing by a quarter to a half.
+;; bay/15 gives exactly 400 at the 6096 bay MSPL-032 was built on. Capacity lifts it, and more
+;; strongly than it lifts the bridge, because a runway carries the wheel loads directly.
 (defun peb-crn-beam-depth (bay cap / d)
   (if (or (null cap) (<= cap 0.0)) (setq cap 10.0))
-  (setq d (/ bay (if (<= cap 15.0) 12.0 10.0)))
+  (if (or (null bay) (<= bay 0.0)) (setq bay 6096.0))
+  (setq d (* (/ bay 15.0) (expt (/ cap 10.0) 0.25)))
+  ;; snapped to 25 mm - a web is cut from plate to a round width, and the raw 406 this returns
+  ;; at the MSPL-032 bay would have printed "PL 8 X 406" against a sheet that says 400.
+  (setq d (* 25.0 (fix (+ 0.5 (/ d 25.0)))))
   (max 400.0 d))
 
-;; Girder width in plan follows the depth — a box girder is about half as wide as it is deep.
+;; Plate is bought in stock thicknesses, so a derived thickness is SNAPPED to one. Without this
+;; the section would call out "PL 8.4 X 400", which is not a plate anyone can cut.
+(defun peb-crn-plate-round (t1 / r)
+  (setq r 6.0)
+  (foreach n (list 6.0 8.0 10.0 12.0 16.0 20.0 25.0 32.0) (if (<= n t1) (setq r n)))
+  r)
+
+;; The proportions that go with the depth, all from the sheet above.
+(defun peb-crn-beam-flange (d) (* d 0.5625))                    ; 225 on a 400 web
+(defun peb-crn-web-thk    (d) (peb-crn-plate-round (* d 0.02)))  ; PL 8  on a 400 web
+(defun peb-crn-flange-thk (d) (peb-crn-plate-round (* d 0.025))) ; PL 10 on a 400 web
+(defun peb-crn-stiff-thk  (d) (peb-crn-web-thk d))               ; ST4 is the same 8 as the web
+;; the stiffener reaches from the web face to the flange tip - that is what makes it 108
+;; FLOORED, not rounded: (225 - 8) / 2 is 108.5 and the sheet says FL 8 X 108. A stiffener is
+;; cut short of the flange tip, never proud of it, so the half-millimetre always goes downwards.
+(defun peb-crn-stiff-width (d)
+  (float (fix (/ (- (peb-crn-beam-flange d) (peb-crn-web-thk d)) 2.0))))
+;; ── THE RAIL ──────────────────────────────────────────────────────────
+;; Owner 5-Sep-2026, in order, each message narrowing the last:
+;;   "Railing was too small Almost 100mm deep ... and small in the sides welded in the middle of
+;;    Crane Beam and Wheel on Top of Crane Rail"
+;;   "See the Ratio of Crane Beam and Crane Rail" (sending reference/1-2-1.png)
+;;   "Crane is relatively too small and just in the middle of Crane Beam"
+;;   "Crane Rail is Also 50mmx50mm I Section Like a Railing" / "Railway Track"
+;;   "As per My Idea and Wheel Rest of Crane Rail"
+;;
+;; So: 50 X 50, AN I-SECTION - a railway track in miniature, foot / web / head, with the wheel
+;; resting on the head. Not the 100 x 68 this carried: on a 400 deep beam that drew a rail a
+;; quarter of the beam's depth, and the whole point of the reference photograph was that the rail
+;; is SMALL against the beam. 50 on 400 is one eighth, which is what the reference shows.
+;;
+;; Held as a RATIO of the web depth so it tracks a bigger beam, and floored at 50 so it never
+;; drops below the section actually used.
+;; STIFFENER SPACING, counted off the sheet rather than assumed. ST4 is 128 off. There are
+;; eight beams (CRB-1 x4 at 5936, CRB-2 x4 at 6086), and a stiffener comes in PAIRS - one each
+;; side of the web - so 128 / 8 / 2 = 8 pairs per beam, and 5936 / 8 is about 742.
+(defun peb-crn-stiff-spacing (bmlen n)
+  (if (or (null bmlen) (<= bmlen 0.0)) (setq bmlen 5936.0))
+  (if (or (null n) (<= n 0)) (setq n 8))
+  (/ bmlen (float n)))
+
+(defun peb-crn-rail-depth  (d) (max 50.0 (* d 0.125)))    ; 50 on the built 400
+(defun peb-crn-rail-width  (d) (max 50.0 (* d 0.125)))    ; square - "50mmx50mm I Section"
+
+;; ══ THE END CARRIAGE ═══════════════════════════════════════════════════════════════════════
+;; Owner 5-Sep-2026: "There are End Carriage on Both Ends with Wheels on Bottom" / "have a look
+;; of End Carriage Shape" / "with a Wheel on bottom runs on Crane Rail", sending the GH Cranes &
+;; Components END CARRIAGES catalogue, now in reference/.
+;;
+;; It is a WELDED BOX with an end plate each end, a wheel at each end projecting below it, and
+;; the travel gearmotor hung on one of them. The girders land on top of it - for a double girder
+;; crane, at two seats spaced the trolley span apart. That is the shape; here are its numbers.
+;;
+;; GH "END CARRIAGES FOR SINGLE AND DOUBLE GIRDER CRANES", read off the dimension table
+;; (reference/End carriages .../end-carriages-6405_4b.jpg):
+;;
+;;   wheel D    A10 depth   A2-A1 overhang   A5 end    A16 width
+;;     100         228           332          118/160     ---
+;;     125         235           360          125         103
+;;     160         302.5         435          160         103
+;;     250         345           565          250         128
+;;     315         477.5         625          315         128
+;;
+;; A5 IS THE WHEEL DIAMETER at every size from 125 up - the end of the box is one wheel deep.
+;; A1 is the wheel base and A2 the overall length, so A2 = wheel base + the overhang above.
+(defun peb-crn-carriage-row (wd)
+  (cond ((<= wd 112.0) (list 100.0 228.0   332.0 118.0  90.0))
+        ((<= wd 142.0) (list 125.0 235.0   360.0 125.0 103.0))
+        ((<= wd 205.0) (list 160.0 302.5   435.0 160.0 103.0))
+        ((<= wd 282.0) (list 250.0 345.0   565.0 250.0 128.0))
+        (T             (list 315.0 477.5   625.0 315.0 128.0))))
+
+;; Wheel diameter, off the GH WHEEL SELECTION CHART (double girder band):
+;;   <=3.2 T -> 125 · <=6.3 T -> 160 · <=12.5 T -> 250 · <=20 T -> 315 · <=25 T -> 400 · else 500
+;; The chart's own footnote is worth keeping: "Given information is approximate. Final wheel
+;; diameter depends on speed, duty and rail width." So this sizes a PROPOSAL drawing, nothing
+;; more - the crane supplier picks the wheel.
+(defun peb-crn-wheel-dia (cap)
+  (if (or (null cap) (<= cap 0.0)) (setq cap 10.0))
+  (cond ((<= cap 3.2)  125.0) ((<= cap 6.3)  160.0) ((<= cap 12.5) 250.0)
+        ((<= cap 20.0) 315.0) ((<= cap 25.0) 400.0) (T 500.0)))
+
+(defun peb-crn-carriage-depth (cap) (cadr   (peb-crn-carriage-row (peb-crn-wheel-dia cap))))
+(defun peb-crn-carriage-over  (cap) (caddr  (peb-crn-carriage-row (peb-crn-wheel-dia cap))))
+(defun peb-crn-carriage-end   (cap) (nth 3  (peb-crn-carriage-row (peb-crn-wheel-dia cap))))
+(defun peb-crn-carriage-width (cap) (nth 4  (peb-crn-carriage-row (peb-crn-wheel-dia cap))))
+
 (defun peb-crn-girder-width (d) (* d 0.55))
 ;; Is this runway a built-up plate girder? (Thal rule, quoted above.)
 (defun peb-crn-beam-builtup-p (cap) (<= (if cap cap 10.0) 15.0))
@@ -215,21 +361,29 @@
 ;; TIP that curls back up on the far side. Two concentric arcs make the body and a small arc
 ;; closes the tip; the throat opening faces LEFT, as the reference draws it.
 ;;   cx cy  hook centre (the throat's centre) · R outer radius · t material thickness
-(defun peb-crn-hook (cx cy R t lw / a)
+;; NOTE THE PARAMETER NAME. This took "tk", not "t", and the reason is worth the line:
+;; T is the AutoLISP TRUE constant. Binding it as a local rebinds truth itself for the whole
+;; dynamic extent of the call, and AutoLISP does not always hand it back. Everything downstream
+;; that ends a cond with (T ...) - which is most helpers, txt included - then falls straight
+;; through and returns nil. Nothing errors. The drawing simply STOPS, and the sheet looks like a
+;; sheet that finished early rather than one that broke. This cost the whole hoist detail, the
+;; enlarged beam detail and the data block off the sample sheet, with vl-catch-all-apply
+;; reporting "no error" the entire time.
+(defun peb-crn-hook (cx cy R tk lw / a)
   (defun a (r s e)
     (entmake (list (cons 0 "ARC") (cons 8 "COMP-CRANE-SEC") (cons 370 (fix lw))
                    (list 10 cx cy 0.0) (cons 40 r) (cons 50 s) (cons 51 e))))
   (a R 2.9671 6.1087)                       ; outer sweep, 170deg round to 350deg
-  (a (- R t) 2.9671 5.4978)                 ; inner sweep, stops short so the tip tapers
+  (a (- R tk) 2.9671 5.4978)                 ; inner sweep, stops short so the tip tapers
   ;; the tip, closing outer to inner
   (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-SEC") (cons 370 (fix lw))
                  (list 10 (+ cx (* R (cos 5.4978))) (+ cy (* R (sin 5.4978))) 0.0)
-                 (list 11 (+ cx (* (- R t) (cos 5.4978))) (+ cy (* (- R t) (sin 5.4978))) 0.0)))
+                 (list 11 (+ cx (* (- R tk) (cos 5.4978))) (+ cy (* (- R tk) (sin 5.4978))) 0.0)))
   ;; the shank, up from the throat top
   (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-SEC") (cons 370 (fix lw))
                  (list 10 (- cx R) cy 0.0) (list 11 (- cx R) (+ cy (* R 1.15)) 0.0)))
   (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-SEC") (cons 370 (fix lw))
-                 (list 10 (- cx (- R t)) cy 0.0) (list 11 (- cx (- R t)) (+ cy (* R 1.15)) 0.0)))
+                 (list 10 (- cx (- R tk)) cy 0.0) (list 11 (- cx (- R tk)) (+ cy (* R 1.15)) 0.0)))
   (princ))
 
 ;; ── THE CRANE BEAM, RAIL, WHEEL AND BRACKET — TRACED FROM THE REFERENCE ────────────────────
@@ -253,30 +407,40 @@
 ;;   bd bw   crane beam depth and width
 ;;   colX    column face the bracket cantilevers off (nil = no bracket)
 ;;   solid   the caller's solid-line function
-(defun peb-crn-beam-sec (cx railY bd bw colX solid / by0 by1 ft wt rw rh)
+(defun peb-crn-beam-sec (cx railY bd bw colX solid / by0 by1 ft wt rw rh sw st)
   ;; ── AN I-SECTION, NOT A RECTANGLE (owner 5-Sep-2026: "Crane Beam is I-Beam not Rectangular";
-  ;;    "Enlarge it and See it Carefull") ──────────────────────────────────────────────────────
+  ;;    "Enlarge it and See it Carefull") ────────────────────────────────────────────
   ;; Zoomed 22x on the reference the beam is plainly a flanged section: a distinct top flange
   ;; line, a web, a bottom flange line — with the rail on the top flange and its clips either
   ;; side of the web. Drawn as a filled rectangle it is a box section, which is a different
   ;; member and the wrong one: a crane runway on this span is a built-up I (Thal 125-23: "built-up
   ;; sections with double side fillet weld"), and the flanges are the whole point of it.
-  (setq ft (* bd 0.11)                        ; flange thickness
-        wt (* bw 0.16)                        ; web thickness
-        rh (* bd 0.13)                        ; rail height
-        rw (* bw 0.30)                        ; rail width
+  ;;
+  ;; PLATE THICKNESS IS NOW REAL, NOT A RATIO (owner 5-Sep-2026: "Show the Solid Thickness of
+  ;; Crane Beam Plates Webs and Flanges"). It used to carry ft = 0.11 x depth and wt = 0.16 x
+  ;; width — 44 and 48 mm on the MSPL-032 section, where the sheet says 10 and 8. A five-fold
+  ;; error, invisible at building scale, and exactly what the enlarged detail exists to expose.
+  ;;
+  ;;   bd  WEB depth (the 400 of PL 8 X 400)   — overall section is bd + 2 x flange thickness
+  ;;   bw  FLANGE width (the 225 of PL 10 X 225)
+  (setq ft (peb-crn-flange-thk bd)            ; PL 10 on the built 400
+        wt (peb-crn-web-thk bd)               ; PL 8  on the built 400
+        st (peb-crn-stiff-thk bd)             ; ST4, the same 8
+        sw (peb-crn-stiff-width bd)           ; 108 = (225 - 8) / 2
+        rh (peb-crn-rail-depth bd)            ; rail ~0.25 x web  (100 on the built 400)
+        rw (peb-crn-rail-width bd)            ; narrow, welded on the beam centreline
         by1 (- railY rh)                      ; top of the top flange
-        by0 (- by1 bd))                       ; underside of the bottom flange
+        by0 (- by1 bd (* 2.0 ft)))            ; underside of the bottom flange
   ;; RAIL on the top flange, with a clip each side of the web
   (apply solid (list (- cx (/ rw 2.0)) railY (+ cx (/ rw 2.0)) railY))
   (apply solid (list (- cx (/ rw 2.0)) by1 (- cx (/ rw 2.0)) railY))
   (apply solid (list (+ cx (/ rw 2.0)) by1 (+ cx (/ rw 2.0)) railY))
-  ;; TOP FLANGE
+  ;; TOP FLANGE — a plate ft thick
   (apply solid (list (- cx (/ bw 2.0)) by1 (+ cx (/ bw 2.0)) by1))
   (apply solid (list (- cx (/ bw 2.0)) (- by1 ft) (+ cx (/ bw 2.0)) (- by1 ft)))
   (apply solid (list (- cx (/ bw 2.0)) (- by1 ft) (- cx (/ bw 2.0)) by1))
   (apply solid (list (+ cx (/ bw 2.0)) (- by1 ft) (+ cx (/ bw 2.0)) by1))
-  ;; WEB — the two faces, running flange to flange
+  ;; WEB — the two faces, wt apart, running flange to flange
   (apply solid (list (- cx (/ wt 2.0)) (- by1 ft) (- cx (/ wt 2.0)) (+ by0 ft)))
   (apply solid (list (+ cx (/ wt 2.0)) (- by1 ft) (+ cx (/ wt 2.0)) (+ by0 ft)))
   ;; BOTTOM FLANGE
@@ -284,6 +448,12 @@
   (apply solid (list (- cx (/ bw 2.0)) (+ by0 ft) (+ cx (/ bw 2.0)) (+ by0 ft)))
   (apply solid (list (- cx (/ bw 2.0)) by0 (- cx (/ bw 2.0)) (+ by0 ft)))
   (apply solid (list (+ cx (/ bw 2.0)) by0 (+ cx (/ bw 2.0)) (+ by0 ft)))
+  ;; STIFFENER ST4 either side of the web, web face to flange tip — seen edge-on in section, so
+  ;; it is st thick and sw wide. 128 off on MSPL-032, which is why it belongs on the section.
+  (if (> sw (* st 1.5))
+    (progn
+      (apply solid (list (+ cx (/ wt 2.0)) (- by1 ft) (+ cx (/ wt 2.0) sw) (- by1 ft)))
+      (apply solid (list (- cx (/ wt 2.0)) (- by1 ft) (- cx (/ wt 2.0) sw) (- by1 ft)))))
   ;; BRACKET off the column face — the cantilever carrying the beam
   (if colX
     (progn
@@ -495,7 +665,368 @@
   (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-SEC") (cons 370 25)
                  (list 10 xa ya 0.0) (list 11 xb yb 0.0))))
 
-(defun peb-draw-crane-sample (span cap wbase / d et gw rw wr yc y0 yT x0 x1 th tl rx0 rx1 sy L hx hy rxc)
+;; the same steel, but BEHIND the cutting plane - a stiffener between two cuts, seen through the
+;; section. Same layer, lighter pen: on a monochrome plot the weight is the only thing that
+;; separates what is cut from what is merely visible, since colour carries nothing.
+(defun peb-crn-sample-thin (xa ya xb yb)
+  (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-SEC") (cons 370 13)
+                 (list 10 xa ya 0.0) (list 11 xb yb 0.0))))
+
+;; ── DIMENSIONS FOR THE ENLARGED DETAIL ──────────────────────────────────────────
+;; Ticks, not arrowheads: the detail's own dimensions sit inside a 400 mm section blown up 8x,
+;; and a 700-unit DIMASZ arrowhead from the building sheets would be bigger than the plate it
+;; points at. Drawn as plain lines for the same reason peb-crn-sample-dim is — an open DIM
+;; command in a headless script eats the rest of the file (the LISP silent-failure class).
+(defun peb-crn-dimh (x0 x1 y lbl th)
+  (peb-crn-sample-solid x0 y x1 y)
+  (peb-crn-sample-solid x0 (- y (* th 0.5)) x0 (+ y (* th 0.5)))
+  (peb-crn-sample-solid x1 (- y (* th 0.5)) x1 (+ y (* th 0.5)))
+  (txt "MC" (list (/ (+ x0 x1) 2.0) (+ y (* th 0.55))) th 0.0 lbl))
+
+;; A vertical dimension rotates its text into the gap it measures - which only works while the
+;; text is SHORTER than the gap. "GIRDER DEPTH 1200" set at 386 is about 4,070 units long and the
+;; girder it measures is 1,200 deep, so it ran three times past both ends of its own dimension
+;; line and through the title above and the hook note below. When the label will not fit, it is
+;; set horizontally outside the line instead. romand has no metrics here, so the length is the
+;; same 0.62-em estimate measure_dxf.js uses.
+(defun peb-crn-dimv (y0 y1 x lbl th)
+  (peb-crn-sample-solid x y0 x y1)
+  (peb-crn-sample-solid (- x (* th 0.5)) y0 (+ x (* th 0.5)) y0)
+  (peb-crn-sample-solid (- x (* th 0.5)) y1 (+ x (* th 0.5)) y1)
+  (if (< (* (strlen lbl) th 0.62) (abs (- y1 y0)))
+    (txt "MC" (list (- x (* th 0.55)) (/ (+ y0 y1) 2.0)) th 90.0 lbl)
+    (txt "ML" (list (+ x (* th 0.9)) (/ (+ y0 y1) 2.0)) th 0.0 lbl)))
+
+;; a leader: elbow out of the part, then the note
+(defun peb-crn-note (px py tx ty lbl th just)
+  (peb-crn-sample-solid px py tx ty)
+  (peb-crn-sample-solid tx ty (+ tx (if (equal just "ML") (* th 0.8) (- 0 (* th 0.8)))) ty)
+  (txt just (list (+ tx (if (equal just "ML") (* th 1.1) (- 0 (* th 1.1)))) ty) th 0.0 lbl))
+
+;; ── THE CRANE BEAM, ENLARGED — THE VIEW THAT SHOWS THE PLATE THICKNESSES ───────────────
+;; Owner 5-Sep-2026: "Show the Solid Thickness of Crane Beam Plates Webs and Flanges", and
+;; earlier "Crop the Close View of the Junction of Crane Bridge with the I-Beam of Shed and
+;; Bracket". Both are the same drawing: at building scale an 8 mm web is a fifth of a hair and
+;; the bracket is three lines, so the section has to be blown up before either can be judged.
+;;
+;; Every figure below is off reference/MSPL-032_crane-beams-and-plates.pdf — see the single-part
+;; table at peb-crn-beam-depth. Drawn SOLID throughout: the beam, the rail, the bracket and the
+;; column are all Maimaar's steel. Only the wheel and the girder above it are the crane, and
+;; those stay dotted, which is the whole point of showing them together.
+;;
+;;   cx cy   rail centreline, at the underside of the bottom flange
+;;   bd      web depth (400 on MSPL-032)   .   k  enlargement   .   th  text height
+;; ── THE END CARRIAGE, DRAWN ────────────────────────────────────────────────────────────────
+;; Side elevation, seen along the runway - which is the view the catalogue draws it in and the
+;; one that shows what the owner asked for: the box, and a wheel on the bottom at each end
+;; running on the crane rail.
+;;
+;;   cx cy   centre of the carriage, at TOP OF RAIL   ·   wb wheel base   ·   cap capacity
+;;   k       enlargement                              ·   th text height
+;; ── THE END CARRIAGE SEEN END-ON ───────────────────────────────────────────────────────────
+;; What the SIDE VIEW along the girder actually shows at each end: the carriage across the page,
+;; the girder landing square on top of it, and one wheel below on the rail (the second is behind
+;; the first - the wheel base runs into the page in this view). Its whole point is the STEP: a
+;; 1,400 girder sitting on a 345 carriage.
+;;
+;;   cx  the rail centreline · railY top of rail · girderY girder soffit · cap capacity
+(defun peb-crn-carriage-endon (cx railY girderY cap / wd dp r hw yb i)
+  (setq wd (peb-crn-wheel-dia cap)
+        dp (peb-crn-carriage-depth cap)
+        r  (* wd 0.5)
+        ;; seen end-on the box shows its WIDTH. GH gives A16 = 128 for the box itself, but what
+        ;; the eye sees at the end of a bridge is the box plus the wheel flanges standing either
+        ;; side of the rail, so it is drawn to the wheel's flange width - about 1.16 D across.
+        hw (max (* wd 0.58) (* (peb-crn-carriage-width cap) 1.4))
+        yb (+ railY (* wd 0.30)))           ; box soffit, 0.3 D above the rail - the wheel shows
+  ;; the box - straight, and only 300-350 deep against a 1000-1400 girder
+  (peb-crn-dash (- cx hw) yb (+ cx hw) yb)
+  (peb-crn-dash (- cx hw) girderY (+ cx hw) girderY)
+  (peb-crn-dash (- cx hw) yb (- cx hw) girderY)
+  (peb-crn-dash (+ cx hw) yb (+ cx hw) girderY)
+  ;; the wheel below it, on the rail
+  (setq i 0)
+  (while (< i 16)
+    (peb-crn-wheel (+ cx (* r (cos (* i (/ pi 8.0))))) (+ railY r (* r (sin (* i (/ pi 8.0)))))
+                   (+ cx (* r (cos (* (1+ i) (/ pi 8.0)))))
+                   (+ railY r (* r (sin (* (1+ i) (/ pi 8.0))))))
+    (setq i (1+ i)))
+  (peb-crn-wheel (- cx (* r 1.16)) railY (- cx (* r 1.16)) (+ railY (* r 0.62)))
+  (peb-crn-wheel (+ cx (* r 1.16)) railY (+ cx (* r 1.16)) (+ railY (* r 0.62)))
+  (princ))
+
+;; ── THE END CARRIAGE BODY - PURE GEOMETRY ──────────────────────────────────────────────────
+;; Split out from the dimensioned detail so the SIDE VIEW can draw the same carriage in place,
+;; at building scale, under each end of the bridge. Owner 5-Sep-2026: "Show the End Carriage as
+;; well on the Crane BRIDGE Side View".
+;;
+;; Drawn IN PLANE - its full A2 length across the page, both wheels showing. Strictly, looking at
+;; the bridge's side face the carriage runs into the page and only one wheel is visible; drawn
+;; that way it came out as a 425 mm box against a 21 m span, which is honest and tells the reader
+;; nothing. Every crane GA rotates it into the plane for this view, and so does this.
+;;
+;;   cx  centre of the carriage   ·   cy  TOP OF RAIL   ·   wb wheel base   ·   cap capacity
+;;   k   enlargement (1.0 at building scale)
+(defun peb-crn-carriage-body (cx cy wb cap k seats / wd dp ov r x0 x1 a b yb yt gx i)
+  (setq wd (peb-crn-wheel-dia cap)
+        dp (peb-crn-carriage-depth cap)   ov (peb-crn-carriage-over cap)
+        r  (* k wd 0.5)
+        yb (+ cy (* k wd 0.30))           ; box soffit - the wheel stands proud below it
+        yt (+ yb (* k dp))                ; top of the box, where the girder lands
+        x0 (- cx (* k (+ wb ov) 0.5))     ; A2 overall
+        x1 (+ cx (* k (+ wb ov) 0.5))
+        a  (- cx (* k wb 0.5))            ; the two wheel centres, A1 apart
+        b  (+ cx (* k wb 0.5)))
+  ;; THE BOX
+  (peb-crn-dash x0 yb x1 yb)
+  (peb-crn-dash x0 yt x1 yt)
+  (peb-crn-dash x0 yb x0 yt)
+  (peb-crn-dash x1 yb x1 yt)
+  (peb-crn-dash (+ x0 (* k 65.0)) yb (+ x0 (* k 65.0)) yt)      ; the end plates, A3 in
+  (peb-crn-dash (- x1 (* k 65.0)) yb (- x1 (* k 65.0)) yt)
+  ;; THE WHEELS, ON THE BOTTOM, RUNNING ON THE RAIL - round, double flanged
+  (foreach gx (list a b)
+    (progn
+      (setq i 0)
+      (while (< i 16)
+        (peb-crn-wheel (+ gx (* r (cos (* i (/ pi 8.0))))) (+ cy r (* r (sin (* i (/ pi 8.0)))))
+                       (+ gx (* r (cos (* (1+ i) (/ pi 8.0)))))
+                       (+ cy r (* r (sin (* (1+ i) (/ pi 8.0))))))
+        (setq i (1+ i)))
+      (peb-crn-wheel (- gx (* r 0.16)) (+ cy r) (+ gx (* r 0.16)) (+ cy r))       ; axle
+      (peb-crn-wheel (- gx (* r 1.16)) cy (- gx (* r 1.16)) (+ cy (* r 0.62)))    ; flanges
+      (peb-crn-wheel (+ gx (* r 1.16)) cy (+ gx (* r 1.16)) (+ cy (* r 0.62)))
+      (peb-crn-wheel (- gx (* r 1.16)) cy (- gx (* r 0.90)) cy)
+      (peb-crn-wheel (+ gx (* r 1.16)) cy (+ gx (* r 0.90)) cy)))
+  ;; THE GIRDER SEATS on top - a double girder lands at two points. Drawn only when the girder
+  ;; ITSELF is not on the view: on the side view the girder is right there, sitting on them, and
+  ;; the seats came up through its soffit.
+  (if seats
+    (foreach gx (list (- cx (* k wb 0.22)) (+ cx (* k wb 0.22)))
+      (progn
+        (peb-crn-dash (- gx (* k 120.0)) yt (- gx (* k 120.0)) (+ yt (* k dp 0.55)))
+        (peb-crn-dash (+ gx (* k 120.0)) yt (+ gx (* k 120.0)) (+ yt (* k dp 0.55)))
+        (peb-crn-dash (- gx (* k 120.0)) (+ yt (* k dp 0.55)) (+ gx (* k 120.0)) (+ yt (* k dp 0.55))))))
+  ;; THE TRAVEL GEARMOTOR, on one wheel
+  (peb-crn-motor (+ b (* r 1.3)) (+ yb (* k dp 0.18)) (+ b (* r 3.1)) (+ yb (* k dp 0.18)))
+  (peb-crn-motor (+ b (* r 1.3)) (+ yb (* k dp 0.72)) (+ b (* r 3.1)) (+ yb (* k dp 0.72)))
+  (peb-crn-motor (+ b (* r 1.3)) (+ yb (* k dp 0.18)) (+ b (* r 1.3)) (+ yb (* k dp 0.72)))
+  (peb-crn-motor (+ b (* r 3.1)) (+ yb (* k dp 0.18)) (+ b (* r 3.1)) (+ yb (* k dp 0.72)))
+  (princ))
+
+;; ── THE SAME CARRIAGE, DIMENSIONED, AS ITS OWN DETAIL ──────────────────────────────────────
+(defun peb-crn-carriage-elev (cx cy wb cap k th / wd dp ov x0 x1 a b r yb yt)
+  (setq wd (peb-crn-wheel-dia cap)
+        dp (peb-crn-carriage-depth cap)   ov (peb-crn-carriage-over cap)
+        r  (* k wd 0.5)
+        yb (+ cy (* k wd 0.30))           yt (+ yb (* k dp))
+        x0 (- cx (* k (+ wb ov) 0.5))     x1 (+ cx (* k (+ wb ov) 0.5))
+        a  (- cx (* k wb 0.5))            b  (+ cx (* k wb 0.5)))
+  ;; THE RAIL it runs on - Maimaar's steel, so solid
+  (peb-crn-sample-solid (- x0 (* k wd 0.9)) cy (+ x1 (* k wd 0.9)) cy)
+  (peb-crn-sample-solid (- x0 (* k wd 0.9)) (- cy (* k 50.0)) (+ x1 (* k wd 0.9)) (- cy (* k 50.0)))
+  (txt "ML" (list (+ x1 (* k wd 1.1)) (- cy (* k 25.0))) (* th 0.9) 0.0
+       "CRANE RAIL  (MAIMAAR SCOPE)")
+  (peb-crn-carriage-body cx cy wb cap k T)
+  ;; dimensions and notes
+  (peb-crn-dimh a b (+ yt (* k dp 1.5)) (strcat "WHEEL BASE  A1  " (rtos wb 2 0)) th)
+  (peb-crn-dimh x0 x1 (+ yt (* k dp 2.4)) (strcat "OVERALL  A2  " (rtos (+ wb ov) 2 0)) th)
+  (peb-crn-dimv yb yt (- x0 (* k wd 1.4)) (strcat "A10  " (rtos dp 2 0)) th)
+  (peb-crn-note b cy (+ x1 (* k wd 1.1)) (+ cy (* k dp 0.55))
+                (strcat "WHEEL  DIA " (rtos wd 2 0)
+                        "  DOUBLE FLANGED, ON THE BOTTOM") th "ML")
+  (peb-crn-note (+ b (* r 2.2)) (+ yb (* k dp 0.45)) (+ x1 (* k wd 1.1)) (+ yb (* k dp 1.15))
+                "TRAVEL GEARMOTOR" th "ML")
+  (peb-crn-note cx yt (- x0 (* k wd 1.4)) (+ yt (* k dp 0.95))
+                (strcat "WELDED BOX  " (rtos (peb-crn-carriage-width cap) 2 0)
+                        " WIDE  -  THE GIRDERS LAND ON TOP") th "MR")
+  (txt "MC" (list cx (- cy (* k 50.0) (* th 2.2))) (* th 1.05) 0.0
+       "END CARRIAGE  -  ONE AT EACH END OF THE BRIDGE")
+  (txt "MC" (list cx (- cy (* k 50.0) (* th 3.9))) (* th 0.9) 0.0
+       "SIZES FROM THE GH END CARRIAGES CATALOGUE  -  CRANE SUPPLIER'S SCOPE, SHOWN FOR CLEARANCE")
+  (princ))
+
+(defun peb-crn-beam-detail (cx cy bd k th / bw ft wt sw st rh rw
+                            y0 ybf ywt y1 yr xw xf xs wr gy ex ep i n rk rx ry)
+  (setq bw (peb-crn-beam-flange bd)  ft (peb-crn-flange-thk bd)
+        wt (peb-crn-web-thk bd)      st (peb-crn-stiff-thk bd)
+        sw (peb-crn-stiff-width bd)  rh (peb-crn-rail-depth bd)
+        rw (peb-crn-rail-width bd)
+        y0  cy                                   ; underside of the bottom flange
+        ybf (+ cy (* k ft))                      ; top of the bottom flange
+        ywt (+ cy (* k (+ ft bd)))               ; underside of the top flange
+        y1  (+ cy (* k (+ ft bd ft)))            ; top of the top flange
+        yr  (+ y1 (* k rh))                      ; top of rail
+        xf  (* k (/ bw 2.0))                     ; flange half width
+        xw  (* k (/ wt 2.0))                     ; web half thickness
+        xs  (* k sw))                            ; stiffener reach
+
+  ;; ══ 1. THE SECTION ═══════════════════════════════════════════════════════════════════════
+  ;; NOTE WHAT IS NOT HERE: the stiffener. It reaches from the web face to the flange tip - that
+  ;; is what makes it 108 - so drawing its outline in the section puts a line exactly on the
+  ;; flange tips and the I closes up into a BOX, which is a different member. The cut falls
+  ;; between stiffeners; they belong in the elevation beside this, and that is where they are.
+  ;; BOTTOM FLANGE
+  (peb-crn-sample-solid (- cx xf) y0  (+ cx xf) y0)
+  (peb-crn-sample-solid (- cx xf) ybf (+ cx xf) ybf)
+  (peb-crn-sample-solid (- cx xf) y0  (- cx xf) ybf)
+  (peb-crn-sample-solid (+ cx xf) y0  (+ cx xf) ybf)
+  ;; TOP FLANGE
+  (peb-crn-sample-solid (- cx xf) ywt (+ cx xf) ywt)
+  (peb-crn-sample-solid (- cx xf) y1  (+ cx xf) y1)
+  (peb-crn-sample-solid (- cx xf) ywt (- cx xf) y1)
+  (peb-crn-sample-solid (+ cx xf) ywt (+ cx xf) y1)
+  ;; WEB - the two faces
+  (peb-crn-sample-solid (- cx xw) ybf (- cx xw) ywt)
+  (peb-crn-sample-solid (+ cx xw) ybf (+ cx xw) ywt)
+  ;; THE RAIL, 50 x 50, on the beam centreline - foot / web / head, a railway track
+  (setq wr (* k rw 0.5))
+  (peb-crn-sample-solid (- cx wr) y1 (+ cx wr) y1)
+  (peb-crn-sample-solid (- cx wr) (+ y1 (* k rh 0.26)) (+ cx wr) (+ y1 (* k rh 0.26)))
+  (peb-crn-sample-solid (- cx wr) y1 (- cx wr) (+ y1 (* k rh 0.26)))
+  (peb-crn-sample-solid (+ cx wr) y1 (+ cx wr) (+ y1 (* k rh 0.26)))
+  (peb-crn-sample-solid (- cx wr) (+ y1 (* k rh 0.26)) (- cx (* wr 0.36)) (+ y1 (* k rh 0.40)))
+  (peb-crn-sample-solid (+ cx wr) (+ y1 (* k rh 0.26)) (+ cx (* wr 0.36)) (+ y1 (* k rh 0.40)))
+  (peb-crn-sample-solid (- cx (* wr 0.36)) (+ y1 (* k rh 0.40)) (- cx (* wr 0.36)) (+ y1 (* k rh 0.66)))
+  (peb-crn-sample-solid (+ cx (* wr 0.36)) (+ y1 (* k rh 0.40)) (+ cx (* wr 0.36)) (+ y1 (* k rh 0.66)))
+  (peb-crn-sample-solid (- cx (* wr 0.36)) (+ y1 (* k rh 0.66)) (- cx (* wr 0.72)) (+ y1 (* k rh 0.80)))
+  (peb-crn-sample-solid (+ cx (* wr 0.36)) (+ y1 (* k rh 0.66)) (+ cx (* wr 0.72)) (+ y1 (* k rh 0.80)))
+  (peb-crn-sample-solid (- cx (* wr 0.72)) (+ y1 (* k rh 0.80)) (- cx (* wr 0.72)) yr)
+  (peb-crn-sample-solid (+ cx (* wr 0.72)) (+ y1 (* k rh 0.80)) (+ cx (* wr 0.72)) yr)
+  (peb-crn-sample-solid (- cx (* wr 0.72)) yr (+ cx (* wr 0.72)) yr)
+  ;; THE WHEEL RESTING ON THE RAIL, and the girder over it - dotted, not Maimaar's scope
+  (setq gy (+ yr (* k bd 0.42)))
+  (peb-crn-truck-sec cx yr gy (* k bd 0.34))
+  (peb-crn-dash (- cx (* k bd 0.28)) gy (+ cx (* k bd 0.28)) gy)
+  (peb-crn-dash (- cx (* k bd 0.28)) gy (- cx (* k bd 0.28)) (+ gy (* k bd 0.18)))
+  (peb-crn-dash (+ cx (* k bd 0.28)) gy (+ cx (* k bd 0.28)) (+ gy (* k bd 0.18)))
+  ;; THE BRACKET - the beam SITS ON IT (reference/1-2-1.png), so its top is at the bottom flange.
+  ;; Mazzella, on measuring span: allow for "cantilevers or haunches that the runway beam may be
+  ;; sitting on" - the haunch is why the runway centreline stands off the column.
+  (peb-crn-sample-solid (- cx (* xf 4.6)) (- y0 (* k bd 1.05)) (- cx (* xf 4.6)) (+ y1 (* k bd 0.10)))
+  (peb-crn-sample-solid (- cx (* xf 5.6)) (- y0 (* k bd 1.05)) (- cx (* xf 5.6)) (+ y1 (* k bd 0.10)))
+  (peb-crn-sample-solid (- cx (* xf 4.6)) y0 (+ cx (* xf 1.25)) y0)
+  (peb-crn-sample-solid (+ cx (* xf 1.25)) y0 (+ cx (* xf 1.25)) (- y0 (* k bd 0.12)))
+  (peb-crn-sample-solid (+ cx (* xf 1.25)) (- y0 (* k bd 0.12))
+                        (- cx (* xf 4.6)) (- y0 (* k bd 0.92)))
+  (peb-crn-sample-solid (- cx (* xf 4.6)) (- y0 (* k bd 0.92)) (- cx (* xf 4.6)) y0)
+  ;; section dimensions
+  ;; clear BELOW the bracket haunch. Inside the web it printed over the section; at 0.30 below
+  ;; the soffit it printed over the haunch diagonal, which crosses the centreline at about 0.29.
+  (peb-crn-dimh (- cx xf) (+ cx xf) (- y0 (* k bd 1.15)) (strcat "FLANGE  " (rtos bw 2 0)) th)
+  (peb-crn-dimv ybf ywt (+ cx (* xf 2.0)) (strcat "WEB  " (rtos bd 2 0)) th)
+  (peb-crn-dimv y0 y1 (+ cx (* xf 3.1)) (strcat "OVERALL  " (rtos (+ bd ft ft) 2 0)) th)
+  (txt "MC" (list cx (- y0 (* k bd 1.55))) (* th 1.05) 0.0 "SECTION")
+
+  ;; ══ 2. THE ELEVATION - WHERE THE STIFFENERS LIVE ═════════════════════════════════════════
+  ;; 128 stiffeners go into this job. They are the reason the section exists and they cannot be
+  ;; shown in it, so the beam is drawn along its length beside it: rail on top, stiffener each
+  ;; side of the web at spacing, bearing stiffeners over the bracket.
+  ;; drawn at the TRUE spacing, two bays of it - an elevation with six stiffeners crammed into
+  ;; 1.4 m would have been a picture of a beam nobody builds, and three bays made the elevation
+  ;; so long that the section next to it could not be read.
+  (setq n  2
+        ex (+ cx (* xf 9.0))                                    ; left end of the elevation
+        ep (* k (peb-crn-stiff-spacing 5936.0 8) n))            ; three bays at the real pitch
+  (peb-crn-sample-solid ex y0 (+ ex ep) y0)                          ; bottom flange
+  (peb-crn-sample-solid ex ybf (+ ex ep) ybf)
+  (peb-crn-sample-solid ex ywt (+ ex ep) ywt)                        ; top flange
+  (peb-crn-sample-solid ex y1 (+ ex ep) y1)
+  (peb-crn-sample-solid ex y0 ex y1)
+  (peb-crn-sample-solid (+ ex ep) y0 (+ ex ep) y1)
+  (peb-crn-sample-solid ex y1 (+ ex ep) y1)
+  ;; the rail running along the top, seen from the side: foot line and head line
+  (peb-crn-sample-solid ex (+ y1 (* k rh 0.26)) (+ ex ep) (+ y1 (* k rh 0.26)))
+  (peb-crn-sample-solid ex yr (+ ex ep) yr)
+  (peb-crn-sample-solid ex y1 ex yr)
+  (peb-crn-sample-solid (+ ex ep) y1 (+ ex ep) yr)
+  ;; the stiffeners, at spacing
+  (setq i 1)
+  (while (<= i n)
+    (setq rx (+ ex (* ep (/ (- i 0.5) (float n)))))
+    (peb-crn-sample-solid rx ybf rx ywt)
+    (setq i (1+ i)))
+  (peb-crn-dimh (+ ex (* ep (/ 0.5 (float n)))) (+ ex (* ep (/ 1.5 (float n))))
+                (+ yr (* k bd 0.22))
+                (strcat "STIFFENER SPACING  " (rtos (peb-crn-stiff-spacing 5936.0 8) 2 0)
+                        "  (8 PAIRS PER BEAM)") th)
+  (txt "MC" (list (+ ex (/ ep 2.0)) (- y0 (* k bd 1.55))) (* th 1.05) 0.0
+       "ELEVATION  -  ALONG THE BEAM")
+
+  ;; ══ 3. THE RAIL, BLOWN UP AGAIN ══════════════════════════════════════════════════════════
+  ;; Owner 5-Sep-2026: "You may see the Exact Shape the Crane Beam and Crane Rail on Top". At the
+  ;; section's own enlargement a 50 mm rail on a 420 mm beam is a speck - correct, and useless.
+  ;; So it gets its own scale, 5x the section's, and the two figures the trade actually quotes:
+  ;; Mazzella label them RAIL HEAD WIDTH (B) and RAIL HEIGHT (D), which is what sets the wheel.
+  ;; UNDER the elevation, not beside the title. At 5x the section scale a full 225 flange is
+  ;; 11 m of paper - wider than the elevation it belongs to - so only a SHORT piece of flange is
+  ;; cut, just enough either side of the rail to show it landing on the centreline.
+  ;; between the two views, and low enough that its own dimensions clear their captions. Sitting
+  ;; under the elevation it shared an x with "ELEVATION - ALONG THE BEAM" and its RAIL FOOT
+  ;; dimension printed straight through it.
+  (setq rk (* k 5.0) rx (+ cx (* xf 4.0)) ry (- y0 (* k bd 3.4))
+        wr (* rk rw 0.5))
+  (peb-crn-sample-solid (- rx wr) ry (+ rx wr) ry)
+  (peb-crn-sample-solid (- rx wr) (+ ry (* rk rh 0.26)) (+ rx wr) (+ ry (* rk rh 0.26)))
+  (peb-crn-sample-solid (- rx wr) ry (- rx wr) (+ ry (* rk rh 0.26)))
+  (peb-crn-sample-solid (+ rx wr) ry (+ rx wr) (+ ry (* rk rh 0.26)))
+  (peb-crn-sample-solid (- rx wr) (+ ry (* rk rh 0.26)) (- rx (* wr 0.36)) (+ ry (* rk rh 0.40)))
+  (peb-crn-sample-solid (+ rx wr) (+ ry (* rk rh 0.26)) (+ rx (* wr 0.36)) (+ ry (* rk rh 0.40)))
+  (peb-crn-sample-solid (- rx (* wr 0.36)) (+ ry (* rk rh 0.40)) (- rx (* wr 0.36)) (+ ry (* rk rh 0.66)))
+  (peb-crn-sample-solid (+ rx (* wr 0.36)) (+ ry (* rk rh 0.40)) (+ rx (* wr 0.36)) (+ ry (* rk rh 0.66)))
+  (peb-crn-sample-solid (- rx (* wr 0.36)) (+ ry (* rk rh 0.66)) (- rx (* wr 0.72)) (+ ry (* rk rh 0.80)))
+  (peb-crn-sample-solid (+ rx (* wr 0.36)) (+ ry (* rk rh 0.66)) (+ rx (* wr 0.72)) (+ ry (* rk rh 0.80)))
+  (peb-crn-sample-solid (- rx (* wr 0.72)) (+ ry (* rk rh 0.80)) (- rx (* wr 0.72)) (+ ry (* rk rh)))
+  (peb-crn-sample-solid (+ rx (* wr 0.72)) (+ ry (* rk rh 0.80)) (+ rx (* wr 0.72)) (+ ry (* rk rh)))
+  (peb-crn-sample-solid (- rx (* wr 0.72)) (+ ry (* rk rh)) (+ rx (* wr 0.72)) (+ ry (* rk rh)))
+  ;; a slice of the top flange under it, so the "in the middle of the beam" reads
+  (peb-crn-sample-solid (- rx (* wr 2.6)) ry (+ rx (* wr 2.6)) ry)
+  (peb-crn-sample-solid (- rx (* wr 2.6)) (- ry (* rk ft)) (+ rx (* wr 2.6)) (- ry (* rk ft)))
+  (peb-crn-sample-solid (- rx (* wr 2.6)) ry (- rx (* wr 2.6)) (- ry (* rk ft)))
+  (peb-crn-sample-solid (+ rx (* wr 2.6)) ry (+ rx (* wr 2.6)) (- ry (* rk ft)))
+  (peb-crn-dimh (- rx (* wr 0.72)) (+ rx (* wr 0.72)) (+ ry (* rk rh 1.30))
+                (strcat "RAIL HEAD WIDTH  " (rtos (* rw 0.72) 2 0)) th)
+  (peb-crn-dimh (- rx wr) (+ rx wr) (+ ry (* rk rh 1.90))
+                (strcat "RAIL FOOT  " (rtos rw 2 0)) th)
+  (peb-crn-dimv ry (+ ry (* rk rh)) (- rx (* rk bw 0.72))
+                (strcat "RAIL HEIGHT  " (rtos rh 2 0)) th)
+  (txt "MC" (list rx (- ry (* rk ft) (* th 2.2))) (* th 0.9) 0.0
+       (strcat "ON THE " (rtos bw 2 0) " TOP FLANGE, ON THE BEAM CENTRELINE"))
+  (txt "MC" (list rx (- ry (* rk ft) (* th 4.0))) (* th 1.05) 0.0 "CRANE RAIL  -  BLOWN UP 5x")
+
+  ;; ══ THE CALLOUTS ═════════════════════════════════════════════════════════════════════════
+  (peb-crn-note (+ cx xw) (* 0.5 (+ ybf ywt)) (+ cx (* xf 5.4)) (* 0.5 (+ ybf ywt))
+                (strcat "WEB PLATE   PL " (rtos wt 2 0) " X " (rtos bd 2 0)
+                        "   (CRB-1 / CRB-2)") th "ML")
+  (peb-crn-note (- cx (* xf 0.55)) (* 0.5 (+ ywt y1)) (- cx (* xf 6.4)) (+ y1 (* k bd 0.80))
+                (strcat "TOP FLANGE   PL " (rtos ft 2 0) " X " (rtos bw 2 0)
+                        "   (OF34 / OF35)") th "MR")
+  (peb-crn-note (- cx (* xf 0.55)) (* 0.5 (+ y0 ybf)) (+ cx (* xf 5.4)) (- y0 (* k bd 0.16))
+                (strcat "BOTTOM FLANGE   PL " (rtos ft 2 0) " X " (rtos bw 2 0)
+                        "   (OF33 / OF37)") th "ML")
+  ;; the leader must START ON THE ELEVATION: at 2.5/n it sat past the right end once the
+  ;; elevation went from three bays to two, and drew a line out of empty space.
+  (peb-crn-note (+ ex (* ep (/ 1.4 (float n)))) (* 0.5 (+ ybf ywt))
+                (+ ex ep (* xf 0.8)) (+ ywt (* k bd 0.20))
+                (strcat "STIFFENER   FL " (rtos st 2 0) " X " (rtos sw 2 0)
+                        "   BOTH SIDES   (ST4, 128 OFF)") th "ML")
+  (peb-crn-note cx (+ y1 (* k rh 0.5)) (- cx (* xf 6.4)) (+ y1 (* k bd 1.45))
+                (strcat "CRANE RAIL   " (rtos rw 2 0) " X " (rtos rh 2 0)
+                        " I-SECTION, LIKE A RAILWAY TRACK") th "MR")
+  (peb-crn-note (- cx (* xf 2.2)) (- y0 (* k bd 0.42)) (- cx (* xf 6.4)) (- y0 (* k bd 0.78))
+                "CRANE BEAM BRACKET / HAUNCH OFF THE COLUMN" th "MR")
+  (peb-crn-note (- cx (* xf 5.1)) (+ ybf (* k bd 0.55)) (- cx (* xf 6.4)) (+ ybf (* k bd 0.90))
+                "BUILDING COLUMN" th "MR")
+  (peb-crn-note cx (+ gy (* k bd 0.10)) (- cx (* xf 6.4)) (+ y1 (* k bd 2.10))
+                "END CARRIAGE WHEEL, RESTING ON THE RAIL  (CRANE - BY OTHERS)" th "MR")
+
+  (txt "MC" (list (+ cx (* xf 5.0)) (+ y1 (* k bd 3.10))) (* th 1.5) 0.0
+       "CRANE BEAM  -  SECTION, ELEVATION AND RAIL")
+  (txt "MC" (list (+ cx (* xf 5.0)) (+ y1 (* k bd 2.70))) (* th 0.95) 0.0
+       "PLATE SIZES READ OFF THE MSPL-032 SINGLE-PART SHEET  (MAIMAAR FACTORY, 10 MT)")
+  (princ))
+
+(defun peb-draw-crane-sample (span cap wbase / d et gw rw wr yc y0 yT x0 x1 th tl rx0 rx1 sy L hx hy rxc cbd cry gey pp pg1 pg2 pg3 pg4)
   ;; STYLISED PROPORTIONS, stated as such (rule 20). Depth ~ span/18 is the working proportion for
   ;; a welded box girder in this capacity range; a job's own CRn_BRIDGE overrides it. Everything
   ;; TRACED is named on the sheet itself, so the drawing carries its own provenance.
@@ -508,7 +1039,32 @@
         x0 0.0 x1 span
         tl (* gw 2.4))
 
-  ;; ══ TOP VIEW - THE FOCUS OF THIS SHEET ═══════════════════════════════════════════════════
+  ;; ══ FOUR PAGES, NOT ONE SHEET ════════════════════════════════════════════════════════════
+  ;; Owner 5-Sep-2026: "Or Better to Expand the Drawings on 4 Pages so that you may Review It
+  ;; Closely To Develop the Right Product" / "Expand All Drawings During Development so that you
+  ;; can do the Proper Audit".
+  ;;
+  ;; That is the right call and it replaces the two-column squeeze. One sheet forced every
+  ;; drawing to share a scale set by the largest of them - the 21 m span - so the crane beam
+  ;; section, the rail and the carriage were all plotted at a size chosen by something else. Four
+  ;; pages let each drawing be plotted to fit ITS OWN page, which is what makes a detail
+  ;; reviewable rather than merely present.
+  ;;
+  ;;      1  TOP VIEW           2  SIDE VIEW + HOIST DETAIL
+  ;;      3  CRANE BEAM         4  END CARRIAGE + DATA
+  ;;
+  ;; The blocks are laid out down model space on a 90,000 pitch - far more than any block needs,
+  ;; so a block can grow without ever reaching its neighbour - and the four plot windows are
+  ;; recorded in *PEB-CRN-PAGES* for the render harness to plot one page each. Generous pitch is
+  ;; deliberate: every collision on this sheet so far has come from a block's own head-room
+  ;; reaching further than the gap allowed for it.
+  (setq pp  90000.0
+        pg1 0.0
+        pg2 (- pp)
+        pg3 (* -2.0 pp)
+        pg4 (* -3.0 pp))
+
+  ;; ══ PAGE 1 - TOP VIEW ════════════════════════════════════════════════════════════════════
   (setq y0 0.0 yT gw yc (/ gw 2.0)
         rx0 (- x0 (* et 1.9)) rx1 (+ x1 (* et 1.9)))
   ;; the two RUNWAY BEAMS with their rails. Maimaar's own steel (Thal 125-23: "All runway beams
@@ -530,17 +1086,18 @@
   (txt "MC" (list (/ span 2.0) (- yc (* gw 2.4))) (* th 0.9) 0.0 "TROLLEY")
   (txt "MC" (list (/ span 2.0) (+ yc (* gw 3.1))) (* th 0.9) 0.0 "HOIST MOTOR")
   (txt "ML" (list (+ x0 (* gw 2.2)) (- yc (* gw 2.9))) (* th 0.9) 0.0 "BRIDGE TRAVEL MOTOR")
-  (txt "MC" (list x0 (+ yc (* et 0.72))) (* th 0.9) 0.0 "END TRUCK")
+  (txt "MC" (list x0 (+ yc (* et 0.72))) (* th 0.9) 0.0 "END CARRIAGE")
   (txt "MC" (list x0 (- yc (* et 2.15))) (* th 0.9) 0.0 "RUNWAY BEAM + RAIL")
-  (txt "MC" (list x1 (- yc (* et 1.15))) (* th 0.9) 0.0 "2 WHEELS PER END TRUCK")
+  (txt "ML" (list (+ x1 (* et 0.55)) (- yc (* et 1.15))) (* th 0.9) 0.0
+       "2 WHEELS AT THE BOTTOM OF EACH END CARRIAGE")
   (peb-crn-sample-dim x0 x1 (+ yc (* et 2.4))
-                      (strcat "CRANE SPAN  C/C RAILS   " (rtos span 2 0)) th)
+                      (strcat "CRANE SPAN  -  C/C OF RUNWAY BEAMS   " (rtos span 2 0)) th)
   (if (> wbase 0.0)
     (peb-crn-sample-dim x0 x1 (- yc (* et 2.8))
                         (strcat "BRIDGE TRAVELS ALONG THE RUNWAYS - WHEEL BASE " (rtos wbase 2 0)) th))
 
-  ;; ══ SIDE VIEW - below, for reference ═════════════════════════════════════════════════════
-  (setq sy (- 0.0 (* et 3.6) (* d 5.0)))
+  ;; ══ PAGE 2 - SIDE VIEW ═══════════════════════════════════════════════════════════════════
+  (setq sy (+ pg2 (* d 3.0)))
   (peb-crn-bridge-elev x0 sy x1 (+ sy d))
   ;; each END of the side view: the crane beam in section on its bracket, and the end truck
   ;; sitting on the rail carrying the girder. Beam and bracket are MAIMAAR'S steel, so solid.
@@ -548,18 +1105,46 @@
   ;; underside — on the real machine the carriage is compact, but drawn at 0.30 the wheel had
   ;; nowhere to go and the girder appeared to rest straight on the rail. The gap is what shows
   ;; the wheel, and the wheel is what says the bridge travels.
-  (peb-crn-beam-sec x0 (- sy (* d 0.85)) (* d 0.95) (* d 0.80)
+  ;; THE CHAIN, AT ITS REAL PROPORTIONS. Girder soffit -> end carriage (300-350 deep) -> wheel
+  ;; -> rail -> crane beam. The rail used to be placed 0.85 x girder depth below the soffit,
+  ;; which is a made-up number; it is now carriage depth + 0.3 x wheel diameter below it, which
+  ;; is what the GH table and the wheel actually give. On this sheet that is 420, not 1,190 -
+  ;; and the step from a 1,400 girder onto a 345 carriage is the whole shape of the end.
+  ;; the carriage sits under the REDUCED END WEB, not under the full-depth soffit - the whole
+  ;; point of the reduction is that the girder end and the carriage are the same depth there.
+  (setq cbd (peb-crn-beam-depth 6096.0 cap)
+        gey (- (+ sy d) (min (* d 0.55) (peb-crn-girder-end-web)))   ; underside of the end web
+        cry (- gey (peb-crn-carriage-depth cap) (* (peb-crn-wheel-dia cap) 0.30)))
+  ;; END-ON, WITH ONE WHEEL. Owner 5-Sep-2026: "End Carriage End View Will be Show with One
+  ;; Wheel End View" / "as other Side View will hide". Looking at the bridge's side face, the
+  ;; carriage runs INTO the page: you see its width, and the near wheel hides the far one. It was
+  ;; briefly drawn in plane here - rotated flat so both wheels showed - which is a common GA
+  ;; convention but is not what this view sees. The full carriage, both wheels and all its
+  ;; dimensions live in the END CARRIAGE detail further down the sheet, which is the right place
+  ;; for them.
+  (peb-crn-carriage-endon x0 cry gey cap)
+  (peb-crn-carriage-endon x1 cry gey cap)
+  (peb-crn-beam-sec x0 cry cbd (peb-crn-beam-flange cbd)
                     (- x0 (* d 1.90)) (function peb-crn-sample-solid))
-  (peb-crn-beam-sec x1 (- sy (* d 0.85)) (* d 0.95) (* d 0.80)
+  (peb-crn-beam-sec x1 cry cbd (peb-crn-beam-flange cbd)
                     (+ x1 (* d 1.90)) (function peb-crn-sample-solid))
-  (peb-crn-truck-sec x0 (- sy (* d 0.85)) sy (* d 1.05))
-  (peb-crn-truck-sec x1 (- sy (* d 0.85)) sy (* d 1.05))
+  ;; ── THE TWO DEPTHS, DIMENSIONED ──────────────────────────────────────────────────────────
+  ;; These are the figures the owner has been setting all along - "make the bridge depth to
+  ;; 1200mm", "which reduces to 350-450mm on Edges" - so the view should state them rather than
+  ;; leave them to be scaled off. The dim lines are solid because a dimension is drawing
+  ;; furniture, not steel; the LINETYPE says whose scope the member is, and these are not members.
+  (peb-crn-dimv sy (+ sy d) (* span 0.70) (rtos d 2 0) (* th 0.9))
+  (peb-crn-dimv (- (+ sy d) (min (* d 0.55) (peb-crn-girder-end-web))) (+ sy d)
+                (+ x1 (* d 1.3))
+                (rtos (min (* d 0.55) (peb-crn-girder-end-web)) 2 0) (* th 0.9))
   (txt "MC" (list (/ span 2.0) (+ sy d (* th 2.4))) (* th 1.2) 0.0 "SIDE VIEW  -  ALONG THE GIRDER")
-  (txt "ML" (list (+ x1 (* d 2.0)) (+ sy (* d 0.55))) (* th 0.9) 0.0
-       (strcat "CRANE BRIDGE - GIRDER DEPTH " (rtos d 2 0) "  (RULE: SPAN/15.24 AT 10 MT)"))
-  (txt "ML" (list (+ x1 (* d 2.0)) (- sy (* d 1.05))) (* th 0.9) 0.0 "CRANE BEAM + RAIL  (MAIMAAR SCOPE - SOLID)")
-  (txt "ML" (list (+ x1 (* d 2.0)) (- sy (* d 2.05))) (* th 0.9) 0.0 "CRANE BEAM BRACKET  (MAIMAAR SCOPE)")
-  (txt "MR" (list (- x0 (* d 2.4)) (- sy (* d 0.40))) (* th 0.9) 0.0 "END TRUCK + WHEEL")
+  (txt "ML" (list (+ x1 (* d 3.2)) (+ sy (* d 0.55))) (* th 0.9) 0.0
+       (strcat "CRANE BRIDGE - GIRDER DEPTH " (rtos d 2 0) "  (RULE: 500 + SPAN/30.5)  -  STRAIGHT BOX, ONE TAPERED CUT AT EACH END"))
+  (txt "ML" (list (+ x1 (* d 3.2)) (- sy (* d 0.75))) (* th 0.9) 0.0 "CRANE BEAM + RAIL  (MAIMAAR SCOPE - SOLID)")
+  (txt "ML" (list (+ x1 (* d 3.2)) (- sy (* d 1.45))) (* th 0.9) 0.0 "CRANE BEAM BRACKET  (MAIMAAR SCOPE)")
+  (txt "MR" (list (- x0 (* d 2.4)) (- sy (* d 0.22))) (* th 0.9) 0.0
+       (strcat "END CARRIAGE  -  STRAIGHT BOX, ONLY " (rtos (peb-crn-carriage-depth cap) 2 0) " DEEP"))
+  (txt "MR" (list (- x0 (* d 2.4)) (- sy (* d 0.62))) (* th 0.9) 0.0 "WHEEL ON THE BOTTOM, ON THE RAIL")
   ;; ── THE HOIST MOTOR AND THE HOOK — WHAT THE BUILDING HEIGHT IS QUOTED TO ──────────────────
   ;; Owner 5-Sep-2026: "Motor with Crane Hook. Mostly Gives the Height of Building from FFL to
   ;; Crane Hook (Crane Hook Height)". The manual says the same from the other end — "Eave height
@@ -575,6 +1160,24 @@
   (txt "MC" (list (/ span 2.0) (- sy (* d 2.6))) (* th 0.85) 0.0
        "HOOK HEIGHT IS MEASURED FFL TO THE HOOK - IT SETS THE EAVE HEIGHT")
 
+  ;; ══ PAGE 3 - CRANE BEAM: SECTION, ELEVATION AND RAIL ═════════════════════════════════════
+  ;; On its own page the detail no longer has to be squeezed under the side view, so it gets its
+  ;; datum straight from the page and its title has all the head-room it wants. (That head-room
+  ;; is 16,865 units - k*420 + 3.10*k*400 - and misjudging it put this title on top of the side
+  ;; view three times while everything was still on one sheet.)
+  (setq sy (- pg3 (* d 4.0)))
+  ;; 0.30 of the span, not 0.20. The section and the elevation share one scale, and at 0.20 the
+  ;; 225-wide section stood beside a 3-bay elevation eight times its width - true to scale and
+  ;; useless to read. Half the fix is here; the other half is the elevation, cut from three bays
+  ;; to two (see peb-crn-beam-detail), which is still enough to show a spacing.
+  (peb-crn-beam-detail (* span 0.34) sy cbd
+                       (/ (* span 0.30) (+ cbd (* 2.0 (peb-crn-flange-thk cbd))))
+                       (* th 0.92))
+  (setq sy (- sy (* span 0.42)))
+
+  ;; ══ PAGE 2, LOWER - THE HOIST, ENLARGED ═════════════════════════════════════════════════
+  (setq sy (- pg2 (* d 4.5)))
+
   ;; ══ HOIST DETAIL, AT LARGE SCALE ════════════════════════════════════════════════════════
   ;; The hoist drawn at true scale on a 21 m span is a blob — 3 m of machine against 21 m of
   ;; girder, and the 0.60 mm motor pen closes its fins. That is not a fault in the tracing, it is
@@ -582,33 +1185,74 @@
   ;; hoist large. So it gets its own detail here, at roughly 4x, where the traced shape can
   ;; actually be judged: end cap, finned motor, shoulder, mid box, drum housing, sheave pin,
   ;; bolted bottom plate, hook.
-  (setq sy (- sy (* d 4.6)))
   (peb-crn-hoist-elev (* span 0.30) sy (* span 0.34))
   (txt "MC" (list (* span 0.30) (+ sy (* th 2.6))) (* th 1.2) 0.0 "HOIST DETAIL  -  ENLARGED")
-  (txt "ML" (list (* span 0.50) (- sy (* span 0.05))) (* th 0.85) 0.0
+  (txt "ML" (list (* span 0.52) (- sy (* span 0.05))) (* th 0.85) 0.0
        "TRACED FROM reference/crane-in-PEB-section_reference.webp")
-  (txt "ML" (list (* span 0.50) (- sy (* span 0.09))) (* th 0.85) 0.0
+  (txt "ML" (list (* span 0.52) (- sy (* span 0.09))) (* th 0.85) 0.0
        "END CAP / FINNED MOTOR / SHOULDER / MID BOX / DRUM HOUSING / SHEAVE / PLATE / HOOK")
-  (setq sy (- sy (* span 0.20)))
+
+  ;; ══ THE END CARRIAGE ═════════════════════════════════════════════════════════════════════
+  ;; Owner 5-Sep-2026: "There are End Carriage on Both Ends with Wheels on Bottom" / "with a
+  ;; Wheel on bottom runs on Crane Rail". The top view shows two of them and the side view shows
+  ;; them end-on, where the wheel base runs into the page and only one wheel of each is visible.
+  ;; Neither view answers "what shape is it", so it gets its own elevation, drawn along the
+  ;; runway where both wheels and the whole box can be seen.
+  ;; drawn ACROSS THE SHEET, not tucked in a corner: a 4.5 m carriage 345 deep is a long thin
+  ;; object, and at a third of the span its box came out barely taller than the text labelling
+  ;; it. At 0.95 of the span the box is about 1.4 m of drawing and the wheels can be seen.
+  ;; ══ PAGE 4 - END CARRIAGE ════════════════════════════════════════════════════════════════
+  (setq sy (+ pg4 (* d 1.0)))
+  (peb-crn-carriage-elev (* span 0.5) sy (if (> wbase 0.0) wbase 3600.0) cap
+                         (/ (* span 0.95) (+ (if (> wbase 0.0) wbase 3600.0)
+                                             (peb-crn-carriage-over cap)))
+                         (* th 0.92))
+  (setq sy (- sy (* d 8.0)))
 
   ;; ══ THE DATA BLOCK - every number, and where it came from ════════════════════════════════
-  ;; clear of the hook drop, which now reaches sy - 4.6d
-  (setq sy (- sy (* d 6.4)))
+  ;; the data block used to sit under the hook drop and needed 6.4 d of air; it now follows the
+  ;; end carriage, which ends cleanly, so 2.2 d is enough. The 6.4 left a hand's width of blank
+  ;; sheet between the last drawing and the notes.
+  ;; ══ PAGE 4, LOWER - THE DATA BLOCK ═══════════════════════════════════════════════════════
+  (setq sy (- pg4 (* d 9.0)))
   (foreach L (list
       (strcat "CAPACITY  " (rtos cap 2 0) " MT")
       "TYPE  TOP RUNNING (TR)  -  manual ch.8 lists TR / monorail / underhung / jib / semi-gantry"
-      "END TRUCK WHEELS  2 PER END, 4 TOTAL  -  manual ch.8  NWb = 2  (worked 10 MT example)"
+      "END CARRIAGE WHEELS  2 PER END, 4 TOTAL  -  manual ch.8  NWb = 2  (worked 10 MT example)"
+      "END CARRIAGE  WELDED BOX, WHEELS ON THE BOTTOM RUNNING ON THE RAIL  -  GH catalogue"
+      "   STRAIGHT BOX 300-350 DEEP (GH A10 = 345) UNDER A 1000-1400 GIRDER  -  owner, 5-Sep-2026"
       "VERTICAL IMPACT  10%  PENDANT OPERATED  -  manual table 8.3"
       "CMAA SERVICE CLASS  C  -  manual table 8.1"
       "LONGITUDINAL  10% OF MAX WHEEL LOAD, AT TOP OF RAILS  -  manual ch.8 sec 2.4.4"
       "RUNWAY BEAM  BUILT-UP, DOUBLE SIDE FILLET WELD (<= 15 MT)  -  Thal 125-23 spec"
       "SCOPE IS SAID BY THE LABEL, NOT BY THE LINETYPE  -  ref: crane-in-PEB-section"
       "HOOK HEIGHT FFL-TO-HOOK SETS THE EAVE HEIGHT  -  manual, Eave Height guideline"
-      "GIRDER DEPTH  span/15.24 x (cap/10)^0.20 ; SOFFIT RISES 325 AT EACH END"
-      "   1000 deep at 50 ft (15,240) span, 10 MT  -  Maimaar production, 2026")
+      "GIRDER DEPTH  (500 + span/30.5) x (cap/10)^0.20  -  1000 at 15,240 span, 1200 at 21,335"
+      "GIRDER END  ONE TAPERED CUT TO A 400 DEEP STUB ~400 LONG, RESTING ON THE END CARRIAGE"
+      "CRANE BEAM  bay/15 x (cap/10)^0.25, snapped to 25 ; 400 WEB AT A 6,096 BAY, 10 MT"
+      "CRANE BEAM PLATES  WEB PL 8 X 400 / FLANGE PL 10 X 225 / STIFFENER FL 8 X 108"
+      "   MSPL-032 single parts: CRB-1,2 x4 each ; OF33,34,35,37 x4 each ; ST4 x128"
+      "   (225 - 8) / 2 = 108 - THE STIFFENER CONFIRMS BOTH THE FLANGE AND THE WEB"
+      "GIRDER  1000 deep at 50 ft (15,240) span, 10 MT  -  Maimaar production, 2026")
     (progn
       (txt "ML" (list x0 sy) (* th 0.85) 0.0 L)
       (setq sy (- sy (* th 1.8)))))
+
+  ;; ── THE FOUR PLOT WINDOWS ────────────────────────────────────────────────────────────────
+  ;; Fitted to each block rather than to a common box: the whole point of four pages is that a
+  ;; small drawing is no longer plotted at the scale the biggest one needs. Read by
+  ;; sample/render_sample.js, which plots one page per window and merges them into one PDF.
+  (setq *PEB-CRN-PAGES*
+    (list
+      ;; 1  TOP VIEW - the span, plus the label margin each side
+      (list (- x0 (* et 2.0))    (- pg1 (* et 3.4))   (+ x1 (* et 2.9))   (+ pg1 (* et 4.3)))
+      ;; 2  SIDE VIEW + HOIST DETAIL - the note column on the right runs to about x1 + 14 d
+      (list (- x0 (* d 7.5))     (- pg2 (* d 10.5))   (+ x1 (* d 17.5))   (+ pg2 (* d 5.5)))
+      ;; 3  CRANE BEAM - section, elevation, rail blow-up, and the note columns both sides
+      (list (- (* span 0.34) (* span 1.05))  (- pg3 (* span 1.15))
+            (+ (* span 0.34) (* span 2.65))  (+ pg3 (* span 1.45)))
+      ;; 4  END CARRIAGE + DATA BLOCK
+      (list (- x0 (* d 2.0))     (- pg4 (* d 17.5))   (+ x1 (* d 11.0))   (+ pg4 (* d 6.5)))))
   (princ))
 
 (defun C:PEB-CRANE-SAMPLE ( / )
