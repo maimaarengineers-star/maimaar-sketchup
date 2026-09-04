@@ -5811,7 +5811,15 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
     ;; ~0.9 mm on the plotted A4 — a hairline that READS as a collision with the filled
     ;; AREA band even though it never actually touches.  1.35 opens it to ~2.5 mm and is
     ;; still well under the one-full-line rise that the note above warns lands on RAFTER.
-    (txt-bold "MC" (list aCx (+ aCy aBh (* aTxH 1.35))) (peb-th 'SMALL) 0
+    ;; ── BELOW THE BOX, NOT ABOVE IT (owner 4-Sep-2026) ──────────────────────────────
+    ;; Above the AREA tag is where the RIDGE LINE callout lives, and the two grazed:
+    ;; measured on B-01, "RIDGE LINE" occupies y 13,150-14,050 and this tag 12,677-13,273,
+    ;; so the ridge label clipped its top by 123 over a 2,975 overlap - about 0.4 mm at
+    ;; 1:312, which is exactly enough to read as crowded lettering rather than two labels.
+    ;; Below the box is empty: the ridge is drawn on the centre line and its callout always
+    ;; goes UP and to the RIGHT (peb-ridge-symbol), so the two can no longer meet whatever
+    ;; bay the ridge anchor lands in.
+    (txt-bold "MC" (list aCx (- aCy aBh (* aTxH 1.35))) (peb-th 'SMALL) 0
               (strcat (peb-height-tag-label (MSPL-Get-Str data "HEIGHT_REF")) " "
                       (peb-comma (rtos aEave 2 0)))))
 
