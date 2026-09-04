@@ -255,7 +255,23 @@
   (if (peb-acc-elev-flat)
     (progn
       (peb-acc-line x0 y0        (+ x0 w) y0        lay lw)     ; sill of the band
-      (peb-acc-line x0 (+ y0 h)  (+ x0 w) (+ y0 h)  lay lw))    ; head of the band
+      (peb-acc-line x0 (+ y0 h)  (+ x0 w) (+ y0 h)  lay lw)     ; head of the band
+      ;; ── IT MUST READ AS NATURAL LIGHT (owner 4-Sep-2026: "show the wall lights like natural
+      ;;    lighting") ────────────────────────────────────────────────────────────────────────
+      ;; Sill and head alone say "a gap in the sheeting"; they do not say DAYLIGHT COMES THROUGH
+      ;; HERE. The single-diagonal wash is the standard elevation convention for glazing, and on
+      ;; a monochrome plot - where colour carries nothing and only lineweight survives - it is
+      ;; the only thing that can say it.
+      ;;
+      ;; DENSITY IS THE WHOLE PROBLEM, and it is why this was switched off rather than tuned.
+      ;; peb-sky-hatch takes MODEL mm. The at-size default is cover/25 = 40 mm, which on a 48.77 m
+      ;; elevation at 1:300 lands the lines 0.13 mm apart: solid black smear, worse than nothing.
+      ;; cover/3 = 333 mm is about 1.1 mm on the same sheet - three or four strokes across a
+      ;; panel, which reads as glass and still plots as a tint against the plain white steel.
+      ;; peb-sky-hatch IS the fiberglass hatch - the same routine the roof skylights use, so the
+      ;; wall light and the roof light are hatched as the one material they are (owner 4-Sep-2026:
+      ;; "the wall lights are made of fiberglass so use the same material for Hatching").
+      (peb-sky-hatch x0 y0 (+ x0 w) (+ y0 h) (/ w 3.0)))
     (progn
       (peb-acc-poly (list (list x0 y0) (list (+ x0 w) y0)
                           (list (+ x0 w) (+ y0 h)) (list x0 (+ y0 h))) lw)

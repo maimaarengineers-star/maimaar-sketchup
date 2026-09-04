@@ -476,3 +476,55 @@ same twice. Every engineering sheet in the same set went through `peb-add-layout
 * **How to check it, since looking at the page will not tell you:** the plotted page must come
   from a layout that exists at plot time. Grep the built script for `plotpdf` and confirm an
   `add-layout` call precedes each one in the same sheet block.
+
+### 32. A PROPOSAL DRAWING IS INDICATIVE, NOT DETAILED
+
+**Owner, 4-Sep-2026: "Proposal Drawings are always Indicative, not detailed one."**
+
+Show **what** and **where**. Do not show **how much** or **how fixed**. Laps, cleats, bolts,
+fastener spacings, rib pitches and member sizes belong to the APPROVAL drawing, which is a
+different document with a different purpose and a different signature on it.
+
+This is the tie-breaker, and it had been decided ad hoc four separate times before anyone wrote
+it down — each time by arguing the specific case again from scratch:
+
+* the 250 rib pitch on a wall light, which at 1:300 out-drew the cladding it sat in;
+* the translucency sheen at cover/25, which plotted as a solid smear;
+* the 100 mm sheeting lap at a wall light (rule 33), correct and deliberately not drawn;
+* jamb cleats and bolt counts on a framing elevation.
+
+The test is not "is it true?" — all four are true. The test is **"does the customer's decision
+turn on it at proposal stage?"** If not, it is noise on an A4 sheet, and noise is what makes a
+drawing look wrong even when every line in it is right.
+
+The corollary matters as much: **indicative is not vague.** Positions, counts, levels and grid
+references must be exactly right, because those are what the customer is being asked to agree to.
+Leave out the detail, never the substance.
+
+### 33. THE SHEETING BREAKS AT A WALL LIGHT — 100 mm lap, and the wall is THREE COURSES
+
+**Owner, 4-Sep-2026:** *"place girts on top and bottom of wall lights by default and then we
+always install the bottom sheet from BW to bottom of wall light girt and we fix the wall lights
+on top of it and then again a sheet come from wall light top to the eave level all around"* — and
+*"At the Location where wall skylights will come, walls sheeting will break with 100mm overlap
+b/w them."*
+
+So a wall carrying wall lights is built, and must be drawn, as **three courses**:
+
+1. brickwork → the bottom wall-light girt
+2. the fiberglass wall lights, girted top and bottom **by default**
+3. the top wall-light girt → eave
+
+A wall light is a **standard 1000 wide** — exactly one sheeting panel — so a light bay and a
+cladding bay are the same bay, and the break always lands on a joint. The steel laps the
+fiberglass by **100 mm** at head and sill.
+
+**Draw the courses. Do not draw the lap** (rule 32) — the lap is fabrication, the courses are
+the building.
+
+**This is why the side wall "showed boxes" four times running.** The cladding drew every joint
+as ONE line from brickwork to eave — a sheet that does not exist — and the band's own sill and
+head then crossed all 48 of them. Three rounds of work went into thinning the band (ribs, sheen,
+panel outlines: 1,628 entities down to 96) and none of it helped, because **the horizontals were
+never the fault. The full-height verticals were.** When a drawing looks wrong in a way that
+tidying does not fix, the geometry is telling you the building is not built the way you drew it.

@@ -1035,9 +1035,43 @@
 ;;
 ;; The panel is drawn by the COMPONENT LIBRARY - the same drawer the roof plan and the sample
 ;; use (rule 1). No panel geometry lives in this file.
+;; ── THE WALL-LIGHT BAND, AS A PURE CALCULATION (owner 4-Sep-2026) ───────────────────────────
+;; Returns (x0 x1 sill head) in wall-relative mm for the band on THIS wall, or nil when the wall
+;; carries none.
+;;
+;; WHY IT HAD TO STOP BEING A SIDE EFFECT OF DRAWING. The owner gave the build sequence:
+;;   "we always install the bottom sheet from BW to bottom of wall light girt and we fix the wall
+;;    lights on top of it and then again a sheet come from wall light top to the eave level"
+;; so the CLADDING has to break at the band - and the cladding is drawn (2710) long before
+;; peb-fr-wall-lights runs (2850). One calculation, two callers, no second opinion (rule 3).
+;;
+;; CONTINUOUS ONLY. A discontinuous band's groups are placed inside peb-fr-wl-per-bay as it
+;; draws, so there is no run to return; those walls keep full-height joints, which is what they
+;; had. Worth revisiting when a job actually sells discontinuous wall lights.
+(defun peb-fr-wl-band (data surf faceLen / on walls sill panL cover cont endSheets usable n x0)
+  (setq on    (strcase (peb-tb-or (MSPL-Get-Str data "WA_LIGHT_ON") "No"))
+        walls (strcase (peb-tb-or (MSPL-Get-Str data "WA_LIGHT_WALLS") ""))
+        sill  (MSPL-Get-Num data "WA_LIGHT_SILL")
+        panL  (MSPL-Get-Num data "WA_LIGHT_L")
+        cover (MSPL-Get-Num data "WA_LIGHT_W")
+        cont  (peb-tb-or (MSPL-Get-Str data "WA_LIGHT_CONTINUITY") "Continuous"))
+  (if (or (null cover) (<= cover 0.0)) (setq cover 1000.0))
+  (if (and (= on "YES") sill panL (> panL 0.0) (>= sill 0.0) (> faceLen cover)
+           (not (wcmatch (strcase cont) "*DISCONT*"))
+           (or (wcmatch walls "*ALL*4*") (wcmatch walls (strcat "*" surf "*"))
+               (and (wcmatch walls "*BOTH*SIDEWALL*") (member surf '("NSW" "FSW")))))
+    (progn
+      ;; TWO plain sheets at each end - the corner wind rule - then the lights across the middle.
+      (setq endSheets 2
+            usable    (- faceLen (* 2.0 endSheets cover))
+            n         (if (> usable cover) (fix (/ usable cover)) 0)
+            x0        (* endSheets cover))
+      (if (> n 0) (list x0 (+ x0 (* n cover)) sill (+ sill panL))))
+    nil))
+
 (defun peb-fr-wall-lights (data surf ox base faceLen stations revView annY
                            / on walls sill panL cover n i px lay qty ts czone usable x0
-                             lenMm widMm eaveMm endSheets cont perBay spans drew
+                             lenMm widMm eaveMm endSheets cont perBay spans drew band
                              lbl ltx lty lax lry lprev lw)
   (setq on    (strcase (peb-tb-or (MSPL-Get-Str data "WA_LIGHT_ON") "No"))
         walls (strcase (peb-tb-or (MSPL-Get-Str data "WA_LIGHT_WALLS") ""))
@@ -1069,10 +1103,13 @@
       ;; to layer on top of the number. And two is the visual limit as well - "if we will leave
       ;; more panels on sides, then it do not look good": stop three or four sheets short and the
       ;; wall reads as two blank ends with a strip in the middle.
-      (setq endSheets 2)
-      (setq usable (- faceLen (* 2.0 endSheets cover)))
-      (setq n (if (> usable cover) (fix (/ usable cover)) 0))
-      (setq x0 (* endSheets cover) i 0)
+      ;; ONE CALCULATION, drawn here and read by the cladding loop that has to break at it -
+      ;; see peb-fr-wl-band. It used to be worked out inline right here, which is why the sheets
+      ;; above and below could not know where the band was.
+      (setq endSheets 2 band (peb-fr-wl-band data surf faceLen))
+      (setq x0 (if band (car band) (* endSheets cover))
+            n  (if band (fix (/ (- (cadr band) (car band)) cover)) 0)
+            i  0)
       ;; CONTINUOUS fills that middle run; DISCONTINUOUS puts `perBay` panels in each bay and
       ;; leaves plain sheeting between the groups (owner: the No. per Bay dropdown).
       (if (and (wcmatch (strcase cont) "*DISCONT*") stations (> (length stations) 1))
@@ -1166,14 +1203,17 @@
       (setvar "CLAYER" lay)))
   (princ))
 
-(defun peb-fr-doors (data surf ox base faceLen stations revView
+(defun peb-fr-doors (data surf ox base faceLen stations revView isSht
                      / nSt dk qty gf gt dw dh dtyp dop x0 x1 cx bayClear di dsy lab prev
-                       sldOK)
+                       sldOK colhw)
   (setq qty (MSPL-Get-Int data (strcat "DR_" surf "_N")))
   (if (or (null stations) (< (length stations) 2) (null qty) (< qty 1))
     (princ)
     (progn
       (setq prev (getvar "CLAYER") nSt (length stations))
+      ;; same half-width the columns on this sheet use, so a jamb reads as the same family of
+      ;; member rather than a second convention (peb-draw-framing-elev sets this identically).
+      (setq colhw (if (member surf '("LEW" "REW")) 100.0 150.0))
       (if (> qty 40) (setq qty 40))
       (setq dk 1)
       (while (<= dk qty)
@@ -1217,6 +1257,34 @@
                 (setvar "CLAYER" "OPEN")
                 (command "_.RECTANG" (list (+ ox cx (/ dw -2.0)) base)
                                      (list (+ ox cx (/ dw  2.0)) (+ base dh)))
+                ;; ── THE JAMBS (owner 4-Sep-2026: "Framing is now showing the opening for the
+                ;;    doors. It should show the Jams") ──────────────────────────────────────
+                ;; A FRAMING elevation shows STEEL. A door there is not a hole - it is the two
+                ;; jamb posts that carry the opening and the header across their heads. This
+                ;; drew the wipeout and the OPEN rectangle above and stopped, so framing and
+                ;; sheeting were byte-identical on doors and the framing sheet showed a gap
+                ;; where members belong.
+                ;;
+                ;; SHEETING KEEPS THE HOLE. There the door is a cladding opening with the leaf
+                ;; in it, and jamb steel behind cladding is not visible - which is why this is
+                ;; gated on isSht rather than drawn on both, the two sheets having been
+                ;; indistinguishable until now.
+                ;;
+                ;; INDICATIVE (owner: "Proposal Drawings are always Indicative, not detailed
+                ;; one"): a member each side and one across the head, at the same 2 x colhw the
+                ;; columns on this very sheet are drawn with. No cleats, no bolts, no sizes -
+                ;; those are the approval drawing's business.
+                (if (not isSht)
+                  (progn
+                    (setvar "CLAYER" "COLUMNS")
+                    (setq di (max 75.0 (* colhw 0.75)))          ; jamb half-width
+                    (command "_.RECTANG" (list (- (+ ox cx (/ dw -2.0)) (* 2.0 di)) base)
+                                         (list (+ ox cx (/ dw -2.0)) (+ base dh)))
+                    (command "_.RECTANG" (list (+ ox cx (/ dw  2.0)) base)
+                                         (list (+ (+ ox cx (/ dw  2.0)) (* 2.0 di)) (+ base dh)))
+                    ;; the header, spanning jamb outer face to jamb outer face
+                    (command "_.RECTANG" (list (- (+ ox cx (/ dw -2.0)) (* 2.0 di)) (+ base dh))
+                                         (list (+ (+ ox cx (/ dw  2.0)) (* 2.0 di)) (+ base dh (* 2.0 di))))))
                 (setvar "CLAYER" "COMP-DOOR")
                 ;; ── A SLIDING DOOR IS DRAWN BY ITS OWN COMPONENT ──────────────────────────
                 ;; Every accessory on this elevation used to be the RECTANG below, so a louver,
@@ -2130,7 +2198,7 @@
     (peb-fr-canopy data surf ox base faceLen stations revView wallEave))))
   ;; rule 4B.47 - shutter / personnel doors, one per bay
   (vl-catch-all-apply (function (lambda ()
-    (peb-fr-doors data surf ox base faceLen stations revView))))
+    (peb-fr-doors data surf ox base faceLen stations revView nil))))
   (setvar "CLAYER" prev)
   (princ))
 
@@ -2479,7 +2547,7 @@
                               wallEave faceLen stations isEnd base rise ridgeRise i g x yTop pts cx prev lbl
                               bubGap bubR ov gbase owText sp sx cnt pre psurf pat pw ptyp psill ph noteY owU revView hdTxt
                               prng pi0 pi1 px0 pOfs pnTot gMarks
-                              rbOn rbFrom rbTo rbFloor rbBase nLen ewGrid ewRaised rx0 rx1 hasR gbaseR bc sbase sgb)
+                              rbOn rbFrom rbTo rbFloor rbBase nLen ewGrid ewRaised rx0 rx1 hasR gbaseR bc sbase sgb wlb)
   (setq len (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
         wid (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
         slopeD (slope-denom (peb-tb-or (MSPL-Get-Str data "SLOPE") "10"))
@@ -2707,11 +2775,35 @@
       ;; while the roof band directly above it drew 23.  Ribs are a roll-forming dimension and
       ;; belong to the DETAILS sheet, which draws the true profile (4B.50).
       (setvar "CLAYER" "CLADDING")
+      ;; ── THE SHEET BREAKS AT THE WALL LIGHTS (owner 4-Sep-2026) ────────────────────────────
+      ;;   "we always install the bottom sheet from BW to bottom of wall light girt and we fix
+      ;;    the wall lights on top of it and then again a sheet come from wall light top to the
+      ;;    eave level all around"
+      ;;
+      ;; The wall is THREE COURSES of cladding, and this loop drew each joint as ONE line from
+      ;; the brickwork clean through to the eave - a sheet that does not exist on the building.
+      ;; Crossed with the band's own sill and head lines that made a grid of boxes, reported four
+      ;; times. Every earlier attempt went after the density (ribs, sheen, panel rectangles:
+      ;; 1,628 entities down to 96) and none of them touched this, because the horizontals were
+      ;; never the fault - these verticals were.
+      ;;
+      ;; A wall light is a standard 1000 wide (owner), which is exactly one sheeting panel, so a
+      ;; light bay and a cladding bay are the same bay by definition and the break lands on a
+      ;; joint every time. Levels come from peb-fr-wl-band, the same calculation that places the
+      ;; panels - not re-derived here (rule 3).
+      (setq wlb (peb-fr-wl-band data surf faceLen))
       (foreach sx (peb-panel-lines faceLen (peb-panel-cover data "WALL"))
         (setq yTop (if isEnd (peb-fr-topy sx faceLen base eaveH eaveHi eaveLo rise rtype hiSide) (+ base wallEave))
               sgb  (if (and rbOn hasR (>= sx rx0) (< sx rx1)) (+ base rbBase gbaseR) (+ base gbase)))
         (if (> yTop (+ sgb 100.0))
-          (command "_.LINE" (list (+ ox sx) sgb) (list (+ ox sx) yTop) "")))
+          (if (and wlb
+                   (>= sx (- (car wlb) 1.0)) (<= sx (+ (cadr wlb) 1.0))     ; within the band run
+                   (> (+ base (caddr wlb)) (+ sgb 100.0))                   ; a lower course exists
+                   (< (+ base (nth 3 wlb)) (- yTop 100.0)))                 ; ...and an upper one
+            (progn
+              (command "_.LINE" (list (+ ox sx) sgb) (list (+ ox sx) (+ base (caddr wlb))) "")
+              (command "_.LINE" (list (+ ox sx) (+ base (nth 3 wlb))) (list (+ ox sx) yTop) ""))
+            (command "_.LINE" (list (+ ox sx) sgb) (list (+ ox sx) yTop) ""))))
       ;; condition label(s) — per segment
       (if (and rbOn hasR)
         (progn
@@ -2835,7 +2927,7 @@
     (peb-fr-canopy data surf ox base faceLen stations revView wallEave))))
   ;; rule 4B.47 - shutter / personnel doors, one per bay
   (vl-catch-all-apply (function (lambda ()
-    (peb-fr-doors data surf ox base faceLen stations revView))))
+    (peb-fr-doors data surf ox base faceLen stations revView T))))
   ;; ...and the WALL-LIGHT BAND. Only here, on the SHEETING elevation - the wall light is a
   ;; cladding item, so it is drawn where the sheeting is drawn (standing rule, owner 3-Sep-2026).
   ;; The framing elevation above deliberately does NOT get it.

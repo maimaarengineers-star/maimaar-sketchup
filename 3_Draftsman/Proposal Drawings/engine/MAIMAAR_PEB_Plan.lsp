@@ -1441,7 +1441,7 @@
 ;; Draw ONE wall opening (door/window) in plan: jambs + panel across the gap,
 ;; a swing arc for doors, the MARK, an OFFSET dim to the nearest grid, and a RED
 ;; "(!) OPENING IN BRACED BAY" flag when a sidewall opening sits in a braced bay.
-(defun peb-draw-one-opening (surf at w mark isDoor braced len wid ox oy bayPts
+(defun peb-draw-one-opening (surf at w mark isDoor braced len wid ox oy bayPts showOff
                              / px py horiz hw dep prev inSign ng off)
   (setq hw (/ w 2.0) dep 400.0 prev (getvar "CLAYER"))
   (cond
@@ -1472,7 +1472,12 @@
       (txt "MC" (list (- px (* inSign 600 *PEB-TEXT-SCALE*)) py) (peb-th 'SMALL) 0 mark))
     ;; OFFSET dim from the nearest grid (so the draughtsman sees the location;
     ;; no cross-bracing may sit at an opening) — horizontal walls only (length axis).
-    (if horiz
+    ;; NOT FOR LOUVERS (owner 4-Sep-2026: "In CLP - No need to show the Off-set dimensions for
+    ;; the Louvers"). Twelve louvers on the two side walls put twelve offset dims across the
+    ;; column layout plan, on top of the grid chain that is the whole reason the sheet exists.
+    ;; Where a louver sits along a wall is elevation business; the CLP is about columns. The
+    ;; symbol and the mark stay - only the dimension goes.
+    (if (and horiz showOff)
       (progn
         (setq ng (peb-nearest-grid (- px ox) bayPts) off (abs (- (- px ox) ng)))
         (if (> off 1.0)
@@ -1507,7 +1512,8 @@
         (setq bayIdx (if (member surf '("NSW" "FSW")) (peb-bay-of at bayPts) -1))
         (peb-draw-one-opening surf at w mark isDoor
                               (if (member bayIdx braced) T nil)
-                              len wid ox oy bayPts)))
+                              len wid ox oy bayPts
+                              (not (wcmatch typ "*LOUVER*")))))
     (setq i (1+ i)))
   ;; ── THE TICKED DOORS, WHICH ARE NOT PLACEMENTS ────────────────────────────────────────
   ;; PL*_ is the manual Area Placement panel. The doors the BSF TICKS arrive as DR_*, and those
