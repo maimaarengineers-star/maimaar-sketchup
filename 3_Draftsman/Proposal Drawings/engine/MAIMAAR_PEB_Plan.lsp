@@ -4517,8 +4517,15 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
     (vl-catch-all-apply (function (lambda ()
       (entmake (list '(0 . "LTYPE") '(100 . "AcDbSymbolTableRecord")
                      '(100 . "AcDbLinetypeTableRecord") '(2 . "CRANEDOT") '(70 . 0)
-                     '(3 . "Crane bridge __ __ __") '(72 . 65) '(73 . 2) '(40 . 270.0)
-                     '(49 . 150.0) '(74 . 0) '(49 . -120.0) '(74 . 0))))))))  ; owner: SHORT DASH
+                     '(3 . "Crane bridge . . . .") '(72 . 65) '(73 . 2) '(40 . 300.0)
+                     '(49 . 0.0) '(74 . 0) '(49 . -300.0) '(74 . 0)))))))) ; TRUE DOTS (owner 5-Sep-2026)
+                     ;; "Beam will be in Dotted to differentiate, as Bridge is normally not in
+                     ;; Maimaar Scope" - and on a crane the MAIN BEAM *is* the bridge girder (the
+                     ;; 210-25 gantry drawing labels it exactly that). This pattern read 150 dash /
+                     ;; 120 gap - a short DASH, not dots - even though it is called CRANEDOT and its
+                     ;; own comment says the owner asked for dotted on 19-Jul. A dash also says the
+                     ;; same thing as every other hidden line on the sheet, so it could not carry
+                     ;; "not our scope". A dot is a dash of length ZERO.
 ;; THICK dotted line/circle for the bridge girder + hoist symbol (owner 19-Jul: show them as THICK
 ;; dotted).  Lineweight 0.15mm (cons 370 15) is honoured by the DWG-To-PDF monochrome plot.
 (defun peb-crane-dot-line (xa ya xb yb / es)
