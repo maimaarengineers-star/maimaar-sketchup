@@ -45,13 +45,29 @@ else, so two terminals never collide. Stage by path, never `git add -A`.
 The only shared files a sync touches are the load list and the dispatch - so a sync is a small,
 reviewable diff, not a merge.
 
+
+## FOLDER NAMING — first word Capital
+
+> *"Note in Library all the Folder First Word should be Capital, for example Louvers not louvers,
+> Doors not doors."* — Nasir, 4-Sep-2026
+
+`Sliding Doors/` is now **`Sliding Doors/`**. `louver/` and `skylights_and_wall_lights/` are still
+lower-case: both are live on another terminal right now and renaming a folder out from under an
+open file is the shared-tree collision this library exists to avoid. **Whoever owns them renames
+them** — `Louvers/` and `Skylights & Wall Lights/` — the same way, with `git mv`.
+
+A note on doing it: AutoCAD holds its working directory on the last folder it opened a drawing
+from, so a rename fails with "Permission denied" while a reference DWG from that folder has been
+opened. Close the DRAWING through COM (`$acad.Documents`), never AutoCAD itself, and move the
+contents rather than the folder if the shell still has a handle.
+
 ## Status
 
 | Component | Folder | State |
 |---|---|---|
 | Sky lights & wall lights | `skylights_and_wall_lights/` | **DONE and SYNCED** - wall lights on the wall sheeting elevations, sky lights on the roof sheeting plan, one drawer for both; verified on MSPL-26-266 |
 | Louver | `louver/` | **drawers built and rendering** (`MAIMAAR_PEB_Louver.lsp`). Fixed, adjustable and sand-trap from one drawer, at ANY size - the framed opening, blade count, girt span and free area are all derived, and the manual's own worked example (73.4 m2 -> 210 louvers) reproduces from the formulas. Elevation split by a diagonal break, mesh one side / blades the other, as the reference draws it. Reference = Technical Manual Section 13.8, chosen after scanning the whole job archive (1,873 DWG/DXF + 24,526 PDFs) found NO Maimaar wall-louver detail. `LV_*` keys emitted by `drawingData.ts`; `LOUVER` added to `PEB_LAYERS.csv`. NOT yet synced into the building drawings. |
-| Sliding door | `sliding_door/` | **COMPLETE and traced to the CURRENT sheets** (`MAIMAAR_PEB_SlidingDoor.lsp`). A content scan of all 29,287 job PDFs found the 2024/25 sets that a filename search misses: MSPL-121 (a DOOR PLAN + DOOR ELEVATION on one sheet - what a PD must emit) and MSPL-176 (the full member table). Draws leaf, panel field, cover trims, meeting stile, WICKET DOOR, top track and hood, floor rail with wheels running ON it, parked leaves, and the house bow-tie plan symbol. Sample reproduces MSPL-121, ~18 s. NOT yet synced into the building drawings. |
+| Sliding door | `Sliding Doors/` | **COMPLETE and traced to the CURRENT sheets** (`MAIMAAR_PEB_SlidingDoor.lsp`). A content scan of all 29,287 job PDFs found the 2024/25 sets that a filename search misses: MSPL-121 (a DOOR PLAN + DOOR ELEVATION on one sheet - what a PD must emit) and MSPL-176 (the full member table). Draws leaf, panel field, cover trims, meeting stile, WICKET DOOR, top track and hood, floor rail with wheels running ON it, parked leaves, and the house bow-tie plan symbol. Sample reproduces MSPL-121, ~18 s. NOT yet synced into the building drawings. |
 
 > **CLOSED, 3-Sep-2026.** `SLIDING DOOR,30,Continuous,0.50` is now in
 > `_PEB_LAYERS_generated.lsp`, so the layer carries its 0.50 pen instead of inheriting
