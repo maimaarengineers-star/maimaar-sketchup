@@ -1033,10 +1033,10 @@
 ;;
 ;; The panel is drawn by the COMPONENT LIBRARY - the same drawer the roof plan and the sample
 ;; use (rule 1). No panel geometry lives in this file.
-(defun peb-fr-wall-lights (data surf ox base faceLen stations revView
+(defun peb-fr-wall-lights (data surf ox base faceLen stations revView annY
                            / on walls sill panL cover n i px lay qty ts czone usable x0
                              lenMm widMm eaveMm endSheets cont perBay spans drew
-                             lbl ltx lty lax lry lprev)
+                             lbl ltx lty lax lry lprev lw)
   (setq on    (strcase (peb-tb-or (MSPL-Get-Str data "WA_LIGHT_ON") "No"))
         walls (strcase (peb-tb-or (MSPL-Get-Str data "WA_LIGHT_WALLS") ""))
         sill  (MSPL-Get-Num data "WA_LIGHT_SILL")
@@ -1083,45 +1083,61 @@
           (setq px (+ x0 (* i cover)))
           (peb-acc-light-elev (+ ox px) (+ base sill) cover panL surf)
           (setq i (1+ i))))
-      ;; ── A GIRT ON BOTH SIDES OF THE BAND (owner 4-Sep-2026) ─────────────────────────────
-      ;; "Fiberglass Wall Lights ... needs the Girts on Both Sides." A fiberglass panel is the
-      ;; weakest sheet on the wall and it is not self-supporting across its length: it has to be
-      ;; fixed along BOTH edges, so a girt runs at the SILL and another at the HEAD of the band.
-      ;; Without them the panel is held only by the sheets it laps, which is what fails first
-      ;; under the suction the corner rule is also guarding against.
-      ;; Drawn the full length of the wall, because that is how a girt runs - it does not start
-      ;; and stop with the band.
-      (if (> n 0)
-        (progn
-          (peb-comp-layer "GIRTS" 6)
-          (peb-acc-line ox (+ base sill)      (+ ox faceLen) (+ base sill)      "GIRTS" 13)
-          (peb-acc-line ox (+ base sill panL) (+ ox faceLen) (+ base sill panL) "GIRTS" 13)))
-      ;; ONE leader per ELEVATION, carrying THIS WALL'S OWN COUNT (owner 4-Sep-2026: "Give
-      ;; separate no. on each elevation ... if on the endwall 10 No's skylights are coming, then
-      ;; we may write 10 No's").
+      ;; ── NO GIRTS HERE (owner 4-Sep-2026: "Side Wall Elevation still showing the boxes -
+      ;; match the sheeting similar to of the End Wall Sheeting") ─────────────────────────────
       ;;
-      ;; It used to print WA_LIGHT_QTY - the BSF's TOTAL for the whole building - on every wall,
-      ;; so a 93-panel job read "93 No." on the NSW and "93 No." again on the FSW: 186 to anyone
-      ;; reading the sheet. An elevation must describe what that elevation shows. The building
-      ;; total belongs to the accessory schedule and the estimate, not to four separate leaders.
-      ;; `n` is the whole panels actually drawn on THIS wall, so the label and the drawing agree
-      ;; by construction.
-      ;; AND IT MUST ACTUALLY APPEAR. This was a bare vl-catch-all-apply with no fallback, so
-      ;; when the MLEADER failed on one wall the label simply vanished - the FSW came out with a
-      ;; band and no callout while the NSW had one. A swallowed error that leaves the sheet
-      ;; wrong is the worst kind: nothing in the render output says anything happened.
-      ;; Try the house MLEADER; if it does not produce an entity, draw the leader by hand.
-      ;; `lry`, not `lay`: `lay` already holds the SAVED LAYER NAME from the top of this
-      ;; progn, and reusing it for the arrow's Y made the closing (setvar "CLAYER" lay) hand
-      ;; setvar a number. That throws, the enclosing vl-catch-all-apply swallows it, and the
-      ;; current layer is left wrong with nothing in the output to say why.
-      ;; `lax` is ABSOLUTE: x0 is an offset from the wall's own origin (the panels are drawn at
-      ;; (+ ox px)), so the leader arrow needs the same + ox or it points into empty space.
-      (setq lbl (strcat (itoa n) " No. FIBERGLASS WALL LIGHT - TYPE")
-            ltx (+ ox faceLen (* 2000.0 ts))
-            lty (+ base sill panL)
-            lax (+ ox x0 (* 1.5 cover))
-            lry (+ base sill (/ panL 2.0))
+      ;; This drew a girt at the band's sill and head, the FULL LENGTH of the wall. On the
+      ;; sheeting elevation the cladding is vertical ribs, so two full-length horizontals crossed
+      ;; every rib and turned the wall into a grid of boxes. The END wall sheeting has no such
+      ;; lines, which is exactly why it reads clean - and it is the reference the owner named.
+      ;;
+      ;; It also broke a rule written three hours earlier. G6: the FRAMING elevation carries the
+      ;; girts, the SHEETING elevation carries the cladding. Putting girts here breaks it in the
+      ;; other direction.
+      ;;
+      ;; "A girt above and below every fiberglass panel" is still satisfied - on the FRAMING
+      ;; elevation, where the anchored levels land exactly on the band's sill and head. That is
+      ;; the entire point of anchoring them there (rule G1); nothing needs re-drawing on this
+      ;; sheet to prove it.
+
+      ;; ── ONE LEADER PER ELEVATION, PLACED BY MEASUREMENT ─────────────────────────────────
+      ;;
+      ;; THE COUNT IS THIS WALL'S OWN (owner 4-Sep-2026: "Give separate no. on each elevation").
+      ;; It printed WA_LIGHT_QTY - the BUILDING total - on every wall, so a 93-panel job read
+      ;; "93 No." on the NSW and "93 No." again on the FSW: 186 to anyone reading the sheet.
+      ;; `n` is what was actually drawn here, so label and drawing agree by construction.
+      ;;
+      ;; THE LEADER TURNS UP, NOT OUT (owner: "the MLadder is taking a lot of horizontal space").
+      ;; It landed its text at ox + faceLen + 2000 - outside the wall - which widened the extents
+      ;; by the length of the sentence and scaled the whole sheet down: PRO-05 plotted 1:389
+      ;; while PRO-03, the same wall, got 1:259. Turning up puts the text OVER the drawing, so
+      ;; the extents stay the wall itself.
+      ;;
+      ;; ITS X IS COMPUTED, NOT GUESSED. Three attempts at a fraction of the wall all failed -
+      ;; 0.20 and 0.30 ran into the WALL SHEETING mark, 0.06 hung off the left end and made the
+      ;; scale WORSE (1:407) than the problem being fixed. The mark is anchored at 0.74, and the
+      ;; label's width is knowable, so place the text to END one clear gap before the mark, and
+      ;; clamp so it can never overhang the wall. No magic fraction, and it holds for any count
+      ;; or any wall length.
+      ;;
+      ;; THE ANCHOR, ESTABLISHED FROM THE CODE AND THEN FROM THE DXF (4-Sep-2026), because two
+      ;; earlier "fixes" assumed opposite answers and neither was checked:
+      ;;   peb-label-with-leader justifies (if (>= tX aX) "ML" "MR") - so with the text landing
+      ;;   RIGHT of its arrow, as it does here, it is middle-LEFT and RUNS RIGHT from ltx.
+      ;;   Confirmed in the rendered DXF: anchor=left/middle at 561,125.
+      ;; THE WIDTH FACTOR WAS THE REAL BUG. At 0.66 the measured pair came out
+      ;;   wall light  561,125..576,741   |   WALL SHEETING mark  579,375..595,904
+      ;; a gap of only 2,634 on a 15,616-wide label - under 17% margin, so any romand.shx wider
+      ;; than 0.77 em closes it and the two touch, which is what was being reported. 0.82 is an
+      ;; upper bound for this font including inter-character spacing, and it only pushes the
+      ;; label LEFT, deeper inside a wall that starts 17,840 further left again - it cannot
+      ;; grow the extents or change the plotted scale.
+      (setq lbl   (strcat (itoa n) " No. FIBERGLASS WALL LIGHT")
+            lw    (* (strlen lbl) (peb-th 'ANNOT) ts 0.82)
+            lax   (+ ox x0 (* 1.5 cover))                    ; arrow onto a panel in the band
+            lry   (+ base sill (/ panL 2.0))
+            lty   (if (and annY (> annY 0.0)) annY (+ base eaveMm (* 1200.0 ts)))
+            ltx   (max ox (- (+ ox (* faceLen 0.74)) lw (* 1500.0 *PEB-DIM-SCALE*)))
             lprev (entlast))
       (if (boundp 'peb-label-with-leader)
         (vl-catch-all-apply
@@ -1131,9 +1147,9 @@
         (progn
           (peb-comp-layer "DIMENSIONS" 6)
           (peb-acc-line lax lry lax lty "DIMENSIONS" 13)
-          (peb-acc-line lax lty ltx lty "DIMENSIONS" 13)
+          (peb-acc-line lax lty (+ ltx (* 600.0 ts)) lty "DIMENSIONS" 13)
           (setvar "CLAYER" "TEXT")
-          (txt "ML" (list (+ ltx (* 120.0 ts)) lty) (peb-th 'ANNOT) 0.0 lbl)))
+          (txt "ML" (list (+ ltx (* 720.0 ts)) lty) (peb-th 'ANNOT) 0.0 lbl)))
       (setvar "CLAYER" lay)))
   (princ))
 
@@ -1202,8 +1218,17 @@
                 ;; it throws. A type test would have answered only the first of those, and when
                 ;; it answered wrongly the sheet fell through to a plain rectangle with nothing
                 ;; anywhere to say so - the silent-failure class this engine keeps meeting.
+                ;; GATE ON THE LIBRARY BEING PRESENT (4-Sep-2026). vl-catch-all-apply guards the
+                ;; CALL, but AutoLISP evaluates the ARGUMENT LIST first - and three of those
+                ;; arguments are library functions too. With the module unloaded,
+                ;; (peb-sld-leaves-of ...) threw OUTSIDE the guard, which unwound the whole of
+                ;; peb-fr-doors: no fallback rectangle, no roll-up slats, no labels, and every
+                ;; REMAINING door on that wall silently gone. The comment above promised a
+                ;; fallback "if it is not loaded"; for that exact case it never ran.
                 (setq sldOK nil)
-                (if (wcmatch dtyp "*SLID*")
+                (if (and (wcmatch dtyp "*SLID*")
+                         (boundp 'peb-sld-elevation) (boundp 'peb-sld-leaves-of)
+                         (boundp 'peb-sld-ptype-of)  (boundp 'peb-sld-wicket-of))
                   (setq sldOK
                     (not (vl-catch-all-error-p
                       (vl-catch-all-apply 'peb-sld-elevation
@@ -1342,7 +1367,7 @@
                               p0 p1 sdx sdy slen ux uy nx ny pdep npl jj tt px py rdep owText
                               bc bx0 by0 bx1 by1 owU isRcc hEnt
                               rbOn rbFrom rbTo rbFloor rbBase nLen ewGrid ewRaised rx0 rx1 gridNum plateY hasR gbaseR ltsE
-                              ewMain webD rdepC rdepL gg d0 d1
+                              ewMain webD rdepC rdepL gg d0 d1 uPts uA uB minTop
                               dHt bdh yh hk)
   (setq len    (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
         wid    (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
@@ -1366,6 +1391,10 @@
   ;; which killed the drawer and produced a BLANK sheeting elevation with a title block and
   ;; nothing else. Plain setq, and a nil when the value is absent or zero.
   (setq *PEB-WF-CLEAR* clrH)
+  ;; WHICH KIND OF WALL. LEW/REW posts run to the rafter, so their girts are not capped at the
+  ;; clear height (see peb-fr-wallface). A special for the same reason as the others: wallface is
+  ;; called from five places mid-way through a wall of locals.
+  (setq *PEB-WF-ISEND* (and (member surf '("LEW" "REW")) T))
   (setq *PEB-WF-SILL* (MSPL-Get-Num data "WA_LIGHT_SILL"))
   (if (or (null *PEB-WF-SILL*) (<= *PEB-WF-SILL* 0.0)) (setq *PEB-WF-SILL* nil))
   (setq *PEB-WF-HEAD* (MSPL-Get-Num data "WA_LIGHT_HEAD"))
@@ -1605,7 +1634,7 @@
       ;; it.  Dropping it (an earlier attempt did) left it nil, the brace arithmetic
       ;; errored, and the ENTIRE end-wall draw unwound silently: no error, no
       ;; geometry, no sheet.
-      (setq rdep (* 380.0 *PEB-TEXT-SCALE*) i 0)
+      (setq rdep (* 380.0 *PEB-TEXT-SCALE*) i 0 uPts nil)
       ;; The rafter UNDERSIDE is offset by the depth at each end instead — tapered
       ;; for a main frame, constant for a bearing frame — so it lands exactly on the
       ;; column tops, which are set to the same depth below the roof line.
@@ -1623,10 +1652,36 @@
                    rdepC))
         (command "_.LINE" p0 p1 "")
         (if (> slen 1.0)
-          (command "_.LINE"
-            (list (+ (car p0) (* (/ sdy slen) d0)) (- (cadr p0) (* (/ sdx slen) d0)))
-            (list (+ (car p1) (* (/ sdy slen) d1)) (- (cadr p1) (* (/ sdx slen) d1))) ""))
+          (progn
+            (setq uA (list (+ (car p0) (* (/ sdy slen) d0)) (- (cadr p0) (* (/ sdx slen) d0)))
+                  uB (list (+ (car p1) (* (/ sdy slen) d1)) (- (cadr p1) (* (/ sdx slen) d1))))
+            (command "_.LINE" uA uB "")
+            ;; keep every underside end, in order, so the member can be CLOSED below
+            (setq uPts (append uPts (list uA uB)))))
         (setq i (1+ i)))
+      ;; ── CLOSE THE MEMBER (owner 4-Sep-2026: "rafters are showing opened") ───────────────
+      ;; The loop above draws a top line and an underside line per segment and stops. Nothing
+      ;; ever joined them, so the rafter was two bare parallel lines: OPEN at both eaves, and
+      ;; open across the ridge as well, because each segment offsets perpendicular to its OWN
+      ;; slope - measured on B-01 the two undersides missed each other by 78 mm at the peak.
+      ;; Three closures, and the member reads as a beam:
+      ;;   * a cap at each eave, top line down to the underside - the end of the rafter;
+      ;;   * a stitch across every interior vertex, closing the mitre at the ridge.
+      ;; The column tops are already set to (topy - rdep) at the same station, so the cap
+      ;; lands exactly on the column and the two read as one connected frame.
+      (if (and uPts (>= (length uPts) 2))
+        (progn
+          (command "_.LINE" (car pts) (car uPts) "")                       ; left eave cap
+          (command "_.LINE" (last pts) (last uPts) "")                     ; right eave cap
+          (setq i 1)
+          (while (< (1+ i) (length uPts))                                  ; 1,3,5... = mitre pairs
+            ;; only where the two segments actually MISS each other. At a plain column station
+            ;; the slope does not change, so both offsets land on the same point and this drew a
+            ;; zero-length line - an invisible entity that still bloats the file and shows up as
+            ;; a stray node when the drawing is edited.
+            (setq uA (nth i uPts) uB (nth (1+ i) uPts))
+            (if (> (distance uA uB) 1.0) (command "_.LINE" uA uB ""))
+            (setq i (+ i 2)))))
       ;; (Proposal Drawing: member marks + sizes/spacings omitted — those are set by design at approval stage.)
       ;; PURLINS (owner 28-Jul, ref: END WALL FRAMING shows the Z-purlins as short ticks sitting ON the
       ;; rafter). Walk each rafter segment at ~1.5 m and drop a short perpendicular stub on the OUTBOARD side.
@@ -1727,6 +1782,28 @@
         gbase  (if (and ewHang (> hangHt 0.0)) hangHt (peb-fr-openwall-ht owText))
         gbaseR (peb-fr-seg-openwall-ht owText)                 ; raised-band brick height (compound OW segment)
         gy     (if isEnd (+ base eaveH) (+ base wallEave)))
+  ;; ── THE LOWEST POST TOP (owner 4-Sep-2026: "girts is going up from the building height,
+  ;;    there is line in the air") ──────────────────────────────────────────────────────────
+  ;; An end-wall girt is drawn at FULL LENGTH, so it is only supported where EVERY post it
+  ;; crosses reaches that level. The posts do NOT all reach the same height: each one stops at
+  ;; (roof line - rafter depth at that station), and on a main frame the rafter is DEEPEST at
+  ;; the eaves, so the two CORNER posts are the lowest of the lot. Measured on B-01: corner
+  ;; tops 25,255, interior tops 26,145, and the ladder ran to eaveTop - 200 = 25,905 - which
+  ;; put a girt at 25,477 with 222 mm of nothing under each end. That is the line in the air,
+  ;; and it is also 362 above the 25,115 clear height, which is what made it look wrong.
+  ;; So the ceiling for a full-length girt is the MINIMUM post top, not the eave.
+  ;; (Above it the triangle is peb-fr-gable-girts' job - and that function already gets this
+  ;; right, drawing each level only between the posts that actually reach it.)
+  (setq *PEB-WF-POSTTOP* nil)
+  (if isEnd
+    (progn
+      (setq minTop nil gg 0)
+      (foreach g stations
+        (setq d0 (- (peb-fr-topy g faceLen base eaveH eaveHi eaveLo rise rtype hiSide)
+                    (if rdepL (nth gg rdepL) rdepC)))
+        (if (or (null minTop) (< d0 minTop)) (setq minTop d0))
+        (setq gg (1+ gg)))
+      (setq *PEB-WF-POSTTOP* minTop)))
   (setq gbase  (peb-fr-brick-clamp gbase  surf data)           ; see peb-fr-brick-clamp
         gbaseR (peb-fr-brick-clamp gbaseR surf data))
   (if (<= gbaseR 0.0) (setq gbaseR gbase))                    ; no per-segment condition -> reuse the main height
@@ -2089,13 +2166,17 @@
 ;; as blank paper (no border when WIPEOUTFRAME 0), hiding the hatch ONLY under the text.  Drawn AFTER the
 ;; hatch and BEFORE the text, so: hatch < wipeout < text.  Catch-guarded → falls back to plain text if the
 ;; WIPEOUT command is unavailable headless (no worse than before).
-(defun peb-fr-masked-label (cx cy h str / w x0 x1 y0 y1)
-  (setq w  (* (max 1 (strlen str)) h 0.66)
-        x0 (- cx (* w 0.5) h) x1 (+ cx (* w 0.5) h)
-        y0 (- cy (* h 0.95))  y1 (+ cy (* h 0.95)))
-  (setvar "WIPEOUTFRAME" 0)   ; no plotted border → the mask is invisible, only the text shows (clean)
-  (vl-catch-all-apply (function (lambda ()
-    (command "_.WIPEOUT" (list x0 y0) (list x1 y0) (list x1 y1) (list x0 y1) ""))))
+(defun peb-fr-masked-label (cx cy h str)
+  ;; NO WIPEOUT (owner 4-Sep-2026: "side walls elevations are showing Box").
+  ;;
+  ;; This masked the brick hatch behind the label with a WIPEOUT so the words read cleanly, and
+  ;; set WIPEOUTFRAME 0 so its border would not plot. But the frame is not the problem - the FILL
+  ;; is. A wipeout is an opaque raster region, and on the monochrome plot it comes out as a pale
+  ;; grey rectangle sitting in the brickwork. Hiding its border only made the box borderless.
+  ;;
+  ;; The label is small and the brick hatch is a 750-spaced diagonal, so the text reads perfectly
+  ;; well over it - which is exactly what the end wall sheeting already shows. Text only.
+  ;; The name is kept: every caller means "the condition label", not "a mask".
   (txt "MC" (list cx cy) h 0 str))
 
 ;; Existing RCC pillar in the raised zone of an ELEVATION (owner 29-Jul: "RCC pillars, and between them brick
@@ -2115,7 +2196,9 @@
 (defun peb-sh-label (cx cy gbase owText / owU)
   (setq owU (strcase owText))
   (setvar "CLAYER" "TEXT")
-  (peb-fr-masked-label cx cy (* 300 *PEB-TEXT-SCALE*)
+  ;; 300 UNSCALED: txt multiplies by *PEB-TEXT-SCALE* itself, so passing 300 x TS here drew
+  ;; the label at 300 x TS SQUARED - 352 high on a side wall where 325 was meant.
+  (peb-fr-masked-label cx cy 300.0
      (strcat (cond ((wcmatch owU "*ACCESS*")               "OPEN FOR ACCESS (BY OTHERS)")
                    ((wcmatch owU "*PRE-CAST*,*PRECAST*")   "PRE-CAST RCC PANELS (BY OTHERS)")
                    ((wcmatch owU "*RCC*,*R.C.C*,*CONCRETE*") "RCC WALL (BY OTHERS)")
@@ -2189,7 +2272,17 @@
   ;; sheeting elevation, so the same wall cannot show girts at two different heights on two
   ;; sheets (golden rule 3).
   (setq pdep 60.0)
+  ;; ── THE CAP IS A SIDE-WALL RULE ONLY (owner 4-Sep-2026: end wall "members are in the air") ──
+  ;; A SIDE-WALL column stops at the clear height, so a girt above it has nothing to fix to at
+  ;; either end - that is why the top girt is capped at clear - 200.
+  ;; AN END WALL IS NOT LIKE THAT. Its posts run all the way up to the rafter, so girts there ARE
+  ;; supported and must continue into the gable. Capping the end wall truncated its ladder and
+  ;; left everything between clear - 200 and the rafter empty: the rafter drawn with nothing under
+  ;; it. My regression, from the girt-division change.
+  ;; So: anchored levels on a side wall; the old run-to-the-eave ladder on an end wall, with
+  ;; peb-fr-gable-girts taking the triangle above it.
   (setq lv (if (and (boundp 'peb-acc-girt-levels)
+                    (not (and (boundp '*PEB-WF-ISEND*) *PEB-WF-ISEND*))
                     (boundp '*PEB-WF-CLEAR*) *PEB-WF-CLEAR* (> *PEB-WF-CLEAR* 0.0))
              (peb-acc-girt-levels (+ wbase gbase)
                                   (+ wbase (if (boundp '*PEB-WF-CLEAR*) *PEB-WF-CLEAR* 0.0))
@@ -2222,8 +2315,14 @@
         (command "_.LINE" (list ox0 esY) (list (+ ox0 flen) esY) "")))
     ;; fallback: the old ladder, for a standalone load with no library present
     (progn
-      (setq gsp 1400.0 i 1)
-      (while (< (+ wbase gbase (* i gsp)) (- eaveTop 200.0))
+      ;; CEILING = the lowest post top on an end wall (see *PEB-WF-POSTTOP* at the call site),
+      ;; else the old eave - 200. A girt above the shortest post has nothing to fix to at that
+      ;; end of the wall, and drawing it anyway is exactly the "line in the air".
+      (setq gsp 1400.0 i 1
+            esY (if (and (boundp '*PEB-WF-POSTTOP*) *PEB-WF-POSTTOP*
+                         (< *PEB-WF-POSTTOP* (- eaveTop 200.0)))
+                  *PEB-WF-POSTTOP* (- eaveTop 200.0)))
+      (while (< (+ wbase gbase (* i gsp)) esY)
         (setq gy (+ wbase gbase (* i gsp)))
         (command "_.LINE" (list ox0 gy) (list (+ ox0 flen) gy) "")
         (command "_.LINE" (list ox0 (+ gy pdep)) (list (+ ox0 flen) (+ gy pdep)) "")
@@ -2260,7 +2359,7 @@
                 (setq bc (+ bc 750.0)))))
           (setvar "CECOLOR" "BYLAYER")))
       (setvar "CLAYER" "TEXT")
-      (peb-fr-masked-label (+ ox0 (/ flen 2.0)) (+ wbase (* gbase 0.42)) (* 300 *PEB-TEXT-SCALE*)
+      (peb-fr-masked-label (+ ox0 (/ flen 2.0)) (+ wbase (* gbase 0.42)) 300.0
            (strcat (cond ((wcmatch owU "*ACCESS*")               "OPEN FOR ACCESS (BY OTHERS)")
                          ((wcmatch owU "*PRE-CAST*,*PRECAST*")   "PRE-CAST RCC PANELS (BY OTHERS)")
                          ((wcmatch owU "*RCC*,*R.C.C*,*CONCRETE*") "RCC WALL (BY OTHERS)")
@@ -2389,6 +2488,10 @@
   ;; which killed the drawer and produced a BLANK sheeting elevation with a title block and
   ;; nothing else. Plain setq, and a nil when the value is absent or zero.
   (setq *PEB-WF-CLEAR* clrH)
+  ;; WHICH KIND OF WALL. LEW/REW posts run to the rafter, so their girts are not capped at the
+  ;; clear height (see peb-fr-wallface). A special for the same reason as the others: wallface is
+  ;; called from five places mid-way through a wall of locals.
+  (setq *PEB-WF-ISEND* (and (member surf '("LEW" "REW")) T))
   (setq *PEB-WF-SILL* (MSPL-Get-Num data "WA_LIGHT_SILL"))
   (if (or (null *PEB-WF-SILL*) (<= *PEB-WF-SILL* 0.0)) (setq *PEB-WF-SILL* nil))
   (setq *PEB-WF-HEAD* (MSPL-Get-Num data "WA_LIGHT_HEAD"))
@@ -2731,7 +2834,10 @@
   ;; and the mirrored one silently got neither. Two unrelated accessories must not share a
   ;; failure domain.
   (vl-catch-all-apply (function (lambda ()
-    (peb-fr-wall-lights data surf ox base faceLen stations revView))))
+    (peb-fr-wall-lights data surf ox base faceLen stations revView
+                        ;; the sheet's own annotation row, above the roof - the same one the
+                        ;; WALL SHEETING mark uses, so the count cannot land on the wall.
+                        (+ base eaveH rise (* 900.0 *PEB-DIM-SCALE*))))))
   ;; ── GRAVITY RIDGE VENTILATOR (RA_RV_*) — on the END WALL elevation ────────────────────
   ;;
   ;;  An END wall elevation is the one wall view that shows the gable, so it is the one that

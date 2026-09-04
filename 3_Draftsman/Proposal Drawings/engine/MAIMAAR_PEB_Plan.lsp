@@ -6865,7 +6865,9 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   ;;   (which sets _OPEN) first - the next one added without that wrapper would have been wrong.
   (setvar "DIMTXT"   (peb-th 'DIM))     ; ladder: 2.5 mm of paper (x DIMSCALE)
   (setvar "DIMTSZ"     0.0)        ; no ticks -> use arrowheads
-  (setvar "DIMASZ"   320.0)        ; proper small arrowhead (~0.6 x text)
+  (setvar "DIMASZ"   700.0)        ; 2.5 mm on the printed sheet - the ISO / AutoCAD standard.
+                                 ; 320 plotted at ~1.0 mm at 1:300, about 40% of standard, and
+                                 ; disagreed with the cross-section's own 800 in the same set.
   (vl-catch-all-apply (function (lambda () (setvar "DIMBLK" "_OPEN"))))
   (vl-catch-all-apply (function (lambda () (setvar "DIMSAH" 0))))
   (setvar "DIMEXE"   120.0)        ; extension beyond dim line
@@ -7173,7 +7175,7 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   ;;
   ;;  If MLEADER fails, falls back to MTEXT label + hand-rolled L-arrow.
   (setq tX (car labelPos) tY (cadr labelPos) aX (car arrowPt) aY (cadr arrowPt))
-  (setq s (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0) ah (* 260.0 s) w (* 100.0 s))
+  (setq s (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0) ah (* 560.0 s) w (* 100.0 s))
   (if (or (null fallbackTextHeight) (<= fallbackTextHeight 0)) (setq fallbackTextHeight (* 500.0 s)))
   ;; owner 4-Jul: split on \P into 2+ ROWS (was flattened to one line) — stacked downward.
   (setq lines '())
@@ -7494,7 +7496,7 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   (peb-safe-setvar "DIMTXT"   (peb-th 'DIM))   ; ladder: 2.5 mm of paper (x DIMSCALE)
   (peb-safe-setvar "DIMTXSTY" "ROMAND")     ; owner 19-Jul STANDING: dimension Text style = ROMAND (romand.shx)
   (peb-safe-setvar "DIMTSZ"     0.0)        ; no ticks -> arrowheads
-  (peb-safe-setvar "DIMASZ"   320.0)        ; proper small arrowhead
+  (peb-safe-setvar "DIMASZ"   700.0)        ; 2.5 mm on paper - see the note at the other setter
   ;; owner 19-Jul STANDING RULE: dimension arrowheads = "OPEN" type (open V, NOT filled solid).
   (vl-catch-all-apply (function (lambda () (setvar "DIMBLK" "_OPEN"))))
   (vl-catch-all-apply (function (lambda () (setvar "DIMSAH" 0))))

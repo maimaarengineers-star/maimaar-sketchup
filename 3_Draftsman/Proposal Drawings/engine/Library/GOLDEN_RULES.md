@@ -441,3 +441,38 @@ the label the block should have produced was **absent from the drawing in both c
 Two implementations of the same thing already exist in this engine. Adding a rule to the dead one
 and not the live one makes that worse. **Count the thing your change should produce, in the output,
 before and after** — and if the count is zero both times, you are editing the wrong file.
+
+### 31. EVERY DRAWING IS FRAMED IN A LAYOUT — never plotted from the model
+
+**Owner, 4-Sep-2026: "ALL DRAWINGS TO BE FRAMED IN LAYOUTS — NOT IN THE MODEL."**
+
+The model is where geometry is built at true size. It is never what gets plotted. A sheet is a
+sheet because it sits on an A4 layout with a viewport at a stated scale and a title block — that
+is what makes a plot repeatable, what makes the scale mean something, and what lets the customer
+press print once and get the same page back.
+
+The trap is that plotting from the model **looks fine**. `plotpdf` plots
+`(vla-get-ActiveLayout)`, and every sheet begins with `(setvar "TILEMODE" 1)` — so a page that
+forgets to create its layout silently plots *Model*, ZOOM-Extents-scaled to fit the paper. It
+comes out the right way up, roughly the right size, and nothing anywhere reports a problem.
+
+That is exactly how the COVER shipped: it draws its own A4 frame, so extents happened to land
+near the paper edge and it passed the eye. It was still scale-to-fit-whatever-the-extents-were,
+not framed to the sheet, so it could not be trusted to match the other pages or to reprint the
+same twice. Every engineering sheet in the same set went through `peb-add-layout` correctly.
+
+**So:**
+
+* Every page — cover included — creates a layout before `plotpdf`. Use `peb-add-layout` for a
+  sheet that needs the Maimaar title strip, `peb-add-plain-layout` for one that already draws
+  its own complete frame.
+* A DWG deliverable ships with a **named tab per sheet**, and the cover's LIST OF DRAWINGS is
+  built from those same tabs, in the same order, so the two cannot disagree. Set
+  `*PEB-SHEET-LIST*` from the sheets actually emitted — never leave `Cover.lsp` to fall back to
+  its hard-coded list.
+* A layout created for a PDF page is deleted again before the next sheet draws. `ERASE ALL`
+  clears model space only, so a surviving paperspace makes the next `peb-*-from-file` read
+  EXTMAX from the layout and wedge AutoCAD at 100% CPU with no error.
+* **How to check it, since looking at the page will not tell you:** the plotted page must come
+  from a layout that exists at plot time. Grep the built script for `plotpdf` and confirm an
+  `add-layout` call precedes each one in the same sheet block.
