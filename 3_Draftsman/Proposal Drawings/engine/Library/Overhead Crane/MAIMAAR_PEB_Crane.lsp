@@ -101,46 +101,51 @@
 
 ;; ── THE BRIDGE IN PLAN (TOP VIEW), WITH ITS COMPONENTS ────────────────────────────────────
 ;;
-;; Seen from above: the girder spanning between the two runways, an END TRUCK at each end, and
-;; the WHEELS that carry it onto the rails.
+;; ORIENTATION, WHICH WAS WRONG AND IS THE WHOLE POINT OF THIS VIEW (owner 5-Sep-2026: "This is
+;; not Correct ... it is giving the resemblance of crane"). In plan:
 ;;
-;; TRACED TO THE MANUAL, not chosen. Mammut design manual ch.8 "Crane Loads" (MBMA 02 / 06),
-;; symbol list: "NWb = Number of end truck wheels at ONE END of the bridge", and its worked
-;; 10 MT example states plainly "Number of end truck wheels = 2". So a bridge rides on FOUR
-;; wheels, two per end truck. That is a fact about the object and the top view has to show it —
-;; an end truck drawn as a bare box does not.
+;;     the BRIDGE spans the building WIDTH        -> horizontal here, x0 to x1
+;;     the RUNWAYS run along the building LENGTH  -> PERPENDICULAR to it, at x0 and x1
+;;     an END TRUCK runs along its RUNWAY         -> its long axis is ACROSS the girder, not
+;;                                                   along it, and its length is the WHEEL BASE
+;;     the two WHEELS of each truck sit on that runway, one fore and one aft
 ;;
-;;   x0 y0 x1 y1  the girder in plan: rail centre to rail centre; y0/y1 = the girder's own width
-;;   et           end-truck length along the runway (0 = skip the trucks)
+;; Drawn the other way round it still reads vaguely crane-like, which is exactly the trap: the
+;; parts are all present and the arrangement is impossible. A bridge whose end trucks point along
+;; its own span cannot travel.
+;;
+;;   x0 y0 x1 y1  the girder: rail centre to rail centre in x; y0/y1 = the girder's own width
+;;   et           end-truck length ALONG THE RUNWAY = the wheel base (0 = skip the trucks)
 ;;   wr           wheel radius (0 = skip the wheels)
-(defun peb-crn-bridge-plan (x0 y0 x1 y1 et wr / w gw yc eo wOfs e sgn ex xw)
-  (setq w (abs (- x1 x0)) gw (abs (- y1 y0)) yc (/ (+ y0 y1) 2.0))
-  (if (or (< w 1.0) (< gw 1.0))
+(defun peb-crn-bridge-plan (x0 y0 x1 y1 et wr / gw yc tw ex sgn e wy)
+  (setq gw (abs (- y1 y0)) yc (/ (+ y0 y1) 2.0)
+        tw (* gw 1.35))                          ; end-truck width, measured ALONG the girder
+  (if (or (< (abs (- x1 x0)) 1.0) (< gw 1.0))
     (princ)
     (progn
+      ;; the girder itself
       (peb-crn-dash x0 y0 x1 y0) (peb-crn-dash x1 y0 x1 y1)
       (peb-crn-dash x1 y1 x0 y1) (peb-crn-dash x0 y1 x0 y0)
-      (setq eo (* gw 0.60))                     ; how far the end truck stands proud of the girder
       (if (> et 1.0)
         (foreach e (list (list x0 1.0) (list x1 -1.0))
-          (setq sgn (cadr e) ex (car e))
-          ;; END TRUCK — the frame carrying the bridge onto the rail: across the girder and
-          ;; wider than it, because that is what it is.
-          (peb-crn-truck ex (- y0 eo) (+ ex (* sgn et)) (- y0 eo))
-          (peb-crn-truck ex (+ y1 eo) (+ ex (* sgn et)) (+ y1 eo))
-          (peb-crn-truck ex (- y0 eo) ex (+ y1 eo))
-          (peb-crn-truck (+ ex (* sgn et)) (- y0 eo) (+ ex (* sgn et)) (+ y1 eo))
-          ;; TWO WHEELS PER END TRUCK (manual: NWb = 2), at the truck's wheel base.
+          (setq ex (car e) sgn (cadr e))
+          ;; END TRUCK — long axis ACROSS the girder (it runs on the runway), length = wheel base
+          (peb-crn-truck (- ex (* sgn (* tw 0.15))) (- yc (/ et 2.0))
+                         (+ ex (* sgn (* tw 0.85))) (- yc (/ et 2.0)))
+          (peb-crn-truck (- ex (* sgn (* tw 0.15))) (+ yc (/ et 2.0))
+                         (+ ex (* sgn (* tw 0.85))) (+ yc (/ et 2.0)))
+          (peb-crn-truck (- ex (* sgn (* tw 0.15))) (- yc (/ et 2.0))
+                         (- ex (* sgn (* tw 0.15))) (+ yc (/ et 2.0)))
+          (peb-crn-truck (+ ex (* sgn (* tw 0.85))) (- yc (/ et 2.0))
+                         (+ ex (* sgn (* tw 0.85))) (+ yc (/ et 2.0)))
+          ;; TWO WHEELS PER TRUCK (manual: NWb = 2) — fore and aft ON the runway, so they sit on
+          ;; the truck's two ends, straddling the rail line at ex.
           (if (> wr 1.0)
-            (progn
-              (setq wOfs (* et 0.28))
-              (foreach xw (list (+ ex (* sgn wOfs)) (+ ex (* sgn (- et wOfs))))
-                (peb-crn-wheel (- xw wr) (- yc (* gw 1.05)) (+ xw wr) (- yc (* gw 1.05)))
-                (peb-crn-wheel (- xw wr) (+ yc (* gw 1.05)) (+ xw wr) (+ yc (* gw 1.05)))
-                (peb-crn-wheel (- xw wr) (- yc (* gw 1.05)) (- xw wr) (- yc (* gw 0.70)))
-                (peb-crn-wheel (+ xw wr) (- yc (* gw 1.05)) (+ xw wr) (- yc (* gw 0.70)))
-                (peb-crn-wheel (- xw wr) (+ yc (* gw 0.70)) (- xw wr) (+ yc (* gw 1.05)))
-                (peb-crn-wheel (+ xw wr) (+ yc (* gw 0.70)) (+ xw wr) (+ yc (* gw 1.05))))))))
+            (foreach wy (list (- yc (* et 0.34)) (+ yc (* et 0.34)))
+              (peb-crn-wheel (- ex wr) (- wy wr) (+ ex wr) (- wy wr))
+              (peb-crn-wheel (- ex wr) (+ wy wr) (+ ex wr) (+ wy wr))
+              (peb-crn-wheel (- ex wr) (- wy wr) (- ex wr) (+ wy wr))
+              (peb-crn-wheel (+ ex wr) (- wy wr) (+ ex wr) (+ wy wr))))))
       (princ))))
 
 ;; ── THE TROLLEY, AND THE MOTOR ON IT ────────────────────────────────────────────────
@@ -223,7 +228,7 @@
   (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-SEC") (cons 370 25)
                  (list 10 xa ya 0.0) (list 11 xb yb 0.0))))
 
-(defun peb-draw-crane-sample (span cap wbase / d et gw rw wr yc y0 yT x0 x1 th tl rx0 rx1 sy L hx hy)
+(defun peb-draw-crane-sample (span cap wbase / d et gw rw wr yc y0 yT x0 x1 th tl rx0 rx1 sy L hx hy rxc)
   ;; STYLISED PROPORTIONS, stated as such (rule 20). Depth ~ span/18 is the working proportion for
   ;; a welded box girder in this capacity range; a job's own CRn_BRIDGE overrides it. Everything
   ;; TRACED is named on the sheet itself, so the drawing carries its own provenance.
@@ -242,30 +247,33 @@
   ;; the two RUNWAY BEAMS with their rails. Maimaar's own steel (Thal 125-23: "All runway beams
   ;; for crane lifts less than or equal to 15MT are built-up sections with double side fillet
   ;; weld"), so SOLID - only the crane is dotted.
-  (peb-crn-sample-solid rx0 (- y0 (* gw 2.6)) rx1 (- y0 (* gw 2.6)))
-  (peb-crn-sample-solid rx0 (- y0 (* gw 1.4)) rx1 (- y0 (* gw 1.4)))
-  (peb-crn-sample-solid rx0 (+ yT (* gw 1.4)) rx1 (+ yT (* gw 1.4)))
-  (peb-crn-sample-solid rx0 (+ yT (* gw 2.6)) rx1 (+ yT (* gw 2.6)))
+  ;; RUNWAY BEAMS run ALONG THE BUILDING LENGTH - perpendicular to the bridge - so in plan they
+  ;; are VERTICAL lines at each end of the girder, and the bridge travels up and down them.
+  (foreach rxc (list x0 x1)
+    (progn
+      (peb-crn-sample-solid (- rxc (/ rw 2.0)) (- yc (* et 1.9)) (- rxc (/ rw 2.0)) (+ yc (* et 1.9)))
+      (peb-crn-sample-solid (+ rxc (/ rw 2.0)) (- yc (* et 1.9)) (+ rxc (/ rw 2.0)) (+ yc (* et 1.9)))
+      (peb-crn-sample-solid rxc (- yc (* et 1.9)) rxc (+ yc (* et 1.9)))))
   (peb-crn-bridge-plan x0 y0 x1 yT et wr)
   (peb-crn-trolley-plan (/ span 2.0) y0 yT tl)
   (peb-crn-bridge-motor x0 1.0 et y0 yT)          ; bridge travel motor on the left truck
-  (txt "MC" (list (/ span 2.0) (+ yT (* gw 6.4))) (* th 1.6) 0.0 "CRANE BRIDGE  -  TOP VIEW")
-  (txt "MC" (list (/ span 2.0) (+ yT (* gw 5.4))) (* th 0.9) 0.0
+  (txt "MC" (list (/ span 2.0) (+ yc (* et 3.6))) (* th 1.6) 0.0 "CRANE BRIDGE  -  TOP VIEW")
+  (txt "MC" (list (/ span 2.0) (+ yc (* et 3.0))) (* th 0.9) 0.0
        "(BRIDGE SHOWN DOTTED - NORMALLY NOT IN MAIMAAR SCOPE)")
-  (txt "MC" (list (/ span 2.0) (- y0 (* gw 4.4))) (* th 0.9) 0.0 "TROLLEY")
-  (txt "MC" (list (/ span 2.0) (+ yT (* gw 2.3))) (* th 0.9) 0.0 "HOIST MOTOR")
-  (txt "ML" (list (+ x0 (* et 0.9)) (- y0 (* gw 2.2))) (* th 0.9) 0.0 "BRIDGE TRAVEL MOTOR")
-  (txt "ML" (list (+ x0 (* et 0.15)) (+ yT (* gw 3.2))) (* th 0.9) 0.0 "END TRUCK")
-  (txt "ML" (list rx0 (- y0 (* gw 3.4))) (* th 0.9) 0.0 "RUNWAY BEAM + RAIL")
-  (txt "MC" (list (+ x0 (/ et 2.0)) (- y0 (* gw 5.4))) (* th 0.9) 0.0 "2 WHEELS PER END TRUCK")
-  (peb-crn-sample-dim x0 x1 (+ yT (* gw 4.0))
+  (txt "MC" (list (/ span 2.0) (- yc (* gw 2.4))) (* th 0.9) 0.0 "TROLLEY")
+  (txt "MC" (list (/ span 2.0) (+ yc (* gw 3.1))) (* th 0.9) 0.0 "HOIST MOTOR")
+  (txt "ML" (list (+ x0 (* gw 2.2)) (- yc (* gw 2.9))) (* th 0.9) 0.0 "BRIDGE TRAVEL MOTOR")
+  (txt "MC" (list x0 (+ yc (* et 0.72))) (* th 0.9) 0.0 "END TRUCK")
+  (txt "MC" (list x0 (- yc (* et 2.15))) (* th 0.9) 0.0 "RUNWAY BEAM + RAIL")
+  (txt "MC" (list x1 (- yc (* et 1.15))) (* th 0.9) 0.0 "2 WHEELS PER END TRUCK")
+  (peb-crn-sample-dim x0 x1 (+ yc (* et 2.4))
                       (strcat "CRANE SPAN  C/C RAILS   " (rtos span 2 0)) th)
   (if (> wbase 0.0)
-    (peb-crn-sample-dim x0 (+ x0 et) (- y0 (* gw 6.6))
-                        (strcat "WHEEL BASE  " (rtos wbase 2 0)) th))
+    (peb-crn-sample-dim x0 x1 (- yc (* et 2.8))
+                        (strcat "BRIDGE TRAVELS ALONG THE RUNWAYS - WHEEL BASE " (rtos wbase 2 0)) th))
 
   ;; ══ SIDE VIEW - below, for reference ═════════════════════════════════════════════════════
-  (setq sy (- 0.0 (* d 9.5)))
+  (setq sy (- 0.0 (* et 3.6) (* d 5.0)))
   (peb-crn-bridge-elev x0 sy x1 (+ sy d))
   (peb-crn-sample-solid (- x0 (* et 1.1)) (- sy (* d 0.55)) (+ x0 (* et 1.1)) (- sy (* d 0.55)))
   (peb-crn-sample-solid (- x1 (* et 1.1)) (- sy (* d 0.55)) (+ x1 (* et 1.1)) (- sy (* d 0.55)))
