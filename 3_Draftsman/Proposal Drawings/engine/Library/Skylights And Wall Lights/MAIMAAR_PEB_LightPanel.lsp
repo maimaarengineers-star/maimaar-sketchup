@@ -90,6 +90,17 @@
 ;; So the fill is 25 lines across the cover at the lightest pen in the standard (0.05): on
 ;; screen, in the glass colour, it reads as one glossy sheet; on the monochrome plot it reads
 ;; as a light tint, still plainly different from the plain white steel sheeting beside it.
+;; THE RIBS ARE A SCALE PARAMETER TOO (owner 4-Sep-2026: "sid walls sheeting is still
+;; showing the Grids").
+;; The panel is profiled, so at size it carries a rib line every 250. On the WALL SHEETING
+;; ELEVATION at 1:300 that is a line every 0.8 mm - and, worse, the plain steel sheeting it sits
+;; in draws ONE line per 1000 PANEL JOINT. So the light band came out four times denser than the
+;; cladding around it, and 44 of them in a row read as a grid of little squares.
+;; Rule: at proposal scale the band shows its OUTLINE and its PANEL JOINTS, exactly like the
+;; sheeting beside it. The ribs stay for the library sample and any detail drawn at size.
+(defun peb-acc-ribs-on ()
+  (not (and (boundp '*PEB-ACC-NO-RIBS*) *PEB-ACC-NO-RIBS*)))
+
 (defun peb-acc-sheen-div  ()
   ;; SCALE PARAMETER, NOT A SECOND OPINION. 25 is right for a panel drawn at size. A roof plan
   ;; shows the same panel as a ~1000 x 3000 mark on a 48 m building, where 25 lines across the
@@ -212,17 +223,48 @@
 ;;  and the 45-degree fill that says it is translucent. Ribs sit ON the pitch lines, matching
 ;;  peb-sd-sprofile, so both side laps land on a rib.
 ;; ---------------------------------------------------------------------------
+;;  FLAT MODE - THE PANEL *IS* SHEETING (owner 4-Sep-2026: "Side Wall Sheeting Grid box removal
+;;  is very important. It Should show as Sheeting").
+;;
+;;  On a wall sheeting elevation the cladding drawer has ALREADY laid a vertical joint line every
+;;  1000 from the brick top clean through to the eave - measured on B-01, x = 534,651 / 535,651 /
+;;  536,651 ... each running 3,048 -> 6,480. The fiberglass panel is the SAME profile in a
+;;  different material and sits in that same run of joints.
+;;
+;;  So everything this drawer normally puts on the panel is duplication or worse:
+;;    * its 4-sided outline repeats those joints as its two side edges, and adds a horizontal
+;;      top and bottom PER PANEL - 44 panels in a row = 44 closed boxes;
+;;    * the 45-degree sheen then draws diagonals inside each box, and a box with diagonals is
+;;      the DOOR symbol on this very sheet, not glazing;
+;;    * the rib lines at 250 came in four times denser than the cladding beside them.
+;;  Together that is the grid being reported. It is not a density problem to be tuned - the
+;;  geometry itself is wrong at this scale.
+;;
+;;  FLAT MODE draws the band EDGE ONLY: the sill line and the head line across this panel's
+;;  width. Butted panel to panel they form the two continuous lines that say "fiberglass from
+;;  here to here", with the sheeting's own joints running through them. That is how the band
+;;  appears on an approval drawing, and it is what "show as sheeting" means.
+;;  The full panel - outline, ribs, sheen - is unchanged for the library sample and for anything
+;;  drawn at size, where all three read correctly.
+(defun peb-acc-elev-flat ()
+  (and (boundp '*PEB-ACC-ELEV-FLAT*) *PEB-ACC-ELEV-FLAT*))
+
 (defun peb-acc-light-elev (x0 y0 w h surf / pit i c lay lw)
   (setq pit (peb-acc-rib-pitch) lay (peb-acc-light-layer surf) lw (peb-acc-lw))
   (peb-comp-layer lay (peb-acc-glass-col))
-  (peb-acc-poly (list (list x0 y0) (list (+ x0 w) y0)
-                      (list (+ x0 w) (+ y0 h)) (list x0 (+ y0 h))) lw)
-  (setq i 1)
-  (while (< (* i pit) (- w 1.0))
-    (setq c (+ x0 (* i pit)))
-    (peb-acc-line c y0 c (+ y0 h) lay lw)
-    (setq i (1+ i)))
-  (peb-sky-hatch x0 y0 (+ x0 w) (+ y0 h) (/ w (peb-acc-sheen-div)))  ; 0.05 mm, the lightest pen
+  (if (peb-acc-elev-flat)
+    (progn
+      (peb-acc-line x0 y0        (+ x0 w) y0        lay lw)     ; sill of the band
+      (peb-acc-line x0 (+ y0 h)  (+ x0 w) (+ y0 h)  lay lw))    ; head of the band
+    (progn
+      (peb-acc-poly (list (list x0 y0) (list (+ x0 w) y0)
+                          (list (+ x0 w) (+ y0 h)) (list x0 (+ y0 h))) lw)
+      (setq i 1)
+      (while (and (peb-acc-ribs-on) (< (* i pit) (- w 1.0)))
+        (setq c (+ x0 (* i pit)))
+        (peb-acc-line c y0 c (+ y0 h) lay lw)
+        (setq i (1+ i)))
+      (peb-sky-hatch x0 y0 (+ x0 w) (+ y0 h) (/ w (peb-acc-sheen-div)))))  ; 0.05 mm, lightest pen
   (princ))
 
 ;; ---------------------------------------------------------------------------

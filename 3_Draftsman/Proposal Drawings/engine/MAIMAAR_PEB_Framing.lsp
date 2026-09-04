@@ -1013,9 +1013,11 @@
     (if (and (>= gx clearL) (<= (+ gx grpW) clearR) (< grpW (abs (- x1 x0))))
       (progn
         (setq k 0)
+        (setq *PEB-ACC-ELEV-FLAT* T)   ; sheet scale - see the note at the continuous run
         (while (< k perBay)
           (peb-acc-light-elev (+ ox gx (* k cover)) (+ base sill) cover panL surf)
-          (setq drawn (1+ drawn) k (1+ k)))))
+          (setq drawn (1+ drawn) k (1+ k)))
+        (setq *PEB-ACC-ELEV-FLAT* nil)))
     (setq i (1+ i)))
   drawn)
 
@@ -1079,10 +1081,21 @@
         ;; this is not the rule I mean to say"). The no-overlap rule is about one accessory
         ;; drawn ON another - a louver inside a doorway - not about chopping a band of cladding
         ;; that runs along the wall. It marches straight across, as it always did.
-        (while (< i n)
-          (setq px (+ x0 (* i cover)))
-          (peb-acc-light-elev (+ ox px) (+ base sill) cover panL surf)
-          (setq i (1+ i))))
+        ;; SHEET SCALE, NOT PANEL SCALE (owner 4-Sep-2026: "sid walls sheeting is still showing
+        ;; the Grids"). peb-acc-light-elev defaults to the density of a panel drawn AT SIZE -
+        ;; a rib every 250 and a sheen line every cover/25. On this sheet the side wall is a
+        ;; 48.77 m elevation on A4, so those land 0.8 mm and 0.13 mm apart: the ribs out-draw
+        ;; the plain sheeting beside them (which shows ONE line per 1000 panel joint), and the
+        ;; sheen smears solid. 44 panels of that in a row is the grid being reported.
+        ;; The roof plan already does exactly this, setting SHEEN-DIV to 4 around its own call -
+        ;; same drawer, same geometry, density chosen for the scale it is seen at.
+        (progn
+          (setq *PEB-ACC-ELEV-FLAT* T)
+          (while (< i n)
+            (setq px (+ x0 (* i cover)))
+            (peb-acc-light-elev (+ ox px) (+ base sill) cover panL surf)
+            (setq i (1+ i)))
+          (setq *PEB-ACC-ELEV-FLAT* nil)))
       ;; ── NO GIRTS HERE (owner 4-Sep-2026: "Side Wall Elevation still showing the boxes -
       ;; match the sheeting similar to of the End Wall Sheeting") ─────────────────────────────
       ;;
