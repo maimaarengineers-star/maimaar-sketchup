@@ -1175,15 +1175,19 @@
       ;;   peb-label-with-leader justifies (if (>= tX aX) "ML" "MR") - so with the text landing
       ;;   RIGHT of its arrow, as it does here, it is middle-LEFT and RUNS RIGHT from ltx.
       ;;   Confirmed in the rendered DXF: anchor=left/middle at 561,125.
-      ;; THE WIDTH FACTOR WAS THE REAL BUG. At 0.66 the measured pair came out
-      ;;   wall light  561,125..576,741   |   WALL SHEETING mark  579,375..595,904
-      ;; a gap of only 2,634 on a 15,616-wide label - under 17% margin, so any romand.shx wider
-      ;; than 0.77 em closes it and the two touch, which is what was being reported. 0.82 is an
-      ;; upper bound for this font including inter-character spacing, and it only pushes the
-      ;; label LEFT, deeper inside a wall that starts 17,840 further left again - it cannot
-      ;; grow the extents or change the plotted scale.
+      ;; THE WIDTH FACTOR WAS THE REAL BUG, AND IT TOOK FIVE GOES TO SIZE IT. 0.66 left a
+      ;; 2,634 gap on a 15,616-wide label and they touched; 0.82 computed 6,663 of clearance and
+      ;; THEY STILL TOUCHED ON THE PLOTTED SHEET. Measuring the plot rather than the arithmetic:
+      ;; the label starts 547,462 and the WALL SHEETING mark 569,741, so 28 characters at h=900
+      ;; are consuming at least 22,279 - romand.shx is running above 0.884 em, far wider than
+      ;; any table would suggest. 0.95 carries the margin honestly.
+      ;; A SIXTH ATTEMPT put it on its own row one text height up. That collided with the VIEW
+      ;; TITLE instead - the annotation band is only so tall, and moving a label within it just
+      ;; changes which neighbour it lands on. Sideways with an honest width is the fix; the
+      ;; label only moves LEFT, deeper into a wall that starts 13,800 further left again, so it
+      ;; cannot grow the extents or change the plotted scale.
       (setq lbl   (strcat (itoa n) " No. FIBERGLASS WALL LIGHT")
-            lw    (* (strlen lbl) (peb-th 'ANNOT) ts 0.82)
+            lw    (* (strlen lbl) (peb-th 'ANNOT) ts 0.95)
             lax   (+ ox x0 (* 1.5 cover))                    ; arrow onto a panel in the band
             lry   (+ base sill (/ panL 2.0))
             lty   (if (and annY (> annY 0.0)) annY (+ base eaveMm (* 1200.0 ts)))
