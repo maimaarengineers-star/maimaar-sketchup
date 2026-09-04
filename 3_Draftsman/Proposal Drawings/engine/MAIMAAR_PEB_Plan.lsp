@@ -992,13 +992,21 @@
 ;; + purlin depth  (the Z the sheeting sits on)
 ;; MG: the haunch follows the PER-GABLE span, the same effective span the section
 ;; sizes the frame from, so divide the width by the gable count.
-(defun peb-tb-eave-height (data / clr wid ng eff)
-  (setq clr (atof (peb-tb-or (MSPL-Get-Str data "CLEARHEIGHT") "0"))
+;;
+;; THE BSF IS THE SINGLE SOURCE OF TRUTH (owner, 3-Sep-2026). CLEARHEIGHT is the ONE number the
+;; BSF carries and HEIGHT_REF says what it means, so this must read it through peb-clear-height —
+;; the same helper the section and the elevations use. Reading the RAW field added the haunch and
+;; the purlin to a figure that ALREADY included them whenever the basis was "Eave Height", and the
+;; title block printed an eave ~800 mm taller than the one the BSF stated and the section drew.
+;; On a clear-height basis peb-clear-height returns the field unchanged, so that path is untouched.
+(defun peb-tb-eave-height (data / raw clr wid ng eff)
+  (setq raw (atof (peb-tb-or (MSPL-Get-Str data "CLEARHEIGHT") "0"))
+        clr (peb-clear-height data)
         wid (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
         ng  (atoi (peb-tb-or (MSPL-Get-Str data "NUMGABLES") "1")))
   (if (< ng 1) (setq ng 1))
   (setq eff (if (> wid 0.0) (/ wid ng) 0.0))
-  (if (<= clr 0.0)
+  (if (<= raw 0.0)
     "-"
     (rtos (+ clr (peb-haunch-depth eff) (peb-purlin-depth)) 2 0)))
 
@@ -1500,7 +1508,16 @@
         (peb-draw-one-opening surf at w mark isDoor
                               (if (member bayIdx braced) T nil)
                               len wid ox oy bayPts)))
-    (setq i (1+ i))))
+    (setq i (1+ i)))
+  ;; ── THE TICKED DOORS, WHICH ARE NOT PLACEMENTS ────────────────────────────────────────
+  ;; PL*_ is the manual Area Placement panel. The doors the BSF TICKS arrive as DR_*, and those
+  ;; reached the wall elevations only - so a job with two ticked sliding doors showed them on the
+  ;; elevations and nothing at all on the plan, while the customer's own layout plan for that
+  ;; same job draws both. The sliding door speaks for itself here; every other door type is still
+  ;; the opening drawer above.
+  ;; Through vl-catch-all-apply so a component that is not loaded, or that throws, costs this
+  ;; sheet nothing.
+  (vl-catch-all-apply 'peb-sld-plan-doors (list data ox oy len wid bayPts)))
 
 ;; Base-plate note — at PROPOSAL stage the bolt size & count are NOT yet known,
 ;; so we only state the typical arrangement (4 bolts per plate), no schedule.
@@ -5051,9 +5068,22 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
         (progn
           (setq x0 (- cx (/ skyW 2.0)) x1 (+ cx (/ skyW 2.0))
                 y0 (- yc (/ skyL 2.0)) y1 (+ yc (/ skyL 2.0)))
-          (setvar "CLAYER" "SKY LIGHT")
-          (peb-comp-poly (list (list x0 y0) (list x1 y0) (list x1 y1) (list x0 y1)))
-          (peb-sky-hatch x0 y0 x1 y1 (/ skyW 4.0))
+          ;; ONE PRODUCT, ONE DRAWER (rule 1, engine/Library/GOLDEN_RULES.md). This used to be
+          ;; its own poly + hatch, so the identical fiberglass panel read as four fat stripes
+          ;; here and as a glossy sheet on the wall. It now calls the component library, with
+          ;; the sheen opened out to /4 because a roof plan shows the panel small - the density
+          ;; is a scale choice, the geometry is shared.
+          ;; Guarded: the library loads AFTER this file, which is fine at draw time, but Plan.lsp
+          ;; must still work if it is ever loaded alone.
+          (if (boundp 'peb-acc-light-elev)
+            (progn
+              (setq *PEB-ACC-SHEEN-DIV* 4.0)
+              (peb-acc-light-elev x0 y0 (- x1 x0) (- y1 y0) "ROOF")
+              (setq *PEB-ACC-SHEEN-DIV* nil))
+            (progn
+              (setvar "CLAYER" "SKY LIGHT")
+              (peb-comp-poly (list (list x0 y0) (list x1 y0) (list x1 y1) (list x0 y1)))
+              (peb-sky-hatch x0 y0 x1 y1 (/ skyW 4.0))))
           ;; No leader.  The size now rides in the note block below the drawing with everything
           ;; else (owner 31-Aug: "all text below the drawings"), and a hatched 1000 x 3000 panel
           ;; repeated 16 times on a bay grid does not need to be pointed at.

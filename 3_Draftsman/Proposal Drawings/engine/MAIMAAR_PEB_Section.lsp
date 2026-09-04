@@ -8485,7 +8485,16 @@
   ;; blank -> clear (the BSF heightBasis list defaults to "Clear Height at Eave").
   (setq heightRef (strcase (peb-tb-or (MSPL-Get-Str data "HEIGHT_REF") "")))
   (setq eaveBasis (and (not (wcmatch heightRef "*CLEAR*")) (wcmatch heightRef "*EAVE*")))
-  (if (and eaveBasis (> clearHt (+ ht 1.0))) (setq clearHt (- clearHt ht)))
+  ;; EAVE HEIGHT IS FFL TO THE TOP OF THE EAVE STRUT / PURLIN (owner, 3-Sep-2026).
+  ;; The entered number therefore carries BOTH the haunch AND the purlin above the clear height,
+  ;; so BOTH come out of it here. Backing out only the haunch made the drawn building one purlin
+  ;; depth (200 mm) shorter than the height the customer stated, and put the section's own EAVE
+  ;; HEIGHT arrow at the top of the rafter instead of the top of the purlin — while the title
+  ;; block on the SAME sheet printed clear + haunch + purlin (peb-tb-eave-height). One sheet,
+  ;; two different eave heights: exactly the contradiction rule 4B.7 exists to stop.
+  ;; peb-clear-height (Plan.lsp) already backs out `peb-eave-add` = haunch + purlin; this is the
+  ;; section saying the same thing with its own locals.
+  (if (and eaveBasis (> clearHt (+ ht purlinD 1.0))) (setq clearHt (- clearHt ht purlinD)))
 
   ;; Eave height = top of rafter at the haunch.
   ;; Rafter UNDERSIDE at the haunch sits exactly at clearHt (user input, or eave-ht when eave-basis).
@@ -9872,17 +9881,20 @@
       (setq *PEB-DIM-TXT* nil)
       (peb-recolor-last-dim 0)))                  ; ByBlock
   (setq *PEB-DIM-TXT* 320.0)
-  ;; owner 25-Jul: when the height was measured at the EAVE, dimension the EAVE HEIGHT up to the eave /
-  ;; purlin line (0 -> H, H being the top of the rafter at the haunch = the entered eave value after the
-  ;; basis conversion above), NOT the CLEAR HEIGHT to the haunch (0 -> H-ht). Clear-basis is unchanged.
+  ;; owner 25-Jul: when the height was measured at the EAVE, dimension the EAVE HEIGHT up to the eave
+  ;; line, NOT the CLEAR HEIGHT to the haunch (0 -> H-ht). Clear-basis is unchanged.
+  ;; owner 3-Sep-2026: the eave line is the TOP OF THE EAVE STRUT / PURLIN, so the arrow runs
+  ;; 0 -> H + purlinD, not 0 -> H (H is the top of the rafter at the haunch, one purlin lower).
+  ;; The basis conversion above takes the same purlin back out of the entered figure, so this
+  ;; arrow lands EXACTLY on the number typed into the BSF.
   (if eaveBasis
     ;; "<>" is AutoCAD's MEASUREMENT placeholder, so these were formatted by the DIMSTYLE:
     ;; DIMALTU 4 (architectural) suppresses the -0", and AutoCAD cannot comma-group a native
     ;; dimension at all.  The section therefore printed 30480 [100'] next to the plan's
     ;; 121,920 [400'-0"] — the same quantity in two formats in one document (owner 27-Aug).
     ;; peb-dim-mft is the builder the plan and the elevations already use.
-    (peb-dim-height-stretch hObjX dimX2 0.0 H
-      (strcat (peb-dim-mft H) "\\PEAVE HEIGHT"))
+    (peb-dim-height-stretch hObjX dimX2 0.0 (+ H purlinD)
+      (strcat (peb-dim-mft (+ H purlinD)) "\\PEAVE HEIGHT"))
     (peb-dim-height-stretch hObjX dimX2 0.0 (- H ht)
       (strcat (peb-dim-mft (- H ht)) "\\PCLEAR HEIGHT")))
   (setq *PEB-DIM-TXT* nil)

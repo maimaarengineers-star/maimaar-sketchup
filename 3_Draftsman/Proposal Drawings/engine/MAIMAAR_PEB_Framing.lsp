@@ -895,17 +895,95 @@
 ;; DISCONTINUOUS RUN — `perBay` panels centred in each bay, plain sheeting between the groups.
 ;; The two end sheets are kept clear the same way: a bay is skipped when its group would fall
 ;; inside them. Returns how many panels were drawn, so the leader reports what is on the wall.
+;; WHICH BAYS ALREADY HAVE A DOOR IN THEM. Read straight off the DR_* the BSF emits, so the
+;; answer is the same one peb-fr-doors will act on - there is no second opinion to drift.
+;; Returned as 0-based bay indices, matching the `stations` walk below.
+;; WHICH BAY CARRIES A DOOR, AND HOW TALL IT IS. Same DR_* the door drawer reads, so bracing and
+;; door act on ONE answer. `revView` mirrors the station list for an outside view, so the bay index
+;; is mirrored exactly as peb-fr-doors mirrors its own. The TALLEST door wins a bay with two.
+(defun peb-fr-door-heights (data surf nSt revView / qty dk gf gt dh b out p)
+  (setq qty (MSPL-Get-Int data (strcat "DR_" surf "_N")) out '())
+  (if (and qty (> qty 0))
+    (progn
+      (setq dk 1)
+      (while (<= dk (min qty 40))
+        (setq gf (MSPL-Get-Int data (strcat "DR_" surf "_" (itoa dk) "_GRID_FROM"))
+              gt (MSPL-Get-Int data (strcat "DR_" surf "_" (itoa dk) "_GRID_TO"))
+              dh (MSPL-Get-Num data (strcat "DR_" surf "_" (itoa dk) "_H")))
+        (if (and gf gt (> gf 0) dh (> dh 0.0))
+          (progn
+            (setq b (if revView (- nSt gt) (1- gf)))
+            (setq p (assoc b out))
+            (if p
+              (if (> dh (cdr p)) (setq out (subst (cons b dh) p out)))
+              (setq out (cons (cons b dh) out)))))
+        (setq dk (1+ dk)))))
+  out)
+
+;; THE SPAN EVERY DOOR OCCUPIES ON THIS WALL, in the same coordinates the accessories are placed
+;; in (distance along the face, from ox). Returned as ((x0 . x1) ...).
+;;
+;; It is the span AS DRAWN, not just the framed opening: a sliding door is shown partly open, so
+;; the leaves stand beside the opening and an accessory tucked against the jamb would still be
+;; under a leaf. Widened by the open offset each side, and no further - the whole slide run would
+;; strip half the wall of lights for a door that only covers part of it.
+(defun peb-fr-door-spans (data surf stations revView / qty dk gf gt dw x0 x1 nSt pad out)
+  (setq qty (MSPL-Get-Int data (strcat "DR_" surf "_N")) out '() nSt (length stations))
+  (if (and qty (> qty 0) stations (> nSt 1))
+    (progn
+      (setq dk 1)
+      (while (<= dk (min qty 40))
+        (setq gf (MSPL-Get-Int data (strcat "DR_" surf "_" (itoa dk) "_GRID_FROM"))
+              gt (MSPL-Get-Int data (strcat "DR_" surf "_" (itoa dk) "_GRID_TO"))
+              dw (MSPL-Get-Num data (strcat "DR_" surf "_" (itoa dk) "_W")))
+        (if (and gf gt (> gf 0) (> gt gf) (<= gt nSt) dw (> dw 0.0))
+          (progn
+            (if revView
+              (setq x0 (nth (- nSt gt) stations) x1 (nth (- nSt gf) stations))
+              (setq x0 (nth (1- gf) stations)    x1 (nth (1- gt) stations)))
+            ;; the door is centred in its bay and drawn partly open
+            (setq pad (* dw 0.35))
+            (setq out (cons (cons (- (/ (+ x0 x1) 2.0) (/ dw 2.0) pad)
+                                  (+ (/ (+ x0 x1) 2.0) (/ dw 2.0) pad)) out))))
+        (setq dk (1+ dk)))))
+  out)
+
+;; does [a b] touch any of those spans?
+(defun peb-fr-in-door-span (a b spans / hit)
+  (setq hit nil)
+  (foreach s spans
+    (if (and (< a (cdr s)) (> b (car s))) (setq hit T)))
+  hit)
+
+(defun peb-fr-door-bays (data surf / qty dk gf out)
+  (setq qty (MSPL-Get-Int data (strcat "DR_" surf "_N")) out '())
+  (if (and qty (> qty 0))
+    (progn
+      (setq dk 1)
+      (while (<= dk (min qty 40))
+        (setq gf (MSPL-Get-Int data (strcat "DR_" surf "_" (itoa dk) "_GRID_FROM")))
+        (if (and gf (> gf 0)) (setq out (cons (1- gf) out)))
+        (setq dk (1+ dk)))))
+  out)
+
 (defun peb-fr-wl-per-bay (data surf ox base faceLen stations sill panL cover perBay endSheets
-                          / nSt i x0 x1 grpW gx k drawn clearL clearR)
+                          / nSt i x0 x1 grpW gx k drawn clearL clearR doorBays)
   (setq nSt (length stations) drawn 0 i 0
         grpW   (* perBay cover)
         clearL (* endSheets cover)
-        clearR (- faceLen (* endSheets cover)))
+        clearR (- faceLen (* endSheets cover))
+        ;; A WALL LIGHT CANNOT GO WHERE A DOOR IS. Both are placed per bay, from this same
+        ;; stations list, and on MSPL-26-266 both landed in bay 3: a fiberglass panel drawn
+        ;; straight across a 3658 x 3658 sliding door. The light gives way - the door's position
+        ;; is a customer requirement and the light's is "one per bay", which is exactly what it
+        ;; can afford to lose. The count on the leader follows, because it counts what was drawn.
+        doorBays (peb-fr-door-bays data surf))
   (while (< (1+ i) nSt)
     (setq x0 (nth i stations) x1 (nth (1+ i) stations))
     ;; centre the group in the bay
     (setq gx (- (/ (+ x0 x1) 2.0) (/ grpW 2.0)))
-    (if (and (>= gx clearL) (<= (+ gx grpW) clearR) (< grpW (abs (- x1 x0))))
+    (if (and (not (member i doorBays))
+             (>= gx clearL) (<= (+ gx grpW) clearR) (< grpW (abs (- x1 x0))))
       (progn
         (setq k 0)
         (while (< k perBay)
@@ -928,9 +1006,9 @@
 ;;
 ;; The panel is drawn by the COMPONENT LIBRARY - the same drawer the roof plan and the sample
 ;; use (rule 1). No panel geometry lives in this file.
-(defun peb-fr-wall-lights (data surf ox base faceLen stations
+(defun peb-fr-wall-lights (data surf ox base faceLen stations revView
                            / on walls sill panL cover n i px lay qty ts czone usable x0
-                             lenMm widMm eaveMm endSheets cont perBay)
+                             lenMm widMm eaveMm endSheets cont perBay spans drew)
   (setq on    (strcase (peb-tb-or (MSPL-Get-Str data "WA_LIGHT_ON") "No"))
         walls (strcase (peb-tb-or (MSPL-Get-Str data "WA_LIGHT_WALLS") ""))
         sill  (MSPL-Get-Num data "WA_LIGHT_SILL")
@@ -964,15 +1042,24 @@
       (setq endSheets 2)
       (setq usable (- faceLen (* 2.0 endSheets cover)))
       (setq n (if (> usable cover) (fix (/ usable cover)) 0))
-      (setq x0 (+ ox (* endSheets cover)) i 0)
+      (setq x0 (* endSheets cover) i 0)
       ;; CONTINUOUS fills that middle run; DISCONTINUOUS puts `perBay` panels in each bay and
       ;; leaves plain sheeting between the groups (owner: the No. per Bay dropdown).
       (if (and (wcmatch (strcase cont) "*DISCONT*") stations (> (length stations) 1))
         (setq n (peb-fr-wl-per-bay data surf ox base faceLen stations sill panL cover perBay endSheets))
-        (while (< i n)
-          (setq px (+ x0 (* i cover)))
-          (peb-acc-light-elev px (+ base sill) cover panL surf)
-          (setq i (1+ i))))
+        (progn
+          ;; NO OVERLAPPING ACCESSORIES (owner 4-Sep-2026). The continuous band marches across the
+          ;; middle of the wall and knows nothing about bays, so it has to ask about SPANS: a
+          ;; panel that would land under a door is skipped, and the count follows, because `drew`
+          ;; counts what was actually drawn and the leader reads that.
+          (setq spans (peb-fr-door-spans data surf stations revView) drew 0)
+          (while (< i n)
+            (setq px (+ x0 (* i cover)))
+            (if (not (peb-fr-in-door-span px (+ px cover) spans))
+              (progn (peb-acc-light-elev (+ ox px) (+ base sill) cover panL surf)
+                     (setq drew (1+ drew))))
+            (setq i (1+ i)))
+          (setq n drew)))
       ;; ── A GIRT ON BOTH SIDES OF THE BAND (owner 4-Sep-2026) ─────────────────────────────
       ;; "Fiberglass Wall Lights ... needs the Girts on Both Sides." A fiberglass panel is the
       ;; weakest sheet on the wall and it is not self-supporting across its length: it has to be
@@ -1175,7 +1262,8 @@
                               p0 p1 sdx sdy slen ux uy nx ny pdep npl jj tt px py rdep owText
                               bc bx0 by0 bx1 by1 owU isRcc hEnt
                               rbOn rbFrom rbTo rbFloor rbBase nLen ewGrid ewRaised rx0 rx1 gridNum plateY hasR gbaseR ltsE
-                              ewMain webD rdepC rdepL gg d0 d1)
+                              ewMain webD rdepC rdepL gg d0 d1
+                              dHt bdh yh hk)
   (setq len    (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
         wid    (atof (peb-tb-or (MSPL-Get-Str data "WIDTH") "0"))
         slopeD (slope-denom (peb-tb-or (MSPL-Get-Str data "SLOPE") "10"))
@@ -1615,6 +1703,16 @@
   ;; true mm size whatever the drawing's global LTSCALE. No global state is touched.
   (setq ltsE (getvar "LTSCALE"))
   (setq ltsE (if (> ltsE 0.0) (/ 1.0 ltsE) 1.0))
+  ;; GOLDEN RULE (owner 4-Sep-2026): "In case of Doors, automatically Portal Bracing will be up
+  ;; to the Door Height and above, Cross Bracing."
+  ;;
+  ;; An X cannot run through a doorway - the diagonal is the thing in the way. The engine already
+  ;; knew: the PLAN prints "(!) OPENING IN BRACED BAY" in red. It printed the warning and drew the
+  ;; X through the door anyway. Now the bay resolves itself:
+  ;;     below the head   a PORTAL - head beam across the bay with a haunch at each knee
+  ;;     above the head   the X, standing on that beam instead of on the floor
+  ;; A braced bay with no door is untouched.
+  (setq dHt (peb-fr-door-heights data surf (length stations) revView))
   (foreach b braced
     (if (and (numberp b) (>= b 0) (< (1+ b) (length stations)))
       (progn
@@ -1624,8 +1722,25 @@
                                  (+ base wallEave))
                       (if isEnd (peb-fr-topy (nth (1+ b) stations) faceLen base eaveH eaveHi eaveLo rise rtype hiSide)
                                  (+ base wallEave))))
-        (peb-fr-brace-line x0 y0 x1 y1 ltsE)
-        (peb-fr-brace-line x0 y1 x1 y0 ltsE))))
+        (setq bdh (cdr (assoc b dHt)))
+        (if (and bdh (> bdh 0.0) (< (+ base bdh) (- y1 (* (- y1 y0) 0.18))))
+          (progn
+            (setq yh (+ base bdh) hk (min (* (abs (- x1 x0)) 0.16) (* (- y1 yh) 0.40)))
+            ;; PORTAL below the head
+            (peb-fr-brace-line x0 yh x1 yh ltsE)
+            (peb-fr-brace-line x0 (- yh hk) (+ x0 hk) yh ltsE)
+            (peb-fr-brace-line x1 (- yh hk) (- x1 hk) yh ltsE)
+            ;; CROSS above it
+            (peb-fr-brace-line x0 yh x1 y1 ltsE)
+            (peb-fr-brace-line x0 y1 x1 yh ltsE)
+            (setvar "CLAYER" "TEXT")
+            (vl-catch-all-apply (function (lambda ()
+              (txt "MC" (list (/ (+ x0 x1) 2.0) (- yh (* 300.0 (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0))))
+                   (peb-th 'SMALL) 0 "PORTAL BRACING"))))
+            (setvar "CLAYER" "CROSS"))
+          (progn
+            (peb-fr-brace-line x0 y0 x1 y1 ltsE)
+            (peb-fr-brace-line x0 y1 x1 y0 ltsE))))))
 
   ;; 6. framed openings on THIS wall (jamb posts + header + mark)
   (setq cnt (atoi (peb-tb-or (MSPL-Get-Str data "PL_COUNT") "0")) i 1)
@@ -1642,9 +1757,14 @@
         ;; AT ITS OWN SILL AND HEIGHT, not a fraction of the eave — see peb-fr-open-sill.
         (setq psill (peb-fr-open-sill data pre ptyp)
               ph    (peb-fr-open-ht   data pre ptyp))
+        ;; NO ACCESSORY ON TOP OF ANOTHER (owner 4-Sep-2026). A louver inside a doorway is not a
+        ;; drafting blemish, it is something that cannot be built. The door owns its span; every
+        ;; other opening placed on this wall stands aside.
+        (if (not (peb-fr-in-door-span (+ pat (- (/ pw 2.0))) (+ pat (/ pw 2.0))
+                                      (peb-fr-door-spans data surf stations revView)))
         (peb-fr-draw-opening data pre ptyp
                              (+ ox pat (- (/ pw 2.0))) (+ ox pat (/ pw 2.0))
-                             (+ base psill) (+ base psill ph))
+                             (+ base psill) (+ base psill ph)))
         ;; the mark goes just ABOVE the opening it names. It used to sit at 0.80 x eave,
         ;; which for a louver in the brickwork was two metres clear of the thing it labels.
         (setvar "CLAYER" "TEXT")
@@ -2386,9 +2506,13 @@
         ;; opening is cut in the sheeting exactly where the framing says it is.
         (setq psill (peb-fr-open-sill data pre ptyp)
               ph    (peb-fr-open-ht   data pre ptyp))
+        ;; NO ACCESSORY ON TOP OF ANOTHER - see the framing elevation above. Both cuts are
+        ;; guarded, or the sheet would show a hole with no louver, or a louver with no hole.
+        (if (not (peb-fr-in-door-span (+ pat (- (/ pw 2.0))) (+ pat (/ pw 2.0))
+                                      (peb-fr-door-spans data surf stations revView)))
         (peb-fr-draw-opening data pre ptyp
                              (+ ox pat (- (/ pw 2.0))) (+ ox pat (/ pw 2.0))
-                             (+ base psill) (+ base psill ph))))
+                             (+ base psill) (+ base psill ph)))))
     (setq i (1+ i)))
   ;; grid bubbles + title + dim chain (mirror the framing)
   ;; Bubble size: see peb-bub-radius.  900 x TEXT-SCALE tracked the wall's LENGTH,
@@ -2487,7 +2611,7 @@
      ;; ...and the WALL-LIGHT BAND. Only here, on the SHEETING elevation - the wall light is a
      ;; cladding item, so it is drawn where the sheeting is drawn (standing rule, owner 3-Sep-2026).
      ;; The framing elevation above deliberately does NOT get it.
-     (peb-fr-wall-lights data surf ox base faceLen stations))))
+     (peb-fr-wall-lights data surf ox base faceLen stations revView))))
   (setvar "CLAYER" prev)
   (princ))
 

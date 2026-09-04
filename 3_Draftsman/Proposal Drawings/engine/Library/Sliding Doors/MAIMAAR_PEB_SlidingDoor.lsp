@@ -151,6 +151,17 @@
 (defun peb-sld-jamb-lap   ()  410.0)   ; assembly set off the grid                  — MSPL-030
 (defun peb-sld-meet-lap   ()   75.0)   ; leaf-to-leaf / leaf-to-jamb cover overlap
 
+;; ---- HOW FAR OPEN THE DOOR IS DRAWN --------------------------------------------------------
+;; STANDING RULE (owner 4-Sep-2026): "Always show the Door in Elevation in OPENED conditions for
+;; customer understanding ... first make the Opening and then show the Door in Partially Opened
+;; condition."
+;;
+;; A closed leaf is indistinguishable from a panel - the customer cannot see that it slides, where
+;; it goes, or how much wall it needs. At 40% the void is visible beside the leaf, the leaf is
+;; plainly clear of the opening, and the arrow says which way it went. Far enough to read, not so
+;; far that the leaf leaves the drawing.
+(defun peb-sld-open-frac () 0.40)
+
 ;; pens
 (defun peb-sld-lw-out   () 50)
 (defun peb-sld-lw-track () 35)
@@ -422,6 +433,10 @@
 ;; ---------------------------------------------------------------------------
 ;; 7) THE FRAMED OPENING — the 200C jamb each side and the header the track hangs from.
 ;; ---------------------------------------------------------------------------
+;; STANDING RULE (owner 4-Sep-2026): "Always develop the Openings and then place the Accessories
+;; in it." The opening is the hole in the wall - it exists whether or not anything is fitted into
+;; it, it is what the steel is framed for, and it is what the customer measures. So it is drawn
+;; FIRST and everything else is placed into it.
 (defun peb-sld-opening (ox oy ow oh / d xl xr yt)
   (peb-sld-layer-ensure)
   (setq d (peb-sld-jamb-dep) xl ox xr (+ ox ow) yt (+ oy oh))
@@ -467,7 +482,7 @@
 ;;    to keep clear — the door needs far more wall than the opening.
 ;; ---------------------------------------------------------------------------
 (defun peb-sld-elevation (ox oy ow oh leaves hand ptype wicket ghost lbl
-                          / lw lh lb lt ytop tx0 tx1 xL xR run th)
+                          / lw lh lb lt ytop tx0 tx1 xL xR run th opn)
   (peb-sld-layer-ensure)
   (if (null hand) (setq hand -1))
   (setq lb   (+ oy (peb-sld-sill-clr))
@@ -478,11 +493,14 @@
   (if (= leaves 2)
     (progn
       (setq lw  (+ (/ ow 2.0) (peb-sld-meet-lap))
-            xL  (- ox (peb-sld-meet-lap))
-            xR  (+ ox (/ ow 2.0))
             run (+ lw 100.0)
-            tx0 (- xL run)
-            tx1 (+ xR lw run))
+            ;; PARTLY OPEN: each leaf has slid OUTWARD by its own share of the opening, so the
+            ;; void between them is what the customer walks through.
+            opn (* lw (peb-sld-open-frac))
+            xL  (- ox (peb-sld-meet-lap) opn)
+            xR  (+ ox (/ ow 2.0) opn)
+            tx0 (- ox (peb-sld-meet-lap) run)
+            tx1 (+ ox ow (peb-sld-meet-lap) run))
       (peb-sld-track tx0 tx1 ytop)
       (peb-sld-hood  tx0 tx1 ytop)
       (peb-sld-floor tx0 tx1 oy)
@@ -499,10 +517,12 @@
       (peb-sld-arrow (+ xR (* lw 0.5)) (+ lb (* lh 0.62)) (* lw 0.30)  1))
     (progn
       (setq lw  (+ ow (* 2.0 (peb-sld-meet-lap)))
-            xL  (- ox (peb-sld-meet-lap))
             run (+ lw 100.0)
-            tx0 (if (> hand 0) (- xL 100.0) (- xL run))
-            tx1 (if (> hand 0) (+ xL lw run) (+ xL lw 100.0)))
+            opn (* lw (peb-sld-open-frac))
+            ;; the single leaf slides the way it parks, uncovering that much of the opening
+            xL  (+ (- ox (peb-sld-meet-lap)) (* hand opn))
+            tx0 (if (> hand 0) (- ox (peb-sld-meet-lap) 100.0) (- ox (peb-sld-meet-lap) run))
+            tx1 (if (> hand 0) (+ ox ow (peb-sld-meet-lap) run) (+ ox ow (peb-sld-meet-lap) 100.0)))
       (peb-sld-track tx0 tx1 ytop)
       (peb-sld-hood  tx0 tx1 ytop)
       (peb-sld-floor tx0 tx1 oy)
@@ -535,7 +555,82 @@
 ;;     readable and it was wrong: there is already a house symbol, and a component that draws
 ;;     its own makes two sheets of the same job disagree.
 ;; ---------------------------------------------------------------------------
-(defun peb-sld-plan (ox oy ow wt leaves lbl / xm yb ym th c)
+(defun peb-sld-ft (mm / f n)
+  ;; Maimaar sizes doors in FEET and the metric figure is the conversion - 3658 is 12'-0",
+  ;; 2438 is 8'-0", 914 is 3'-0". The customer's own layout plan calls this door "12' x 12'".
+  ;; A value that lands within 15 mm of a whole foot is called in feet; anything else stays mm,
+  ;; because a made-up "11.98'" helps nobody.
+  (setq f (/ mm 304.8) n (fix (+ f 0.5)))
+  (if (and (> n 0) (< (abs (- mm (* n 304.8))) 15.0))
+    (strcat (itoa n) "'")
+    (strcat (rtos mm 2 0))))
+
+;;; ============================================================================
+;;;  THE PLAN SYMBOL
+;;;  Traced from the customer's own layout plan for this job (reference/
+;;;  RFQ_MSPL-26-266_customer-layout-plan.pdf): the wall BREAKS at the opening, the leaves are
+;;;  thin bars set just OUTSIDE the wall line, a pair of OPPOSED ARROWS shows the two leaves
+;;;  parting, and the size is called in FEET.
+;;;
+;;;  Drawn better than the source in four ways, which is what was asked for:
+;;;    - the leaf is a BAR with thickness, not a hairline, so it reads as a door not a dimension
+;;;    - the jambs are closed with a tick, so the opening has ends
+;;;    - the arrow sits UNDER its own leaf and runs the distance that leaf actually travels
+;;;    - the label carries the feet the customer uses AND the millimetres the shop needs
+;;;
+;;;    ox oy   left end of the framed opening, ON the outer wall line
+;;;    ow      framed opening        wt  wall band thickness (0 -> 100)
+;;;    leaves  1 or 2                lbl second line, or nil to size it from ow/oh
+;;;    oh      opening height, for the label only - plan cannot show it
+;;; ============================================================================
+(defun peb-sld-plan (ox oy ow wt leaves oh lbl / xm yb yl lt th c gap run x0 x1)
+  (peb-sld-layer-ensure)
+  (peb-sld-layer-need "SHEETING" 4)
+  (if (or (null wt) (<= wt 0.0)) (setq wt 100.0))
+  (setq yb  (- oy wt)
+        gap (* wt 0.55)                     ; the leaf runs clear of the wall face
+        lt  (* wt 0.75)                     ; leaf bar thickness
+        yl  (+ oy gap)                      ; leaf outer face
+        xm  (+ ox (/ ow 2.0)))
+  ;; the wall, running away each side and BROKEN across the opening
+  (peb-sld-lnL (- ox (* ow 1.4)) oy ox oy "SHEETING" 25)
+  (peb-sld-lnL (- ox (* ow 1.4)) yb ox yb "SHEETING" 25)
+  (peb-sld-lnL (+ ox ow) oy (+ ox ow (* ow 1.4)) oy "SHEETING" 25)
+  (peb-sld-lnL (+ ox ow) yb (+ ox ow (* ow 1.4)) yb "SHEETING" 25)
+  ;; the jambs, so the opening has ends
+  (peb-sld-ln ox oy ox yb (peb-sld-lw-track))
+  (peb-sld-ln (+ ox ow) oy (+ ox ow) yb (peb-sld-lw-track))
+  (if (= leaves 2)
+    (progn
+      ;; two leaves meeting on the centre line, each a bar of real thickness
+      (peb-sld-box (- ox (peb-sld-meet-lap)) yl xm (+ yl lt) (peb-sld-lw-out))
+      (peb-sld-box xm yl (+ ox ow (peb-sld-meet-lap)) (+ yl lt) (peb-sld-lw-out))
+      ;; the meeting stile, where they close on each other
+      (peb-sld-ln xm yl xm (+ yl lt) (peb-sld-lw-mem))
+      ;; ...and each arrow runs the distance ITS OWN leaf travels
+      (setq run (/ ow 2.0))
+      (peb-sld-arrow (- xm (* run 0.25)) (+ yl (* lt 2.4)) (* run 0.70) -1)
+      (peb-sld-arrow (+ xm (* run 0.25)) (+ yl (* lt 2.4)) (* run 0.70)  1))
+    (progn
+      (peb-sld-box (- ox (peb-sld-meet-lap)) yl (+ ox ow (peb-sld-meet-lap)) (+ yl lt)
+                   (peb-sld-lw-out))
+      (peb-sld-arrow xm (+ yl (* lt 2.4)) (* ow 0.70) -1)))
+  ;; the label: the FEET the customer reads, then the millimetres the shop builds to
+  (setq th (peb-sld-dim-th) c (+ yl (* lt 4.2)))
+  (peb-sld-tx xm (+ c (* th 1.5)) th 0.0
+              (if lbl lbl
+                (strcat (peb-sld-ft ow) " x " (peb-sld-ft (if oh oh ow)) "  SLIDING DOOR"))
+              "TEXT" 1 2)
+  (peb-sld-tx xm c (* th 0.85) 0.0
+              (strcat (rtos ow 2 0) " x " (rtos (if oh oh ow) 2 0))
+              "TEXT" 1 2)
+  (princ))
+
+;; THE APPROVAL-SHEET SYMBOL, kept. Maimaar's own approval drawing (MSPL-030 sheet 18) breaks the
+;; wall band into a BOW-TIE - each leaf a wedge tapering to the point where they meet - annotated
+;; SLIDING DOOR / 2438 x 3048. It is the house convention on an approval sheet; the customer's is
+;; clearer on a layout plan. Neither is invented, so neither is thrown away.
+(defun peb-sld-plan-bowtie (ox oy ow wt leaves lbl / xm yb ym th c)
   (peb-sld-layer-ensure)
   (peb-sld-layer-need "SHEETING" 4)
   (if (or (null wt) (<= wt 0.0)) (setq wt 100.0))
@@ -550,8 +645,6 @@
       (peb-sld-pl (list (list (+ ox ow) oy) (list xm ym) (list (+ ox ow) yb))
                   (peb-sld-lw-mem) nil))
     (peb-sld-pl (list (list ox oy) (list (+ ox ow) ym) (list ox yb)) (peb-sld-lw-mem) nil))
-  ;; RULE 14 — scaled off the DOOR, through the one dial, not off the opening width. Off the
-  ;; opening it came out 438 tall on a 7972 door and buried the symbol it was labelling.
   (setq th (peb-sld-dim-th) c (+ oy (* th 1.2)))
   (peb-sld-tx xm (+ c (* th 1.6)) th 0.0 "SLIDING DOOR" "TEXT" 1 2)
   (peb-sld-tx xm c th 0.0 (if lbl lbl (strcat (rtos ow 2 0) " WIDE")) "TEXT" 1 2)
@@ -646,7 +739,7 @@
   (peb-sld-context -6500.0 15700.0 0.0 4000.0 0.0 ow nil 1500.0)
 
   (setq ext (peb-sld-elevation 0.0 0.0 ow oh 1 1 "EPS" T T
-              "SLIDING DOOR  9144 [30'] x 2438 [8']  -  MSPL-121, EPS SANDWICH"))
+              "SLIDING DOOR  9144 [30'] x 2438 [8']  -  SHOWN PARTLY OPEN"))
   (setq tx0 (nth 0 ext) tx1 (nth 2 ext))
 
   ;; ---- the dimension strings the issued sheet carries
@@ -669,9 +762,9 @@
   (peb-sld-dim-v 0.0 oh (- tx0 1800.0) 1 "2438 [8]  CLEAR")
 
   ;; ---- the plan symbol, as issued on the approval sheet
-  (peb-sld-plan 0.0 -3600.0 ow 150.0 1 "9144 x 2438")
+  (peb-sld-plan 0.0 -3600.0 ow 150.0 1 oh nil)
   (peb-sld-tx (/ ow 2.0) -4700.0 (* (peb-sld-dim-th) 1.3) 0.0
-              "PLAN SYMBOL  -  AS ISSUED ON THE APPROVAL DRAWING" "TEXT" 1 2)
+              "PLAN SYMBOL  -  AS THE CUSTOMER LAYOUT PLAN DRAWS IT" "TEXT" 1 2)
 
   ;; ---- the member table, as MSPL-176 issues it (the current schedule)
   (setq y -5800.0)
@@ -730,6 +823,114 @@ SLIDING DOOR sample drawn: MSPL-121, single leaf, 9144 x 2438, with wicket.")
 ;; the pilot / wicket door: "With" draws it, "Without" does not
 (defun peb-sld-wicket-of (p)
   (if (and p (wcmatch (strcase p) "WITH*") (not (wcmatch (strcase p) "WITHOUT*"))) T nil))
+
+
+;;; ============================================================================
+;;;  THE PLAN SYMBOL ON A REAL WALL
+;;;  peb-sld-plan draws along +X with the wall running left to right. A building plan has four
+;;;  walls and two of them run the other way, so the symbol is built in LOCAL coordinates -
+;;;  u along the wall, v OUTWARD from the building - and every point is put through a mapper.
+;;;  That keeps ONE drawing routine for all four walls instead of four that drift apart.
+;;; ============================================================================
+
+;; local (u v) -> world, for each wall. `at` is the distance along the wall to the door centre.
+;;   NSW  bottom edge, outward = -y        FSW  top edge,    outward = +y
+;;   LEW  left edge,   outward = -x        REW  right edge,  outward = +x
+(defun peb-sld-map (surf ox oy len wid u v)
+  (cond ((= surf "NSW") (list (+ ox u)        (- oy v)))
+        ((= surf "FSW") (list (+ ox u)        (+ oy wid v)))
+        ((= surf "LEW") (list (- ox v)        (+ oy u)))
+        ((= surf "REW") (list (+ ox len v)    (+ oy u)))
+        (T              (list (+ ox u)        (- oy v)))))
+
+(defun peb-sld-mln (m u1 v1 u2 v2 lw / a b)
+  (setq a (apply m (list u1 v1)) b (apply m (list u2 v2)))
+  (peb-sld-ln (car a) (cadr a) (car b) (cadr b) lw))
+
+(defun peb-sld-mbox (m u0 v0 u1 v1 lw)
+  (peb-sld-mln m u0 v0 u1 v0 lw) (peb-sld-mln m u1 v0 u1 v1 lw)
+  (peb-sld-mln m u1 v1 u0 v1 lw) (peb-sld-mln m u0 v1 u0 v0 lw))
+
+;; the slide arrow, in local coordinates, pointing along +u (dir 1) or -u (dir -1)
+(defun peb-sld-marrow (m u v len dir / ue hl p q r)
+  (setq ue (+ u (* dir len)) hl (* len 0.18))
+  (peb-sld-mln m u v ue v (peb-sld-lw-clip))
+  (setq p (apply m (list ue v))
+        q (apply m (list (- ue (* dir hl)) (+ v (* hl 0.42))))
+        r (apply m (list (- ue (* dir hl)) (- v (* hl 0.42)))))
+  (peb-sld-tri p q r (peb-sld-layer)))
+
+;; THE DOOR ON A WALL, in plan. Same symbol as peb-sld-plan, mapped onto the wall.
+;;   surf  NSW|FSW|LEW|REW      at  distance along the wall to the door CENTRE
+;;   ow oh the framed opening   wt  wall thickness      leaves 1 or 2
+(defun peb-sld-plan-on-wall (surf at ow oh wt leaves ox oy len wid
+                             / m u0 u1 gap lt th c run um)
+  (peb-sld-layer-ensure)
+  ;; SIZE THE SYMBOL FROM THE SHEET, NOT FROM THE DOOR. peb-th 'SMALL is the height every other
+  ;; mark on this plan uses, so taking the text from there and the bar from the text makes the
+  ;; symbol track the sheet's scale without ever being told what it is. A fixed 150 mm bar and
+  ;; 110 mm text read correctly beside a 3.6 m door on a component sample and vanished on the
+  ;; plan of a 48 m building.
+  (setq th (if (boundp 'peb-th) (peb-th 'SMALL) 300.0))
+  (if (or (null th) (<= th 0.0)) (setq th 300.0))
+  (if (or (null wt) (<= wt 0.0)) (setq wt (* th 0.6)))
+  (setq m   (function (lambda (u v) (peb-sld-map surf ox oy len wid u v)))
+        u0  (- at (/ ow 2.0))
+        u1  (+ at (/ ow 2.0))
+        gap (* th 0.45)                    ; the leaf runs clear of the wall face
+        lt  (* th 0.55)                    ; leaf bar thickness - readable at the sheet's scale
+        um  at)
+  ;; the jambs, so the opening reads as an opening
+  (peb-sld-mln m u0 0.0 u0 (- wt) (peb-sld-lw-track))
+  (peb-sld-mln m u1 0.0 u1 (- wt) (peb-sld-lw-track))
+  ;; the leaves, set clear OUTSIDE the wall face - the customer's layout plan draws them there
+  (if (= leaves 2)
+    (progn
+      (peb-sld-mbox m (- u0 (peb-sld-meet-lap)) gap um (+ gap lt) (peb-sld-lw-out))
+      (peb-sld-mbox m um gap (+ u1 (peb-sld-meet-lap)) (+ gap lt) (peb-sld-lw-out))
+      (peb-sld-mln  m um gap um (+ gap lt) (peb-sld-lw-mem))
+      (setq run (/ ow 2.0))
+      (peb-sld-marrow m (- um (* run 0.25)) (+ gap (* th 2.2)) (* run 0.70) -1)
+      (peb-sld-marrow m (+ um (* run 0.25)) (+ gap (* th 2.2)) (* run 0.70)  1))
+    (progn
+      (peb-sld-mbox m (- u0 (peb-sld-meet-lap)) gap (+ u1 (peb-sld-meet-lap)) (+ gap lt)
+                    (peb-sld-lw-out))
+      (peb-sld-marrow m um (+ gap (* th 2.2)) (* ow 0.70) -1)))
+  ;; the label, in the FEET the customer reads. Text is NOT mapped - it stays horizontal, which
+  ;; is what a plan wants; only its POSITION follows the wall. It sits further out than the
+  ;; wall-light mark and the braced-bay flag, which both hug the wall face.
+  (setq c (apply m (list um (+ gap (* th 3.4)))))
+  (peb-sld-tx (car c) (cadr c) th 0.0
+              (strcat (peb-sld-ft ow) " x " (peb-sld-ft oh) " SLIDING DOOR") "TEXT" 1 2)
+  (princ))
+
+;; EVERY ticked door on this plan. Reads the DR_* the BSF emits and places each one at the middle
+;; of the bay it was given. A door that is not a sliding door is left to the existing opening
+;; drawer - this component speaks only for its own product.
+(defun peb-sld-plan-doors (data ox oy len wid bayPts
+                           / surfs surf qty dk gf gt dw dh dtyp dop at n)
+  (setq surfs '("NSW" "FSW" "LEW" "REW"))
+  (foreach surf surfs
+    (setq qty (MSPL-Get-Int data (strcat "DR_" surf "_N")))
+    (if (and qty (> qty 0))
+      (progn
+        (setq dk 1)
+        (while (<= dk (min qty 40))
+          (setq gf   (MSPL-Get-Int data (strcat "DR_" surf "_" (itoa dk) "_GRID_FROM"))
+                gt   (MSPL-Get-Int data (strcat "DR_" surf "_" (itoa dk) "_GRID_TO"))
+                dw   (MSPL-Get-Num data (strcat "DR_" surf "_" (itoa dk) "_W"))
+                dh   (MSPL-Get-Num data (strcat "DR_" surf "_" (itoa dk) "_H"))
+                dtyp (strcase (peb-tb-or
+                       (MSPL-Get-Str data (strcat "DR_" surf "_" (itoa dk) "_TYPE")) "DOOR"))
+                dop  (MSPL-Get-Str data (strcat "DR_" surf "_" (itoa dk) "_OPERATION")))
+          (if (and (wcmatch dtyp "*SLID*") gf gt bayPts
+                   (> gf 0) (<= gt (length bayPts)) dw dh (> dw 0.0))
+            (progn
+              (setq at (/ (+ (nth (1- gf) bayPts) (nth (1- gt) bayPts)) 2.0))
+              (peb-sld-plan-on-wall surf at dw dh nil
+                                    (peb-sld-leaves-of dop) ox oy len wid)))
+          (setq dk (1+ dk))))))
+  (princ))
 
 ;; command wrapper, so the sample can also be drawn by hand inside an open AutoCAD
 (defun c:SLDSAMPLE () (peb-sld-sample))

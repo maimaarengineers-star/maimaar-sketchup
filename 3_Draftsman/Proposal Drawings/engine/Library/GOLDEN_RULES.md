@@ -1,0 +1,435 @@
+# GOLDEN RULES — AutoCAD PEB Component Library
+
+**Binding.** Every rule here cost real time, and every one is traceable to a specific failure or
+a specific instruction from the owner. Read this before writing a drawer. Most of these failures
+are **silent** — the render "succeeds" and the sheet is wrong or blank.
+
+Established 3-Sep-2026, from building the first component (wall light / sky light).
+
+---
+
+## A · WHAT A COMPONENT IS
+
+### 1. One product, one drawer
+
+A sky light and a wall light are the same fiberglass panel. The name follows the surface — *"on
+Wall it is called Wall Light not Skylight, though both have the same material, as we say purlins
+and girts."* One product must have exactly **one** piece of code that draws it.
+
+> **Why:** the roof plan draws skylights with its own poly + hatch
+> (`peb-draw-skylights-per-bay`, `Plan.lsp:5036`) while the library draws the same panel with
+> `peb-acc-light-elev`. Be precise about how far they diverge: the **colour and pen already
+> agree** — `peb-ensure-layers` creates `SKY LIGHT` at ACI 151 / 0.50 from the standard before
+> either runs, so the `4` in `(peb-comp-layer "SKY LIGHT" 4)` at `:5054` is a dead fallback and
+> the comment above it calling the layer "cyan" is stale. What diverges is the **fill density** —
+> `skyW/4` on the roof plan against `/25` in the library — so the identical product reads as
+> stripes on one sheet and as a glossy sheet on another.
+
+If two sheets show the same product, they call the same drawer. No exceptions.
+
+### 2. A drawer is pure geometry
+
+Everything in as **arguments**; geometry out.
+
+A drawer must **not**:
+- read the BSF (`MSPL-Get-Str` / `MSPL-Get-Num`) — the data belongs to the caller;
+- draw a sheet, frame or title block — sheets are the building engine's job;
+- hard-code a name that depends on the surface — pass it in;
+- hand-drive `LAYER` / `STYLE` / `TEXT` with `command` — see rule 10.
+
+A drawer that reads the BSF cannot be reused anywhere else, and it re-derives numbers the BSF has
+already settled (rule 24).
+
+### 3. Reuse the geometry — and share the SOURCE, not the numbers
+
+The light panel calls `peb-sd-sprofile` rather than re-authoring ribs. But it first carried its
+own `250` and `35` while the sheeting carried the same two literals independently.
+
+> **"100% match" means one source, not two equal numbers.** Two literals that agree today are a
+> match waiting to be broken by whoever edits one of them.
+
+Hence `peb-sheet-rib-pitch` / `peb-sheet-rib-height` / `peb-sheet-cover`, declared beside
+`peb-sd-sprofile` in `MAIMAAR_PEB_Framing.lsp` and read by both the sheet and every component
+that reuses the profile.
+
+---
+
+## B · WHAT SURVIVES THE PLOT
+
+### 4. The deliverable is monochrome. Colour carries nothing.
+
+`monochrome.ctb` is set on **all four** plot paths — `MAIMAAR_PEB_PDF.lsp:90` and `:140`,
+`drawingRender.ts:394` and `:1263`. Every ACI collapses to black on the customer's PDF.
+
+Colour is for the DWG the draughtsman works in, and for a colour print. **Only lineweight can
+carry meaning on the deliverable.** Never let a distinction depend on colour alone.
+
+| | layer | pen |
+|---|---|---|
+| steel sheeting | `SHEETING` | 0.09 |
+| light panel outline | `SKY LIGHT` / `WALL LIGHT` | 0.50 |
+| translucency fill | same | 0.05 |
+
+### 5. Prefer a line fill. A filled region is a decision, not a default.
+
+This rule was first written as "never a filled region". **That was wrong**, and the correction
+matters: genuine `HATCH` and `SOLID` entities *are* used for material in this engine and *do*
+survive the pipeline — `AR-CONC` for concrete, `AR-B816` / `BRICK` for masonry, `ANSI31` for
+steel poche, `SOLID` for base plates, across `MAIMAAR_PEB_Section.lsp`,
+`MAIMAAR_PEB_Framing.lsp` and `MAIMAAR_PEB_MezzDetail.lsp`. The material→pattern table is
+`MAIMAAR_PEB_Standard.lsp:194-202`.
+
+What is true is that the **newer** drawers are all line-based, for four separately documented
+reasons — and you should know which one applies to you:
+
+| reason | where it is stated |
+|---|---|
+| real HATCH entities fail under `acad /b` | `Plan.lsp:3307`, `:4996` |
+| a large fill plots **black** under `monochrome.ctb` | `LightPanel.lsp:86` |
+| an **unbounded** HATCH is the classic way to hang a headless render | `MezzDetail.lsp:748` |
+| the pattern does not stretch to its boundary | `Framing.lsp:3009` |
+
+So: **a big area you are tinting → line fill** (a solid one reaches the customer black). **A
+small poche inside a section cut → the system pattern is fine**, and `Framing.lsp:1813` shows the
+safe way to do it — call `-HATCH`, then check `(eq (entlast) hEnt)` and fall back to manual 45°
+lines when it aborted.
+
+Density carries the material: `/4` across the cover reads as stripes, `/25` as a glossy sheet.
+
+### 6. Set the pen explicitly
+
+`peb-comp-layer` (`MAIMAAR_PEB_Plan.lsp:3300`) sets **colour only, never lineweight**. Any layer
+it invents inherits `LWDEFAULT` 0.25 — which lands between the 0.09 sheet and the 0.50 panel, so
+you get a visible difference **by accident rather than by design**, and it changes if the host
+drawing differs.
+
+Put the pen on the entity — `(cons 370 N)` — **and** the layer in the standard.
+
+---
+
+## C · LAYERS
+
+### 7. Layers come from `PEB_LAYERS.csv`. No exceptions.
+
+The first draft invented `DIM` (the standard is `DIMENSIONS`, ACI 6, 0.13) and `GIRT` (the
+standard is `GIRTS`, ACI 6, 0.13), and called `SHEETING` at ACI 8 when the standard says 4.
+Every one of those is an invisible drift from the house standard.
+
+### 8. A new layer goes in the CSV, then the file is regenerated
+
+`SKY LIGHT` and `WALL LIGHT` did not exist in the standard at all. Add them to
+`Rule_Book/PEB_LAYERS.csv`, then run `build_engine_standard.py`.
+
+### 9. Regenerating may carry unrelated drift — ship only your own change
+
+`_PEB_LAYERS_generated.lsp` was **stale against its own CSV**. Regenerating it silently also
+changed `FRAME` (colour 1→7, weight 0.30→0.50) and `COMP-MEZZ-BEAM` (0.50→0.40) — the frame
+weight on *every sheet Maimaar has ever produced*.
+
+Both were reverted so the change stayed additive. **Diff the generated file semantically before
+accepting it**, and report drift rather than silently "fixing" it.
+
+---
+
+## D · SCRIPTING AUTOCAD — WHERE THE SILENCE LIVES
+
+### 10. An open prompt eats the rest of the script, and is not an error
+
+Hit **twice** in one session:
+
+- `SAVEAS` onto an existing file asks *"replace? \<N\>"* → swallowed the `PNGOUT` line, then hung
+  for ten minutes.
+- `PDFIMPORT` could not find its file → re-prompted for a filename and ate every line after it.
+
+**Delete before writing** — exactly what `_pebout` already does — and never leave a command that
+can ask you a question. This is the same class as the standing LISP silent-failure rule: an open
+`acad` command is not a LISP error, so nothing catches it.
+
+### 11. Script lines and LISP strings escape differently
+
+| context | backslashes |
+|---|---|
+| a **script line** (typed at the prompt) | **single**, raw |
+| a **LISP string literal** | **doubled** |
+
+Getting this wrong produced `D:\\\maimaar-os`; every `(load)` failed and the sheet came out
+blank, with nothing in the harness output to say so. Keep **one** `q()` helper doing **one**
+substitution, and use it only for LISP strings.
+
+### 12. Quote any path containing a space
+
+Script lines split on spaces. `…\Proposal Drawings\…` arrived as two separate answers and
+started the prompt loop of rule 10.
+
+### 13. Fresh work dir per run — never delete the old one
+
+`rmSync` throws `EPERM` when a PDF from the previous run is still open in a viewer, and the run
+dies before drawing anything. Use `wl_<timestamp>`; a directory that never existed cannot be
+locked.
+
+---
+
+## E · DRAWING LIKE A DRAUGHTSMAN
+
+### 14. Scale annotation to what is drawn
+
+`peb-th`'s text ladder is tuned for a sheet showing a 48 m building. Used unchanged on a
+1000 × 1524 panel, the callouts came out **three times taller than the panel**. A component
+sample sets its own `*PEB-TEXT-SCALE*` — scale off the component, not the building.
+
+### 15. One scale per sheet
+
+The first sample put a 1000-wide detail and a 48,770-long side wall on one sheet. The two small
+views collapsed into an unreadable overlap at the left edge. **One view per sheet, or one scale
+for all views.**
+
+### 16. Dimension text goes on the far side of the line from the object
+
+The helper always placed text *above* the dimension line, so a dimension taken *below* a panel
+put "1000 COVER" back across the panel it was measuring. The sign of the offset says which way
+the dimension was taken, so it also says which side the text belongs on.
+
+### 17. Annotate the type, not every instance
+
+> *"No need to mention the labeling of wall lights — just show the wall lights … Only L-Type
+> ladder with Text 'Wall Light - Type' … Maximum Write the Qty."*
+
+A band of 48 panels labelled individually is noise. One L-leader
+(`peb-label-with-leader` with `"V"`) carrying `NN No. <TYPE>`.
+
+### 18. A library detail carries GENERAL information
+
+> *"Labelling should be general for information."*
+
+State the **rule** — *sill = clear height − panel length* — never one job's `3962`, which is
+right for that building and wrong for the next one that reads the sheet. Job numbers belong on
+the building's own sheet.
+
+---
+
+## F · REFERENCES AND HONESTY
+
+### 19. Read the drawing, not the text layer
+
+The seam-lock sky light was first traced as **637 cover** from `pdftotext` output. Importing the
+sheet into AutoCAD showed **484** dimensioned across the finished panel — 637 is the *developed
+girth* — plus a 25 × 25 × 1.2 stiffener tube the text stream never showed.
+
+`<component>/reference/view_reference.js` imports an approval PDF to DXF + PNG. **Use it before
+trusting any traced number.**
+
+### 20. Declare what is traced and what is stylised
+
+Rulebook 4B.24: a stylised shape under correct dimensions is honest; invented dimensions are
+not. Each component's README says which of its numbers are measured and which are drawn to look
+right.
+
+### 21. Every component keeps its own reference
+
+> *"Copy the old references of similar component for quick reference for the development to
+> match."*
+
+Approval PDFs, the converted DXF, and the relevant manual pages live in `reference/`, beside the
+code that traces them.
+
+---
+
+## G · VERIFICATION
+
+### 22. Look at it. Rendering is not verifying.
+
+`PNGOUT` rasters the drawing so the result can actually be seen. In one session a blank sheet, an
+unreadable three-scale overlap, and dimension text sitting across the panel **all rendered
+"successfully"**.
+
+### 23. Run `lispcheck` — and read it
+
+It catches functions called but never defined, which render as a blank sheet silently. It also
+reads function names out of **prose**, so keep `(peb-…` out of comments or you will chase a
+phantom.
+
+### 24. The BSF is the single source of truth
+
+`geometryRules.js` computes → the BSF stores → the drawing reads. The drawer re-derives nothing.
+The light panel's sill is the worked example: `lightPanel()` returns it, the BSF keeps it, and
+the LISP just draws at the sill it is given.
+
+---
+
+---
+
+## H · PEB MATERIALS — HOW EACH ONE IS DRAWN
+
+The rules above are about *code*. This section is about *materials*: what each PEB material looks
+like on a Maimaar drawing, so a new component draws its material the way the rest of the engine
+already does instead of inventing a look.
+
+### The three ways a material is expressed
+
+1. **PROFILE GEOMETRY** — the strongest signal, and often the only one needed. A lock-seam sheet
+   is not a hatch, it is a 470 cover with ribs at 155 centres. A sandwich panel is a 184 module
+   with a 32 rib, deliberately *not* the S profile.
+2. **FILL** — line-based for the newer drawers, all at the lightest pen (0.05). The *spacing* is
+   what distinguishes them, so pick spacing deliberately.
+3. **PEN** — the only one that survives the monochrome plot (rule 4). Weight is how a material
+   reads as different on the customer's PDF.
+
+Colour is a fourth, but it is DWG-only. It is worth setting, and worth never depending on.
+
+### The catalogue as it stands
+
+| Material | How it is drawn | Layer (ACI / pen) | Source |
+|---|---|---|---|
+| Standard S sheet | profile: 35 rib @ 250 pitch, 1000 cover, both laps on a rib | `SHEETING` (4 / 0.09) | `peb-sd-sprofile`, `Framing.lsp:2704` |
+| Lock-seam sheet | profile: 470 cover, ribs @ 155 centres, THK 0.6 | `SHEETING` (4 / 0.09) | `peb-sd-lockseam`, `Framing.lsp:2753` |
+| Sandwich panel | profile: 184 module / 32 rib + flat inner liner | `SHEETING` | `peb-sd-sandwich`, `Framing.lsp:2912` |
+| Sandwich **core** | single 45° line fill @ `thk/1.4` | `HATCH` (8 / 0.05) | `Framing.lsp:2933` |
+| Insulation (glass wool) | ONE continuous **sine wave**, amplitude = full thickness, wavelength `0.55 × thk` | `HATCH` (8 / 0.05) | `peb-sd-insulation`, `Framing.lsp:3020` |
+| Wall light / sky light | S profile + line fill @ `cover/25` (glossy) | `WALL LIGHT` / `SKY LIGHT` (151 / 0.50) | `peb-acc-light-elev` |
+| Seam-lock sky light | profile: 484 cover, 75 rib, THK 2.0 | `SKY LIGHT` (151 / 0.50) | `peb-acc-sl-profile` |
+| Concrete / RCC | `AR-CONC` pattern, or 45° both-ways lines @ 300 | `RCC-COLUMN` (8 / 0.35), `HATCHR` (32) | `peb-sec-xhatch`, `Section.lsp:8222` |
+| Brickwork | `AR-B816` / `BRICK` pattern @ 20-150 | `BRICK-WALL` (30 / 0.25) | `Section.lsp:3255`, `Framing.lsp:1811` |
+| Steel (section poche) | `ANSI31` @ `60 × TS` | `FRAME-FILL` (8 / 0.09) | `Section.lsp:3286` |
+| Base plate | `SOLID` | `PLATES` (1) | `Section.lsp:3306` |
+| Mezzanine deck | 45° line fill @ 1600 | `COMP-MEZZ-HATCH` (9) | `peb-mezz-hatch`, `Plan.lsp:3312` |
+| Ground / earth | tick marks | `GROUND-HATCH` (8 / 0.09) | `Section.lsp:4380` |
+| Insect screen | line fill @ 120, **both** diagonals | `LOUVER` (3) | `peb-lv-screen-hatch` |
+
+The central material→pattern table is `MAIMAAR_PEB_Standard.lsp:194-202` (`*PEB-HATCH*`):
+RCC/CONCRETE → `AR-CONC` 25.0; MASONRY/BRICK → `AR-B816` 20.0; EXISTING/FUTURE → `ANSI31` 60.0;
+**STEEL → nil (clear)**.
+
+### Rules for adding a material
+
+**M1. Distinguish by geometry first, fill second, pen third, colour never alone.**
+If the profile already says what it is, do not add a fill on top of it.
+
+**M2. A fill spacing must be chosen against its neighbours, not in isolation.**
+Two materials that meet on a sheet must not fill at similar spacing. The values in use are 120
+(screen, crossed), 250 (door ribs), 300 (concrete, crossed), `cover/25` (glossy light panel),
+`cover/4` (light panel as a small plan symbol), 800-1600 (deck, ground).
+
+**M3. Every material fill goes at 0.05 mm.**
+`(cons 370 5)`. A fill must never compete with the outline it sits inside.
+
+**M4. Put the material's layer in `PEB_LAYERS.csv` before you use it.**
+Three live layers are not in the standard and pick their own colour ad hoc — `COMP-MEZZ-HATCH`
+(9), `COMP-ROOF-ACC` (4), `LOUVER` (3). Each one is a small future inconsistency; do not add a
+fourth.
+
+**M5. A material's numbers come from a drawing, not from a datasheet you remember.**
+And say in the README which are traced (rules 19-20).
+
+**M6. Check the hue against the palette.**
+`SKY LIGHT` / `WALL LIGHT` at 151 sit next to `GRID` at 150, and both appear on the ROOF SHEETING
+PLAN. They separate by weight (0.50 vs 0.35) and by shape, so it is a hue clash rather than an
+information clash — but it is the kind of thing to notice before adding another blue.
+
+## THE SHAPE OF A COMPONENT
+
+```
+Library/<name>/
+  MAIMAAR_PEB_<Name>.lsp   drawers — pure geometry (rules 1-3, 5-7)
+  reference/               traced sources + view_reference.js (rules 19-21)
+  sample/                  render_sample.js + last_render.png (rules 13-16, 22)
+  README.md                what it draws, its numbers, traced vs stylised (rule 20)
+```
+
+Start from `_template/` — it already obeys rules 10-13 and 22.
+
+## SYNCING INTO THE BUILDING DRAWINGS
+
+Development is **separate** from the BSF-synchronised engine. A finished component syncs in three
+small, reviewable edits:
+
+1. its `(load …)` in `loadLines`, `services/drawingData.ts`;
+2. its case in the placement dispatch, `MAIMAAR_PEB_Elevation.lsp` (today a bare `RECTANG` for
+   every accessory);
+3. its **placement rule** — which belongs on the BSF side (rule 24), never in the LISP.
+
+Then render one real building and diff it against the previous PDF.
+
+
+---
+
+## I · ACCESSORIES ON A WALL — rules added 4-Sep-2026
+
+These came out of putting the first real component (the sliding door) onto a live sheet,
+MSPL-26-266. Every one of them was a thing the sheet got wrong before it was written down.
+
+### 25. Draw the OPENING first, then place the accessory into it
+
+> *"Always develop the Openings and then place the Accessories in it."*
+
+The opening is the hole in the wall. It exists whether or not anything is fitted into it, it is
+what the steel is framed for, and it is what the customer measures. Draw it first; everything
+else is placed **into** it. A drawer that starts from the accessory and implies an opening around
+it gets the framing wrong the moment the accessory changes.
+
+### 26. Show a door PARTLY OPEN
+
+> *"Always show the Door in Elevation in OPENED conditions for customer understanding … first
+> make the Opening and then show the Door in Partially Opened condition."*
+
+A closed leaf is indistinguishable from a panel. The customer cannot see that it slides, cannot
+see where it goes, and cannot see how much wall it needs. At about 40% open the void is visible
+beside the leaf, the leaf is plainly clear of the opening, and the arrow says which way it went.
+
+### 27. NO ACCESSORY SITS ON ANOTHER
+
+> *"There should not be overlapping of Accessories … if the Door is coming at any place, then
+> Louvers should be removed from there … one should not come just above the other — for there was
+> a door and within the door louver was showing, which is not practically possible."*
+
+Not a drafting blemish — something that cannot be built. **The door owns its span; everything
+else stands aside.**
+
+The trap is that a wall carries several INDEPENDENT placers and they do not resolve against each
+other: the wall-light band marches across the middle of the wall knowing nothing about bays; the
+louvers come from the PL_* opening loop; the doors come from DR_*. Fixing the one you happen to
+look at first fixes nothing — on MSPL-26-266 the per-bay light was corrected and the thing
+actually sitting in the doorway turned out to be a louver from a different loop entirely.
+
+So the rule is expressed in the only thing every placer shares: **the SPAN on the wall.**
+`peb-fr-door-spans` returns the span each door occupies AS DRAWN — widened for the leaves, which
+stand beside the opening once the door is shown open — and every other placer asks it before
+placing. One helper, one answer. **Guard every call site**: the framing elevation cuts the framed
+opening and the sheeting elevation cuts the sheet, and if one stands aside and the other does not
+you get a hole with no louver, or a louver with no hole.
+
+And the count follows the drawing: a leader that says "44 No." must count what was **drawn**, not
+what was intended, or the sheet contradicts itself.
+
+### 28. A door in a braced bay makes the bracing PORTAL
+
+> *"In case of Doors, automatically Portal Bracing will be up to the Door Height and above, Cross
+> Bracing."*
+
+An X cannot run through a doorway — the diagonal is the thing in the way. Below the head, a
+portal: head beam across the bay with a haunch at each knee. Above it, the X, standing on that
+beam instead of on the floor.
+
+The engine already knew this could happen: the plan prints **"(!) OPENING IN BRACED BAY"** in red.
+It printed the warning and drew the X straight through the door anyway. A rule that only warns is
+half a rule.
+
+### 29. What a panel is made of decides how it is DRAWN
+
+Not just what it costs.
+
+| | reads as |
+|---|---|
+| EPS sandwich | micro-ribbed **both** sides — finer than the wall, so the door reads as a door |
+| PIR sandwich | **the same as the wall** — drawn at the wall's own pitch, through the shared source |
+| single skin | the frame is built first and the sheet goes on after, so **the frame shows** |
+
+### 30. Before editing a drawing rule, find the code the sheet ACTUALLY runs
+
+The portal rule was first written into the X-bracing block in `MAIMAAR_PEB_Elevation.lsp`. That
+block never runs for this sheet set — the framing elevation is drawn by `peb-draw-framing-elev` in
+`MAIMAAR_PEB_Framing.lsp`. The output was identical before and after, and the giveaway was that
+the label the block should have produced was **absent from the drawing in both cases**.
+
+Two implementations of the same thing already exist in this engine. Adding a rule to the dead one
+and not the live one makes that worse. **Count the thing your change should produce, in the output,
+before and after** — and if the count is zero both times, you are editing the wrong file.

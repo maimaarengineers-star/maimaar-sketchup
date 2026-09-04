@@ -35,6 +35,24 @@
 ;; SCALED so the chain closes EXACTLY on `total` (mirrors the Plan's ewStations
 ;; handling).  Fallback = a single span [0,total].
 ;; ---------------------------------------------------------------------------
+
+(defun peb-elev-door-heights (data surf / qty dk gf dh out p)
+  (setq qty (MSPL-Get-Int data (strcat "DR_" surf "_N")) out '())
+  (if (and qty (> qty 0))
+    (progn
+      (setq dk 1)
+      (while (<= dk (min qty 40))
+        (setq gf (MSPL-Get-Int data (strcat "DR_" surf "_" (itoa dk) "_GRID_FROM"))
+              dh (MSPL-Get-Num data (strcat "DR_" surf "_" (itoa dk) "_H")))
+        (if (and gf (> gf 0) dh (> dh 0.0))
+          (progn
+            (setq p (assoc (1- gf) out))
+            (if p
+              (if (> dh (cdr p)) (setq out (subst (cons (1- gf) dh) p out)))
+              (setq out (cons (cons (1- gf) dh) out)))))
+        (setq dk (1+ dk)))))
+  out)
+
 (defun peb-elev-stations (expr total / lst sum sc acc out)
   (setq lst (if (and expr (/= expr "")) (peb-parse-mod-expression expr) nil))
   (if (or (null lst) (= (length lst) 0))
