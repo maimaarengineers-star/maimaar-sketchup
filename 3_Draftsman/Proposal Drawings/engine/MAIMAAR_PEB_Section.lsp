@@ -8162,54 +8162,54 @@
                            (list 11 (- hoistX (* u 0.16)) (- hookH (* u 0.5)) 0.0)
                            (list 12 (+ hoistX (* u 0.16)) (- hookH (* u 0.5)) 0.0)
                            (list 13 (+ hoistX (* u 0.16)) (- hookH (* u 0.5)) 0.0)))
-            (txt-rom "MC" (list hoistX (- hookH (* u 0.95))) (/ (* u 0.40) sc) 0.0
+            (txt-rom "MC" (list hoistX (- hookH (* u 0.95))) (/ (max (* u 0.40) (peb-th 'SMALL)) sc) 0.0
                       (strcat "HOOK HEIGHT : " (rtos hookH 2 0)))
-            (txt-rom "MC" (list hoistX (- hookH (* u 1.70))) (/ (* u 0.52) sc) 0.0
+            (txt-rom "MC" (list hoistX (- hookH (* u 1.70))) (/ (max (* u 0.52) (peb-th 'SMALL)) sc) 0.0
                       (strcat "CAP " capStr " MT"))
             (if (and cls (/= cls ""))
-              (txt-rom "MC" (list hoistX (- hookH (* u 2.35))) (/ (* u 0.36) sc) 0.0
+              (txt-rom "MC" (list hoistX (- hookH (* u 2.35))) (/ (max (* u 0.36) (peb-th 'MARK)) sc) 0.0
                         (strcat "CMAA CLASS " cls)))
             ;; CRANE SPAN (centre-to-centre of rails) — the actual rail span (inner flange to inner flange)
-            (txt-rom "MC" (list hoistX (- hookH (* u 2.90))) (/ (* u 0.34) sc) 0.0
+            (txt-rom "MC" (list hoistX (- hookH (* u 2.90))) (/ (max (* u 0.34) (peb-th 'MARK)) sc) 0.0
                       (strcat "SPAN c/c RAILS : " (rtos (- xBR xBL) 2 0)))
             ;; ── part labels drawn ONCE (manual convention), spaced with leaders into clear space ──
             (if (not labeled)
               (progn
                 ;; CRANE BRIDGE — shifted toward the module centre, clear of the knee
-                (txt-rom "MC" (list (+ midX (* u 1.6)) (+ bridgeTop (* u 0.62))) (/ (* u 0.40) sc) 0.0 "CRANE BRIDGE (BY OTHERS)")
+                (txt-rom "MC" (list (+ midX (* u 1.6)) (+ bridgeTop (* u 0.62))) (/ (max (* u 0.40) (peb-th 'SMALL)) sc) 0.0 "CRANE BRIDGE (BY OTHERS)")
                 ;; HOIST — short leader off the RIGHT of the hoist into open space
                 (peb-crane-sec-line (+ hoistX (* u 0.85)) (- hoistTop (* u 0.55)) (+ hoistX (* u 1.45)) (- hoistTop (* u 0.55)))
-                (txt-rom "ML" (list (+ hoistX (* u 1.55)) (- hoistTop (* u 0.55))) (/ (* u 0.40) sc) 0.0 "HOIST (BY OTHERS)")
+                (txt-rom "ML" (list (+ hoistX (* u 1.55)) (- hoistTop (* u 0.55))) (/ (max (* u 0.40) (peb-th 'SMALL)) sc) 0.0 "HOIST (BY OTHERS)")
                 ;; CRANE BEAM — leader from the crane beam down-inward to the label (type-aware name)
                 (peb-crane-sec-line xBL beamBot (+ xBL (* u 1.1)) (- beamBot (* u 0.9)))
-                (txt-rom "ML" (list (+ xBL (* u 1.2)) (- beamBot (* u 0.9))) (/ (* u 0.40) sc) 0.0
+                (txt-rom "ML" (list (+ xBL (* u 1.2)) (- beamBot (* u 0.9))) (/ (max (* u 0.40) (peb-th 'SMALL)) sc) 0.0
                           (if isUH "CRANE BEAM (BY OTHERS)" "CRANE BEAM"))
                 ;; CRANE RAIL (BY OTHERS) — TR only (rail sits on the beam TOP; UH runs on the bottom flange)
                 (if (not isUH)
                   (progn
                     (peb-crane-sec-line xBL railTop (+ xBL (* u 1.3)) (+ railTop (* u 0.85)))
-                    (txt-rom "ML" (list (+ xBL (* u 1.4)) (+ railTop (* u 0.85))) (/ (* u 0.34) sc) 0.0
+                    (txt-rom "ML" (list (+ xBL (* u 1.4)) (+ railTop (* u 0.85))) (/ (max (* u 0.34) (peb-th 'MARK)) sc) 0.0
                               "CRANE RAIL (BY OTHERS)")))
                 ;; HEIGHT OF CRANE BEAM — noted once (top of crane beam above FFL)
-                (txt-rom "MC" (list (+ midX (* u 1.6)) (+ bridgeTop (* u 1.35))) (/ (* u 0.36) sc) 0.0
+                (txt-rom "MC" (list (+ midX (* u 1.6)) (+ bridgeTop (* u 1.35))) (/ (max (* u 0.36) (peb-th 'MARK)) sc) 0.0
                           (strcat "HEIGHT OF CRANE BEAM : " (rtos railTop 2 0)))
                 ;; ── Mammut Zealcon house-polish (owner 19-Jul) ──
                 ;; CL OF RAFTER — bridge centre = rafter centreline; label offset LEFT (the bridge/height
                 ;; labels sit right of centre) via a short tick + leader so nothing overlaps
                 (peb-crane-sec-line midX (+ bridgeTop (* u 0.15)) midX (+ bridgeTop (* u 0.80)))
                 (peb-crane-sec-line midX (+ bridgeTop (* u 0.80)) (- midX (* u 1.35)) (+ bridgeTop (* u 0.80)))
-                (txt-rom "MR" (list (- midX (* u 1.45)) (+ bridgeTop (* u 0.80))) (/ (* u 0.30) sc) 0.0 "CL OF RAFTER")
+                (txt-rom "MR" (list (- midX (* u 1.45)) (+ bridgeTop (* u 0.80))) (/ (max (* u 0.30) (peb-th 'MARK)) sc) 0.0 "CL OF RAFTER")
                 ;; LEVEL DATUM at the crane beam (metres from FFL) — Mammut-style level tag, left of the rail
                 (entmake (list (cons 0 "SOLID") (cons 8 "COMP-CRANE-SEC")
                                (list 10 (- xBL (* u 0.55)) railTop 0.0)
                                (list 11 (- xBL (* u 0.78)) (+ railTop (* u 0.22)) 0.0)
                                (list 12 (- xBL (* u 0.78)) (- railTop (* u 0.22)) 0.0)
                                (list 13 (- xBL (* u 0.78)) (- railTop (* u 0.22)) 0.0)))
-                (txt-rom "MR" (list (- xBL (* u 0.90)) railTop) (/ (* u 0.30) sc) 0.0
+                (txt-rom "MR" (list (- xBL (* u 0.90)) railTop) (/ (max (* u 0.30) (peb-th 'MARK)) sc) 0.0
                           (strcat "CRANE BEAM +" (rtos (/ railTop 1000.0) 2 3) " M"))
                 ;; AT GRID note — the crane frame applies only at its run grid lines (Mammut convention)
                 (if (/= (MSPL-Get-Str data (strcat pre "GRID_LOC")) "")
-                  (txt-rom "MC" (list hoistX (- hookH (* u 3.45))) (/ (* u 0.30) sc) 0.0
+                  (txt-rom "MC" (list hoistX (- hookH (* u 3.45))) (/ (max (* u 0.30) (peb-th 'MARK)) sc) 0.0
                             (strcat "CRANE AT " (strcase (MSPL-Get-Str data (strcat pre "GRID_LOC"))) " ONLY")))
                 (setq labeled T)))
             (princ))))
