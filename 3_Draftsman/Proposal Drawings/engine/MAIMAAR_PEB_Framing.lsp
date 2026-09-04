@@ -927,7 +927,8 @@
 ;; the leaves stand beside the opening and an accessory tucked against the jamb would still be
 ;; under a leaf. Widened by the open offset each side, and no further - the whole slide run would
 ;; strip half the wall of lights for a door that only covers part of it.
-(defun peb-fr-door-spans (data surf stations revView / qty dk gf gt dw x0 x1 nSt pad out)
+(defun peb-fr-door-spans (data surf stations revView base
+                          / qty dk gf gt dw dh x0 x1 nSt pad out)
   (setq qty (MSPL-Get-Int data (strcat "DR_" surf "_N")) out '() nSt (length stations))
   (if (and qty (> qty 0) stations (> nSt 1))
     (progn
@@ -935,24 +936,45 @@
       (while (<= dk (min qty 40))
         (setq gf (MSPL-Get-Int data (strcat "DR_" surf "_" (itoa dk) "_GRID_FROM"))
               gt (MSPL-Get-Int data (strcat "DR_" surf "_" (itoa dk) "_GRID_TO"))
-              dw (MSPL-Get-Num data (strcat "DR_" surf "_" (itoa dk) "_W")))
+              dw (MSPL-Get-Num data (strcat "DR_" surf "_" (itoa dk) "_W"))
+              dh (MSPL-Get-Num data (strcat "DR_" surf "_" (itoa dk) "_H")))
         (if (and gf gt (> gf 0) (> gt gf) (<= gt nSt) dw (> dw 0.0))
           (progn
             (if revView
               (setq x0 (nth (- nSt gt) stations) x1 (nth (- nSt gf) stations))
               (setq x0 (nth (1- gf) stations)    x1 (nth (1- gt) stations)))
-            ;; the door is centred in its bay and drawn partly open
+            ;; the door is centred in its bay and drawn partly open, so the leaves stand beside
+            ;; the opening - the box is widened for them. Vertically it is sill to head, and
+            ;; nothing above the head is in its way.
             (setq pad (* dw 0.35))
-            (setq out (cons (cons (- (/ (+ x0 x1) 2.0) (/ dw 2.0) pad)
-                                  (+ (/ (+ x0 x1) 2.0) (/ dw 2.0) pad)) out))))
+            (setq out (cons (list (- (/ (+ x0 x1) 2.0) (/ dw 2.0) pad)
+                                  (+ (/ (+ x0 x1) 2.0) (/ dw 2.0) pad)
+                                  (if base base 0.0)
+                                  (+ (if base base 0.0) (if (and dh (> dh 0.0)) dh 3000.0)))
+                            out))))
         (setq dk (1+ dk)))))
   out)
 
-;; does [a b] touch any of those spans?
+;; does [a b] touch any of those spans, at height [c d]?
+;;
+;; TWO-DIMENSIONAL, and that is the whole point (owner 4-Sep-2026: "one accessory may come over
+;; and above the other but not at the same place"). A louver ABOVE a door head shares the wall,
+;; not the place, and must be kept. A louver INSIDE the doorway cannot be built. An x-only test
+;; cannot tell those apart and throws away the first with the second.
+;; c/d may be omitted (nil) to ask about the x span alone.
 (defun peb-fr-in-door-span (a b spans / hit)
   (setq hit nil)
   (foreach s spans
-    (if (and (< a (cdr s)) (> b (car s))) (setq hit T)))
+    (if (and (< a (cadr s)) (> b (car s))) (setq hit T)))
+  hit)
+
+(defun peb-fr-in-door-box (a b c d spans / hit)
+  (setq hit nil)
+  (foreach s spans
+    (if (and (< a (cadr s)) (> b (car s))
+             (or (null c) (null d)
+                 (and (< c (nth 3 s)) (> d (nth 2 s)))))
+      (setq hit T)))
   hit)
 
 (defun peb-fr-door-bays (data surf / qty dk gf out)
@@ -967,23 +989,16 @@
   out)
 
 (defun peb-fr-wl-per-bay (data surf ox base faceLen stations sill panL cover perBay endSheets
-                          / nSt i x0 x1 grpW gx k drawn clearL clearR doorBays)
+                          / nSt i x0 x1 grpW gx k drawn clearL clearR)
   (setq nSt (length stations) drawn 0 i 0
         grpW   (* perBay cover)
         clearL (* endSheets cover)
-        clearR (- faceLen (* endSheets cover))
-        ;; A WALL LIGHT CANNOT GO WHERE A DOOR IS. Both are placed per bay, from this same
-        ;; stations list, and on MSPL-26-266 both landed in bay 3: a fiberglass panel drawn
-        ;; straight across a 3658 x 3658 sliding door. The light gives way - the door's position
-        ;; is a customer requirement and the light's is "one per bay", which is exactly what it
-        ;; can afford to lose. The count on the leader follows, because it counts what was drawn.
-        doorBays (peb-fr-door-bays data surf))
+        clearR (- faceLen (* endSheets cover)))
   (while (< (1+ i) nSt)
     (setq x0 (nth i stations) x1 (nth (1+ i) stations))
     ;; centre the group in the bay
     (setq gx (- (/ (+ x0 x1) 2.0) (/ grpW 2.0)))
-    (if (and (not (member i doorBays))
-             (>= gx clearL) (<= (+ gx grpW) clearR) (< grpW (abs (- x1 x0))))
+    (if (and (>= gx clearL) (<= (+ gx grpW) clearR) (< grpW (abs (- x1 x0))))
       (progn
         (setq k 0)
         (while (< k perBay)
@@ -1047,19 +1062,14 @@
       ;; leaves plain sheeting between the groups (owner: the No. per Bay dropdown).
       (if (and (wcmatch (strcase cont) "*DISCONT*") stations (> (length stations) 1))
         (setq n (peb-fr-wl-per-bay data surf ox base faceLen stations sill panL cover perBay endSheets))
-        (progn
-          ;; NO OVERLAPPING ACCESSORIES (owner 4-Sep-2026). The continuous band marches across the
-          ;; middle of the wall and knows nothing about bays, so it has to ask about SPANS: a
-          ;; panel that would land under a door is skipped, and the count follows, because `drew`
-          ;; counts what was actually drawn and the leader reads that.
-          (setq spans (peb-fr-door-spans data surf stations revView) drew 0)
-          (while (< i n)
-            (setq px (+ x0 (* i cover)))
-            (if (not (peb-fr-in-door-span px (+ px cover) spans))
-              (progn (peb-acc-light-elev (+ ox px) (+ base sill) cover panL surf)
-                     (setq drew (1+ drew))))
-            (setq i (1+ i)))
-          (setq n drew)))
+        ;; THE BAND IS NOT BROKEN AT A DOOR (owner 4-Sep-2026: "do not break the wall lights,
+        ;; this is not the rule I mean to say"). The no-overlap rule is about one accessory
+        ;; drawn ON another - a louver inside a doorway - not about chopping a band of cladding
+        ;; that runs along the wall. It marches straight across, as it always did.
+        (while (< i n)
+          (setq px (+ x0 (* i cover)))
+          (peb-acc-light-elev (+ ox px) (+ base sill) cover panL surf)
+          (setq i (1+ i))))
       ;; ── A GIRT ON BOTH SIDES OF THE BAND (owner 4-Sep-2026) ─────────────────────────────
       ;; "Fiberglass Wall Lights ... needs the Girts on Both Sides." A fiberglass panel is the
       ;; weakest sheet on the wall and it is not self-supporting across its length: it has to be
@@ -1760,8 +1770,9 @@
         ;; NO ACCESSORY ON TOP OF ANOTHER (owner 4-Sep-2026). A louver inside a doorway is not a
         ;; drafting blemish, it is something that cannot be built. The door owns its span; every
         ;; other opening placed on this wall stands aside.
-        (if (not (peb-fr-in-door-span (+ pat (- (/ pw 2.0))) (+ pat (/ pw 2.0))
-                                      (peb-fr-door-spans data surf stations revView)))
+        (if (not (peb-fr-in-door-box (+ pat (- (/ pw 2.0))) (+ pat (/ pw 2.0))
+                                     (+ base psill) (+ base psill ph)
+                                     (peb-fr-door-spans data surf stations revView base)))
         (peb-fr-draw-opening data pre ptyp
                              (+ ox pat (- (/ pw 2.0))) (+ ox pat (/ pw 2.0))
                              (+ base psill) (+ base psill ph)))
@@ -2508,8 +2519,9 @@
               ph    (peb-fr-open-ht   data pre ptyp))
         ;; NO ACCESSORY ON TOP OF ANOTHER - see the framing elevation above. Both cuts are
         ;; guarded, or the sheet would show a hole with no louver, or a louver with no hole.
-        (if (not (peb-fr-in-door-span (+ pat (- (/ pw 2.0))) (+ pat (/ pw 2.0))
-                                      (peb-fr-door-spans data surf stations revView)))
+        (if (not (peb-fr-in-door-box (+ pat (- (/ pw 2.0))) (+ pat (/ pw 2.0))
+                                     (+ base psill) (+ base psill ph)
+                                     (peb-fr-door-spans data surf stations revView base)))
         (peb-fr-draw-opening data pre ptyp
                              (+ ox pat (- (/ pw 2.0))) (+ ox pat (/ pw 2.0))
                              (+ base psill) (+ base psill ph)))))

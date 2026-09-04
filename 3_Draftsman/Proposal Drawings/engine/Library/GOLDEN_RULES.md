@@ -375,30 +375,38 @@ A closed leaf is indistinguishable from a panel. The customer cannot see that it
 see where it goes, and cannot see how much wall it needs. At about 40% open the void is visible
 beside the leaf, the leaf is plainly clear of the opening, and the arrow says which way it went.
 
-### 27. NO ACCESSORY SITS ON ANOTHER
+### 27. NO ACCESSORY IN THE SAME PLACE AS ANOTHER — but stacked is fine
 
 > *"There should not be overlapping of Accessories … if the Door is coming at any place, then
-> Louvers should be removed from there … one should not come just above the other — for there was
-> a door and within the door louver was showing, which is not practically possible."*
+> Louvers should be removed from there … there was a door and within the door louver was showing,
+> which is not practically possible."*
+>
+> and, the correction that makes it precise:
+>
+> *"One accessory may come over and above the other but not at the same place."*
+> *"Do not break the wall lights — this is not the rule I mean to say."*
 
-Not a drafting blemish — something that cannot be built. **The door owns its span; everything
-else stands aside.**
+**The test is two-dimensional.** A louver ABOVE a door head shares the wall, not the place, and
+must be kept. A louver INSIDE the doorway cannot be built. An x-only test cannot tell those apart
+and throws away the first along with the second — which is exactly what the first attempt did.
 
-The trap is that a wall carries several INDEPENDENT placers and they do not resolve against each
-other: the wall-light band marches across the middle of the wall knowing nothing about bays; the
-louvers come from the PL_* opening loop; the doors come from DR_*. Fixing the one you happen to
-look at first fixes nothing — on MSPL-26-266 the per-bay light was corrected and the thing
-actually sitting in the doorway turned out to be a louver from a different loop entirely.
+`peb-fr-door-boxes` returns the whole rectangle each door occupies as drawn — widened for the
+leaves, which stand beside the opening once the door is shown open, and running sill to head, so
+nothing above the head is in its way. `peb-fr-in-door-box` asks for an overlap on **both** axes.
 
-So the rule is expressed in the only thing every placer shares: **the SPAN on the wall.**
-`peb-fr-door-spans` returns the span each door occupies AS DRAWN — widened for the leaves, which
-stand beside the opening once the door is shown open — and every other placer asks it before
-placing. One helper, one answer. **Guard every call site**: the framing elevation cuts the framed
-opening and the sheeting elevation cuts the sheet, and if one stands aside and the other does not
-you get a hole with no louver, or a louver with no hole.
+**What this rule does NOT do:** it does not break the continuous wall-light band. That band is
+cladding running along the wall, not an accessory placed at a position, and it passes over a door
+the way a girt does. The first attempt broke it and had to be put back.
 
-And the count follows the drawing: a leader that says "44 No." must count what was **drawn**, not
-what was intended, or the sheet contradicts itself.
+A trap worth knowing: a wall carries several INDEPENDENT placers that never resolve against each
+other — the wall-light band marches across the middle knowing nothing about bays, the louvers come
+from the PL_* opening loop, the doors from DR_*. Fixing the one you happen to look at first fixes
+nothing. On MSPL-26-266 the per-bay light was corrected and it changed the drawing not at all,
+because the thing actually sitting in the doorway was a louver from a different loop entirely.
+
+**Guard every call site.** The framing elevation cuts the framed opening and the sheeting
+elevation cuts the sheet; if one stands aside and the other does not, you get a hole with no
+louver, or a louver with no hole.
 
 ### 28. A door in a braced bay makes the bracing PORTAL
 
