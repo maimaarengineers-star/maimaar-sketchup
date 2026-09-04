@@ -625,7 +625,7 @@
 ;;;    leaves  1 or 2                lbl second line, or nil to size it from ow/oh
 ;;;    oh      opening height, for the label only - plan cannot show it
 ;;; ============================================================================
-(defun peb-sld-plan (ox oy ow wt leaves oh lbl / xm yb yl lt th c gap run x0 x1)
+(defun peb-sld-plan (ox oy ow wt leaves oh hand lbl / xm yb yl lt th c gap run x0 x1)
   (peb-sld-layer-ensure)
   (peb-sld-layer-need "SHEETING" 4)
   (if (or (null wt) (<= wt 0.0)) (setq wt 100.0))
@@ -656,7 +656,8 @@
     (progn
       (peb-sld-box (- ox (peb-sld-meet-lap)) yl (+ ox ow (peb-sld-meet-lap)) (+ yl lt)
                    (peb-sld-lw-out))
-      (peb-sld-arrow xm (+ yl (* lt 2.4)) (* ow 0.70) -1)))
+      ;; the arrow follows the HAND - see the note in peb-sld-plan-on-wall
+      (peb-sld-arrow xm (+ yl (* lt 2.4)) (* ow 0.70) (if (and hand (< hand 0)) -1 1))))
   ;; the label: the FEET the customer reads, then the millimetres the shop builds to
   (setq th (peb-sld-dim-th) c (+ yl (* lt 4.2)))
   (peb-sld-tx xm (+ c (* th 1.5)) th 0.0
@@ -804,7 +805,7 @@
   (peb-sld-dim-v 0.0 oh (- tx0 1800.0) 1 "2438 [8]  CLEAR")
 
   ;; ---- the plan symbol, as issued on the approval sheet
-  (peb-sld-plan 0.0 -3600.0 ow 150.0 1 oh nil)
+  (peb-sld-plan 0.0 -3600.0 ow 150.0 1 oh 1 nil)
   (peb-sld-tx (/ ow 2.0) -4700.0 (* (peb-sld-dim-th) 1.3) 0.0
               "PLAN SYMBOL  -  AS THE CUSTOMER LAYOUT PLAN DRAWS IT" "TEXT" 1 2)
 
@@ -905,7 +906,7 @@ SLIDING DOOR sample drawn: MSPL-121, single leaf, 9144 x 2438, with wicket.")
 ;; THE DOOR ON A WALL, in plan. Same symbol as peb-sld-plan, mapped onto the wall.
 ;;   surf  NSW|FSW|LEW|REW      at  distance along the wall to the door CENTRE
 ;;   ow oh the framed opening   wt  wall thickness      leaves 1 or 2
-(defun peb-sld-plan-on-wall (surf at ow oh wt leaves ox oy len wid
+(defun peb-sld-plan-on-wall (surf at ow oh wt leaves hand ox oy len wid
                              / m u0 u1 gap lt th c run um)
   (peb-sld-layer-ensure)
   ;; SIZE THE SYMBOL FROM THE SHEET, NOT FROM THE DOOR. peb-th 'SMALL is the height every other
@@ -937,7 +938,10 @@ SLIDING DOOR sample drawn: MSPL-121, single leaf, 9144 x 2438, with wicket.")
     (progn
       (peb-sld-mbox m (- u0 (peb-sld-meet-lap)) gap (+ u1 (peb-sld-meet-lap)) (+ gap lt)
                     (peb-sld-lw-out))
-      (peb-sld-marrow m um (+ gap (* th 2.2)) (* ow 0.70) -1)))
+      ;; A SINGLE LEAF HAS A HAND, and the plan was ignoring it: the elevation arrow pointed the
+      ;; way the door parks and the plan arrow always pointed left. The same door on the same
+      ;; sheet, disagreeing about which way it slides - and the plan is what is read first.
+      (peb-sld-marrow m um (+ gap (* th 2.2)) (* ow 0.70) (if (and hand (< hand 0)) -1 1))))
   ;; THE LABEL FOLLOWS THE WALL IT NAMES. Horizontal on a side wall, turned 90 degrees on an end
   ;; wall - where every other annotation on that edge is already turned, and a horizontal label
   ;; ran straight through "RIGHT END WALL", "MAIN FRAME" and the door mark, three pieces of text
@@ -975,8 +979,13 @@ SLIDING DOOR sample drawn: MSPL-121, single leaf, 9144 x 2438, with wicket.")
                    (> gf 0) (<= gt (length bayPts)) dw dh (> dw 0.0))
             (progn
               (setq at (/ (+ (nth (1- gf) bayPts) (nth (1- gt) bayPts)) 2.0))
+              ;; hand: the BSF has no field for it, so a single leaf parks the way it has room
+              ;; to - away from the nearer end of the wall. Symmetric for a bi-parting pair.
               (peb-sld-plan-on-wall surf at dw dh nil
-                                    (peb-sld-leaves-of dop) ox oy len wid)))
+                                    (peb-sld-leaves-of dop)
+                                    (if (< at (/ (if (member surf '("LEW" "REW")) wid len) 2.0))
+                                      1 -1)
+                                    ox oy len wid)))
           (setq dk (1+ dk))))))
   (princ))
 
