@@ -72,3 +72,56 @@ hook 6.0 m, wheelbase 3.9 m, CMAA C cat 3, pendant, 84 / 11 kN, grids 1-5 × A-B
   capacity/span tables, hook approach, clearance under the haunch, bracket and runway sizing.
 * Crane **bracket** geometry from `MSPL-032_assembly.pdf` — the cantilever off the column that
   carries the runway beam.
+
+---
+
+# AUDIT — the top view against the Mammut manual (5-Sep-2026)
+
+## What the manual actually contains
+
+`D:\Design Manual\mammut design manual.pdf`, **chapter 8 "Crane Loads" (MBMA 02 / MBMA 06)**,
+extracted with `pdftotext -layout` — 473 crane hits, chapter opens at line 20931.
+
+**It is a LOADS chapter, not a detailing chapter.** It specifies service classes, impact factors,
+wheel loads, lateral and longitudinal forces, fatigue categories and runway beam stresses. It does
+**not** give bridge girder proportions, end-truck dimensions, hook approach or clearances. So
+"100% match the manual" is achievable for everything the manual states — and it is now matched —
+but the manual cannot settle the geometry. That has to come from the drawings, which is why
+MSPL-032, the Thal/HBA CLPs and the 210-25 gantry DXF are in this folder.
+
+## Matched — every item the manual states about a bridge
+
+| item | manual | drawn / stated |
+|---|---|---|
+| Crane types | ch.8: Top Running (Gantry), Monorail, Underhung, Jib, Semi-Gantry | TR stated, all five named on the sheet |
+| **End truck wheels** | **"NWb = Number of end truck wheels at ONE END of the bridge"; worked 10 MT example: "Number of end truck wheels = 2"** | **2 per end truck, 4 total — DRAWN in the top view** |
+| Vertical impact | table 8.3: pendant operated bridge cranes = **10%** (cab/radio 25%, hand geared 0) | stated on the sheet |
+| CMAA service class | table 8.1, classes A–F | C stated |
+| Worked example | RC 10 MT, HT 0.74 MT, crane 8.30 MT, CW 7.56 MT, WL = (RC + HT + 0.5CW) / NWb = 7.26 MT | the sample is built at 10 MT, the same case |
+| Eave height driver | "Clearance above Crane beam / Crane hook height requirement" | the section already derives the beam from hook height |
+
+## Traced from the drawings, not the manual
+
+| item | value | source |
+|---|---|---|
+| Span | 21,335 | Thal 125-23, both cranes |
+| Capacity | 10 MT / 50 MT | Thal 125-23 |
+| Runway beam construction | built-up, double side fillet weld, **≤ 15 MT** | Thal 125-23 spec note |
+| Wheel base | 3,900 | MSPL-26-276 BSF (the manual gives the wheel COUNT, a job gives the base) |
+
+## Declared STYLISED (rule 20) — not traced, and said so on the drawing itself
+
+* **Girder depth = span / 18.** A working proportion for a welded box girder in this capacity
+  range. The sheet prints "(STYLISED – SPAN/18)" next to the dimension so nobody reads it as
+  traced. A job's own `CRn_BRIDGE` overrides it.
+* Girder width in plan = 0.72 × depth; end-truck stand-off, wheel radius and trolley length are
+  proportions of the girder.
+
+## Still open before sync
+
+* **Hook approach** — the minimum distance the hook can reach toward the rail. Not in the manual,
+  not yet traced from a drawing; the top view does not show it.
+* **End stops / bumpers** on the runway — manual discusses bumper FORCES (ch.8, "the force is
+  assumed to act at bumper height or 375 mm above floor level") but not the detail. Not drawn.
+* The **210-25 gantry DXF** (8.3 MB, in this folder) carries "MAIN BEAM", "CRANE BRACKET" and
+  "X : HOOK LENGTH" callouts — worth parsing for real bracket and hook-approach geometry.
