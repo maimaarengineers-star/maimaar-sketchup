@@ -1441,7 +1441,7 @@
 ;; Draw ONE wall opening (door/window) in plan: jambs + panel across the gap,
 ;; a swing arc for doors, the MARK, an OFFSET dim to the nearest grid, and a RED
 ;; "(!) OPENING IN BRACED BAY" flag when a sidewall opening sits in a braced bay.
-(defun peb-draw-one-opening (surf at w mark isDoor braced len wid ox oy bayPts showOff
+(defun peb-draw-one-opening (surf at w mark isDoor braced len wid ox oy bayPts
                              / px py horiz hw dep prev inSign ng off)
   (setq hw (/ w 2.0) dep 400.0 prev (getvar "CLAYER"))
   (cond
@@ -1472,12 +1472,7 @@
       (txt "MC" (list (- px (* inSign 600 *PEB-TEXT-SCALE*)) py) (peb-th 'SMALL) 0 mark))
     ;; OFFSET dim from the nearest grid (so the draughtsman sees the location;
     ;; no cross-bracing may sit at an opening) — horizontal walls only (length axis).
-    ;; NOT FOR LOUVERS (owner 4-Sep-2026: "In CLP - No need to show the Off-set dimensions for
-    ;; the Louvers"). Twelve louvers on the two side walls put twelve offset dims across the
-    ;; column layout plan, on top of the grid chain that is the whole reason the sheet exists.
-    ;; Where a louver sits along a wall is elevation business; the CLP is about columns. The
-    ;; symbol and the mark stay - only the dimension goes.
-    (if (and horiz showOff)
+    (if horiz
       (progn
         (setq ng (peb-nearest-grid (- px ox) bayPts) off (abs (- (- px ox) ng)))
         (if (> off 1.0)
@@ -1507,13 +1502,20 @@
     (setq mark (peb-tb-or (MSPL-Get-Str data (strcat pre "MARK")) ""))
     (setq typ  (strcase (peb-tb-or (MSPL-Get-Str data (strcat pre "TYPE")) "")))
     (setq isDoor (or (vl-string-search "DOOR" typ) (= typ "")))
-    (if (and (> w 0.0) (member surf '("NSW" "FSW" "LEW" "REW")))
+    ;; ── NO LOUVERS ON THE COLUMN LAYOUT PLAN (owner 4-Sep-2026: "Do not show the lV on CLP") ──
+    ;; This first dropped only their offset dimensions; the owner then took the whole accessory
+    ;; off the sheet. Right, and for the reason the sheet has a name: a COLUMN layout plan is
+    ;; about columns, grids and bracing. Twelve louvers put twelve symbols and twelve marks
+    ;; across it that answer a question nobody asks here - where a louver sits along a wall is
+    ;; elevation business, and it is drawn there. Rule 32: show what the reader of THIS sheet
+    ;; needs, not everything that is true.
+    (if (and (> w 0.0) (member surf '("NSW" "FSW" "LEW" "REW"))
+             (not (wcmatch typ "*LOUVER*")))
       (progn
         (setq bayIdx (if (member surf '("NSW" "FSW")) (peb-bay-of at bayPts) -1))
         (peb-draw-one-opening surf at w mark isDoor
                               (if (member bayIdx braced) T nil)
-                              len wid ox oy bayPts
-                              (not (wcmatch typ "*LOUVER*")))))
+                              len wid ox oy bayPts)))
     (setq i (1+ i)))
   ;; ── THE TICKED DOORS, WHICH ARE NOT PLACEMENTS ────────────────────────────────────────
   ;; PL*_ is the manual Area Placement panel. The doors the BSF TICKS arrive as DR_*, and those
