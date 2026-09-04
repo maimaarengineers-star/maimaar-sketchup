@@ -928,11 +928,17 @@ SLIDING DOOR sample drawn: MSPL-121, single leaf, 9144 x 2438, with wicket.")
       (peb-sld-mbox m (- u0 (peb-sld-meet-lap)) gap (+ u1 (peb-sld-meet-lap)) (+ gap lt)
                     (peb-sld-lw-out))
       (peb-sld-marrow m um (+ gap (* th 2.2)) (* ow 0.70) -1)))
-  ;; the label, in the FEET the customer reads. Text is NOT mapped - it stays horizontal, which
-  ;; is what a plan wants; only its POSITION follows the wall. It sits further out than the
-  ;; wall-light mark and the braced-bay flag, which both hug the wall face.
-  (setq c (apply m (list um (+ gap (* th 3.4)))))
-  (peb-sld-tx (car c) (cadr c) th 0.0
+  ;; THE LABEL FOLLOWS THE WALL IT NAMES. Horizontal on a side wall, turned 90 degrees on an end
+  ;; wall - where every other annotation on that edge is already turned, and a horizontal label
+  ;; ran straight through "RIGHT END WALL", "MAIN FRAME" and the door mark, three pieces of text
+  ;; on top of one another and none of them readable.
+  ;; It also sits further out than the wall-light mark and the braced-bay flag, which hug the face.
+  ;; ...and it goes INSIDE the building. Outside the wall is where every other annotation on
+  ;; that edge already lives - the wall name, the frame type, the door mark - and the door label
+  ;; was queueing up behind them. Inside is empty. The LEAF stays outside, where it runs.
+  (setq c (apply m (list um (- 0.0 wt (* th 1.8)))))
+  (peb-sld-tx (car c) (cadr c) th
+              (if (member surf '("LEW" "REW")) 90.0 0.0)
               (strcat (peb-sld-ft ow) " x " (peb-sld-ft oh) " SLIDING DOOR") "TEXT" 1 2)
   (princ))
 
