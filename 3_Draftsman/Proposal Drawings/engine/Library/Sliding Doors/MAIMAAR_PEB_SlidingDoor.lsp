@@ -99,6 +99,12 @@
 ;; LEADING strip carrying the meeting stile and its cover trim, then the panel field beyond it.
 ;; Drawing the leaf symmetric put a 513 closer at BOTH ends and lost the meeting stile entirely.
 (defun peb-sld-lead-w     ()  539.0)   ; the leading (meeting) strip               — MSPL-030
+;; ...but 539 is a DIMENSION off a 4039 leaf, not a constant. On that leaf it is 13%; on a 12'
+;; door, where each leaf is 1904, the same 539 is 28% - a blank band taking a third of the leaf,
+;; with the panel field squeezed beside it. Capped at 15%, which reproduces 539 on MSPL-030's own
+;; leaf and scales down sensibly on anything smaller.
+(defun peb-sld-lead-of (w)
+  (min (peb-sld-lead-w) (max (peb-sld-trim-w) (* w 0.15))))
 (defun peb-sld-trim-h     ()   80.0)   ; the top and bottom trim band              — MSPL-030 plan
 (defun peb-sld-panel-w    () 1448.0)   ; sandwich panel cover in the leaf           — MSPL-030
 ;; ---- WHAT THE LEAF IS MADE OF, AND THEREFORE WHAT IT LOOKS LIKE ----------------------------
@@ -302,7 +308,7 @@
   (if (null ptype) (setq ptype (peb-sld-ptype-default)))
   (setq ptype (strcase ptype))
   (setq x1 (+ x0 w) y1 (+ y0 h)
-        tw (peb-sld-trim-w) lw (peb-sld-lead-w) th (peb-sld-trim-h)
+        tw (peb-sld-trim-w) lw (peb-sld-lead-of w) th (peb-sld-trim-h)
         fx0 (if (> lead 0) (+ x0 tw) (+ x0 lw))
         fx1 (if (> lead 0) (- x1 lw) (- x1 tw)))
   ;; -- THE LEAF IS SOLID. Shown partly open it stands beside the opening, over the wall, and the
@@ -367,8 +373,8 @@
   (setq ww (peb-sld-wicket-w) wh (peb-sld-wicket-h)
         wy (+ y0 (peb-sld-wicket-sill))
         wx (if (> lead 0)
-             (+ x0 (peb-sld-lead-w) (peb-sld-wicket-off))      ; leads right -> wicket at the left
-             (- (+ x0 w) (peb-sld-lead-w) (peb-sld-wicket-off) ww))
+             (+ x0 (peb-sld-lead-of w) (peb-sld-wicket-off))   ; leads right -> wicket at the left
+             (- (+ x0 w) (peb-sld-lead-of w) (peb-sld-wicket-off) ww))
         f  38.0)
   ;; only if it actually fits inside the panel field with something to spare
   (if (and (> w (+ ww (* 3.0 (peb-sld-lead-w)))) (> h (+ wh (peb-sld-wicket-sill) 150.0)))
@@ -400,7 +406,7 @@
 ;; the first version put a bracket at each joint and turned the bottom rail into a row of boxes.
 ;; Two at the ends, and an intermediate wherever the span between them exceeds one bay.
 (defun peb-sld-leaf-clips (x0 y0 w lead / e n i sp)
-  (setq e (* (peb-sld-lead-w) 0.9)
+  (setq e (* (peb-sld-lead-of w) 0.9)
         sp (- w (* 2.0 e))
         n  (max 2 (1+ (fix (/ sp 3600.0))))              ; an extra wheel per 3.6 m of leaf
         i  0)
@@ -515,7 +521,7 @@
 ;;    Returns (xmin ymin xmax ymax), so a caller placing it on a sheeting elevation knows what
 ;;    to keep clear — the door needs far more wall than the opening.
 ;; ---------------------------------------------------------------------------
-(defun peb-sld-elevation (ox oy ow oh leaves hand ptype wicket ghost lbl
+(defun peb-sld-elevation (ox oy ow oh leaves hand ptype wicket ghost frame lbl
                           / lw lh lb lt ytop tx0 tx1 xL xR run th opn)
   (peb-sld-layer-ensure)
   (if (null hand) (setq hand -1))
@@ -523,7 +529,11 @@
         lt   (+ oy oh (peb-sld-head-lap))
         lh   (- lt lb)
         ytop (+ lt (peb-sld-track-gap) (peb-sld-track-dep)))
-  (peb-sld-opening ox oy ow oh)
+  ;; THE OPENING FRAME IS THE CALLER'S TO ASK FOR. On a standalone sample the component has to
+  ;; draw its own jambs and header or the door floats. On a BUILDING sheet the engine has already
+  ;; drawn the framed opening and the jamb posts, and drawing them again leaves a gold header
+  ;; hanging in the gap between the open leaves, belonging to nothing.
+  (if frame (peb-sld-opening ox oy ow oh))
   (if (= leaves 2)
     (progn
       (setq lw  (+ (/ ow 2.0) (peb-sld-meet-lap))
@@ -770,7 +780,7 @@
   ;; the wall the door sits in - development scaffolding, not part of the component
   (peb-sld-context -6500.0 15700.0 0.0 4000.0 0.0 ow nil 1500.0)
 
-  (setq ext (peb-sld-elevation 0.0 0.0 ow oh 1 1 "EPS" T T
+  (setq ext (peb-sld-elevation 0.0 0.0 ow oh 1 1 "EPS" T T T
               "SLIDING DOOR  9144 [30'] x 2438 [8']  -  SHOWN PARTLY OPEN"))
   (setq tx0 (nth 0 ext) tx1 (nth 2 ext))
 

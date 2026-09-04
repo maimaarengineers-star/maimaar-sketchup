@@ -557,7 +557,7 @@
                        wallEave slopeD stations kind
                        / m throat overall rmh halfT halfO prev cx s apexY
                          legL legR legTopL legTopR ridgeY eaveY
-                         nSt gFrom gTo mx0 mx1 bandH nT i px mesh
+                         nSt gFrom gTo mx0 mx1 bandH nT i px mesh mcov
                          isSht sxm ytop lx)
   (setq m (peb-fr-mon-geom data))
   ;; Only a GABLE carries a monitor: it straddles a RIDGE, and rtype "B" puts a VALLEY at
@@ -639,21 +639,25 @@
             ;; each leg with an OPEN soffit - that is how a mini gable frame closes - so sheeting
             ;; out to overall/2 would draw a wall where the building has none.
             ;;
-            ;; Pitch 333 is the SAME sp the wall sheeting further down this very sheet uses, so the
-            ;; monitor matches the wall under it instead of carrying its own private sheeting scale.
+            ;; The pitch is the SAME panel COVER the wall sheeting further down this very sheet
+            ;; uses, so the monitor matches the wall under it instead of carrying its own private
+            ;; sheeting scale.  It used to say 333 in both places - two literals that agreed until
+            ;; one of them was corrected to the panel joint, which is exactly the trap the
+            ;; peb-sheet-* accessors were written to close (S83).
             (if isSht
               (progn
                 ;; FULL OVERALL WIDTH, extensions included (owner 31-Aug: "On both Ends Sheeting are
                 ;; complete including Both Sides Extensions").  Not leg to leg: the monitor end is
                 ;; closed right out to the roof edge, so the 750 extension each side is sheeted too.
                 ;;
-                ;; EVENLY distributed, never a fixed pitch run from one edge.  A fixed 333 from the
-                ;; left leg had left the last line 168 from the right one - half a pitch - and the two
-                ;; printed as a single thickened line.  n = overall/333 rounded down, spaced
-                ;; overall/(n+1): 9 lines at 300 on a 3000 overall, symmetric about the ridge, clear
-                ;; of both roof edges, and near enough the wall sheeting's own 333 to match it.
+                ;; EVENLY distributed, never a fixed pitch run from one edge.  A fixed pitch from
+                ;; the left leg had left the last line half a pitch from the right one, and the two
+                ;; printed as a single thickened line.  n = overall/cover rounded down, spaced
+                ;; overall/(n+1): symmetric about the ridge, clear of both roof edges, and stepping
+                ;; the same panel the wall below it does.  A monitor end is a closure panel - it is
+                ;; cut to fit, so even spacing is honest here in a way it would not be on a wall.
                 (setvar "CLAYER" "CLADDING")
-                (setq nT (fix (/ overall 333.0)))
+                (setq nT (fix (/ overall (peb-panel-cover data "WALL"))))
                 (if (< nT 1) (setq nT 1))
                 (setq i 1)
                 (while (<= i nT)
@@ -708,8 +712,9 @@
                               (+ ridgeY (* 1.15 (peb-th 'SMALL) *PEB-TEXT-SCALE*)))
                    (peb-th 'SMALL) 0 "ROOF MONITOR")
               ;; THE MONITOR'S ROOF SHEETING on its slope (owner 31-Aug: "roof sheeting of slope
-              ;; will be shown and opening will be shown below it").  Pitch 1000 = the roof COVER
-              ;; width peb-draw-roof-sheeting uses, so these are the SAME runs the roof plan draws.
+              ;; will be shown and opening will be shown below it").  The pitch is the roof COVER
+              ;; from the same accessor peb-draw-roof-sheeting uses, so these are the SAME runs the
+              ;; roof plan draws - on a lock-seam roof both step 470, not 1000.
               ;;
               ;; This band is only (rmh - halfO/slopeD) tall - 150 on a 1500 throat at 1:10 -
               ;; because the monitor follows the MAIN slope (the Section derives it that way).
@@ -717,10 +722,10 @@
               (if (and isSht (> (- ridgeY eaveY) 1.0))
                 (progn
                   (setvar "CLAYER" "CLADDING")
-                  (setq sxm (+ mx0 1000.0))
+                  (setq mcov (peb-panel-cover data "ROOF") sxm (+ mx0 mcov))
                   (while (< sxm mx1)
                     (command "_.LINE" (list (+ ox sxm) eaveY) (list (+ ox sxm) ridgeY) "")
-                    (setq sxm (+ sxm 1000.0)))))
+                    (setq sxm (+ sxm mcov)))))
               ;; THE VENT.  This face is the whole reason the monitor exists (owner: "at
               ;; peak, the reason of Fumes"), so the opening is drawn AS an opening: the
               ;; throat band between the main roof and the monitor eave, ticked when a
@@ -744,14 +749,14 @@
                   (setq mesh (strcase (peb-tb-or (MSPL-Get-Str data "RM_BIRD_MESH") "")))
                   (if (and isSht (or (= mesh "YES") (= mesh "Y") (= mesh "TRUE")))
                     (progn
-                      ;; The SAME stations as the roof sheeting above: mx0 + n*1000, the roof COVER
+                      ;; The SAME stations as the roof sheeting above: mx0 + n*cover, the roof COVER
                       ;; width.  Evenly-distributed 2 m ticks landed between the sheet lines, so the
                       ;; opening and the sheeting over it read as two mismatched grilles stacked on
                       ;; each other instead of as one monitor divided on one module.
-                      (setq px (+ mx0 1000.0))
+                      (setq px (+ mx0 mcov))
                       (while (< px mx1)
                         (command "_.LINE" (list (+ ox px) apexY) (list (+ ox px) eaveY) "")
-                        (setq px (+ px 1000.0)))
+                        (setq px (+ px mcov)))
                       ;; ...AND A HORIZONTAL, so the mesh reads as BOXES (owner 31-Aug: "normally
                       ;; it is galvanised wire mesh ... with Boxes ... so that Bird may not enter in
                       ;; the building").  It is WRM in the QE - "Galvanized Wire Mesh (1.219m x
@@ -789,8 +794,8 @@
 ;; through both of them.
 (defun peb-fr-overall-h (x0 x1 y label / ts aL aW tick)
   (setq ts   (if *PEB-DIM-SCALE* *PEB-DIM-SCALE* 1.0)
-        aL   (* 240 ts)      ; 240/85 - the set's one OPEN arrowhead, see peb-fr-dimarrow
-        aW   (* 85 ts)
+        aL   (* 300 ts)      ; 300/95 - the set's one OPEN arrowhead, see peb-fr-dimarrow
+        aW   (* 95 ts)
         tick (* 300 ts))
   (setvar "CLAYER" "DIMENSIONS")
   (command "_.LINE" (list x0 y) (list x1 y) "")
@@ -806,8 +811,8 @@
 ;; every other number on the sheet.  Same style, same ladder entry, reads 90 deg.
 (defun peb-fr-overall-v (x y0 y1 label / ts aL aW tick)
   (setq ts   (if *PEB-DIM-SCALE* *PEB-DIM-SCALE* 1.0)
-        aL   (* 240 ts)      ; 240/85 - the set's one OPEN arrowhead, see peb-fr-dimarrow
-        aW   (* 85 ts)
+        aL   (* 300 ts)      ; 300/95 - the set's one OPEN arrowhead, see peb-fr-dimarrow
+        aW   (* 95 ts)
         tick (* 300 ts))
   (setvar "CLAYER" "DIMENSIONS")
   (command "_.LINE" (list x y0) (list x y1) "")
@@ -827,8 +832,8 @@
             ;; 240/85, the size every other OPEN head in the set uses (Section's rm-arrow-*,
             ;; MezzDetail's mzd-open-v via the DIM rung).  These were 300/95 - a fourth arrow
             ;; length in a set that is supposed to have one (owner: "sync ... the dimensions").
-            aL (* 240 ts)                    ; open-arrow length along the dim line
-            aW (* 85 ts)                     ; half-width -> slim open "V" like DIMBLK _OPEN
+            aL (* 300 ts)                    ; open-arrow length along the dim line
+            aW (* 95 ts)                     ; half-width -> slim open "V" like DIMBLK _OPEN
             i  0)
       ;; TEXT HEIGHT (owner 26-Aug: "dim sizes are very large", then "it should not
       ;; be too small or too big").  This passed (* 230 ts) to `txt`, and `txt`
@@ -1030,7 +1035,8 @@
 ;; use (rule 1). No panel geometry lives in this file.
 (defun peb-fr-wall-lights (data surf ox base faceLen stations revView
                            / on walls sill panL cover n i px lay qty ts czone usable x0
-                             lenMm widMm eaveMm endSheets cont perBay spans drew)
+                             lenMm widMm eaveMm endSheets cont perBay spans drew
+                             lbl ltx lty lax lry lprev)
   (setq on    (strcase (peb-tb-or (MSPL-Get-Str data "WA_LIGHT_ON") "No"))
         walls (strcase (peb-tb-or (MSPL-Get-Str data "WA_LIGHT_WALLS") ""))
         sill  (MSPL-Get-Num data "WA_LIGHT_SILL")
@@ -1100,14 +1106,34 @@
       ;; total belongs to the accessory schedule and the estimate, not to four separate leaders.
       ;; `n` is the whole panels actually drawn on THIS wall, so the label and the drawing agree
       ;; by construction.
+      ;; AND IT MUST ACTUALLY APPEAR. This was a bare vl-catch-all-apply with no fallback, so
+      ;; when the MLEADER failed on one wall the label simply vanished - the FSW came out with a
+      ;; band and no callout while the NSW had one. A swallowed error that leaves the sheet
+      ;; wrong is the worst kind: nothing in the render output says anything happened.
+      ;; Try the house MLEADER; if it does not produce an entity, draw the leader by hand.
+      ;; `lry`, not `lay`: `lay` already holds the SAVED LAYER NAME from the top of this
+      ;; progn, and reusing it for the arrow's Y made the closing (setvar "CLAYER" lay) hand
+      ;; setvar a number. That throws, the enclosing vl-catch-all-apply swallows it, and the
+      ;; current layer is left wrong with nothing in the output to say why.
+      ;; `lax` is ABSOLUTE: x0 is an offset from the wall's own origin (the panels are drawn at
+      ;; (+ ox px)), so the leader arrow needs the same + ox or it points into empty space.
+      (setq lbl (strcat (itoa n) " No. FIBERGLASS WALL LIGHT - TYPE")
+            ltx (+ ox faceLen (* 2000.0 ts))
+            lty (+ base sill panL)
+            lax (+ ox x0 (* 1.5 cover))
+            lry (+ base sill (/ panL 2.0))
+            lprev (entlast))
       (if (boundp 'peb-label-with-leader)
         (vl-catch-all-apply
           (function (lambda ()
-            (peb-label-with-leader
-              (strcat (itoa n) " No. FIBERGLASS WALL LIGHT - TYPE")
-              (list (+ ox faceLen (* 2000.0 ts)) (+ base sill panL))
-              (list (+ x0 (* 1.5 cover)) (+ base sill (/ panL 2.0)))
-              "V" (peb-th 'ANNOT))))))
+            (peb-label-with-leader lbl (list ltx lty) (list lax lry) "V" (peb-th 'ANNOT))))))
+      (if (eq (entlast) lprev)            ; nothing was drawn - do it the plain way
+        (progn
+          (peb-comp-layer "DIMENSIONS" 6)
+          (peb-acc-line lax lry lax lty "DIMENSIONS" 13)
+          (peb-acc-line lax lty ltx lty "DIMENSIONS" 13)
+          (setvar "CLAYER" "TEXT")
+          (txt "ML" (list (+ ltx (* 120.0 ts)) lty) (peb-th 'ANNOT) 0.0 lbl)))
       (setvar "CLAYER" lay)))
   (princ))
 
@@ -1190,7 +1216,9 @@
                               (peb-sld-wicket-of
                                 (MSPL-Get-Str data
                                   (strcat "DR_" surf "_" (itoa dk) "_PILOT")))
-                              nil nil))))))
+                              nil    ; no parked ghost - it would run into the next bay
+                              nil    ; no opening frame - this sheet already drew one
+                              nil))))))
                 (if (not sldOK)
                   (command "_.RECTANG" (list (+ ox cx (/ dw -2.0)) base)
                                        (list (+ ox cx (/ dw  2.0)) (+ base dh))))
@@ -2142,7 +2170,7 @@
   (princ))
 
 (defun peb-fr-wallface (ox0 flen wbase gbase colhw owText eaveTop skipBaseLine
-                        / gsp pdep i gy owU isRcc hEnt bc bx0 by0 bx1 by1 lv)
+                        / gsp pdep i gy owU isRcc hEnt bc bx0 by0 bx1 by1 lv esY)
   (setvar "CLAYER" "GIRTS")
   ;; ── RULE G1: THE GIRTS ARE ANCHORED, NOT STEPPED (owner 4-Sep-2026) ────────────────────
   ;; This was `gsp 1400.0` stepped up from the dado while below `eaveTop - 200`. Two things were
@@ -2171,9 +2199,22 @@
                                     (+ wbase *PEB-WF-HEAD*) nil))
              nil))
   (if lv
-    (foreach gy lv
-      (command "_.LINE" (list ox0 gy) (list (+ ox0 flen) gy) "")
-      (command "_.LINE" (list ox0 (+ gy pdep)) (list (+ ox0 flen) (+ gy pdep)) ""))
+    (progn
+      (foreach gy lv
+        (command "_.LINE" (list ox0 gy) (list (+ ox0 flen) gy) "")
+        (command "_.LINE" (list ox0 (+ gy pdep)) (list (+ ox0 flen) (+ gy pdep)) ""))
+      ;; ── THE EAVE STRUT (owner 4-Sep-2026) ────────────────────────────────────────────────
+      ;; The ladder now stops at the top girt, 200 below the clear height, because a girt above
+      ;; the column has nothing to fix to. Something still has to carry the sheeting from there
+      ;; up to the eave: that is the EAVE STRUT, which spans frame to frame at the eave line and
+      ;; is a different member from a girt. Without it the sheet between the top girt and the
+      ;; eave is drawn hanging on nothing - which was the other half of the defect.
+      ;; eaveTop is absolute; the strut sits just under it, like the purlin it shares a line with.
+      (setq esY (- eaveTop 100.0))
+      (if (> esY (+ wbase gbase))
+        (progn
+          (command "_.LINE" (list ox0 esY) (list (+ ox0 flen) esY) "")
+          (command "_.LINE" (list ox0 (+ esY pdep)) (list (+ ox0 flen) (+ esY pdep)) ""))))
     ;; fallback: the old ladder, for a standalone load with no library present
     (progn
       (setq gsp 1400.0 i 1)
@@ -2464,15 +2505,15 @@
           (command "_.LINE" (list (+ ox faceLen) (+ base wallEave))
                             (list (+ ox faceLen) (+ base wallEave rise)) "")
           ;; THE MAIN ROOF, SHEETED (owner 31-Aug).  On a SHEETING drawing this band was an empty
-          ;; rectangle while the wall below it was full of panel lines.  Pitch 1000 = the roof
-          ;; COVER width peb-draw-roof-sheeting uses.  Only here, never in the framing drawer.
-          ;; No overlap with the monitor, which stands entirely ABOVE the ridge this band tops out at.
+          ;; rectangle while the wall below it was full of panel lines.  Only here, never in the
+          ;; framing drawer.  No overlap with the monitor, which stands entirely ABOVE the ridge
+          ;; this band tops out at.
+          ;; The joints come from the same pair peb-draw-roof-sheeting uses, so the roof band on
+          ;; this elevation and the roof PLAN cannot lay their panels out differently.
           (setvar "CLAYER" "CLADDING")
-          (setq sx 1000.0)
-          (while (< sx faceLen)
+          (foreach sx (peb-panel-lines faceLen (peb-panel-cover data "ROOF"))
             (command "_.LINE" (list (+ ox sx) (+ base wallEave))
-                              (list (+ ox sx) (+ base wallEave rise)) "")
-            (setq sx (+ sx 1000.0)))
+                              (list (+ ox sx) (+ base wallEave rise)) ""))
           ;; the two end edges just below draw with no setvar of their own, so CLAYER is left
           ;; on STRUCTURE for them rather than on RIDGE.
           (setvar "CLAYER" "STRUCTURE")))))
@@ -2534,15 +2575,22 @@
           (command "_.LINE" (list (+ ox rx0) (+ base rbBase gbaseR)) (list (+ ox rx1) (+ base rbBase gbaseR)) "")
           (if (and (< rx1 (- faceLen 1.0)) (> gbase 100.0)) (command "_.LINE" (list (+ ox rx1) (+ base gbase)) (list (+ ox faceLen) (+ base gbase)) "")))
         (if (> gbase 100.0) (command "_.LINE" (list ox (+ base gbase)) (list (+ ox faceLen) (+ base gbase)) "")))
-      ;; PROFILED SHEETING — vertical lines from the (segment) sheeting base up to the roof/eave, ~333 mm apart
+      ;; SHEETING — ONE LINE PER PANEL JOINT, at the COVER width (owner 4-Sep-2026: "if we have
+      ;; 22m length of end wall, there must be 22 or 23 lines to show 2 side lines of each panel,
+      ;; for all roofs and all walls", and "place exactly same sheeting profile of sheeting
+      ;; developed M35-250").
+      ;;
+      ;; This stepped 333 - which is not a pitch of anything.  The developed M35-250 profile is a
+      ;; 35 mm rib on a 250 pitch and FOUR of them make the 1000 cover, so 333 was neither the rib
+      ;; nor the panel: a 22 m wall came out with ~66 identical lines, no joint readable anywhere,
+      ;; while the roof band directly above it drew 23.  Ribs are a roll-forming dimension and
+      ;; belong to the DETAILS sheet, which draws the true profile (4B.50).
       (setvar "CLAYER" "CLADDING")
-      (setq sp 333.0 sx sp)
-      (while (< sx faceLen)
+      (foreach sx (peb-panel-lines faceLen (peb-panel-cover data "WALL"))
         (setq yTop (if isEnd (peb-fr-topy sx faceLen base eaveH eaveHi eaveLo rise rtype hiSide) (+ base wallEave))
               sgb  (if (and rbOn hasR (>= sx rx0) (< sx rx1)) (+ base rbBase gbaseR) (+ base gbase)))
         (if (> yTop (+ sgb 100.0))
-          (command "_.LINE" (list (+ ox sx) sgb) (list (+ ox sx) yTop) ""))
-        (setq sx (+ sx sp)))
+          (command "_.LINE" (list (+ ox sx) sgb) (list (+ ox sx) yTop) "")))
       ;; condition label(s) — per segment
       (if (and rbOn hasR)
         (progn
@@ -2666,11 +2714,19 @@
     (peb-fr-canopy data surf ox base faceLen stations revView wallEave))))
   ;; rule 4B.47 - shutter / personnel doors, one per bay
   (vl-catch-all-apply (function (lambda ()
-    (peb-fr-doors data surf ox base faceLen stations revView)
-     ;; ...and the WALL-LIGHT BAND. Only here, on the SHEETING elevation - the wall light is a
-     ;; cladding item, so it is drawn where the sheeting is drawn (standing rule, owner 3-Sep-2026).
-     ;; The framing elevation above deliberately does NOT get it.
-     (peb-fr-wall-lights data surf ox base faceLen stations revView))))
+    (peb-fr-doors data surf ox base faceLen stations revView))))
+  ;; ...and the WALL-LIGHT BAND. Only here, on the SHEETING elevation - the wall light is a
+  ;; cladding item, so it is drawn where the sheeting is drawn (standing rule, owner 3-Sep-2026).
+  ;; The framing elevation above deliberately does NOT get it.
+  ;;
+  ;; ITS OWN CATCH, DELIBERATELY. These two shared one vl-catch-all-apply, so the band was the
+  ;; SECOND form in a single lambda: anything peb-fr-doors threw aborted the lambda before the
+  ;; band was ever reached, and the catch swallowed it. That is exactly what happened on the FSW
+  ;; - doors walks `stations` backwards on a reversed view - so one wall got a band and callout
+  ;; and the mirrored one silently got neither. Two unrelated accessories must not share a
+  ;; failure domain.
+  (vl-catch-all-apply (function (lambda ()
+    (peb-fr-wall-lights data surf ox base faceLen stations revView))))
   ;; ── GRAVITY RIDGE VENTILATOR (RA_RV_*) — on the END WALL elevation ────────────────────
   ;;
   ;;  An END wall elevation is the one wall view that shows the gable, so it is the one that
@@ -2688,14 +2744,50 @@
   ;;  annotates at 198 and passes a literal 220. One component, two host sheets, two sizes,
   ;;  and the drawer holds neither: the caller supplies it. Passing the section's 220 here
   ;;  made the ventilator callout a third the size of every label around it.
-  (if (and isEnd (boundp 'peb-rv-place) (boundp 'peb-ridge-x) (> rise 0.0)
+  ;;  ON A SIDE WALL TOO — corrected 4-Sep-2026 from Mammut's own PROPOSAL drawing
+  ;;  (PK-14-202 Rafhan Maize, sheet 04 NEAR & FAR SIDE WALL ELEVATION, kept in reference/).
+  ;;  This first drew nothing on a side wall, reasoning that the wall hides the ridge. That is
+  ;;  WRONG: the ridge is the HIGHEST line on the building, so the units standing on it are
+  ;;  seen in silhouette above the roof, and Mammut draws them exactly there — one per bay
+  ;;  along the top, with a single "RIDGE VENTILATOR" leader. A side elevation that omits them
+  ;;  loses the only view that shows how many there are and how they march along the building.
+  (if (and (boundp 'peb-rv-place) (boundp 'peb-ridge-x) (> rise 0.0)
            (= (strcase (peb-tb-or (MSPL-Get-Str data "RA_RV_ON") "No")) "YES"))
-    (vl-catch-all-apply (function (lambda ( / rvx rvy rvq)
-      (setq rvx (peb-ridge-x data faceLen))
-      (if revView (setq rvx (- faceLen rvx)))     ; outside view — see the mirror note
-      (setq rvy (peb-fr-topy rvx faceLen base eaveH eaveHi eaveLo rise rtype hiSide)
-            rvq (atoi (peb-tb-or (MSPL-Get-Str data "RA_RV_QTY") "0")))
-      (peb-rv-place (+ ox rvx) rvy 1.0 T rvq (peb-th 'ANNOT))))))
+    (vl-catch-all-apply (function (lambda ( / rvx rvy rvq rvTw rvLen rvPer nb bi bj cx bw pit drawn ax)
+      (setq rvq  (atoi (peb-tb-or (MSPL-Get-Str data "RA_RV_QTY") "0"))
+            rvTw (atof (peb-tb-or (MSPL-Get-Str data "RA_RV_THROAT") "300")))
+      (if isEnd
+        ;; END WALL — seen END-ON, astride the gable apex, as the cross section shows it
+        (progn
+          (setq rvx (peb-ridge-x data faceLen))
+          (if revView (setq rvx (- faceLen rvx)))   ; outside view — see the mirror note
+          (setq rvy (peb-fr-topy rvx faceLen base eaveH eaveHi eaveLo rise rtype hiSide))
+          (peb-rv-place (+ ox rvx) rvy 1.0 T rvq (peb-th 'ANNOT) rvTw))
+        ;; SIDE WALL — seen ALONG the ridge, so each unit shows its 3000 LENGTH, standing on
+        ;; the ridge. The ridge is drawn as a light reference line across the wall so the units
+        ;; sit on something instead of floating above it.
+        (progn
+          (setq rvLen (atof (peb-tb-or (MSPL-Get-Str data "RA_RV_LEN") "3000"))
+                rvPer (max 1 (atoi (peb-tb-or (MSPL-Get-Str data "RA_RV_PER_BAY") "1")))
+                rvy   (+ base eaveH rise) drawn 0 ax nil)
+          (if (<= rvLen 0.0) (setq rvLen 3000.0))
+          (peb-comp-layer "RIDGE" 5)
+          (command "_.LINE" (list ox rvy) (list (+ ox faceLen) rvy) "")
+          (setq nb (max 1 (1- (length stations))) bi 0)
+          (while (and (< bi nb) (or (<= rvq 0) (< drawn rvq)))
+            (setq bw  (- (nth (1+ bi) stations) (nth bi stations))
+                  pit (/ bw (float (1+ rvPer))) bj 1)
+            (while (and (<= bj rvPer) (or (<= rvq 0) (< drawn rvq)))
+              (setq cx (+ ox (nth bi stations) (* bj pit)))
+              (peb-rv-side cx rvy rvLen 1.0)
+              (if (or (null ax) (< (abs (- cx (+ ox (* faceLen 0.5))))
+                                   (abs (- ax (+ ox (* faceLen 0.5)))))) (setq ax cx))
+              (setq drawn (1+ drawn) bj (1+ bj)))
+            (setq bi (1+ bi)))
+          (if ax (peb-rv-label ax (+ rvy (* 0.5 (peb-rv-height)))
+                               (+ ax (* 1.2 (peb-th 'ANNOT)))
+                               (+ rvy (* 3.2 (peb-th 'ANNOT)))
+                               drawn (peb-th 'ANNOT)))))))))
   (setvar "CLAYER" prev)
   (princ))
 
@@ -2862,7 +2954,7 @@
 ;;     peb-draw-roof-accessories the plan uses.  One source, no second opinion —
 ;;     if the BSF says zero, this sheet draws none (owner: "if applicable").
 (defun peb-draw-roof-sheeting (data ox oy / len wid slopeD bayPts prev midY i x y wMods
-                               cover nRuns stype mgGables mgGableW base mgi ry mgRid
+                               cover runXs stype mgGables mgGableW base mgi ry mgRid
                                mgVal bubGap bubR ovr j fx hiNSW wgrid lbl
                                prng pi0 pi1 px0 pOfs bi mBnd mX0 mX1 mB mT lblX)
   (setq len    (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
@@ -2902,14 +2994,16 @@
   (setvar "CLAYER" "STRUCTURE")
   (command "_.RECTANG" (list ox oy) (list (+ ox len) (+ oy wid)))
 
-  ;; --- sheeting runs: one line per panel side-lap, at the cover width ------
-  ;; 1000 mm is the cover of the standard profile; the panel SCHEDULE lives in the
-  ;; proposal, so this sheet only has to read as sheeting, not to be counted off.
+  ;; --- sheeting runs: one line per panel JOINT, at the cover width --------
+  ;; The cover is the DEVELOPED profile's own (M35-250: 35 rib on a 250 pitch, 4 pitches =
+  ;; 1000) and it comes off the wire, so a lock-seam roof lays out at 470 like its own
+  ;; DETAILS sheet says.  peb-panel-lines owns the stations, the part panel and the
+  ;; legibility thinning - see Standard.lsp.  The old "> 400 runs" cap was a model-space
+  ;; count and never fired on the sheets that actually went grey.
   (setvar "CLAYER" "SHEETING")
-  (setq cover 1000.0
-        nRuns (fix (/ len cover))
+  (setq cover (peb-panel-cover data "ROOF")
+        runXs (peb-panel-lines len cover)
         i 1)
-  (if (> nRuns 400) (setq nRuns 400))          ; a very long shed would just go black
   ;; A run STOPS at the roof monitor - the cladding butts into the upstand, it does not pass under
   ;; it.  Drawn straight through, every run crossed the monitor band and the monitor stopped being
   ;; legible: five near-parallel lines with 59 more ruled across them read as a grey smudge, not as
@@ -2925,16 +3019,15 @@
   (if mBnd (setq mX0 (+ ox (nth 0 mBnd)) mX1 (+ ox (nth 1 mBnd))
                  mB  (+ oy (- (nth 5 mBnd) (/ (nth 4 mBnd) 2.0)))
                  mT  (+ oy (+ (nth 5 mBnd) (/ (nth 4 mBnd) 2.0)))))
-  (while (< i nRuns)
-    (setq x (+ ox (* cover i)))
+  (foreach rx runXs
+    (setq x (+ ox rx))
     ;; only the runs that actually meet the monitor are broken; a partial-length monitor leaves the
     ;; rest of the roof sheeted end to end.
     (if (and mBnd (>= x mX0) (<= x mX1))
       (progn
         (command "_.LINE" (list x oy) (list x mB) "")
         (command "_.LINE" (list x mT) (list x (+ oy wid)) ""))
-      (command "_.LINE" (list x oy) (list x (+ oy wid)) ""))
-    (setq i (1+ i)))
+      (command "_.LINE" (list x oy) (list x (+ oy wid)) "")))
 
   ;; --- main frame lines, light, so the grid still reads through the sheeting -
   (setvar "CLAYER" "GRID-LINES")
