@@ -7,25 +7,48 @@
 ;;;  approval-grade bracket detail on an A4 at 1:300 is exactly what that rule forbids.
 ;;; ===========================================================================================
 
-;; ── THE DASHED PEN, OWNED HERE ─────────────────────────────────────────────────────────────
-;; The crane is BY OTHERS, and this set says that with a short dash (CRANEBRG, 150/120 true mm) —
-;; the same linetype the section and the plan already use, so the assembly cannot drift into two
-;; pens (rule 3). Defined here rather than taken as an argument: AutoLISP cannot call a variable
-;; holding a lambda as `(peb-crn-dash x y ...)`, that needs `apply`, and a component that quietly needs
-;; its caller to pass a function is a component waiting to fall back silently.
-(defun peb-crn-dash (xa ya xb yb / es)
-  (if (not (tblsearch "LTYPE" "CRANEBRG"))
+;; ── THE PEN LADDER: DENSITY AND WEIGHT IDENTIFY THE PART ───────────────────────────────────
+;;
+;; Owner 5-Sep-2026: "increase the thickness of the dotted lines & with different thickness and
+;; density of these dotted lines show the Clear Difference b/w the Different Components of the
+;; Bridge. For the Crane Motor More Denser to Clear Its Identification."
+;;
+;; Everything on the crane is dotted, because none of it is Maimaar's steel. But "all dotted" then
+;; says nothing about WHICH part you are looking at — girder, end truck, trolley and motor came out
+;; identical. On a MONOCHROME plot colour carries nothing, so the only two variables left are
+;; DENSITY (dot pitch) and WEIGHT (lineweight). Use both, together, so the difference survives
+;; both the screen and the print:
+;;
+;;   part            pitch   weight      reads as
+;;   girder / main beam  130   0.35 mm   the long member you follow across the span
+;;   end truck            90   0.30 mm   a defined block at each end
+;;   trolley / crab       90   0.30 mm   the same class of object, riding the girder
+;;   wheels               70   0.25 mm   small and fine, four of them
+;;   MOTOR                40   0.50 mm   DENSEST and HEAVIEST - it reads almost solid, which is
+;;                                       the point: the motor is the one part you must be able to
+;;                                       pick out at a glance.
+;;
+;; One linetype per pitch, named CRNDOT<pitch> and made on demand, so a new density is one number
+;; and never a second definition to keep in step.
+(defun peb-crn-pen (xa ya xb yb pitch lw / nm es)
+  (setq nm (strcat "CRNDOT" (itoa (fix pitch))))
+  (if (not (tblsearch "LTYPE" nm))
     (vl-catch-all-apply (function (lambda ()
       (entmake (list '(0 . "LTYPE") '(100 . "AcDbSymbolTableRecord")
-                     '(100 . "AcDbLinetypeTableRecord") '(2 . "CRANEBRG") '(70 . 0)
-                     '(3 . "Crane bridge . . . .") '(72 . 65) '(73 . 2) '(40 . 130.0)
-                     '(49 . 0.0) '(74 . 0) '(49 . -130.0) '(74 . 0)))))))
+                     '(100 . "AcDbLinetypeTableRecord") (cons 2 nm) '(70 . 0)
+                     (cons 3 (strcat "Crane dotted " (itoa (fix pitch)))) '(72 . 65) '(73 . 2)
+                     (cons 40 pitch) '(49 . 0.0) '(74 . 0) (cons 49 (- pitch)) '(74 . 0)))))))
   (setq es (if (> (getvar "LTSCALE") 0.0) (/ 1.0 (getvar "LTSCALE")) 1.0))
-  (if (tblsearch "LTYPE" "CRANEBRG")
-    (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-SEC") (cons 6 "CRANEBRG")
-                   (cons 48 es) (cons 370 15) (list 10 xa ya 0.0) (list 11 xb yb 0.0)))
-    (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-SEC")
-                   (list 10 xa ya 0.0) (list 11 xb yb 0.0)))))
+  (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-SEC")
+                 (cons 6 (if (tblsearch "LTYPE" nm) nm "HIDDEN"))
+                 (cons 48 es) (cons 370 (fix lw))
+                 (list 10 xa ya 0.0) (list 11 xb yb 0.0))))
+
+;; the rungs
+(defun peb-crn-dash  (xa ya xb yb) (peb-crn-pen xa ya xb yb 130.0 35))  ; girder / main beam
+(defun peb-crn-truck (xa ya xb yb) (peb-crn-pen xa ya xb yb  90.0 30))  ; end truck, trolley
+(defun peb-crn-wheel (xa ya xb yb) (peb-crn-pen xa ya xb yb  70.0 25))  ; wheels
+(defun peb-crn-motor (xa ya xb yb) (peb-crn-pen xa ya xb yb  40.0 50))  ; MOTOR - densest, heaviest
 
 ;; ── THE BRIDGE GIRDER, SEEN IN A BUILDING CROSS-SECTION ────────────────────────────────────
 ;;
@@ -103,35 +126,62 @@
           (setq sgn (cadr e) ex (car e))
           ;; END TRUCK — the frame carrying the bridge onto the rail: across the girder and
           ;; wider than it, because that is what it is.
-          (peb-crn-dash ex (- y0 eo) (+ ex (* sgn et)) (- y0 eo))
-          (peb-crn-dash ex (+ y1 eo) (+ ex (* sgn et)) (+ y1 eo))
-          (peb-crn-dash ex (- y0 eo) ex (+ y1 eo))
-          (peb-crn-dash (+ ex (* sgn et)) (- y0 eo) (+ ex (* sgn et)) (+ y1 eo))
+          (peb-crn-truck ex (- y0 eo) (+ ex (* sgn et)) (- y0 eo))
+          (peb-crn-truck ex (+ y1 eo) (+ ex (* sgn et)) (+ y1 eo))
+          (peb-crn-truck ex (- y0 eo) ex (+ y1 eo))
+          (peb-crn-truck (+ ex (* sgn et)) (- y0 eo) (+ ex (* sgn et)) (+ y1 eo))
           ;; TWO WHEELS PER END TRUCK (manual: NWb = 2), at the truck's wheel base.
           (if (> wr 1.0)
             (progn
               (setq wOfs (* et 0.28))
               (foreach xw (list (+ ex (* sgn wOfs)) (+ ex (* sgn (- et wOfs))))
-                (peb-crn-dash (- xw wr) (- yc (* gw 1.05)) (+ xw wr) (- yc (* gw 1.05)))
-                (peb-crn-dash (- xw wr) (+ yc (* gw 1.05)) (+ xw wr) (+ yc (* gw 1.05)))
-                (peb-crn-dash (- xw wr) (- yc (* gw 1.05)) (- xw wr) (- yc (* gw 0.70)))
-                (peb-crn-dash (+ xw wr) (- yc (* gw 1.05)) (+ xw wr) (- yc (* gw 0.70)))
-                (peb-crn-dash (- xw wr) (+ yc (* gw 0.70)) (- xw wr) (+ yc (* gw 1.05)))
-                (peb-crn-dash (+ xw wr) (+ yc (* gw 0.70)) (+ xw wr) (+ yc (* gw 1.05))))))))
+                (peb-crn-wheel (- xw wr) (- yc (* gw 1.05)) (+ xw wr) (- yc (* gw 1.05)))
+                (peb-crn-wheel (- xw wr) (+ yc (* gw 1.05)) (+ xw wr) (+ yc (* gw 1.05)))
+                (peb-crn-wheel (- xw wr) (- yc (* gw 1.05)) (- xw wr) (- yc (* gw 0.70)))
+                (peb-crn-wheel (+ xw wr) (- yc (* gw 1.05)) (+ xw wr) (- yc (* gw 0.70)))
+                (peb-crn-wheel (- xw wr) (+ yc (* gw 0.70)) (- xw wr) (+ yc (* gw 1.05)))
+                (peb-crn-wheel (+ xw wr) (+ yc (* gw 0.70)) (+ xw wr) (+ yc (* gw 1.05))))))))
       (princ))))
 
-;; ── THE TROLLEY (CRAB) ─────────────────────────────────────────────────────────────────────
-;; Rides the girder and carries the hoist. Its own box straddling the girder, with the hook
-;; centre crossed — that centre is what a hook approach is measured to.
-(defun peb-crn-trolley-plan (cx y0 y1 tl / gw yc)
+;; ── THE TROLLEY, AND THE MOTOR ON IT ────────────────────────────────────────────────
+;; The trolley rides the girder and carries the hoist; the HOIST MOTOR sits on it, drawn on the
+;; densest, heaviest rung so it can be picked out at a glance — owner: "For the Crane Motor More
+;; Denser to Clear Its Identification". Everything on a crane is dotted; the motor is the one part
+;; that has to read almost solid.
+(defun peb-crn-trolley-plan (cx y0 y1 tl / gw yc mo ml)
   (setq gw (abs (- y1 y0)) yc (/ (+ y0 y1) 2.0))
-  (peb-crn-dash (- cx (/ tl 2.0)) (- y0 (* gw 0.45)) (+ cx (/ tl 2.0)) (- y0 (* gw 0.45)))
-  (peb-crn-dash (- cx (/ tl 2.0)) (+ y1 (* gw 0.45)) (+ cx (/ tl 2.0)) (+ y1 (* gw 0.45)))
-  (peb-crn-dash (- cx (/ tl 2.0)) (- y0 (* gw 0.45)) (- cx (/ tl 2.0)) (+ y1 (* gw 0.45)))
-  (peb-crn-dash (+ cx (/ tl 2.0)) (- y0 (* gw 0.45)) (+ cx (/ tl 2.0)) (+ y1 (* gw 0.45)))
-  (peb-crn-dash (- cx (* gw 0.35)) yc (+ cx (* gw 0.35)) yc)
-  (peb-crn-dash cx (- yc (* gw 0.35)) cx (+ yc (* gw 0.35)))
+  (peb-crn-truck (- cx (/ tl 2.0)) (- y0 (* gw 0.45)) (+ cx (/ tl 2.0)) (- y0 (* gw 0.45)))
+  (peb-crn-truck (- cx (/ tl 2.0)) (+ y1 (* gw 0.45)) (+ cx (/ tl 2.0)) (+ y1 (* gw 0.45)))
+  (peb-crn-truck (- cx (/ tl 2.0)) (- y0 (* gw 0.45)) (- cx (/ tl 2.0)) (+ y1 (* gw 0.45)))
+  (peb-crn-truck (+ cx (/ tl 2.0)) (- y0 (* gw 0.45)) (+ cx (/ tl 2.0)) (+ y1 (* gw 0.45)))
+  ;; hook centre — what a hook approach is measured to
+  (peb-crn-truck (- cx (* gw 0.30)) yc (+ cx (* gw 0.30)) yc)
+  (peb-crn-truck cx (- yc (* gw 0.30)) cx (+ yc (* gw 0.30)))
+  ;; the HOIST MOTOR, sitting on the trolley
+  (setq ml (* tl 0.42) mo (* gw 0.95))
+  (peb-crn-motor (- cx (/ ml 2.0)) (+ y1 (* gw 0.45)) (+ cx (/ ml 2.0)) (+ y1 (* gw 0.45)))
+  (peb-crn-motor (- cx (/ ml 2.0)) (+ y1 (* gw 0.45) mo) (+ cx (/ ml 2.0)) (+ y1 (* gw 0.45) mo))
+  (peb-crn-motor (- cx (/ ml 2.0)) (+ y1 (* gw 0.45)) (- cx (/ ml 2.0)) (+ y1 (* gw 0.45) mo))
+  (peb-crn-motor (+ cx (/ ml 2.0)) (+ y1 (* gw 0.45)) (+ cx (/ ml 2.0)) (+ y1 (* gw 0.45) mo))
+  ;; shaft line, so it reads as a motor and not another box
+  (peb-crn-motor (- cx (/ ml 2.0)) (+ y1 (* gw 0.45) (/ mo 2.0))
+                 (+ cx (/ ml 2.0)) (+ y1 (* gw 0.45) (/ mo 2.0)))
   (princ))
+
+;; ── THE BRIDGE TRAVEL MOTOR, on an end truck ───────────────────────────────────────────────
+;; A top-running bridge is driven from its end truck. Same densest pen as the hoist motor — the
+;; two are the same class of thing and must read alike.
+(defun peb-crn-bridge-motor (ex sgn et y0 y1 / gw mo ml mx0 mx1 yb)
+  (setq gw (abs (- y1 y0)) mo (* gw 0.90) ml (* et 0.34)
+        mx0 (+ ex (* sgn (* et 0.33))) mx1 (+ mx0 (* sgn ml))
+        yb (- y0 (* gw 0.60) mo))
+  (peb-crn-motor mx0 yb mx1 yb)
+  (peb-crn-motor mx0 (+ yb mo) mx1 (+ yb mo))
+  (peb-crn-motor mx0 yb mx0 (+ yb mo))
+  (peb-crn-motor mx1 yb mx1 (+ yb mo))
+  (peb-crn-motor mx0 (+ yb (/ mo 2.0)) mx1 (+ yb (/ mo 2.0)))
+  (princ))
+
 
 
 (princ "\nMAIMAAR PEB Overhead Crane component loaded.")
@@ -173,7 +223,7 @@
   (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-SEC") (cons 370 25)
                  (list 10 xa ya 0.0) (list 11 xb yb 0.0))))
 
-(defun peb-draw-crane-sample (span cap wbase / d et gw rw wr yc y0 yT x0 x1 th tl rx0 rx1 sy L)
+(defun peb-draw-crane-sample (span cap wbase / d et gw rw wr yc y0 yT x0 x1 th tl rx0 rx1 sy L hx hy)
   ;; STYLISED PROPORTIONS, stated as such (rule 20). Depth ~ span/18 is the working proportion for
   ;; a welded box girder in this capacity range; a job's own CRn_BRIDGE overrides it. Everything
   ;; TRACED is named on the sheet itself, so the drawing carries its own provenance.
@@ -198,10 +248,13 @@
   (peb-crn-sample-solid rx0 (+ yT (* gw 2.6)) rx1 (+ yT (* gw 2.6)))
   (peb-crn-bridge-plan x0 y0 x1 yT et wr)
   (peb-crn-trolley-plan (/ span 2.0) y0 yT tl)
+  (peb-crn-bridge-motor x0 1.0 et y0 yT)          ; bridge travel motor on the left truck
   (txt "MC" (list (/ span 2.0) (+ yT (* gw 6.4))) (* th 1.6) 0.0 "CRANE BRIDGE  -  TOP VIEW")
   (txt "MC" (list (/ span 2.0) (+ yT (* gw 5.4))) (* th 0.9) 0.0
        "(BRIDGE SHOWN DOTTED - NORMALLY NOT IN MAIMAAR SCOPE)")
-  (txt "MC" (list (/ span 2.0) (- y0 (* gw 4.4))) (* th 0.9) 0.0 "TROLLEY / CRAB")
+  (txt "MC" (list (/ span 2.0) (- y0 (* gw 4.4))) (* th 0.9) 0.0 "TROLLEY")
+  (txt "MC" (list (/ span 2.0) (+ yT (* gw 2.3))) (* th 0.9) 0.0 "HOIST MOTOR")
+  (txt "ML" (list (+ x0 (* et 0.9)) (- y0 (* gw 2.2))) (* th 0.9) 0.0 "BRIDGE TRAVEL MOTOR")
   (txt "ML" (list (+ x0 (* et 0.15)) (+ yT (* gw 3.2))) (* th 0.9) 0.0 "END TRUCK")
   (txt "ML" (list rx0 (- y0 (* gw 3.4))) (* th 0.9) 0.0 "RUNWAY BEAM + RAIL")
   (txt "MC" (list (+ x0 (/ et 2.0)) (- y0 (* gw 5.4))) (* th 0.9) 0.0 "2 WHEELS PER END TRUCK")
@@ -222,16 +275,44 @@
   (txt "ML" (list (+ x1 (* th 1.0)) (+ sy (/ d 2.0))) (* th 0.9) 0.0
        (strcat "GIRDER DEPTH " (rtos d 2 0) "  (STYLISED - SPAN/18)"))
   (txt "ML" (list (+ x1 (* th 1.0)) (- sy (* d 0.55))) (* th 0.9) 0.0 "RUNWAY RAIL")
+  ;; ── THE HOIST MOTOR AND THE HOOK — WHAT THE BUILDING HEIGHT IS QUOTED TO ──────────────────
+  ;; Owner 5-Sep-2026: "Motor with Crane Hook. Mostly Gives the Height of Building from FFL to
+  ;; Crane Hook (Crane Hook Height)". The manual says the same from the other end — "Eave height
+  ;; is a function of ... Clearance above Crane beam / Crane hook height requirement" (GUIDELINE
+  ;; FOR DESIGN OF METAL BUILDING, Eave Height). So the hook is not decoration on this view: it
+  ;; is the datum the customer's building height is set from, and the side view is where that
+  ;; chain is visible — girder, motor, hook, and the drop to FFL.
+  (setq hx (/ span 2.0) hy (- sy (* d 2.9)))
+  ;; hoist motor sitting on the girder
+  (peb-crn-motor (- hx (* d 0.55)) sy (+ hx (* d 0.55)) sy)
+  (peb-crn-motor (- hx (* d 0.55)) (- sy (* d 0.62)) (+ hx (* d 0.55)) (- sy (* d 0.62)))
+  (peb-crn-motor (- hx (* d 0.55)) sy (- hx (* d 0.55)) (- sy (* d 0.62)))
+  (peb-crn-motor (+ hx (* d 0.55)) sy (+ hx (* d 0.55)) (- sy (* d 0.62)))
+  (peb-crn-motor (- hx (* d 0.55)) (- sy (* d 0.31)) (+ hx (* d 0.55)) (- sy (* d 0.31)))
+  ;; the rope drop and the hook
+  (peb-crn-truck hx (- sy (* d 0.62)) hx hy)
+  (peb-crn-truck (- hx (* d 0.22)) hy (+ hx (* d 0.22)) hy)
+  (peb-crn-truck (- hx (* d 0.22)) hy (- hx (* d 0.22)) (- hy (* d 0.30)))
+  (peb-crn-truck (+ hx (* d 0.22)) hy (+ hx (* d 0.22)) (- hy (* d 0.30)))
+  (peb-crn-truck hx (- hy (* d 0.30)) hx (- hy (* d 0.75)))
+  (txt "ML" (list (+ hx (* d 0.8)) (- sy (* d 0.31))) (* th 0.9) 0.0 "HOIST MOTOR")
+  (txt "ML" (list (+ hx (* d 0.8)) (- hy (* d 0.40))) (* th 0.9) 0.0 "CRANE HOOK")
+  (txt "MC" (list hx (- hy (* d 1.7))) (* th 0.9) 0.0
+       "HOOK HEIGHT IS MEASURED FFL TO HERE - IT SETS THE EAVE HEIGHT")
 
   ;; ══ THE DATA BLOCK - every number, and where it came from ════════════════════════════════
-  (setq sy (- sy (* d 3.2)))
+  ;; clear of the hook drop, which now reaches sy - 4.6d
+  (setq sy (- sy (* d 6.4)))
   (foreach L (list
       (strcat "CAPACITY  " (rtos cap 2 0) " MT")
       "TYPE  TOP RUNNING (TR)  -  manual ch.8 lists TR / monorail / underhung / jib / semi-gantry"
       "END TRUCK WHEELS  2 PER END, 4 TOTAL  -  manual ch.8  NWb = 2  (worked 10 MT example)"
       "VERTICAL IMPACT  10%  PENDANT OPERATED  -  manual table 8.3"
       "CMAA SERVICE CLASS  C  -  manual table 8.1"
-      "RUNWAY BEAM  BUILT-UP, DOUBLE SIDE FILLET WELD (<= 15 MT)  -  Thal 125-23 spec")
+      "LONGITUDINAL  10% OF MAX WHEEL LOAD, AT TOP OF RAILS  -  manual ch.8 sec 2.4.4"
+      "RUNWAY BEAM  BUILT-UP, DOUBLE SIDE FILLET WELD (<= 15 MT)  -  Thal 125-23 spec"
+      "MOTORS SHOWN FOR IDENTIFICATION - the manual names no bridge/hoist motor"
+      "HOOK HEIGHT FFL-TO-HOOK SETS THE EAVE HEIGHT  -  manual, Eave Height guideline")
     (progn
       (txt "ML" (list x0 sy) (* th 0.85) 0.0 L)
       (setq sy (- sy (* th 1.8)))))

@@ -159,3 +159,44 @@ crane-maker data, not a Maimaar constant, which is why the manual does not give 
 **Not drawn, and should not be guessed:** bracket cantilever and hook approach both need the sheet
 LOOKED at, not inferred from a value list. Next step is to rasterise the region around the
 `CRANE BRACKET` label and read it.
+
+## Audit round 2 — vocabulary and load rules (5-Sep-2026)
+
+Three catches from re-reading the chapter against what the drawing says:
+
+1. **"CRAB" is not the manual's word.** `trolley` appears **35 times**, `crab` **zero**. The
+   manual's own symbol is `HT = Weight of hoist with trolley`. The label read "TROLLEY / CRAB";
+   it now reads **TROLLEY**.
+2. **Longitudinal load rule added.** ch.8 sec 2.4.4: *"horizontal forces calculated as 10% of the
+   maximum wheel loads excluding the vertical impact … assumed to act horizontally at the TOP OF
+   THE RAILS"*, and the runway "shall also be designed for crane stop forces."
+3. **The manual names no motor.** `motor` appears 4 times and never about a crane — only motor
+   ROOMS as a building usage. So the hoist and bridge travel motors are drawn from engineering
+   practice, not from the manual, and the data block SAYS SO rather than implying provenance.
+
+### Hook height — the owner's point, and the manual's
+
+Owner: *"Motor with Crane Hook. Mostly Gives the Height of Building from FFL to Crane Hook."*
+Manual, *Eave Height* guideline: *"Eave height is a function of … 3. Clearance above Crane beam /
+Crane hook height requirement."*
+
+The same rule from both ends: **the hook is the datum the building height is set from.** So the
+side view now draws the chain that produces it — girder, hoist motor, rope drop, hook — and says
+on the sheet that the hook height is measured FFL to there and sets the eave height. The section
+sheet already dimensions it (`HOOK HEIGHT : 6000` on MSPL-26-276).
+
+### Pen ladder — density AND weight identify the part
+
+Owner: *"different thickness and density … show the Clear Difference b/w the Different Components
+… For the Crane Motor More Denser."* On a monochrome plot colour carries nothing, so density and
+lineweight are the only two variables left. Both are used together:
+
+| part | dot pitch | weight |
+|---|---|---|
+| girder / main beam | 130 | 0.35 |
+| end truck, trolley | 90 | 0.30 |
+| wheels | 70 | 0.25 |
+| **motor** | **40** | **0.50** |
+
+The motor reads almost solid, which is the point — it is the part that must be picked out at a
+glance. Everything stays dotted, because none of it is Maimaar's steel.
