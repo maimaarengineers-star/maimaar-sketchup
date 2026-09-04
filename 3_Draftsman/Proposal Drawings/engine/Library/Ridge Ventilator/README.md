@@ -81,17 +81,52 @@ was thrown up into the sheet title on the elevation.)
 
 ## Where it is placed
 
-| Sheet | Placement | Guard |
+| Sheet | What it shows | Guard |
 |---|---|---|
-| **Cross section** PRO-02 | on the ridge apex, `peb-ridge-x` across the span | skipped when `monoRise` — a single-slope roof has no ridge |
-| **End wall sheeting** PRO-06 | astride the gable apex, mirrored for the outside view | end walls only; a side wall hides the ridge behind itself |
+| **Cross section** PRO-02 | one unit end-on at the ridge apex | skipped when `monoRise` — a single slope has no ridge |
+| **End wall sheeting** PRO-06 | one unit end-on astride the gable apex | mirrored for the outside view |
+| **Side wall sheeting** PRO-05 | **every unit seen along its 3000 length**, one per bay, standing on a light ridge reference line | gable roofs only |
+| **Roof sheeting plan** PRO-08 | **every unit in plan**, one in the middle of each bay, hood footprint + throat opening | falls back to even spacing if the bay grid is unusable |
 
-Sheeting elevation only, following the wall-light standing rule: the framing elevation is about
+Sheeting elevations only, following the wall-light standing rule: the framing elevation is about
 structure, and this is an accessory on the finished roof.
 
-`peb-rv-plan` draws the plan bar (3000 long on the ridge, as MSPL-203 sheet 18 draws it, raked
-rather than SOLID because a solid fill reaches the customer black) — written, not yet wired into
-the roof plan.
+## What the audit changed (4-Sep-2026)
+
+**The side wall elevation was drawing nothing, and that was wrong.** The first cut reasoned that a
+side wall hides the ridge. **Mammut's own proposal drawing says otherwise** — PK-14-202 (Rafhan
+Maize), sheet 04 *NEAR & FAR SIDE WALL ELEVATION*, in `reference/`, draws the ventilators marching
+along the top of the side elevation, one per bay, with a single `RIDGE VENTILATOR` leader. They
+are right: the ridge is the **highest line on the building**, so units standing on it are seen in
+silhouette above the roof. That is also the only view showing how many there are and how they are
+spaced. `peb-rv-side` draws them, and their sheet 02 *TOP ROOF PLAN* confirmed the plan
+convention — one per bay, mid-bay, on the ridge.
+
+**The throat opening was missing everywhere.** The hood is 600 wide whatever the throat is, so a
+300 and a 600 were drawn identically — hiding the one number the whole ventilation calculation
+runs on (throat area = throat × length, 0.9 vs 1.8 m² per unit). Every view now shows the opening
+cut in the roof at the size the BSF states: jamb ticks in section, a clear inner rectangle in
+plan with the hood raked only either side of it.
+
+**The roof plan drew nothing at all, silently.** Two causes, both worth remembering:
+- the block had been absorbed into a neighbouring `(if …)` branch during a paren-matched insert,
+  so it only ran for RCC-floor buildings — it now sits at the function's top level;
+- `MSPL-Get-Num` returns **nil** for an absent key and `(max 0.0 nil)` throws, inside a
+  `vl-catch-all-apply` that the caller had *already* wrapped in a second one. Two nested silent
+  catches and nothing appeared. Every number now goes through `atoi`/`atof` on a string.
+
+**Two estimation defects**, pinned by `tests/unit/estimation-ridgevent.test.js`:
+- the throat **defaulted to 600** in `computeRidgeVent` and `mapComponents` while the BSF card
+  defaults to **300** — a job whose throat was never touched priced the bigger unit while the
+  drawing and the proposal both said 300;
+- a **damper was priced on a 600**, which has no damper option (the manual's table is explicit).
+  It fell through `hasRate` to the undampered code, so the customer was quoted, silently,
+  something they had asked for and cannot have.
+
+**Nothing checked that the louvers could feed the ventilators.** The manual's rule is that free
+inlet area must exceed **150% of the ventilation area**; `drawingData` now warns when it does not.
+MSPL-26-266 trips it: 6 units give 5.40 m² of ventilation area needing 8.10 m² of inlet, and its
+12 louvers give 5.76 m² — halved by their insect screen.
 
 ## Entry points
 

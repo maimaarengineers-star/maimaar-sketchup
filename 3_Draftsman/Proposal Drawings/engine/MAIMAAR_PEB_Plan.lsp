@@ -5117,6 +5117,75 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
 ;;      (no per-unit grid location in the IF; grid-located ones flow through PL_ placements), + a roof-
 ;;      opening area note. Owner 6-Jul "100% IF": closes the count-based accessory fields. ----
 (defun peb-draw-roof-accessories (data len wid bayPts / nsky nvent opening u ts sq cols rows i j k px py r ridge cap perBay)
+
+  ;; --- GRAVITY RIDGE VENTILATORS (RA_RV_*) ----------------------------------------------
+  ;;
+  ;;  The roof plan is the sheet that shows HOW MANY and WHERE, and it drew none of them:
+  ;;  the section and the end elevation each show one typical unit, so without this a job
+  ;;  with six ventilators looked like a job with one.
+  ;;
+  ;;  Maimaar's own roof sheeting plan (MSPL-203 drawing 18) draws each unit as a heavy
+  ;;  3000-long bar sitting on the ridge line, with ONE "(TYP.) RIDGE VENTILATOR" callout
+  ;;  and the count in the legend (RV-01, 3,000, 8 No.). This reproduces that.
+  ;;
+  ;;  SINGLE vs CONTINUOUS is the BSF's own ventType and they are genuinely different
+  ;;  products on the roof: discrete units centred in each bay, or one unbroken run along
+  ;;  the ridge. Drawing a continuous run as six separate bars would misstate what is being
+  ;;  bought, so the two are drawn differently.
+  ;;
+  ;;  The QUANTITY caps the loop: a job with fewer ventilators than bays gets the number it
+  ;;  is paying for, starting at the first bay, rather than one per bay regardless.
+  (if (and (boundp 'peb-rv-plan)
+           (= (strcase (peb-tb-or (MSPL-Get-Str data "RA_RV_ON") "No")) "YES"))
+    (vl-catch-all-apply (function (lambda ( / rvY rvQ rvLen rvPer rvTw rvCont nb bi bj cx bw pit drawn ax)
+      ;; EVERY NUMBER THROUGH atoi/atof ON A STRING. MSPL-Get-Num returns nil for a key the
+      ;; data file does not carry, and (max 0.0 nil) throws — inside a vl-catch-all-apply that
+      ;; the CALLER has already wrapped in a second one, so the ventilators simply did not
+      ;; appear and nothing anywhere said why. Both roof plans drew zero.
+      (setq rvY    (peb-ridge-y data wid)
+            rvQ    (atoi (peb-tb-or (MSPL-Get-Str data "RA_RV_QTY") "0"))
+            rvLen  (atof (peb-tb-or (MSPL-Get-Str data "RA_RV_LEN") "3000"))
+            rvPer  (max 1 (atoi (peb-tb-or (MSPL-Get-Str data "RA_RV_PER_BAY") "1")))
+            rvTw   (atof (peb-tb-or (MSPL-Get-Str data "RA_RV_THROAT") "300"))
+            rvCont (wcmatch (strcase (peb-tb-or (MSPL-Get-Str data "RA_RV_TYPE") "Single")) "*CONTIN*")
+            drawn  0 ax nil)
+      (if (<= rvLen 0.0) (setq rvLen 3000.0))
+      ;; NO USABLE BAY GRID -> fall back to spreading the stated quantity evenly along the
+      ;; ridge, rather than drawing nothing. A roof plan that omits six ventilators the
+      ;; customer is paying for is worse than one that spaces them approximately.
+      (if (or (null bayPts) (< (length bayPts) 2))
+        (progn
+          (setq bayPts nil nb (max 1 rvQ) bi 0)
+          (while (and (< bi nb) (< drawn (max rvQ 1)))
+            (setq cx (* len (/ (+ bi 0.5) (float nb))))
+            (peb-rv-plan cx rvY rvLen rvTw 1.0)
+            (if (null ax) (setq ax cx))
+            (setq drawn (1+ drawn) bi (1+ bi)))))
+      (if (and (null bayPts) (> drawn 0))
+        nil                                      ; already drawn by the no-grid fallback above
+      (if rvCont
+        (progn                                   ; CONTINUOUS — one unbroken run on the ridge
+          (peb-rv-plan (* len 0.5) rvY (* len 0.94) rvTw 1.0)
+          (setq ax (* len 0.30) drawn (max rvQ 1)))
+        (progn                                   ; SINGLE — units centred in each bay
+          (setq nb (max 1 (1- (length bayPts))) bi 0)
+          (while (and (< bi nb) (or (<= rvQ 0) (< drawn rvQ)))
+            (setq bw  (- (nth (1+ bi) bayPts) (nth bi bayPts))
+                  pit (/ bw (float (1+ rvPer))) bj 1)
+            (while (and (<= bj rvPer) (or (<= rvQ 0) (< drawn rvQ)))
+              (setq cx (+ (nth bi bayPts) (* bj pit)))
+              (peb-rv-plan cx rvY rvLen rvTw 1.0)
+              ;; anchor the ONE callout on a MIDDLE unit, not the first: at the left-hand end
+              ;; it lands on the "RIDGE LINE" note that shares this line.
+              (if (or (null ax) (< (abs (- cx (* len 0.5))) (abs (- ax (* len 0.5))))) (setq ax cx))
+              (setq drawn (1+ drawn) bj (1+ bj)))
+            (setq bi (1+ bi))))))
+      ;; ONE typical callout for the whole run (golden rule 17), carrying the count.
+      (if ax (peb-rv-label ax rvY
+                           (+ ax (* 1.2 (peb-th 'ANNOT)))
+                           (+ rvY (* 3.0 (peb-th 'ANNOT)))
+                           drawn (peb-th 'ANNOT)))))))
+
   (setq nsky    (MSPL-Get-Num data "RA_SKYLIGHTS")
         nvent   (MSPL-Get-Num data "RA_TURBOVENTS")
         opening (MSPL-Get-Num data "RA_ROOF_OPENING")
@@ -5192,6 +5261,7 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                (strcat "ON EXISTING RCC FLOOR +" (peb-comma (rtos rff 2 0))))
           (txt "MC" (list (* 0.5 (+ x0 x1)) (* wid 0.47)) (* 360.0 *PEB-TEXT-SCALE*) 0
                (strcat "(EXISTING RCC BUILDING - BY OTHERS, GRID " (itoa rgf) "-" (itoa rgt) ")"))))))
+
   (princ))
 
 (defun C:PEB-PLAN

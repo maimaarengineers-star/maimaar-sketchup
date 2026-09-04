@@ -71,6 +71,12 @@
 (defun peb-rv-top-flat () 400.0)    ; flat between the two turned-down returns
 (defun peb-rv-return   () 120.0)    ; the turned-down return at each top edge
 (defun peb-rv-len      () 3000.0)   ; one unit, TOP VIEW and the RV-01 legend
+;; THE THROAT OPENING — the hole actually CUT IN THE ROOF under the ventilator, and the number
+;; the customer is buying: MRV 300 and MRV 600 are named for it, and throat area = throat x
+;; length is what the whole ventilation calculation runs on (0.9 / 1.8 m2 per 3 m unit). The
+;; hood is 600 wide whatever the throat, so the two are NOT the same rectangle and the drawing
+;; has to show both - otherwise a 300 and a 600 look identical on the sheet.
+(defun peb-rv-throat-w () 300.0)   ; DEFAULT only; the caller passes the BSF's RA_RV_THROAT
 (defun peb-rv-mesh     () "12 x 12 G.I. BIRD MESH")
 
 ;; ---- PENS (1/100 mm — the only signal that survives the monochrome plot) ---
@@ -129,18 +135,27 @@
 ;;  `mesh` draws the bird-screen hint across the throat — dropped automatically when the
 ;;          plot is too small for it to be anything but ink.
 ;; ---------------------------------------------------------------------------
-(defun peb-rv-symbol (ox oy sc mesh / lay pts h thr ts i n x step)
+(defun peb-rv-symbol (ox oy sc mesh tw / lay pts h thr ts i n x step)
   (if (or (null sc) (<= sc 0.0)) (setq sc 1.0))
+  (if (or (null tw) (<= tw 0.0)) (setq tw (peb-rv-throat-w)))
+  (setq tw (* tw sc))
   (setq lay (peb-rv-layer) pts (peb-rv-profile ox oy sc)
         h (* (peb-rv-half) sc) thr (* (peb-rv-throat) sc)
         ts (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0))
   (peb-comp-layer lay (peb-rv-aci))
   ;; the hood — OPEN along the bottom, because that opening is the throat
   (peb-rv-poly pts (peb-rv-lw) nil)
-  ;; the throat itself: the two wind-band bottom edges, drawn light so the hood stays the
-  ;; heaviest thing here and the gap between them still reads as a gap.
+  ;; the two wind-band bottom edges, drawn light so the hood stays the heaviest thing here
+  ;; and the gap between them still reads as a gap.
   (peb-rv-line (- ox h) (+ oy thr) (- ox (* h 0.55)) (+ oy thr) lay (peb-rv-lw-thin))
   (peb-rv-line (+ ox (* h 0.55)) (+ oy thr) (+ ox h) (+ oy thr) lay (peb-rv-lw-thin))
+  ;; THE OPENING CUT IN THE ROOF. Without it the section shows a hood hovering over an
+  ;; unbroken roof - which is not what is built, and hides the one number the ventilation
+  ;; calculation depends on. Two jamb ticks at +/- throat/2, turned up off the sheeting.
+  (if (> tw 0.0)
+    (progn
+      (peb-rv-line (- ox (* tw 0.5)) oy (- ox (* tw 0.5)) (+ oy (* thr 0.30)) lay (peb-rv-lw))
+      (peb-rv-line (+ ox (* tw 0.5)) oy (+ ox (* tw 0.5)) (+ oy (* thr 0.30)) lay (peb-rv-lw))))
   ;; BIRD SCREEN, only while it can be seen. The mesh is 12 x 12; drawn at that pitch on a
   ;; proposal section it is solid ink, so the hint is a handful of ticks across the throat
   ;; and the real mesh spec stays in the note. Same rule as the louver's blades: density
@@ -168,19 +183,64 @@
 ;;
 ;;  cx = centre of the unit along the ridge, ry = the ridge line's y on the plan.
 ;; ---------------------------------------------------------------------------
-(defun peb-rv-plan (cx ry len sc / lay hw hl i n x step)
+(defun peb-rv-plan (cx ry len tw sc / lay hw hl th2 i n x step)
   (if (or (null sc) (<= sc 0.0)) (setq sc 1.0))
   (if (or (null len) (<= len 0.0)) (setq len (peb-rv-len)))
-  (setq lay (peb-rv-layer) hl (/ len 2.0) hw (* (peb-rv-half) sc))
+  (if (or (null tw) (<= tw 0.0)) (setq tw (peb-rv-throat-w)))
+  (setq lay (peb-rv-layer) hl (/ len 2.0) hw (* (peb-rv-half) sc)
+        th2 (* (min tw (* 2.0 hw)) 0.5 sc))
   (peb-comp-layer lay (peb-rv-aci))
+  ;; THE HOOD FOOTPRINT — 600 wide whatever the throat is.
   (peb-rv-poly (list (list (- cx hl) (- ry hw)) (list (+ cx hl) (- ry hw))
                      (list (+ cx hl) (+ ry hw)) (list (- cx hl) (+ ry hw))) (peb-rv-lw) T)
-  ;; rake it so it reads dark without a SOLID
+  ;; THE THROAT OPENING — the hole actually cut in the roof, 300 or 600 wide, and the number
+  ;; the ventilation calculation runs on. Drawn CLEAR inside the hood, and the hood raked only
+  ;; either side of it, so the opening reads as an opening instead of the whole unit reading as
+  ;; one solid bar. A 300 and a 600 are then visibly different units on the sheet, which they
+  ;; are: 0.9 m2 of throat area against 1.8.
+  (peb-rv-poly (list (list (- cx hl) (- ry th2)) (list (+ cx hl) (- ry th2))
+                     (list (+ cx hl) (+ ry th2)) (list (- cx hl) (+ ry th2))) (peb-rv-lw-thin) T)
+  ;; rake the two hood margins only — never the opening. Maimaar's own roof plan fills the bar
+  ;; SOLID, and a solid reaches the customer black under monochrome.ctb (golden rule 5), so
+  ;; this rakes to the same effect without swallowing the ridge line underneath.
   (setq n (max 4 (fix (/ len 250.0))) step (/ len (float (1+ n))) i 1)
   (while (<= i n)
     (setq x (+ (- cx hl) (* i step)))
-    (peb-rv-line x (- ry hw) x (+ ry hw) lay (peb-rv-lw-thin))
+    (if (> (- hw th2) 1.0)
+      (progn (peb-rv-line x (- ry hw) x (- ry th2) lay (peb-rv-lw-thin))
+             (peb-rv-line x (+ ry th2) x (+ ry hw) lay (peb-rv-lw-thin))))
     (setq i (1+ i)))
+  (princ))
+
+;; ---------------------------------------------------------------------------
+;;  VIEW 3 — THE UNIT SEEN ALONG ITS LENGTH.  The SIDE wall elevation.
+;;
+;;  Corrected 4-Sep-2026 from Mammut's own PROPOSAL drawing (PK-14-202 Rafhan Maize, sheet 04
+;;  NEAR & FAR SIDE WALL ELEVATION, in reference/): the ridge ventilators ARE drawn on a side
+;;  elevation. The first cut here drew nothing there, reasoning that the wall hides the ridge
+;;  — but the ridge is the HIGHEST line on the building, so the units standing on it are seen
+;;  in silhouette above the roof, marching one per bay along the length. That is the only view
+;;  which shows how many there are and how they are spaced.
+;;
+;;  Seen this way a unit is its 3000 LENGTH wide and its 542 height tall, sitting on the ridge
+;;  line — the end-on hood profile is not what you see from the side. cx = the unit's centre
+;;  along the wall, ry = the ridge line.
+;; ---------------------------------------------------------------------------
+(defun peb-rv-side (cx ry len sc / lay hl a thr k)
+  (if (or (null sc) (<= sc 0.0)) (setq sc 1.0))
+  (if (or (null len) (<= len 0.0)) (setq len (peb-rv-len)))
+  (setq lay (peb-rv-layer) hl (/ len 2.0)
+        a   (* (peb-rv-height) sc) thr (* (peb-rv-throat) sc)
+        k   (* (peb-rv-skirt-top) sc))
+  (peb-comp-layer lay (peb-rv-aci))
+  ;; the body: from the hood underside up to the top, over the unit's length
+  (peb-rv-poly (list (list (- cx hl) (+ ry thr)) (list (+ cx hl) (+ ry thr))
+                     (list (+ cx hl) (+ ry a))   (list (- cx hl) (+ ry a))) (peb-rv-lw) T)
+  ;; the wind-band line, so the side view carries the same two-part read as the end view
+  (peb-rv-line (- cx hl) (+ ry k) (+ cx hl) (+ ry k) lay (peb-rv-lw-thin))
+  ;; the end plates, which is what closes a single unit and what a continuous run does NOT have
+  (peb-rv-line (- cx hl) (+ ry thr) (- cx hl) (+ ry a) lay (peb-rv-lw))
+  (peb-rv-line (+ cx hl) (+ ry thr) (+ cx hl) (+ ry a) lay (peb-rv-lw))
   (princ))
 
 ;; ---------------------------------------------------------------------------
@@ -217,12 +277,12 @@
 ;;  weight and placement from the ones already on the sheet. Handed peb-th's raw ANNOT it
 ;;  came out 673 tall against their 198 — three times everything else, straddling the roof
 ;;  note and running out over the title block.
-(defun peb-rv-place (ox oy sc label qty th / a ts)
+(defun peb-rv-place (ox oy sc label qty th tw / a ts)
   (if (or (null sc) (<= sc 0.0)) (setq sc 1.0))
   (if (or (null th) (<= th 0.0)) (setq th (peb-th 'ANNOT)))
   (setq a  (* (peb-rv-height) sc)
         ts (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0))
-  (peb-rv-symbol ox oy sc T)
+  (peb-rv-symbol ox oy sc T tw)
   ;; The label goes just above the ridge and off to the right. Offsets are multiples of the
   ;; HOST SHEET'S text height, never of *PEB-TEXT-SCALE*: on the end-wall elevation, where the
   ;; callouts are 830, a 1200 x scale rise threw the text up into the sheet title. A gap
@@ -266,7 +326,7 @@
   (peb-rv-line (- ox run) (- oy slope) ox oy "SHEETING" 9)
   (peb-rv-line ox oy (+ ox run) (- oy slope) "SHEETING" 9)
   ;; the symbol at TRUE SIZE
-  (peb-rv-symbol ox oy 1.0 T)
+  (peb-rv-symbol ox oy 1.0 T (peb-rv-throat-w))
   ;; the traced chain
   (peb-rv-dim-h (- ox h) (+ ox h) (+ oy a) (* 2.4 th) th (strcat (rtos (* 2 h) 2 0) " OVERALL"))
   (peb-rv-dim-v oy (+ oy a) (+ ox h) (* 2.4 th) th (strcat (rtos a 2 0) " HIGH"))
@@ -279,7 +339,7 @@
   (peb-rv-txt "MC" (list ox (- oy slope (* 6.6 th))) th 0.0
               "THROAT LEFT OPEN: THAT GAP IS WHAT MAKES IT A VENTILATOR")
   ;; and the same symbol at the size it really plots on a cross section, beside it
-  (peb-rv-symbol (+ ox (* run 2.4)) oy 1.0 nil)
+  (peb-rv-symbol (+ ox (* run 2.4)) oy 1.0 nil (peb-rv-throat-w))
   (peb-rv-txt "MC" (list (+ ox (* run 2.4)) (- oy slope (* 3.0 th))) th 0.0 "AS PLACED, NO MESH HINT")
   (setvar "CLAYER" "0")
   (princ))

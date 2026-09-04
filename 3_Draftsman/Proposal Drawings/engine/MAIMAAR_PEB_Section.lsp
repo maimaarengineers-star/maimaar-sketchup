@@ -1752,14 +1752,14 @@
 ;;  is fixed here in the DIM arrows rather than by changing every arrow in the engine.)
 (defun dim-arrow-h (x y dir / a b)
   (setvar "PLINEWID" 0.0)
-  (setq a (* 240 *PEB-DIM-SCALE*) b (* 85 *PEB-DIM-SCALE*))
+  (setq a (* 300 *PEB-DIM-SCALE*) b (* 95 *PEB-DIM-SCALE*))
   (if (= dir "R")
     (command "_.PLINE" (list (+ x a) (+ y b)) (list x y) (list (+ x a) (- y b)) "")
     (command "_.PLINE" (list (- x a) (+ y b)) (list x y) (list (- x a) (- y b)) "")))
 
 (defun dim-arrow-v (x y dir / a b)
   (setvar "PLINEWID" 0.0)
-  (setq a (* 240 *PEB-DIM-SCALE*) b (* 85 *PEB-DIM-SCALE*))
+  (setq a (* 300 *PEB-DIM-SCALE*) b (* 95 *PEB-DIM-SCALE*))
   (if (= dir "U")
     (command "_.PLINE" (list (- x b) (+ y a)) (list x y) (list (+ x b) (+ y a)) "")
     (command "_.PLINE" (list (- x b) (- y a)) (list x y) (list (+ x b) (- y a)) "")))
@@ -1768,13 +1768,13 @@
 ;; custom dims (rm-dim-*).  Two barbs meeting at the tip, no fill — the DIMBLK _OPEN look, on DIMENSIONS.
 (defun rm-arrow-h (x y dir / a b)
   (setvar "PLINEWID" 0.0)
-  (setq a (* 240 *PEB-DIM-SCALE*) b (* 85 *PEB-DIM-SCALE*))
+  (setq a (* 300 *PEB-DIM-SCALE*) b (* 95 *PEB-DIM-SCALE*))
   (if (= dir "R")
     (command "_.PLINE" (list (+ x a) (+ y b)) (list x y) (list (+ x a) (- y b)) "")
     (command "_.PLINE" (list (- x a) (+ y b)) (list x y) (list (- x a) (- y b)) "")))
 (defun rm-arrow-v (x y dir / a b)
   (setvar "PLINEWID" 0.0)
-  (setq a (* 240 *PEB-DIM-SCALE*) b (* 85 *PEB-DIM-SCALE*))
+  (setq a (* 300 *PEB-DIM-SCALE*) b (* 95 *PEB-DIM-SCALE*))
   (if (= dir "U")
     (command "_.PLINE" (list (- x b) (+ y a)) (list x y) (list (+ x b) (+ y a)) "")
     (command "_.PLINE" (list (- x b) (- y a)) (list x y) (list (+ x b) (- y a)) "")))
@@ -9716,7 +9716,10 @@
     (vl-catch-all-apply (function (lambda ( / rvx rvq)
       (setq rvx (peb-ridge-x data wid)
             rvq (atoi (peb-tb-or (MSPL-Get-Str data "RA_RV_QTY") "0")))
-      (peb-rv-place rvx (+ H rise) 1.0 T rvq 220.0)))))
+      ;; the THROAT is what the customer buys - 300 or 600 - so the opening cut in the roof
+      ;; is drawn at the size the BSF states, not at one assumed size.
+      (peb-rv-place rvx (+ H rise) 1.0 T rvq 220.0
+                    (atof (peb-tb-or (MSPL-Get-Str data "RA_RV_THROAT") "300")))))))
 
   ;; ── VERTICAL FASCIA (FA_*) on the sidewalls of a normal PEB frame ──
   ;; The RC frame type has its OWN concrete parapet/fascia (draw-rc-fascia), so it is

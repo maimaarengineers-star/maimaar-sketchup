@@ -2784,9 +2784,13 @@
                                    (abs (- ax (+ ox (* faceLen 0.5)))))) (setq ax cx))
               (setq drawn (1+ drawn) bj (1+ bj)))
             (setq bi (1+ bi)))
+          ;; ABOVE THE SHEET TITLE, not level with it. The title is centred over the wall at
+          ;; roughly 3 text heights above the ridge, so a callout placed there landed straight
+          ;; on top of "FSW - FAR SIDE WALL SHEETING". Seven clears it on every scale, because
+          ;; both are measured in the same text height.
           (if ax (peb-rv-label ax (+ rvy (* 0.5 (peb-rv-height)))
                                (+ ax (* 1.2 (peb-th 'ANNOT)))
-                               (+ rvy (* 3.2 (peb-th 'ANNOT)))
+                               (+ rvy (* 7.0 (peb-th 'ANNOT)))
                                drawn (peb-th 'ANNOT)))))))))
   (setvar "CLAYER" prev)
   (princ))
