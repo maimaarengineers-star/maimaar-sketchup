@@ -79,7 +79,19 @@
 ;;    Functions, not variables, so nothing downstream can reassign them mid-drawing.
 ;; ---------------------------------------------------------------------------
 (defun peb-sld-layer      () "SLIDING DOOR")
-(defun peb-sld-aci        () 30)
+(defun peb-sld-aci        () 42)      ; GOLD. Every neighbour is taken - cyan is the sheeting,
+                                      ; green the louvers, red the columns, magenta the girts -
+                                      ; and gold reads as a manufactured item, not as structure.
+;; ---- THE DOOR'S OWN PALETTE ----------------------------------------------------------------
+;; Colour carries NOTHING on the plotted PDF (golden rule 4: monochrome.ctb - only lineweight
+;; survives). This is for the DWG the draughtsman works in. The pens were already right and one
+;; flat colour was fighting them: the leaf outline, the panel face, the wheels and the rail all
+;; came out equally strong, so the door read as a solid block. Colour should REINFORCE the
+;; hierarchy the pens set.
+(defun peb-sld-layer-face () "SLIDING DOOR-FACE")   ; 252 pale grey, 0.05 - present, never loud
+(defun peb-sld-layer-hw   () "SLIDING DOOR-HW")     ; 9 grey, 0.18 - wheels, rail, arrows
+(defun peb-sld-aci-face   () 252)
+(defun peb-sld-aci-hw     () 9)
 
 ;; the leaf
 (defun peb-sld-trim-w     ()   70.0)   ; COVER_TRIM at the JAMB end of the leaf     — MSPL-030 plan
@@ -312,7 +324,7 @@
     (progn
       (setq x (+ fx0 mod))
       (while (< x (- fx1 1.0))
-        (peb-sld-ln x (+ y0 th) x (- y1 th) (peb-sld-lw-fill))
+        (peb-sld-lnL x (+ y0 th) x (- y1 th) (peb-sld-layer-face) (peb-sld-lw-fill))
         (setq x (+ x mod)))))
   ;; -- A SINGLE-SKIN door shows its FRAME: the frame is built first and the sheet goes on after,
   ;;    so the stile-and-rail grid the manual designs (1500 x 1500, p755-758) is visible. A
@@ -331,7 +343,8 @@
         (setq i (1+ i)))))
   ;; -- panel joints
   (foreach j (peb-sld-joints (- fx1 fx0))
-    (peb-sld-ln (+ fx0 j) (+ y0 th) (+ fx0 j) (- y1 th) (peb-sld-lw-mem)))
+    (peb-sld-lnL (+ fx0 j) (+ y0 th) (+ fx0 j) (- y1 th)
+                 (peb-sld-layer-face) (peb-sld-lw-mem)))
   ;; -- the leading strip and the jamb-end COVER_TRIM, plus the top and bottom bands (TR-1/TR-2)
   (peb-sld-box x0 y0 fx0 y1 (peb-sld-lw-out))
   (peb-sld-box fx1 y0 x1 y1 (peb-sld-lw-out))
@@ -372,6 +385,7 @@
 ;; a U-CLIP / DOOR_WHEEL bracket — the little square that sits on the bottom rail under each
 ;; leaf corner and each panel joint (MSPL-027 UCL-1/2, MSPL-030 DOOR_WHEEL)
 (defun peb-sld-clip (cx y / c r)
+  (peb-sld-layer-need (peb-sld-layer-hw) (peb-sld-aci-hw))
   ;; the bracket, and the WHEEL in it. MSPL-121 draws the wheels as filled discs on the rail and
   ;; calls them WHEEL DIA 20mm; MSPL-176 lists 2 no. per leaf. This is a BOTTOM-ROLLING door -
   ;; the wheel runs ON the D12 round bar and the top channel only guides it.
@@ -399,21 +413,28 @@
 ;; 5) THE HEAD — the U-channel track the wheels run in, its clips, and the hood trim over it.
 ;;    The track must run the WHOLE slide length or the drawing promises a door that cannot open.
 ;; ---------------------------------------------------------------------------
-(defun peb-sld-track (xa xb ytop / yb x)
+;; THE HEAD IS ONE BAND. It was a track line and a hood box stacked, floating 200 above the leaf
+;; and running the whole slide length - on a 48 m wall at proposal scale, a stray bar crossing the
+;; sheeting with a gap underneath. The head trim covers the channel and the wheels, so on an
+;; elevation it IS one band; drawing the channel as well only says what the trim hides.
+;;   ox0 ox1  the OPENING, so the clips can be put where they carry something
+(defun peb-sld-track (xa xb ytop ox0 ox1 / yb x)
   (peb-sld-layer-ensure)
   (setq yb (- ytop (peb-sld-track-dep)))
-  ;; the channel itself, INSIDE the hood that covers it — drawn light, because on the elevation
-  ;; it is behind the trim and only its line shows
-  (peb-sld-ln xa yb xb yb (peb-sld-lw-mem))
-  (setq x (+ xa (peb-sld-stub-2nd)))
-  (while (< x (- xb 200.0))
-    (peb-sld-ln x ytop x (+ ytop (peb-sld-clip-w)) (peb-sld-lw-clip))
-    (setq x (+ x (* 2.0 (peb-sld-stub-typ)))))
+  (peb-sld-box xa yb xb ytop (peb-sld-lw-track))
+  ;; the hangers, over the opening only - along the whole run they were a row of ticks
+  (if (and ox0 ox1 (> ox1 ox0))
+    (progn
+      (setq x (+ ox0 (* (- ox1 ox0) 0.18)))
+      (while (< x (- ox1 1.0))
+        (peb-sld-lnL x ytop x (+ ytop (* (peb-sld-clip-w) 0.7))
+                     (peb-sld-layer-hw) (peb-sld-lw-clip))
+        (setq x (+ x (* (- ox1 ox0) 0.32))))))
   (princ))
 
+;; kept for a caller that wants the hood called out separately on a DETAIL. On an elevation the
+;; head band drawn by peb-sld-track already IS the hood - see the note there.
 (defun peb-sld-hood (xa xb ytop)
-  ;; HOOD_TRIM, the band the elevation actually shows at the head: from the track soffit up
-  ;; over the channel and the wheels. One band, not a band on top of another band.
   (peb-sld-layer-ensure)
   (peb-sld-box xa (- ytop (peb-sld-track-dep)) xb (+ ytop (peb-sld-hood-dep))
                (peb-sld-lw-track))
@@ -423,19 +444,21 @@
 ;; 6) THE FLOOR — the bottom rail and the D12 guide, on stubs at 125 / 890 / 990.
 ;;    This is what DOOR_ROUND_BAR actually is. It is not a brace.
 ;; ---------------------------------------------------------------------------
-(defun peb-sld-floor (xa xb yffl / yb x)
+;; THE FLOOR. The rail runs the whole slide length - it has to, the door rides on it - but the
+;; STUBS were marching the whole way at 990, which at sheet scale is a ladder lying under the
+;; wall. They are short ticks now, and only under the opening, where they carry something.
+;;   ox0 ox1  the OPENING
+(defun peb-sld-floor (xa xb yffl ox0 ox1 / yb x st)
   (peb-sld-layer-ensure)
-  (setq yb (- yffl (peb-sld-rail-dep)))
-  (peb-sld-ln xa yffl xb yffl (peb-sld-lw-track))
-  (peb-sld-ln xa yb   xb yb   (peb-sld-lw-track))
-  (setq x (+ xa (peb-sld-stub-end)))
-  (peb-sld-ln x yb x (- yb (peb-sld-stub-h)) (peb-sld-lw-clip))
-  (setq x (+ x (peb-sld-stub-2nd)))
-  (while (< x (- xb (peb-sld-stub-end)))
-    (peb-sld-ln x yb x (- yb (peb-sld-stub-h)) (peb-sld-lw-clip))
-    (setq x (+ x (peb-sld-stub-typ))))
-  (setq x (- xb (peb-sld-stub-end)))
-  (peb-sld-ln x yb x (- yb (peb-sld-stub-h)) (peb-sld-lw-clip))
+  (setq yb (- yffl (peb-sld-rail-dep)) st (* (peb-sld-stub-h) 0.55))
+  (peb-sld-lnL xa yffl xb yffl (peb-sld-layer-hw) (peb-sld-lw-track))
+  (peb-sld-lnL xa yb   xb yb   (peb-sld-layer-hw) (peb-sld-lw-track))
+  (if (and ox0 ox1 (> ox1 ox0))
+    (progn
+      (setq x ox0)
+      (while (<= x (+ ox1 1.0))
+        (peb-sld-lnL x yb x (- yb st) (peb-sld-layer-hw) (peb-sld-lw-clip))
+        (setq x (+ x (/ (- ox1 ox0) 4.0))))))
   (princ))
 
 ;; ---------------------------------------------------------------------------
@@ -471,12 +494,15 @@
   (princ))
 
 (defun peb-sld-arrow (x y len dir / xe hl)
+  ;; A FINER ARROW. It was a fat solid head at 0.18 of the run - on a 1.9 m leaf that is a 340 mm
+  ;; triangle, which read as a component rather than as an annotation. Slimmer, and on the
+  ;; hardware layer so it sits back from the leaf it is describing.
   (peb-sld-layer-ensure)
-  (setq xe (+ x (* dir len)) hl (* len 0.18))
-  (peb-sld-ln x y xe y (peb-sld-lw-clip))
+  (setq xe (+ x (* dir len)) hl (* len 0.13))
+  (peb-sld-lnL x y xe y (peb-sld-layer-hw) (peb-sld-lw-clip))
   (peb-sld-tri (list xe y)
-               (list (- xe (* dir hl)) (+ y (* hl 0.42)))
-               (list (- xe (* dir hl)) (- y (* hl 0.42))) (peb-sld-layer))
+               (list (- xe (* dir hl)) (+ y (* hl 0.30)))
+               (list (- xe (* dir hl)) (- y (* hl 0.30))) (peb-sld-layer-hw))
   (princ))
 
 ;; ---------------------------------------------------------------------------
@@ -509,9 +535,8 @@
             xR  (+ ox (/ ow 2.0) opn)
             tx0 (- ox (peb-sld-meet-lap) run)
             tx1 (+ ox ow (peb-sld-meet-lap) run))
-      (peb-sld-track tx0 tx1 ytop)
-      (peb-sld-hood  tx0 tx1 ytop)
-      (peb-sld-floor tx0 tx1 oy)
+      (peb-sld-track tx0 tx1 ytop ox (+ ox ow))
+      (peb-sld-floor tx0 tx1 oy ox (+ ox ow))
       ;; the PARKED leaf is a component-sample device: on a real wall elevation it would run
       ;; into the next bay and into the door beside it, so the caller says whether to show it.
       (if ghost
@@ -521,8 +546,8 @@
       (peb-sld-leaf xR lb lw lh -1 ptype nil)      ; right leaf leads LEFT
       (peb-sld-leaf-clips xL lb lw  1)
       (peb-sld-leaf-clips xR lb lw -1)
-      (peb-sld-arrow (+ xL (* lw 0.5)) (+ lb (* lh 0.62)) (* lw 0.30) -1)
-      (peb-sld-arrow (+ xR (* lw 0.5)) (+ lb (* lh 0.62)) (* lw 0.30)  1))
+      (peb-sld-arrow (+ xL (* lw 0.5)) (+ lb (* lh 0.52)) (* lw 0.46) -1)
+      (peb-sld-arrow (+ xR (* lw 0.5)) (+ lb (* lh 0.52)) (* lw 0.46)  1))
     (progn
       (setq lw  (+ ow (* 2.0 (peb-sld-meet-lap)))
             run (+ lw 100.0)
@@ -531,16 +556,15 @@
             xL  (+ (- ox (peb-sld-meet-lap)) (* hand opn))
             tx0 (if (> hand 0) (- ox (peb-sld-meet-lap) 100.0) (- ox (peb-sld-meet-lap) run))
             tx1 (if (> hand 0) (+ ox ow (peb-sld-meet-lap) run) (+ ox ow (peb-sld-meet-lap) 100.0)))
-      (peb-sld-track tx0 tx1 ytop)
-      (peb-sld-hood  tx0 tx1 ytop)
-      (peb-sld-floor tx0 tx1 oy)
+      (peb-sld-track tx0 tx1 ytop ox (+ ox ow))
+      (peb-sld-floor tx0 tx1 oy ox (+ ox ow))
       (if ghost (peb-sld-ghost (if (> hand 0) (+ xL lw 100.0) (- xL run)) lb lw lh))
       ;; hand +1 = parks RIGHT, so the leaf's RIGHT edge is the one that seals against the far
       ;; jamb - that is where the leading strip goes, and the wicket therefore sits at the LEFT
       ;; end, the last part of the leaf to clear the opening. MSPL-121 draws it exactly there.
       (peb-sld-leaf xL lb lw lh hand ptype wicket)
       (peb-sld-leaf-clips xL lb lw hand)
-      (peb-sld-arrow (+ xL (* lw 0.5)) (+ lb (* lh 0.62)) (* lw 0.22) hand)))
+      (peb-sld-arrow (+ xL (* lw 0.5)) (+ lb (* lh 0.52)) (* lw 0.34) hand)))
   (if lbl
     (progn
       (setq th (max 90.0 (* oh 0.055)))

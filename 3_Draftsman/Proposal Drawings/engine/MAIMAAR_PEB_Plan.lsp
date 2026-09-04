@@ -5319,18 +5319,23 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
     (cond
       ((= (strcase (MSPL-Get-Str data "DIM_DISPLAY")) "ONLY FT") "FT")
       (T                                                          "MMFT")))
-  (setq stype     (strcase (MSPL-Get-Str data "STYPE")))
-  ;; owner 5-Jul: the ARCH shows only in the SECTION — the column-layout PLAN of an arched building is the
-  ;; same as its straight equivalent.  So map ACS->CS and AMS->MS for geometry, but flag it so the label
-  ;; reads "ARCHED …".  (Before, both fell through to CS — AMS wrongly lost its interior columns.)
-  (setq *PEB-ARCHED* nil)
-  (cond ((= stype "ACS") (setq *PEB-ARCHED* T stype "CS"))
-        ((= stype "AMS") (setq *PEB-ARCHED* T stype "MS")))
-  ;; owner 9-Jul: "PP" (Petrol Pump / CNG canopy) MUST be in this whitelist -- it was omitted, so a
-  ;; Petrol Pump silently fell through to "CS" and drew as a clear-span gable, leaving the
-  ;; "PETROL PUMP CANOPY" label unreachable.  The Section always handled it (draw-petrol-frame).
-  (if (not (member stype '("CS" "SS" "MS" "LT" "MG" "FR" "RC" "CC" "BF" "PP")))
-    (setq stype "CS"))
+  ;; THE SHARED PLAN STYPE (peb-plan-stype, Standard.lsp).  The body moved there VERBATIM:
+  ;; ACS->CS / AMS->MS behind *PEB-ARCHED* (the arch shows only in the SECTION, owner 5-Jul),
+  ;; then the whitelist fold with PP kept in it (owner 9-Jul: omitted once, and a Petrol Pump
+  ;; silently drew as a clear-span gable).  It lived ONLY here, which is why the roof sheets
+  ;; drew a different fall-arrow set for the same building.  The fallback keeps a Plan-only
+  ;; load resolving the type identically.
+  (setq stype
+    (if (boundp 'peb-plan-stype)
+      (peb-plan-stype data)
+      (progn
+        (setq stype (strcase (MSPL-Get-Str data "STYPE")))
+        (setq *PEB-ARCHED* nil)
+        (cond ((= stype "ACS") (setq *PEB-ARCHED* T stype "CS"))
+              ((= stype "AMS") (setq *PEB-ARCHED* T stype "MS")))
+        (if (not (member stype '("CS" "SS" "MS" "LT" "MG" "FR" "RC" "CC" "BF" "PP")))
+          (setq stype "CS"))
+        stype)))
   ;; proper canopy name for this sheet (nil for non-canopy stypes -- must be set every sheet so a
   ;; later Clear Span in the same drawing can't inherit a stale Falcon/Butterfly name).
   (setq *PEB-CANOPY-NAME* (peb-canopy-name stype data))

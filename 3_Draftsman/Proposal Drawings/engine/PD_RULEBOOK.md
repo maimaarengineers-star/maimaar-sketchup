@@ -368,6 +368,13 @@ MEASURED, not asserted: the render records what each sheet DREW (`_bbox.txt`) an
 SHOWS (`_vpview.txt`, DXF groups 12/45 read off the finished viewport), `checkGoldenRule`
 compares them, and a DWG that breaks either is left on disk but **NOT filed** into the proposal
 folder. → **1.6, 4B.28, 4B.29**
+⭐ **The check FAILS CLOSED: missing evidence is a failure, not a pass.** It used to read the two
+measurement files inside a `catch` that returned "no findings", so the one run that most needed
+checking — the one where the engine died before writing them — was the run that skipped it, and
+the DWG was filed as though every sheet had been verified. A missing, empty or unreadable
+`_bbox.txt` / `_vpview.txt` is now itself a finding. The check also walks the TABS, not only the
+drawn sheets, so **a layout with no measured drawing behind it** can no longer pass unseen.
+Guarded by `tests/goldenRuleFrames.test.js`. Fixed 4-Sep-2026. → §0.10/C23
 
 **S53 — MEASURE AT THE END.** Sheets are drawn at the origin and MOVED by `peb-tile-place`, so a
 bbox taken next to the draw call can be wrong by the whole tiling shift (60,480 mm on 278 — the
@@ -411,6 +418,15 @@ are written from grid A DOWNWARD. Every sheet names a grid line the same way
 **S61 — ONE fall glyph on every plan-type sheet**, drawn by one shared routine, carrying the
 slope ratio with it. The glyph is the traced house/arrow OUTLINE with the disc on the shoulder
 line; `FALL` text is **colour 7 (white → plots black)**, not red. → **4B.13**
+⭐ **And ONE answer for the structure type that routine branches on — `peb-plan-stype`
+(Standard.lsp).** Sharing the drawer is not enough: `peb-fall-glyph-set` dispatches on `stype`, so
+a sheet that resolves `stype` for itself gets a different glyph set out of the same routine. The
+CLP normalised (ACS→CS, AMS→MS behind `*PEB-ARCHED*`, anything outside the whitelist → CS) and
+`MAIMAAR_PEB_Framing.lsp` — which draws the roof sheets that actually SHIP — did not, so an arched
+building got its fall arrows on the Column Layout Plan and **none at all** on PRO-05a/05b. The
+normalisation existed in `MAIMAAR_PEB_Roof.lsp` all along; that is the dead engine (S14), so the
+fix sat where nobody rendered it. **Every plan-type sheet now asks `peb-plan-stype`.** Fixed
+4-Sep-2026. → §0.10/C22
 
 **S62 — The title-block band is about the sheet it is on, or it is the wrong band.** Every field
 is either **true of this sheet** or **not printed**; the title, PRO number and scale come from
@@ -685,6 +701,9 @@ now marked superseded at its source.
 | C20 | **Doc structure.** `## 5. THE DOC SET` sat at line 1607, in the middle of section 4B, between 4B.50 and 4B.51. | **Moved to the end**, where it belongs. |
 | C21 | **Stale code references.** 3.1 cited `Standard.lsp:415` for `peb-all-sheets`; it is at **605**. | Corrected. Treat every `file:line` in this book as a hint, not a promise. |
 
+| C22 | **Slope/fall symbol deviates between the CLP and the roof sheets.** `peb-fall-glyph-set` is correctly shared, but it branches on `stype`, and Plan.lsp normalised the type while Framing.lsp (PRO-05a/05b) read `STYPE` raw. `Roof.lsp` had the normalisation — and is dead code. | **FIXED 4-Sep.** One resolver, `peb-plan-stype` (Standard.lsp); CLP and both roof drawers call it. The CLP's own result is unchanged (the body moved verbatim). |
+| C23 | **The golden-rule check passed vacuously.** `renderDwg` wrapped the read of `_bbox.txt`/`_vpview.txt` in `catch { return [] }`, so a run that wrote no measurements was filed as fully checked; and the check walked only the drawn sheets, so a layout with nothing behind it was invisible. | **FIXED 4-Sep.** Fails closed on missing/empty evidence, and walks the tabs as well as the sheets. Two new tests. |
+
 **Still open, deliberately.**
 - `peb-comp-fall` draws the old FALL glyph on canopy strips (C9).
 - `Section.lsp` ~1503 gates on `(= stype "MS")`, so the CROSS SECTION of a multi-span single
@@ -695,6 +714,9 @@ now marked superseded at its source.
 - Bottom / Top&Bottom / Centre-Curved / Parapet fascias draw the plan band only, no section.
 - A `FA_<W>_GUTTER = Valley` request still renders the standard eave gutter.
 - `moduleMap` lists PRO-10 / PRO-11 for Stair.lsp; no such pages exist (C3).
+- `MAIMAAR_PEB_Framing.lsp:1322` and `:2328` (the wall framing / sheeting ELEVATION drawers) still
+  read `STYPE` raw rather than through `peb-plan-stype`. They draw no fall glyph, so C22 does not
+  reach them — but they are the same divergence waiting for its own symptom.
 
 ---
 

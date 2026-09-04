@@ -124,7 +124,14 @@
   ;; "VALLEY GUTTER" (dash-dot, never "VALLEY LINE"); slope = the "1:NN" ratio
   ;; tag drawn by peb-fr-fall (Maimaar convention).  Roof monitors carry NO
   ;; text label in any reference, so none is emitted here.
-  (setq stype (strcase (peb-tb-or (MSPL-Get-Str data "STYPE") "CS")))
+  ;; THE SHARED PLAN STYPE (peb-plan-stype, Standard.lsp).  Reading STYPE raw here is what
+  ;; made this sheet's fall arrows disagree with the Column Layout Plan: the CLP normalises
+  ;; ACS->CS / AMS->MS and folds anything outside the whitelist to CS, this sheet did not,
+  ;; so on an arched building peb-fall-glyph-set matched no branch and drew NONE.
+  ;; boundp-guarded so the drawer still runs when only this file is loaded.
+  (setq stype (if (boundp 'peb-plan-stype)
+                (peb-plan-stype data)
+                (strcase (peb-tb-or (MSPL-Get-Str data "STYPE") "CS"))))
   (cond
     ;; ---- MULTI-GABLE: N ridge lines + (N-1) valley gutters ----
     ((= stype "MG")
@@ -2862,7 +2869,9 @@
   (setq *PEB-BUB-FIT* (peb-bub-fit "ROOF"))
   (setq midY   (+ oy (/ wid 2.0))
         prev   (getvar "CLAYER")
-        stype  (strcase (peb-tb-or (MSPL-Get-Str data "STYPE") "CS")))
+        stype  (if (boundp 'peb-plan-stype)      ; SHARED - see peb-draw-roof-framing
+                 (peb-plan-stype data)
+                 (strcase (peb-tb-or (MSPL-Get-Str data "STYPE") "CS"))))
 
   ;; --- roof outline -------------------------------------------------------
   (setvar "CLAYER" "STRUCTURE")

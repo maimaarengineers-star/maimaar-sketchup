@@ -23,6 +23,7 @@ SHEETING,4,Continuous,0.09
 SKY LIGHT,151,Continuous,0.50
 WALL LIGHT,151,Continuous,0.50
 LOUVER,3,Continuous,0.50
+RIDGE-VENT,4,Continuous,0.50
 CLADDING,5,Continuous,0.18
 COL-OUTER,4,DASHDOT,0.09
 GUTTER,4,Continuous,0.18
@@ -41,4 +42,6 @@ HATCH,8,Continuous,0.05
 COMP-MEZZ-BEAM,5,Continuous,0.40
 COMP-MEZZ-JOIST,3,Continuous,0.30
 COMP-MEZZ-JOIST-SEC,4,Continuous,0.18
-SLIDING DOOR,30,Continuous,0.50
+SLIDING DOOR,42,Continuous,0.50
+SLIDING DOOR-FACE,252,Continuous,0.05
+SLIDING DOOR-HW,9,Continuous,0.18

@@ -602,6 +602,43 @@
 ;; STRICT (owner 3-Jul): exactly THREE sheets — Cover · Column Layout Plan · Section.
 ;; NO framing plans, NO elevations — those are REMOVED from the proposal drawing set.
 ;; Each sheet tiles to the right of the previous via peb-tile-place (fixed gap, no overlap).
+;; ---------------------------------------------------------------------------
+;; peb-plan-stype - THE one answer to "what structure type is this PLAN?"
+;;
+;; PD_RULEBOOK S61 / 4B.13: ONE fall glyph on every plan-type sheet, drawn by one
+;; routine.  peb-fall-glyph-set already WAS that routine - but it branches on stype,
+;; and the sheets were resolving stype differently, so the shared glyph still landed
+;; in different places:
+;;
+;;   Column Layout Plan (Plan.lsp)      ACS->CS, AMS->MS, unknown->CS   <- normalised
+;;   Roof Plan          (Roof.lsp)      ACS->CS, AMS->MS                <- normalised
+;;   PRO-05a/05b        (Framing.lsp)   raw STYPE                       <- NOT normalised
+;;
+;; The two roof sheets that actually ship are the Framing.lsp pair; the Roof.lsp
+;; drawer that carried the normalisation is dead code behind PEB_DRAFT_SHEETS (S14).
+;; So on an ARCHED building the CLP asked for "CS" and got its two rows of fall
+;; arrows, while PRO-05a/05b asked for "ACS", matched no branch in the cond, and drew
+;; NONE - the deviation the owner saw.  Same for any type outside the whitelist
+;; (F2 among them), which the CLP folds to CS and the roof sheets did not.
+;;
+;; Reading the same rule is not the same as drawing the same stair (S38).  So the
+;; resolution lives HERE, in the file every sheet loads first, and every plan-type
+;; sheet asks this function instead of reading STYPE for itself.
+;;
+;; Also sets *PEB-ARCHED*, because the arch shows only in the SECTION - the PLAN of an
+;; arched building is its straight equivalent, and the flag is what lets the title
+;; still read "ARCHED ...". (owner 5-Jul)
+(defun peb-plan-stype (data / s)
+  (setq s (strcase (peb-tb-or (MSPL-Get-Str data "STYPE") "CS")))
+  (setq *PEB-ARCHED* nil)
+  (cond ((= s "ACS") (setq *PEB-ARCHED* T s "CS"))
+        ((= s "AMS") (setq *PEB-ARCHED* T s "MS")))
+  ;; PP must stay in this whitelist - it was once omitted and a Petrol Pump silently
+  ;; drew as a clear-span gable (owner 9-Jul).
+  (if (not (member s '("CS" "SS" "MS" "LT" "MG" "FR" "RC" "CC" "BF" "PP")))
+    (setq s "CS"))
+  s)
+
 (defun peb-all-sheets (path)
   (if (boundp 'peb-cover-from-file)        (peb-cover-from-file path))
   (if (boundp 'peb-plan-from-file)         (peb-plan-from-file path))

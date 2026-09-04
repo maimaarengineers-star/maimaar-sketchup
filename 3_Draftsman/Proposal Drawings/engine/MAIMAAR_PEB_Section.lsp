@@ -9716,7 +9716,7 @@
     (vl-catch-all-apply (function (lambda ( / rvx rvq)
       (setq rvx (peb-ridge-x data wid)
             rvq (atoi (peb-tb-or (MSPL-Get-Str data "RA_RV_QTY") "0")))
-      (peb-rv-place rvx (+ H rise) 1.0 T rvq)))))
+      (peb-rv-place rvx (+ H rise) 1.0 T rvq 220.0)))))
 
   ;; ── VERTICAL FASCIA (FA_*) on the sidewalls of a normal PEB frame ──
   ;; The RC frame type has its OWN concrete parapet/fascia (draw-rc-fascia), so it is
