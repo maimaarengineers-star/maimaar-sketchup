@@ -312,14 +312,18 @@
                  (list 10 cx (- y c) 0.0) (cons 40 (max r (* c 0.30)))))
   (princ))
 
-(defun peb-sld-leaf-clips (x0 y0 w lead / tw lw fx0 fx1)
-  (if (null lead) (setq lead 1))
-  (setq tw (peb-sld-trim-w) lw (peb-sld-lead-w)
-        fx0 (if (> lead 0) (+ x0 tw) (+ x0 lw))
-        fx1 (if (> lead 0) (- (+ x0 w) lw) (- (+ x0 w) tw)))
-  (peb-sld-clip (+ x0 (* tw 0.5)) y0)
-  (peb-sld-clip (- (+ x0 w) (* tw 0.5)) y0)
-  (foreach j (peb-sld-joints (- fx1 fx0)) (peb-sld-clip (+ fx0 j) y0))
+;; THE WHEELS. MSPL-176's member table lists WHEEL qty 2; MSPL-121 draws three filled dots along
+;; the bottom of a 9144 leaf. So they are spaced along the leaf, NOT one under every panel joint —
+;; the first version put a bracket at each joint and turned the bottom rail into a row of boxes.
+;; Two at the ends, and an intermediate wherever the span between them exceeds one bay.
+(defun peb-sld-leaf-clips (x0 y0 w lead / e n i sp)
+  (setq e (* (peb-sld-lead-w) 0.9)
+        sp (- w (* 2.0 e))
+        n  (max 2 (1+ (fix (/ sp 3600.0))))              ; an extra wheel per 3.6 m of leaf
+        i  0)
+  (while (< i n)
+    (peb-sld-clip (+ x0 e (* sp (/ (float i) (float (1- n))))) y0)
+    (setq i (1+ i)))
   (princ))
 
 ;; ---------------------------------------------------------------------------
@@ -450,8 +454,11 @@
       (peb-sld-hood  tx0 tx1 ytop)
       (peb-sld-floor tx0 tx1 oy)
       (peb-sld-ghost (if (> hand 0) (+ xL lw 100.0) (- xL run)) lb lw lh)
-      (peb-sld-leaf xL lb lw lh (- 0 hand) T T) ; the leading edge is the one that closes
-      (peb-sld-leaf-clips xL lb lw (- 0 hand))
+      ;; hand +1 = parks RIGHT, so the leaf's RIGHT edge is the one that seals against the far
+      ;; jamb - that is where the leading strip goes, and the wicket therefore sits at the LEFT
+      ;; end, the last part of the leaf to clear the opening. MSPL-121 draws it exactly there.
+      (peb-sld-leaf xL lb lw lh hand T T)
+      (peb-sld-leaf-clips xL lb lw hand)
       (peb-sld-arrow (+ xL (* lw 0.5)) (+ lb (* lh 0.62)) (* lw 0.22) hand)))
   (if lbl
     (progn
@@ -571,8 +578,12 @@
   ;; MSPL-121 DOOR DETAILS, PAECO Skardu, issued for approval 02-Jul-2024 - the most complete
   ;; PD-level sliding door sheet in the archive, and the current convention. It carries a DOOR
   ;; PLAN and a DOOR ELEVATION, which is exactly what the proposal set has to emit.
-  ;;   opening   9144 [30'] x 2438 [8']      DOUBLE SLIDING DOOR
-  ;;   run       18288 [60'] = 9144 + 2 x 4572, i.e. each leaf parks its own width clear
+  ;;   opening   9144 [30'] x 2438 [8']      ONE LEAF, parking to the RIGHT
+  ;;   run       18288 [60'] = 9144 x 2, i.e. the leaf slides its own full width clear
+  ;; The PLAN on that sheet is captioned "DOUBLE SLIDING DOOR" and the caption misleads: the
+  ;; ELEVATION is unambiguous - a single leaf spans the whole 9144 and parks over 3048 of brick
+  ;; wall plus the concrete column beyond. 18288 = 9144 x 2 confirms it. Reading the caption
+  ;; instead of the drawing is the same trap as reading the text stream instead of the vectors.
   ;;   wicket    914 [3'] x 1981 [6'-6"], sill 305 [1'], in one leaf
   ;; Maimaar sizes these doors in FEET; every metric figure here is the conversion.
   (setq ow 9144.0 oh 2438.0)
@@ -581,31 +592,31 @@
   ;; the wall the door sits in - development scaffolding, not part of the component
   (peb-sld-context -6500.0 15700.0 0.0 4000.0 0.0 ow nil 1500.0)
 
-  (setq ext (peb-sld-elevation 0.0 0.0 ow oh 2 nil
-              "DOUBLE SLIDING DOOR  9144 [30'] x 2438 [8']  -  MSPL-121 REPRODUCED"))
+  (setq ext (peb-sld-elevation 0.0 0.0 ow oh 1 1
+              "SLIDING DOOR  9144 [30'] x 2438 [8']  -  MSPL-121 REPRODUCED"))
   (setq tx0 (nth 0 ext) tx1 (nth 2 ext))
 
   ;; ---- the dimension strings the issued sheet carries
   (peb-sld-dim-h 0.0 ow (+ oh 1500.0) -1 "9144 [30]  FRAMED OPENING")
   (peb-sld-dim-h tx0 tx1 (+ oh 2200.0) -1
-                 "18288 [60]  RUN  -  EACH LEAF PARKS ITS OWN WIDTH CLEAR OF THE OPENING")
-  (setq lw (+ (/ ow 2.0) (peb-sld-meet-lap))
-        f0 (+ (- 0.0 (peb-sld-meet-lap)) (peb-sld-trim-w))
-        f1 (- (/ ow 2.0) (peb-sld-lead-w)))
-  (peb-sld-dim-h (- 0.0 (peb-sld-meet-lap)) (/ ow 2.0) (- 0.0 900.0) 1 "4647  LEAF")
-  (peb-sld-dim-h (/ ow 2.0) (+ ow (peb-sld-meet-lap)) (- 0.0 900.0) 1 "4647  LEAF")
+                 "18288 [60]  RUN  -  THE LEAF SLIDES ITS OWN FULL WIDTH CLEAR")
+  (setq lw (+ ow (* 2.0 (peb-sld-meet-lap)))
+        f0 (+ (- 0.0 (peb-sld-meet-lap)) (peb-sld-lead-w))
+        f1 (- (+ ow (peb-sld-meet-lap)) (peb-sld-trim-w)))
+  (peb-sld-dim-h (- 0.0 (peb-sld-meet-lap)) (+ ow (peb-sld-meet-lap)) (- 0.0 900.0) 1
+                 "9294  LEAF")
+  (peb-sld-dim-h (- 0.0 (peb-sld-meet-lap)) f0 (- 0.0 1500.0) 1 "539")
   ;; the panel field of the left leaf, joint by joint
   (setq x f0)
   (foreach j (peb-sld-joints (- f1 f0))
     (peb-sld-dim-h x (+ f0 j) (- 0.0 1500.0) 1 (rtos (- (+ f0 j) x) 2 0))
     (setq x (+ f0 j)))
   (peb-sld-dim-h x f1 (- 0.0 1500.0) 1 (rtos (- f1 x) 2 0))
-  (peb-sld-dim-h f1 (/ ow 2.0) (- 0.0 1500.0) 1 "539")
   (peb-sld-dim-v (peb-sld-sill-clr) (+ oh (peb-sld-head-lap)) (- tx0 900.0) 1 "2526  LEAF")
   (peb-sld-dim-v 0.0 oh (- tx0 1800.0) 1 "2438 [8]  CLEAR")
 
   ;; ---- the plan symbol, as issued on the approval sheet
-  (peb-sld-plan 0.0 -3600.0 ow 150.0 2 "9144 x 2438")
+  (peb-sld-plan 0.0 -3600.0 ow 150.0 1 "9144 x 2438")
   (peb-sld-tx (/ ow 2.0) -4700.0 (* (peb-sld-dim-th) 1.3) 0.0
               "PLAN SYMBOL  -  AS ISSUED ON THE APPROVAL DRAWING" "TEXT" 1 2)
 
@@ -634,7 +645,7 @@
     (peb-sld-tx (- tx0 1000.0) y (* (peb-sld-dim-th) 1.25) 0.0 s "TEXT" 0 2)
     (setq y (- y (* (peb-sld-dim-th) 2.1))))
   (princ "
-SLIDING DOOR sample drawn: MSPL-121, double leaf, 9144 x 2438, with wicket.")
+SLIDING DOOR sample drawn: MSPL-121, single leaf, 9144 x 2438, with wicket.")
   (princ))
 
 
