@@ -6781,13 +6781,17 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   ;;   100 m bldg → 900 mm at 1:240 = 3.8 mm on paper ✓
   ;;   200 m bldg → 1260 mm at 1:480 = 2.6 mm on paper ✓
   (setvar "DIMSCALE" (if *PEB-DIM-SCALE* *PEB-DIM-SCALE* 1.0))
-  ;; Dimension TEXT + ARROWS (owner: proper beautiful arrowheads, not ticks):
-  ;;   DIMTXT 500 (clean); proper small CLOSED-FILLED arrowhead at each end,
-  ;;   sitting on the dimension line (DIMTSZ 0 disables ticks; DIMBLK both ends).
+  ;; Dimension TEXT + ARROWS.  STANDING RULE (owner 19-Jul-2026, PD_RULEBOOK 3.7 / 4B.62 /
+  ;; S55): every DIMENSION arrowhead in the set is the OPEN V.  Leader and callout heads stay
+  ;; FILLED - that is the other half of the rule, and it is set on the MLEADER style, not here.
+  ;; Ticks are retired (DIMTSZ 0).  Height comes from the peb-th ladder, never a literal.
+  ;;   Corrected 4-Sep-2026: this defun used to set DIMBLK "_CLOSEDFILLED", which contradicted
+  ;;   the rule.  It was latent only because every native dim goes through peb-dim-set-vars
+  ;;   (which sets _OPEN) first - the next one added without that wrapper would have been wrong.
   (setvar "DIMTXT"   (peb-th 'DIM))     ; ladder: 2.5 mm of paper (x DIMSCALE)
   (setvar "DIMTSZ"     0.0)        ; no ticks -> use arrowheads
   (setvar "DIMASZ"   320.0)        ; proper small arrowhead (~0.6 x text)
-  (vl-catch-all-apply (function (lambda () (setvar "DIMBLK" "_CLOSEDFILLED"))))
+  (vl-catch-all-apply (function (lambda () (setvar "DIMBLK" "_OPEN"))))
   (vl-catch-all-apply (function (lambda () (setvar "DIMSAH" 0))))
   (setvar "DIMEXE"   120.0)        ; extension beyond dim line
   (setvar "DIMEXO"   120.0)        ; extension offset from object

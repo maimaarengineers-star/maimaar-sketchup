@@ -46,20 +46,48 @@ The only shared files a sync touches are the load list and the dispatch - so a s
 reviewable diff, not a merge.
 
 
-## FOLDER NAMING — first word Capital
+## FOLDER NAMING — Title Case, every word (THE DEFAULT RULE)
 
 > *"Note in Library all the Folder First Word should be Capital, for example Louvers not louvers,
 > Doors not doors."* — Nasir, 4-Sep-2026
+>
+> *"Develop The Default Rule — Make the First Spelling Capital of All Developed Folders by Default
+> of Each Word. For example Louver should L capital, and if 2 word folder, for Aluminium Doors,
+> both initials should be capital."* — Nasir, 4-Sep-2026 (the rule generalised)
 
-`Sliding Doors/` is now **`Sliding Doors/`**. `louver/` and `skylights_and_wall_lights/` are still
-lower-case: both are live on another terminal right now and renaming a folder out from under an
-open file is the shared-tree collision this library exists to avoid. **Whoever owns them renames
-them** — `Louvers/` and `Skylights & Wall Lights/` — the same way, with `git mv`.
+**EVERY word gets a capital, and the separator is a SPACE, not an underscore.**
+
+| write | not |
+|---|---|
+| `Louver` | `louver` |
+| `Sliding Doors` | `sliding_door` |
+| `Ridge Ventilator` | `ridge_ventilator` |
+| `Skylights And Wall Lights` | `skylights_and_wall_lights` |
+| `Aluminium Doors` | `aluminium_doors` |
+
+A **leading underscore is kept** — it marks a folder that is not a component: `_Template`.
+
+**Done (4-Sep):** `Sliding Doors` · `Skylights And Wall Lights` · `Ridge Ventilator` · `_Template`
+— and every load path that named them, in `drawingRender.ts`, `drawingData.ts` and each
+component's own `sample/render_sample.js`.
+**Still lower-case:** `louver`, plus the empty `sliding_door` husk left by an earlier rename. Both
+are held open by another process (an AutoCAD working directory or an Explorer window). The CRM
+load list already says `Library/Louver/`, which resolves today because Windows is
+case-insensitive — so the rename is safe to do at any time. Re-run `_rename_library_folders.ps1`
+in this folder once they are free; it is idempotent and touches nothing else.
+
+> **A rename is a CODE change.** The folder name appears in FOUR load lists — `buildPdfScr`,
+> `buildDwgScr` and `buildReuseScr` in `services/drawingRender.ts`, and `loadLines` in
+> `services/drawingData.ts`. Rename the folder and every load path in the SAME pass. Windows is
+> case-insensitive, so a case-only rename cannot break a path — but turning `_` into a space
+> absolutely can, and the failure is SILENT: the drawer never loads, nothing raises, and the
+> sheet plots as a perfect empty A4 with a title block. See GOLDEN_RULES.md and PD_RULEBOOK S81.
 
 A note on doing it: AutoCAD holds its working directory on the last folder it opened a drawing
 from, so a rename fails with "Permission denied" while a reference DWG from that folder has been
 opened. Close the DRAWING through COM (`$acad.Documents`), never AutoCAD itself, and move the
-contents rather than the folder if the shell still has a handle.
+contents rather than the folder if the shell still has a handle. An open Explorer window on the
+folder locks it the same way.
 
 ## Status
 

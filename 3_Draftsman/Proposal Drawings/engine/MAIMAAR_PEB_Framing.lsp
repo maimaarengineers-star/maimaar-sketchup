@@ -1133,6 +1133,29 @@
               (progn
                 (peb-comp-layer "COMP-DOOR" 4)
                 (setvar "CLAYER" "COMP-DOOR")
+                ;; ── THE CLEAR OPENING ────────────────────────────────────────────────────
+                ;; "Create the Clear Opening for the Door" (owner 4-Sep-2026). A doorway is a
+                ;; HOLE. The door was being drawn ON the wall, not IN it - brick coursing ran
+                ;; straight through behind the leaves and the sheet ribs carried on across the
+                ;; head. With the door shown partly open the hole is the part the customer
+                ;; actually looks at, so it has to be empty.
+                ;;
+                ;; A WIPEOUT hides only what was drawn BEFORE it, and both the wall fill and the
+                ;; sheeting run earlier in this pass - so the mask lands on them and on nothing
+                ;; after. The leaves and the jamb posts are drawn after it and stay visible. Same
+                ;; device and the same catch guard the louver already uses.
+                (vl-catch-all-apply (function (lambda ()
+                  (setvar "WIPEOUTFRAME" 0)
+                  (command "_.WIPEOUT"
+                    (list (+ ox cx (/ dw -2.0)) base)
+                    (list (+ ox cx (/ dw  2.0)) base)
+                    (list (+ ox cx (/ dw  2.0)) (+ base dh))
+                    (list (+ ox cx (/ dw -2.0)) (+ base dh)) ""))))
+                ;; and the opening's own outline, so the hole has edges
+                (setvar "CLAYER" "OPEN")
+                (command "_.RECTANG" (list (+ ox cx (/ dw -2.0)) base)
+                                     (list (+ ox cx (/ dw  2.0)) (+ base dh)))
+                (setvar "CLAYER" "COMP-DOOR")
                 ;; ── A SLIDING DOOR IS DRAWN BY ITS OWN COMPONENT ──────────────────────────
                 ;; Every accessory on this elevation used to be the RECTANG below, so a louver,
                 ;; a light panel and a sliding door plotted identically. Library/Sliding Doors
@@ -1196,7 +1219,19 @@
                 (vl-catch-all-apply (function (lambda ()
                   (txt "MC" (list (+ ox cx) dsy)
                        (peb-fit-txt-h lab (* dw 0.80) (peb-th 'SMALL)) 0 lab))))
-                (setq lab (strcat (peb-comma (rtos dw 2 0)) " x " (peb-comma (rtos dh 2 0))))
+                ;; THE SIZE IN FEET AS WELL. Maimaar sizes doors in feet and the metric figure
+                ;; is the conversion - the customer's own layout plan for this job calls this
+                ;; door "12' x 12'", not "3,658 x 3,658". Both are printed: the feet the customer
+                ;; reads, and the millimetres the shop builds to.
+                ;; ASK IT, DO NOT TYPE-TEST IT. The same trap as the dispatch: a guess about
+                ;; how AutoLISP reports a defun'd symbol failed silently once already, and the
+                ;; sheet just carried the fallback with nothing to say why.
+                (setq lab (vl-catch-all-apply (function (lambda ()
+                            (strcat (peb-sld-ft dw) " x " (peb-sld-ft dh)
+                                    "   (" (peb-comma (rtos dw 2 0)) " x "
+                                    (peb-comma (rtos dh 2 0)) ")")))))
+                (if (or (vl-catch-all-error-p lab) (not sldOK))
+                  (setq lab (strcat (peb-comma (rtos dw 2 0)) " x " (peb-comma (rtos dh 2 0)))))
                 (setq dsy (if sldOK (- base 1500.0) (+ base (* dh 0.40))))
                 (vl-catch-all-apply (function (lambda ()
                   (txt "MC" (list (+ ox cx) dsy)
@@ -1770,17 +1805,22 @@
         ;; NO ACCESSORY ON TOP OF ANOTHER (owner 4-Sep-2026). A louver inside a doorway is not a
         ;; drafting blemish, it is something that cannot be built. The door owns its span; every
         ;; other opening placed on this wall stands aside.
+        ;; THE MARK GOES WITH THE THING IT NAMES. The guard wraps the opening AND its label,
+        ;; so they can only appear together: a louver suppressed under a door was still printing
+        ;; "LV9" over the leaf, which is worse than the overlap it was curing - the reader looks
+        ;; for a louver, finds a door, and cannot tell which is right.
         (if (not (peb-fr-in-door-box (+ pat (- (/ pw 2.0))) (+ pat (/ pw 2.0))
                                      (+ base psill) (+ base psill ph)
                                      (peb-fr-door-spans data surf stations revView base)))
-        (peb-fr-draw-opening data pre ptyp
-                             (+ ox pat (- (/ pw 2.0))) (+ ox pat (/ pw 2.0))
-                             (+ base psill) (+ base psill ph)))
-        ;; the mark goes just ABOVE the opening it names. It used to sit at 0.80 x eave,
-        ;; which for a louver in the brickwork was two metres clear of the thing it labels.
-        (setvar "CLAYER" "TEXT")
-        (txt "MC" (list (+ ox pat) (+ base psill ph (* 420 *PEB-TEXT-SCALE*)))
-             (* 230 *PEB-TEXT-SCALE*) 0 mark)))
+          (progn
+            (peb-fr-draw-opening data pre ptyp
+                                 (+ ox pat (- (/ pw 2.0))) (+ ox pat (/ pw 2.0))
+                                 (+ base psill) (+ base psill ph))
+            ;; the mark goes just ABOVE the opening it names. It used to sit at 0.80 x eave,
+            ;; which for a louver in the brickwork was two metres clear of the thing it labels.
+            (setvar "CLAYER" "TEXT")
+            (txt "MC" (list (+ ox pat) (+ base psill ph (* 420 *PEB-TEXT-SCALE*)))
+                 (* 230 *PEB-TEXT-SCALE*) 0 mark)))))
     (setq i (1+ i)))
 
   ;; 6b. THE MEZZANINE BEAM, ON THE END WALL  (owner 3-Sep-2026) --------------------------

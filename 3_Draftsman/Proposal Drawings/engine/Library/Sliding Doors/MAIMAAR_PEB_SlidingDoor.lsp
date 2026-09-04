@@ -1,6 +1,6 @@
 ;;; ============================================================================
 ;;;  MAIMAAR_PEB_SlidingDoor.lsp — SLIDING DOOR GEOMETRY
-;;;  PEB COMPONENT LIBRARY · Library/sliding_door/
+;;;  PEB COMPONENT LIBRARY · Library/Sliding Doors/
 ;;; ============================================================================
 ;;;
 ;;;  WHY THIS FILE EXISTS (owner, 3-Sep-2026).
@@ -293,6 +293,14 @@
         tw (peb-sld-trim-w) lw (peb-sld-lead-w) th (peb-sld-trim-h)
         fx0 (if (> lead 0) (+ x0 tw) (+ x0 lw))
         fx1 (if (> lead 0) (- x1 lw) (- x1 tw)))
+  ;; -- THE LEAF IS SOLID. Shown partly open it stands beside the opening, over the wall, and the
+  ;;    brick coursing was reading straight through it - a sandwich panel is not a window. A
+  ;;    WIPEOUT hides what was drawn BEFORE it, so it goes down first and every line of the leaf
+  ;;    is drawn over it. Wrapped, because WIPEOUT needs its block and a standalone drawing that
+  ;;    cannot make one must still get a leaf.
+  (vl-catch-all-apply (function (lambda ()
+    (setvar "WIPEOUTFRAME" 0)
+    (command "_.WIPEOUT" (list x0 y0) (list x1 y0) (list x1 y1) (list x0 y1) ""))))
   ;; -- THE FACE. Its pitch is what tells the reader which product this is.
   ;;    PIR reads at the WALL's own pitch through peb-sheet-rib-pitch - golden rule 3, ONE source,
   ;;    so the leaf and the sheeting beside it can never disagree.

@@ -13,7 +13,9 @@ to — don't restate them, link them:
 of truth — a second front-end view over the same inquiry/building/area DB rows the IF
 writes) · **PD** = Proposal Drawings. **Read any "BS" as BSF.**
 
-**Status.** 21-Jul-2026, code-grounded (file:line). Supersedes `PD_GLOBAL_RULES.md`.
+**Status.** 4-Sep-2026. Re-synced and audited against the running code; **§0 THE STANDING RULES is the compiled entry point and §0.10 is the conflict register.** Code-grounded (file:line) — treat every line number as a hint, not a promise. Supersedes `PD_GLOBAL_RULES.md`.
+
+**Read §0 first.** If §0 and a later section disagree, §0 wins and the later section is the one to fix.
 
 ### The pipeline (one picture)
 ```
@@ -22,6 +24,677 @@ writes) · **PD** = Proposal Drawings. **Read any "BS" as BSF.**
         │                        · silent defaults · instance-cap     MSPL-Get-* → drawers
    ONE truth (DB row)           PEB_Data_B<n>_A<m>.txt (flat KEY=value)
 ```
+
+---
+
+## 0. THE STANDING RULES — compiled, 4-Sep-2026
+
+**What this section is.** Every STANDING rule for Proposal Drawings, in one place, at the top,
+compiled from this rulebook, from the four backing docs, from `engine/Library/GOLDEN_RULES.md`
+and from the whole PD memory set. A rule is here only if it is **standing** — it governs the
+next sheet anyone draws. Detail stays where it lives; each line points at it.
+
+**How to use it.** Read §0 before touching PD. If §0 and a later section disagree, **§0 wins**
+and the later section is wrong — say so and fix it. §0.10 is the register of every conflict
+this audit found and how it was settled; a rule that was superseded is listed there, not
+silently deleted.
+
+**Precedence, highest first.**
+1. The owner's words, most recent first.
+2. **The running code** — `drawingRender.ts` / `drawingData.ts` / the `engine/*.lsp` actually
+   loaded. A rule that no code path obeys is a wish, not a rule.
+3. This rulebook.
+4. The memory set and the skill card, which are summaries of 1–3 and must be re-synced when
+   1–3 move.
+
+---
+
+### 0.1 THE DELIVERABLE
+
+**S1 — ONE finished PDF per building.** Not one all-buildings document, never loose pages.
+`<serial>-<yy>-<COMPANY>_B-<nn>_<Usage>.pdf` — e.g. `270-26-MSPL_B-01_Warehouse.pdf`.
+`Usage` is the **Usage of Building**, which lives on the AREA (`buildingName` is usually null);
+the number is the group's `displayNo`, **not** `bNum`.
+*Every* PDF entry point does this — BSF `dwgPdfBtn`/`dwgFullBtn` and the Drawings Studio
+"Open in PDF". A third entry point gets wired the same way or sales and the draftsman hand out
+different files from one proposal.
+
+**S2 — A blob URL carries NO filename.** `URL.createObjectURL(blob)` + `window.open` gives the
+customer `download.pdf`. Any blob download MUST read the name off `Content-Disposition` and
+hand it over via `<a download=name>`. Check this FIRST whenever a downloaded file is misnamed.
+
+**S3 — The manual drawings download is DWG, not DXF.** `DEFAULT_FORMAT` in
+`services/drawingRender.ts`; `DRAWINGS_FORMAT=dxf` is the opt-out. Proposal-folder filing is
+gated on `format === 'dwg'`.
+
+**S4 — A deliverable always lands in a revision folder, Rev-00 when the inquiry names none.**
+House form `<3-digit serial>-<yy>-MSPL_<Customer>[_<Project>][_<City>]` under
+`D:\Sales Department\MSPL\Proposals\<yyyy>`. **Find first** (an existing folder always wins,
+however it is spelt), **create only when nothing matches**, **file NOTHING when the serial is
+ambiguous**. Rev-00 is the only revision the system invents; Rev-01+ are the draftsman team's.
+Creation is opt-in via the naming fields, so merely ASKING where a proposal lives can never
+create a folder. → **4B.21**
+
+**S5 — PD is BLIND by default.** Customer + Project (+ contact) are blanked; MAIMAAR and the
+Quote No. always print. FULL is opt-in, gated to role ∈ {design, admin} **and** the PIN
+(`DRAWING_FULL_PIN`, default 12345). Only the draftsman generates: the three PD routes use
+`canGenDrawings = requireRole(['admin','design'])`. Blanking also applies to `manifest.json`
+and `building_model.json` so the admin raw bundle leaks nothing.
+**Exception:** *Re-print PDF from AutoCAD* prints **as-drawn** — nothing is regenerated, so no
+blind/full is asked and whatever the DWG carries is what prints. Audited `[as-drawn]`.
+
+**S6 — Approval Drawings are the same engine with two differences.** They are generated from
+**USTAAD** (never from Tekla — Tekla is BUILT from the same data via the Open API), and they
+carry DESIGNED member sizes with **blind OFF**, because the customer's consultant must see them.
+One source, two outputs.
+
+---
+
+### 0.2 GOVERNANCE — who does what
+
+**S7 — Nasir generates production drawings.** Do the engine / data / sync work, syntax-check,
+hand off. Do not fire acad runs on your own initiative. Rendering an existing DXF to a PNG to
+show a result already produced is fine.
+
+**S8 — Fill the data FIRST, then draw.** A render is ~2 minutes of AutoCAD per building.
+Every BSF field, component tick and placement row is settled and verified in the DB **before**
+`renderPdf` is called. If a correction lands mid-render, let the run finish and re-render —
+never hand over the earlier PDF. A stale PDF sitting in Rev-00 looks finished.
+
+**S9 — Iterate ONE building, one sheet.** `scripts/mksheet.py <drawFn> <title> <dataFile> <out>`
+then `runacad.js` ≈ 40 s, versus ~4–5 minutes for a 3-building 27-page set. Fix **all** the
+issues in one pass before showing him. **The reason is not only speed: a full set HIDES defects**
+— one blank page inside a 30-page regen is invisible. Close Adobe before a render; an open
+per-sheet PDF locks the work dir. Regenerate the full named set once, at the end.
+
+**S10 — NEVER kill all AutoCAD.** Nasir keeps the Rule Book and reference drawings open.
+Snapshot the acad PIDs first and kill only PIDs not in that snapshot (`acadPids()`/`killPids()`
+already do this — `killStrayAcad` is gone). Never `Get-Process acad | Stop-Process`. Never use
+the COM "attach to the open AutoCAD" path for a background render; `renderInOpenAcad` adds a
+**fresh blank document** and closes only that.
+
+**S11 — Reference-first. Never invent a symbol or a label.** Extract the real labels, lines and
+layers out of the reference DXF/DWG **before** writing the drawer. A component that invents its
+own symbol makes two sheets of the same job disagree — which is exactly how the sliding door
+got an invented pocket line instead of the BOW-TIE Maimaar already issues on MSPL-030.
+And **check the reference before "improving" a glyph**: the FALL redesign was a departure, not
+a match, and had to be thrown away. → **0.9/S52**
+
+**S12 — NEVER write "MAMMUT" on a drawing.** Provenance lives in `PD_RULEBOOK.md`, never on a
+customer sheet. The engine function name `peb-titleblock-mammut` is internal and is not text.
+→ **§ "NEVER WRITE MAMMUT ON A DRAWING"** (the grep that proves it)
+
+**S12b — FOLDER NAMES ARE TITLE CASE — every word capitalised** (owner, 4-Sep-2026:
+*"Make the First Spelling Capital of All Developed Folders by Default of Each Word"*).
+`Louver`, not `louver`. `Aluminium Doors`, not `aluminium_doors` — **both** initials.
+- **The separator is a SPACE, not an underscore**: `ridge_ventilator` → `Ridge Ventilator`,
+  matching `Sliding Doors`.
+- **A leading `_` is kept** — it is a deliberate "this is not a component" marker:
+  `_template` → `_Template`.
+- **Scope: folders WE develop** — `engine/Library/<Component>/` and anything new. The section
+  rooms (`0_Master Plan`, `2_Sales CRM`, `3_Draftsman`) and the long-established
+  `reference/` / `assets/` trees are NOT swept, because their names are hard-wired into env
+  vars, scripts, docs and memories.
+- ⚠ **A rename is a code change.** A component folder is named in FOUR load lists
+  (S78) — rename the folder and the load path in the same commit, or the drawer silently never
+  loads and the sheet plots empty with a perfect title block (S81). Windows is
+  case-INSENSITIVE, so a case-only rename cannot break a path, but changing `_` to a space
+  absolutely can.
+
+---
+
+### 0.3 THE SHEET SET — canonical, 4-Sep-2026
+
+**S13 — THE SHIPPED SET.** Driven by `availablePages()` in `services/drawingData.ts` and by
+`buildPdfScr` / `buildDwgScr` in `services/drawingRender.ts`:
+
+| Sheet | Title | Condition |
+|---|---|---|
+| PRO-00 | COVER | always |
+| PRO-01 | COLUMN LAYOUT PLAN | always |
+| PRO-02 | CROSS SECTION | always |
+| PRO-03a | SIDE WALL FRAMING ELEVATIONS | always |
+| PRO-03b | END WALL FRAMING ELEVATIONS | always |
+| PRO-04a | SIDE WALL SHEETING ELEVATIONS | always |
+| PRO-04b | END WALL SHEETING ELEVATIONS | always |
+| PRO-05a | ROOF FRAMING PLAN | always |
+| PRO-05b | ROOF SHEETING PLAN | always |
+| PRO-06 | DETAILS | always |
+| PRO-07 | MEZZANINE FLOOR PLAN | `g.hasMezz` |
+| PRO-08 | MEZZANINE SECTION DETAILS | `g.hasMezz` |
+| PRO-09 | STAIRCASE (Plan + Elevation + Section) | `g.hasStairs` |
+
+Framing and sheeting **always split side/end** — two elevations a sheet ≈ 1:150–1:200; a
+4-elevation stack falls to ~1:400, unreadable on A4.
+
+**S14 — A gated sheet is not a home for a feature.** Before parking anything on a sheet, check
+that sheet is in `drawingRender.ts`'s page list — not merely that a `C:` command for it exists.
+`C:PEB-ROOF` (`MAIMAAR_PEB_Roof.lsp`) is reachable only through `PEB_DRAFT_SHEETS`, unset by
+default, and `drawingRender.ts` never mentions it: **effectively dead**. The roof monitor was
+parked there on 21-Jul and appeared on no plan any customer received for six weeks.
+`peb-draw-roof-accessories` (skylights/vents) and `peb-draw-monitor` are called from
+`peb-draw-roof-sheeting` (`MAIMAAR_PEB_Framing.lsp`) — i.e. **PRO-05b**.
+
+**S15 — A drawer on a split sheet takes the caller's `bayPts`.** PRO-05b slices `bayPts` and
+shrinks `len` for match-line parts; a drawer that rebuilds its stations from `len` misplaces
+everything on a split sheet.
+
+**S16 — Every element belongs to exactly one sheet.** Full matrix →
+`DRAWING_CONTENT_RULES.md §7`; summary at **3.4**. The one deliberate shared exception is the
+FALL/slope glyph, drawn identically on every plan-type sheet by ONE routine (owner 7-Jul).
+→ **4B.13**
+
+**S17 — Wall lights go on the WALL SHEETING plan (PRO-04a/b); sky lights on the ROOF SHEETING
+plan (PRO-05b)** — never on the framing elevations. A light panel is a **cladding** item: it
+replaces a sheet on the module, it is not an opening cut into one.
+
+---
+
+### 0.4 DATA — one truth, one bridge
+
+**S18 — The BSF is the single source of truth; PD only derives.** PD never recomputes,
+re-defaults or infers geometry — it draws what the DB row says. A wrong drawing is fixed in the
+BSF or in the engine's READING of it, never hand-patched into a sheet. → **1.1**
+
+**S19 — The BSF tick is the gate; the component card IS the tick.** Ticked = serialised and
+drawn; unticked = excluded, never deleted. On component cards the old `enabled` field is **dead
+data** — dropped on save, never read. A save guard that still reads it silently hid every
+staircase, mezzanine and roof monitor on 279-26. (`bsf-tick-is-the-gate` is about AREA ticks;
+this clause is about component cards.) → **1.2**
+
+**S20 — One bridge, one exporter:** `drawingData.generate()`. No hand-made data files, no
+second serialiser. → **1.3**
+
+**S21 — Metres in, millimetres out; blank ≠ 0.** ×1000 on every length and spacing.
+`0` = "none"; blank = "engine default". Not interchangeable. → **2.1, 2.4**
+
+**S22 — A dimension VALUE is already in its own `_REF` basis. Show it verbatim; NEVER
+re-convert.** `BP_WIDTH` with `BP_WIDTH_REF = "Center to Center of Steel Column"` **is** the C/C
+number. Label the dim with its `_REF` basis. Re-converting is what drew 18750 against a 19150
+module under an identical label.
+
+**S23 — A chain is STATED from the BSF, never measured off the drawing** — but a stated chain
+that does not close on the drawn span is printed as the DERIVED chain, not verbatim
+(`peb-chain-expr-fits`, 1 mm / 0.1 % tolerance). A stale `3@6667` once printed on a building it
+drew as `3@10000`. → **4B.63**
+
+**S24 — Silent defaults print un-entered values.** A blank field can be defaulted twice — bridge
+then engine — and still print a confident number. If it must be right on paper, set it in the
+BSF. → **2.9**, full list `PD_MASTER_REFERENCE.md §4d`
+
+**S25 — Wall codes are fixed:** NSW = near (bottom, y=0) · FSW = far (top) · LEW = left-end
+(x=0) · REW = right-end. Every per-wall family (`OW_ FA_ RX_ CN_`) keys off these four.
+Booleans are the literal strings `Yes`/`No`. → **2.5, 2.6**
+
+**S26 — A position is STATED ONCE and every sheet that draws it asks the same function.**
+Stair position is `distance from LEW` / `distance from NSW` — from the **BUILDING corner**, not
+the deck corner. `peb-mzfp-stair-org` decides; both passes ask it. → **4B.73**
+
+---
+
+### 0.5 GEOMETRY — the standing rules
+
+**S27 — Purlins and sheeting ALWAYS follow the frame's roof path** — up to each ridge, down to
+each valley, along each gable's own slope. Never flat, never averaged. Derive them from the same
+roof profile that draws the frame outline, per gable, anchored to the rafter underside at that x.
+
+**S28 — Ridge offset is measured FROM the NSW; blank = centred.** An off-centre ridge makes the
+two pitches unequal, and **the stated slope governs the LONGER run** (`rise = max(off, W−off) ×
+slope`), so the short side is steeper. Gable stypes CS/MS/RC only; MG keeps per-gable central
+ridges; ACS/AMS crowns stay at W/2; SS/FR/CC/PP/BF have no ridge.
+
+**S29 — Off-centre means PER-HALF slope.** The rafter underside, the taper, the interior-column
+landing sampler and the stiffener/splice angles are all built from the LEFT half's slope by
+default — which only looks right when the ridge is central. Compute left and right separately.
+
+**S30 — EAVE HEIGHT = FFL to the TOP OF THE EAVE STRUT / PURLIN.** Not the top of the rafter at
+the haunch and not the underside of the haunch. So on `heightBasis = "Eave Height"` the entered
+number already contains haunch + purlin and BOTH are backed out:
+`clearHt = entered − haunchDepth − 200`, and the EAVE HEIGHT dim runs `0 → H + purlinD`.
+`peb-haunch-depth(span)` = 700 + (span−15000)/35000 × 400, clamped 700…1100. `peb-purlin-depth`
+= 200. **Clear basis is unchanged** (`H = clearHt + ht`, dim to the haunch, "CLEAR HEIGHT"), and
+**CLEAR must be tested FIRST** — "Clear Height at Eave" also contains the word EAVE.
+*Consequence:* a customer stating BOTH a clear and an eave height is assuming a shallower haunch
+than ours. Pick which number governs and say so.
+
+**S31 — Connections: two SOLID plates, no bolt circles.** `*PEB-CP-THK*` 30.0 · `*PEB-CP-GAP*`
+1.5 · `*PEB-CP-EXT*` 100.0. Each plate 30 mm, 1.5 mm seam, extended 100 mm past BOTH flanges
+(length ≥ web + 200). **GP gussets are filled-solid triangles on the rafter-flange SLOPE line**,
+touching the OUTER side of the flange, and stay inside the 100 mm extension. Never outlines,
+never a hairline. Applies to every bolted connection in a section — eave knee, ridge apex, rafter
+splice, MG valley, arched knee, RC ridge/splice, canopy. → **3.10, 4B.52**
+
+**S32 — A column in the middle of the frame TAKES the connection; the rafter does not.**
+→ **4B.52**
+
+**S33 — Members are drawn at their REAL flange width**, and a member **STOPS at an opening** —
+it is not deleted and it does not cross. → **4B.42, 4B.60**
+
+**S34 — Masonry stops at the steel it meets.** → **4B.66**
+
+**S35 — Mezzanine joists are FLUSH with the main beams, never stacked on them.** Mezzanine
+columns are **TUBE (a circle)**, not I-sections, and their SIZE is not shown. Member "material"
+on the mezzanine plan is **LINE THICKNESS**, not a steel section: COMP-MEZZ-BEAM blue(5) 0.50 ·
+COMP-MEZZ-JOIST grey(8) 0.25 · COMP-MEZZ-JOIST-SEC grey(8) 0.13, drawn as top flange to scale
+(beam 200 / joist 150 / secondary 100), named on the plan with a legend bottom-left.
+Floor system: deck → beams + joists @1.50 m; hollow-core/precast → beams only; grating/chequered
+→ + SECONDARY joists shown in ONE representative bay as "TYP.". → **4B.32**
+
+**S36 — A mezzanine is read on TWO clear heights** — under it and over it — and inside a
+mezzanine, interior bracing is FULL-HEIGHT PORTAL. A mezzanine stub column is **NOT** braced,
+and that is a decision, not an omission. An encircled column is a MEZZANINE-ONLY column.
+→ **4B.38, 4B.40, 4B.41, 4B.48**
+
+**S37 — STAIRCASE: the riser is 150 mm and every riser is equal.** Going 300 mm. Max 15 steps
+per flight, tolerance 3 spent **on the cap** to buy fewer landings, never on making flights
+unequal. Max rise between landings 3658 mm (IBC 1011.8).
+`flights = max( ceil(steps / 18), ceil(height / 3658) )`, then steps divided **equally**.
+The first landing is a **FULL** landing spanning the whole stairwell; there is **no top
+platform** (flight 2 lands on the mezzanine); **4 columns** at the tower corners, each trimmed at
+the landing it carries — none floats in the air. The switchback STACKS, it does not walk
+sideways. A floor's TOP FACE is its F.F.L., so the last tread is one riser below it.
+**The rule is printed on the sheet** with this stair's own numbers, taken from the same flight
+list the views are drawn from. → **§ STAIRCASE**, **4B.69, 4B.72**
+
+**S38 — A U-type has TWO flights per storey and the PLAN must draw EVERY one of them.** Reading
+the same rule is not the same as drawing the same stair: `peb-stair-plan-u` took `(nth 0)` and
+`(nth 1)` whatever the list length, and the plan said 2 flights while the elevation said 3.
+ONE PLAN PER STOREY. Reference = 055-MSPL Style Textile.
+
+**S39 — A stair drawn INSIDE another drawing drops its own annotation** (`*PEB-STAIR-PLAIN*`).
+Its dimensions are sized for a 1200 mm stair; inside a 55 m building on A4 they are a smudge.
+The numbers belong on the staircase sheet.
+
+**S40 — Fascia (Standard Vertical, in SECTION): 600 projection / 200 cage, outside the eave
+gutter.** Our eave gutter occupies x = 200…390 outboard of the steel line, so the manual's 200
+cage lands in the clear zone at 400…600 and the gutter ends up concealed behind the fascia —
+which IS the manual's arrangement. **Height must HIDE THE PEAK**: `FA_<W>_HT` wins if typed,
+else auto = **rise + 235** (purlin 200 + cladding 35), NOT rise. All OPEN LINEWORK, no
+SOLID/HATCH. **Annotate ONE eave only** — the left/NSW when it carries a fascia, else the right.
+Use `peb-label-pline-leader`, not the native MLEADER (it re-anchors its text at the arrow).
+
+**S41 — The gutter is 0.50 mm.** A traced sheet gives you the SHAPE, not the house spec.
+→ **4B.51**
+
+**S42 — NEVER mix sandwich panels with insulation.** A sandwich panel is a factory-built
+composite BODY and **its core IS the insulation** — no separate insulation line, in the drawing
+or in the price. Standalone insulation is single-skin only.
+
+**S43 — The proposal sheet shows the COVER WIDTH; the folds belong to the approval drawing.**
+→ **4B.50**
+
+**S44 — Do not publish a number DESIGN will set** — and LOAD the file to prove it parses.
+→ **4B.49**
+
+**S45 — Endwall column spacing is driven by the FOUR Frame Types** via the shared
+`endwallColumnSpacing` rule: Bearing = full width · Main = module lines + posts · MF 1/2 ·
+False Rafter = none. A main frame line takes a LETTER; an infill post takes a PRIME.
+→ **4B.61**
+
+**S46 — Roof extensions (Ref Manual §10.2):** sidewall = cantilever rafters (wide is OK);
+endwall = Z-purlins extended, **≤1500 mm**, false rafter beyond.
+
+**S47 — A canopy is a BOX with its name in it on the plan, appears on the WALL ELEVATION too,
+and may end mid-bay — carried on a beam between the two columns.**
+→ **4B.33, 4B.44, 4B.46**
+
+**S48 — Doors are DRAWN, not only quoted** — one shutter per bay. → **4B.47**
+The sliding door has **NO diagonal brace** (the D12 round bar is the FLOOR GUIDE RAIL), stiles
+sit BEHIND the panel, and the plan symbol is the **BOW-TIE** off MSPL-030.
+
+**S49 — Louver size is a real VARIABLE.** The catalogue standard is 1000×1000 fixed /
+900×1000 adjustable, but a live BSF carried 3048×914. Everything derives:
+framed opening = louver + 2×22 · openings N = ⌊span/100⌋ · **AEFF = N × C × L, C = 0.035 m** ·
+an insect screen HALVES AEFF · girt span = framed opening + 2×48. The standard is Technical
+Manual §13.8 because **no Maimaar louver detail exists** in the archive (1,873 DWG + 24,526 PDF
+scanned end to end) — do not go looking again.
+
+**S50 — Light panel: width is never a variable** (it is the sheet's own cover); **length varies
+and the head always lands on the clear-height line**, so `sill = clear − length`. Wall light is
+ALWAYS Standard S Profile 35-250, 1000 net cover, 1.5 mm fibreglass — lock seam is roof-only.
+ONE L-leader per group: `NN No. WALL LIGHT - TYPE`; no per-panel labels.
+
+**S51 — A crane footprint IS drawn on the CLP**, dashed (HIDDEN) — runway beams, bridge girder,
+hook — driven by the BSF grid lines. (Supersedes the 12-Jul "no footprint" ruling.)
+
+---
+
+### 0.6 PRESENTATION — how a sheet must LOOK
+
+**S52 — THE GOLDEN RULES FOR PLACING A DRAWING ON A LAYOUT** (owner, 30-Aug-2026 — primary,
+they outrank every drafting rule): **one relevant drawing per layout · centred in the box · the
+right-hand title block describes THAT sheet.** They are the acceptance test, and they are
+MEASURED, not asserted: the render records what each sheet DREW (`_bbox.txt`) and what each tab
+SHOWS (`_vpview.txt`, DXF groups 12/45 read off the finished viewport), `checkGoldenRule`
+compares them, and a DWG that breaks either is left on disk but **NOT filed** into the proposal
+folder. → **1.6, 4B.28, 4B.29**
+
+**S53 — MEASURE AT THE END.** Sheets are drawn at the origin and MOVED by `peb-tile-place`, so a
+bbox taken next to the draw call can be wrong by the whole tiling shift (60,480 mm on 278 — the
+cover ended up inside PRO-01 and PRO-00 plotted blank). Markers are recorded while drawing; the
+boxes are computed in **Phase 1½**, once every sheet is drawn and nothing can move again, from
+the entity RANGES those markers delimit. **A measurement that two functions disagree about is a
+fact, not a curiosity.**
+
+**S54 — ALL text is ROMAND** (`romand.shx`) — dimensions, labels, callouts, notes, titles, on
+every sheet. The only exception is the title-block **company name**, which stays bold Arial.
+The Arial/`romans.shx` literals in Standard.lsp are overridden at runtime. → **3.7**
+
+**S55 — Dimension arrowheads are the OPEN V. Leader and callout heads stay FILLED.** That is
+both halves of the rule. Ticks are retired. → **3.7, 4B.62**
+
+**S56 — EVERY dimension is in MILLIMETRES.** General Note 1 says so, so a bare number needs no
+unit. **Feet belong on the OVERALL extent — length, width, height — and nothing else.**
+Putting `[ft'-in"]` on every dimension of a 6 m view ran the labels into each other.
+→ **4B.11, 4B.14, 4B.62** (this SUPERSEDES the "universal dual display" reading of 3.8b)
+
+**S57 — One text height per sheet, from the ladder, sized for PAPER.** `*PEB-TEXT-SCALE*` is
+computed from the SHEET, never from the building; never pre-multiply a text height by the text
+scale. Blocks are placed by MEASUREMENT, not by constants — **a gap that exists to clear TEXT is
+computed from that text's height**. Raising a text size is never a one-number change unless the
+gaps are already expressed in it. → **4B.1, 4B.2, 4B.9, 4B.10, 4B.27, 4B.68, 4B.71**
+
+**S58 — A dimension is not a heading.** Dimensions go in the `PEB-DIM` style at normal weight on
+the `DIMENSIONS` layer — not `txt-bold`, not an ad-hoc layer that is in neither `*PEB-LAYERS*`
+nor `PEB_LAYERS.csv`. → **4B.62**
+
+**S59 — ONE bubble size on every sheet:** `peb-bub-r` (Standard.lsp), `720 × TEXT-SCALE`. No
+sheet keeps its own radius and none inherits one from whatever rendered before it. **Crowding is
+answered by the STAGGER, never by shrinking** — the bubble and the gap shrink together. Size
+them to READ, then stagger. A column symbol and its bubble must BOTH read.
+→ **4B.31, 4B.45, 4B.65**
+
+**S60 — Placement order is drawing → chains → bubbles, outward, on every sheet.** Width chains
+are written from grid A DOWNWARD. Every sheet names a grid line the same way
+(`peb-width-letter` is the ONE answer). → **4B.8, 4B.15, 4B.34, 4B.64**
+
+**S61 — ONE fall glyph on every plan-type sheet**, drawn by one shared routine, carrying the
+slope ratio with it. The glyph is the traced house/arrow OUTLINE with the disc on the shoulder
+line; `FALL` text is **colour 7 (white → plots black)**, not red. → **4B.13**
+
+**S62 — The title-block band is about the sheet it is on, or it is the wrong band.** Every field
+is either **true of this sheet** or **not printed**; the title, PRO number and scale come from
+the same three values the layout was built from. `peb-titleblock-mammut` infers the kind from
+the drawing title and swaps the middle band — PLAN/default → DESIGN LOADS · CROSS SECTION →
+KEY BUILDING DATA (width/length/eave height in MM, slope, bays — **building data only, NEVER
+member sections**) · FRAMING → FRAMING NOTES · SHEETING → CLADDING NOTES · STAIRCASE → the
+staircase load band. General notes, disclaimer, project/customer/logo/scale/sheet-no are
+identical on every sheet. **The table must not contradict the drawing.**
+→ **1.6.3, 4B.7, 4B.54**
+
+**S63 — The COVER has NO side title strip.** It is triple border · logo + company + contact ·
+boxed PROPOSAL DRAWING banner · quote-no box · bottom title block · LIST OF DRAWINGS. The strip
+belongs to the technical sheets only.
+
+**S64 — A heading is capped by the drawing it titles**, and a label must not land on geometry.
+A masked label is an opaque **WIPEOUT** (WIPEOUTFRAME 0), never plain text on a hatch.
+→ **4B.6, 4B.17**
+
+**S65 — One box per sheet.** → **4B.4**
+
+**S66 — A long sheet is cut on a MATCH LINE** — roof plans AND side walls; the COLUMN LAYOUT
+PLAN splits too, and the WIDTH grid never does. → **4B.18, 4B.19**
+
+**S67 — The CROSS SECTION is viewed from the other side — grid A on the LEFT.** → **4B.37**
+
+**S68 — Two sheeted surfaces: the sheet's job is to say WHICH is which**, and the elevations say
+what they are showing. If it is not in the price, the drawing has to say so.
+→ **4B.56, 4B.57, 4B.59**
+
+**S69 — A roof monitor exists on every sheet that can see it.** Geometry: height = throat/2,
+slope tag on BOTH rafters, CP plates centred on the legs and following the rafter flange slope,
+GP gusset on the rafter slope, purlins edge-to-edge inclusive with equal ~600 mm interior
+spacing and the normal forced UP on both sides, no ridge cap on the apex, dims the SAME size as
+the main-frame dims, open-V arrowheads, M-ladder callouts staggered with the INNER member on the
+HIGHER level. → **4B.58**
+
+**S70 — A skylight has a PLACE, and its count comes from where the PRICE comes from.**
+→ **4B.55**
+
+**S71 — The slope callout keeps clear of the PEAK LINE.** → **4B.53**
+
+**S72 — A dimension too small for its text puts the TEXT outside — or drops the words.**
+A named floor is named where it is MEASURED. → **4B.67, 4B.70**
+
+**S73 — A detail too small to read at building scale belongs on the DETAILS sheet**, and the
+DETAILS sheet shows ONLY what this project actually buys. Its sections are TRACED, not invented.
+→ **4B.24, 4B.25, 4B.43**
+
+**S74 — SHEETING PROFILE DETAILS: one page, both panels, sourced numbers.** → **4B.16**
+
+**S75 — A dotted linetype must be drawn at TRUE size**, and a flange is a flange.
+→ **4B.3, 4B.5**
+
+**S76 — The PDF is MONOCHROME** (`monochrome.ctb`, all four plot paths). **Colour carries
+NOTHING on the deliverable — only lineweight does.** Set an explicit `(cons 370 N)` pen. This is
+why a light panel reads different from the sheet at 0.50 against the sheet's 0.09, and why
+`peb-comp-layer` sets colour but never lineweight.
+
+**S77 — Line fills, not filled regions, for large areas** — a SOLID/HATCH plots BLACK. Genuine
+HATCH is still right for small section poche (AR-CONC, BRICK, ANSI31).
+
+---
+
+### 0.7 ENGINE — the code standing rules
+
+**S78 — There are THREE script builders, and a fourth test path.** A new sheet, or any change to
+which sheets are emitted, must reach ALL of them or it works in one output and is missing in
+another:
+
+| builder | file | produces |
+|---|---|---|
+| `buildPdfScr` | `services/drawingRender.ts` | the customer PDF |
+| `buildDwgScr` | `services/drawingRender.ts` | the combined DWG (layout tabs) |
+| `drawingData.generate` | `services/drawingData.ts` | the DXF download / zip |
+| `mksheet.py` | `_review/.../scripts/` | the single-sheet test harness — **different load list** |
+
+`buildReuseScr` (the `PEB_REUSE_OPEN_ACAD` fast path) is a FIFTH and carries its own load list
+too. **Verify in the REAL pipeline output, not only via `mksheet.py`.**
+
+**S79 — `_PEB_LAYERS_generated.lsp` overrides `MAIMAAR_PEB_Standard.lsp`** — it replaces
+`*PEB-LAYERS*` wholesale and loads after it. **Layer changes go in
+`3_Draftsman/AutoCAD_Drawings/Multi_Area_Development/Rule_Book/PEB_LAYERS.csv`**, then the
+generated `.lsp`, then Standard.lsp's fallback to match — **all three**, because the generated
+file is loaded through `findfile` and that can fail under `acad /b` (wrong cwd), in which case
+the FALLBACK is what draws. `mksheet.py` does not load the generated file at all, so a layer bug
+can look fine in a test render and be broken in the shipped PDF. Never regenerate the CSV
+blindly — it has drifted from the generated file before (FRAME/FALL/GRID); hand-add and flag.
+
+**S80 — Load order: Standard → Section → Plan → (Elevation/Framing/Roof/Stair/MezzDetail) →
+Cover → Library.** Standard draws nothing itself. **Plan.lsp loads AFTER Section.lsp, so where
+both define a function, PLAN'S COPY WINS — edit Plan.lsp for runtime effect.** A component
+drawer only calls into the sheet files, never the other way round. → **3.2**
+
+**S81 — The page filter must err towards LOADING.** A missing helper does not raise — the drawer
+just stops and the sheet plots as a perfect empty A4 with a title block. This class has cost a
+sheet three times (PRO-09's missing Plan.lsp, PRO-07's missing Framing.lsp, the six sub-lettered
+sheets whose family key never matched). `needsModule` therefore does a **PREFIX** match, and
+Plan.lsp is loaded for every sheet that draws a grid.
+
+**S82 — Plan and Section share ONE canonical body for the three interpretation functions**
+(`peb-frame-display-to-code`, `peb-v3-to-legacy`, `peb-build-sheeting-string`), byte-identical,
+enforced by the drift guard. Run `npm run check:pd-sync` from `2_Sales CRM` after any BSF-key or
+engine-reader change: it hard-fails on C3 (engine reads a key the bridge never emits) and C5
+(Plan ≠ Section core drift). Extraction to a physical `_peb_core.lsp` was deliberately NOT done —
+decentralised load paths make it crash-prone; the CI guard is the single-source guarantee.
+→ **4.4(a)**
+
+**S83 — "100 % match" means ONE SOURCE, not two equal literals.**
+
+**S84 — AN OPEN AutoCAD PROMPT IS NOT A LISP ERROR.** A `command` that misses a prompt STAYS
+OPEN; every following line of the render script is typed into it, and `vl-catch-all-apply`
+catches nothing because nothing was thrown. It eats the whole page set, not just that sheet.
+- `(command "_.TEXT" … str)` with **no trailing `""`** keeps asking for the next line.
+- `-LINETYPE _Load` on an already-loaded linetype asks "Reload it?".
+- `-LAYER` / `-STYLE` hand-driven: an `.shx` style hangs at the "Vertical?" prompt under `/b`.
+- `SAVEAS` onto an existing file asks "replace?" — **DELETE BEFORE WRITING**.
+**So: never hand-drive LAYER / STYLE / TEXT / LINETYPE.** Go through the proven helpers —
+`peb-ensure-layer`, `peb-std-ltype`, `peb-std-textstyle`, `txt` / `txt-bold` / `txt-dim`.
+After a failure, a bare `(command)` cancels whatever is open so the sheet still plots.
+
+**S85 — AutoLISP has no `catch`, no `throw`, no `let`** — and it is **dynamically scoped**, so a
+shared helper must not call a built-in whose name is used as a LOCAL variable anywhere up the
+call chain (`rem`, `list`, `set`, `str`, `type`…). It reproduces only in context, never in an
+isolated test. `fboundp` does not exist either — use `boundp`.
+
+**S86 — Draw only through `peb-*` primitives, BYLAYER.** No sheet engine draws raw. `entmake`
+takes group codes 50/51 in **RADIANS**; entity props (8, 62) go AFTER `(cons 100 "AcDbEntity")`
+and BEFORE the second subclass marker, and a `nil` colour throws "bad DXF group (62)" which
+aborts the whole draw. `wcmatch` treats `@` as a wildcard — test for a literal `@` with
+`vl-string-search`. Never `(command "_.DONUT")` (needs `_ClosedFilled`, which fails under `/b`);
+use `peb-disc`.
+
+**S87 — A NEW standalone sheet command must call `(peb-std-setup)` first**, or a bare
+`(setvar "CLAYER" "COLUMNS")` errors under `acad /b` and silently aborts the sheet after the
+first few entities.
+
+**S88 — A balanced file is not a working one — check DEFINED vs CALLED.** Paren balance passes
+while three deleted helpers are still called and the sheet plots empty. `lispcheck.js`.
+→ **4B.26**
+
+**S89 — A component drawer takes everything as ARGUMENTS and draws only geometry.** It must NOT
+read the BSF, draw a sheet or title block, hard-code a surface-dependent name, or hand-drive
+LAYER/STYLE/TEXT. One folder per component under `engine/components/<name>/`; sync is exactly
+three edits — the `loadLines` list, the `PL*_TYPE` dispatch, and the placement RULE, which lives
+on the BSF side (`geometryRules.js` computes, BSF stores, drawing reads) and **never in the
+LISP**. Read `engine/Library/GOLDEN_RULES.md` before writing one.
+
+**S90 — Components are STYPE-independent overlays in a FIXED order:** canopy → **mezzanine →
+stairs** (load-bearing: stairs read `*PEB-MEZZ-FOOTS*`, which the mezzanine drawer publishes) →
+roof-ext → fascia → monitor → partition → crane. → **3.6**
+
+**S91 — ONE acad session cannot draw TWO Column Layout Plans**, and tile only against a model
+space that actually holds something. → **4B.22, 4B.23**
+
+**S92 — Steel member sizes come from the compiled Rule Book, not magic numbers.** The Rule Book
+is the SPEC; the engine is a PROCEDURAL implementation that must MATCH it — the engine does not
+insert Rule-Book blocks. The compiler feeds NUMBERS (`_peb_rules.lsp`) only. Keep exactly ONE
+`MAIMAAR_RULE_BOOK.dxf`, regenerated in place; Nasir hand-maintains it now, so do not overwrite
+it blind. → **3.12**
+
+---
+
+### 0.8 RENDER & PIPELINE
+
+**S93 — Render to a SPACE-FREE path, in a FRESH work dir.**
+- The `.scr` path passed to `acad /b` **must be space-free** — with a space acad opens, sits
+  idle at the prompt and never runs the script. Paths INSIDE the scr (quoted LISP strings) may
+  contain spaces. The `_DXFOUT` / SAVEAS target must be space-free too.
+- Use literal Windows `D:/…` paths, never MSYS `/d/…` — `(load "/d/…")` fails SILENTLY.
+- Script lines take RAW backslashes; LISP strings take DOUBLED ones; a path with a space must be
+  quoted.
+- **Never `rmSync` a fixed work dir.** `freshWorkDir()` rmSyncs each candidate and falls through
+  to a sibling it can clear. A locked dir that fails silently is what made `renderPdf` re-merge
+  the OLD per-sheet PDFs for days — byte-identical output no matter what the engine changed.
+  **When a render seems to ignore an engine edit, suspect a locked/stale work dir, not the
+  engine.**
+- `PEB_OUTPUT_DIR` must not contain spaces, and pointing it into a cloud-synced tree is what
+  creates the locks in the first place.
+- Launch acad from PowerShell, not the Bash tool — MSYS mangles `/nologo` into a path.
+
+**S93b — Headless save is a COMMAND, not COM.** `vla-SaveAs` under `/b` prints no error and
+SILENTLY does not persist. Use `(command "_.SAVEAS" "2018" path)`. Verify a saved DWG through
+ObjectDBX under a Node harness with a timeout — in-session COM enumeration hangs.
+
+**S94 — Re-printing must never modify the drawing.** `reprintPdf` regenerates **nothing**: it
+opens the DWG as it stands, plots its layout tabs **in TabOrder (not name order)**, skips MODEL,
+skips one bad layout and still merges the rest, ends `_.QUIT` / `N`, and files under **the same
+name `renderPdf` uses** so a re-print REPLACES the stale PDF instead of leaving two documents
+that disagree. `editedDwgs(id)` picks the file by **newest mtime** across the proposal folder and
+every work dir (including legacy `inq-<id>`, the `-dwg` combined drawing and the `-2/-3` lock
+siblings); `-pdf` / `-reprint` are excluded. `?file=` is matched against the discovered list,
+never joined onto a path.
+
+**S95 — LOOK at the PNG.** A blank sheet, a 3-scale overlap and text across the panel all
+rendered "successfully". AutoCAD plots vectors, so text extraction returns nothing — the image
+is the only way to read a sheet (PyMuPDF/`fitz` is installed). And **read the drawing, not
+`pdftotext`** — that is how 637 was taken for 484.
+
+**S96 — The ezdxf/matplotlib preview LIES.** Dotted linetypes render sub-pixel and look missing;
+ACI-7 text is invisible on white (`facecolor="black"`); tall windows letterbox. Force
+`LinePolicy.SOLID` in the PREVIEW only — never change the deliverable's linetypes — and verify by
+counting entities per layer, or by measuring the DXF. **Don't trust the eye at zoom**: dump
+entity positions and rotations before changing anything.
+
+**S97 — Keep the render pipeline and its outputs inside the Drawings dev folder**
+(`3_Draftsman\AutoCAD_Drawings\Multi_Area_Development\Renders\`, space-free), not a scratch dir.
+
+**S98 — Read the acad run log.** `PEB_KEEP_WORKDIR=1` keeps the work dir and its
+`Drawing1_*.log` — but `C:PEB-*` sets `CMDECHO 0`, so the log goes quiet exactly where you need
+it. Trace markers written to a file per step, then bisect, is the method that actually works.
+`_bbox.txt` and `_vpview.txt` are written on every render.
+
+**S99 — Clear `.dwl`/`.dwl2` locks and the Drawing Recovery folder before a `/b` run** — a
+force-killed acad leaves a recovery dialog that blocks the next script. Narrow a lock sweep in
+`OUTPUT_BASE` to ONE drawing's locks; the work dir may be cleared wholesale.
+
+**S100 — Do not render while an engine file is being edited.** The `.scr` loads
+Standard+Section+Plan+target; loading a half-written file hangs acad and looks like a flaky
+timeout.
+
+---
+
+### 0.9 THE A4 LAYOUT SYSTEM
+
+**S101 — Draw in the MODEL, frame each drawing in an A4 paperspace LAYOUT.** `peb-add-layout`
+computes a real standard scale 1:S (`peb-std-scale`, rounded up through 20…5000), patches the
+title-block data (SCALE / SHEETSIZE / SHEETNO), draws the title block at FIXED A4 paper coords,
+a plain paperspace border, then ONE viewport — `MVIEW`, **not** `-MVIEW` (unknown headless) —
+MSPACE'd, `ZOOM W bmin bmax`, `ZOOM (1/S)xp`, PSPACE.
+- **Do NOT call the engine `draw-border` in paperspace** — it insets by `800 × *PEB-TEXT-SCALE*`
+  (~15,000 mm of MODEL scale) and shrinks the whole sheet to a dot.
+- **Plot: PlotType 1 (acExtents) + StandardScale 0 (scaleToFit) + media
+  `ISO_full_bleed_A4_(297.00_x_210.00_MM)` + `monochrome.ctb`.** PlotType 5 (acLayout) comes out
+  EMPTY headless. `vla-PlotToFile` is the reliable plot call; `-PLOT` and `EXPORTPDF` hang.
+- The **cover** stays a DIRECT model plot — it draws its own full-sheet frame, no viewport.
+- The built-in title block is SUPPRESSED in the model (`*PEB-SUPPRESS-TB*`, re-asserted each
+  sheet). Any sheet that draws its own title block must gate it on `(not *PEB-SUPPRESS-TB*)` —
+  ungated, it stacks a blank-valued block over the layout's real one.
+
+**S102 — One frame is the goal, and splitting into one frame cannot beat it.** Placement is
+decided by the frame's ASPECT. → **4B.29, 4B.30**
+
+---
+
+### 0.10 CONFLICT REGISTER — what this audit found and how it was settled
+
+Every conflict below existed in the corpus on 4-Sep-2026. **Resolved** = the losing statement is
+now marked superseded at its source.
+
+| # | The conflict | Ruling |
+|---|---|---|
+| C1 | **The shipped sheet set.** 3.1 / 4.4(c) / `strict-drawing-set` / `pd-build-order` / `pd-master-reference` all say "EXACTLY three sheets — Cover · CLP · Section". `availablePages()` ships **thirteen**. | **Code wins.** §0.3/S13 is the set. 3.1 and 4.4(c) rewritten. `peb-all-sheets` (Standard.lsp:605) still draws only three, and is reached **only** by the opt-in `PEB_REUSE_OPEN_ACAD` fast path — see C11. |
+| C2 | **Roof sheet numbers.** `pd-roof-sheets-shipped` (31-Aug) says PRO-07 ROOF FRAMING / PRO-08 ROOF SHEETING. | **Stale.** They are **PRO-05a / PRO-05b**; PRO-07/08 are the mezzanine sheets. The *mechanism* in that memory is still right: accessories and monitor are drawn from `peb-draw-roof-sheeting` in Framing.lsp, and `C:PEB-ROOF` is dead. |
+| C3 | **Staircase sheet number.** `staircase-279-26-complete-sep2` says PRO-10 staircase / PRO-11 mezzanine floor plan. | **Stale.** PRO-09 staircase, PRO-07 mezzanine floor plan, PRO-08 mezzanine section details (3-Sep). The `moduleMap` still lists PRO-10/PRO-11 for Stair.lsp — harmless, no such pages exist. |
+| C4 | **Dimension arrowheads.** `pd-presentation-standard` (27-Jun) locks "architectural TICK arrows, DIMTSZ 170". The 19-Jul standing rule and 4B.62 say **OPEN**. | **OPEN wins**; ticks retired (DIMTSZ 0). `setup-maimaar-dim` still set `DIMBLK "_CLOSEDFILLED"` — corrected to `_OPEN` in this pass. Leader/callout heads stay filled. |
+| C5 | **Dual display.** 3.8b: "every dimension shows BOTH mm & ft-inches, universal". 4B.62: "**feet belong on the OVERALL extent, not on every dimension**". | **4B.62 wins** (3-Sep, and it is the narrower, later, owner-driven rule). 3.8b annotated. |
+| C6 | **DIMTXT / DIMASZ.** "DIMTXT 500" (27-Jun) · "DIMTXT/DIMASZ 600" (3.8) · code: `DIMTXT = (peb-th 'DIM)`, `DIMASZ 320`. | **The ladder wins** — `peb-th` is the one source; the literal 500/600 are historical. 3.8 corrected. |
+| C7 | **Grid bubble shape.** circle (live engine) vs "GREEN PENTAGON + RED number, measured, adopt this" (28-Jun) vs teardrop arc + pointer (10-Jul). | **Circle**, deliberately kept (28-Jun sign-off on the Zealcon match: "left as circle deliberately, NOT changed"), drawn as the trimmed ARC + tangent pointer of 10-Jul. The pentagon note is a measurement of the reference, **not** an instruction. |
+| C8 | **Cross bracing.** full corner-to-corner X (28-Jun "must revert the bowtie") vs BOWTIE, one X per roof slope pinching at the ridge (28-Jun commit) vs sidewall-pair X, dotted (30-Jun). | **Two different braces, not one.** ROOF bracing = the bowtie per braced bay. SIDEWALL bracing = the X between adjacent columns inside the column-depth band. Linetype DOT (`CROSS`), Zealcon style. The "must revert" line refers to the roof bay and is superseded by the 30-Jun geometry. |
+| C9 | **The FALL glyph.** filled arrowhead + shaft + ratio ring (10-Jul) vs the traced Roshan house/arrow outline + disc (10-Jul, later). | **The traced one.** The redesign was a departure, not a match — S11. `FALL` text is **white (7)**; the "FALL is red" note (7-Jul) was wrong. `peb-comp-fall` (~Plan.lsp:1850) still draws the OLD glyph on canopy strips — **open**. |
+| C10 | **Blind default.** `pd-blind-version` (23-Jul): "Default (nil) = the FULL customer version". `pd-blind-default-wiring` (25-Jul) + code: **blind by default**. | **Blind.** `generate()` defaults `blind = !(opts.blind === false)`. |
+| C11 | **`peb-all-sheets` vs the real set.** Its own comment claims "Cover\|Plan\|Section\|Roof Framing\|Wall Framing"; it draws Cover+Plan+Section. It is the whole content of the `PEB_REUSE_OPEN_ACAD` fast path. | **Latent, flagged.** The fast path is OFF by default. If it is ever switched on it silently yields a 3-sheet drawing where every other path yields 13 — and a re-print from THAT DWG would hand the customer a 3-page PDF. Fix `peb-all-sheets` before enabling it. |
+| C12 | **Killing AutoCAD.** `pd-lisp-engine` (25-Jun) and the 30-Jun render note say "kill stray acad first / `killStrayAcad` closes ANY open AutoCAD". `keep-acad-open` (STRICT) forbids it. | **Resolved in code.** `killStrayAcad` no longer exists: `acadPids()` snapshots before the run and `killPids()` kills only PIDs not in that snapshot. The old caveat is stale. |
+| C13 | **Which layer table is live.** Standard.lsp's `*PEB-LAYERS*` (27-Jun) vs `_PEB_LAYERS_generated.lsp` overrides it (27-Aug) vs the generated file's `findfile` fails under `/b` so the FALLBACK draws (12-Jul). | **All three are true at different times.** Therefore S79: change the CSV **and** the generated `.lsp` **and** Standard.lsp's fallback, every time. |
+| C14 | **Roof accessories ownership.** 3.4/3.6: "roof accessories go on the Roof Plan, dispatched by the Roof engine, never the Plan". | **The Roof engine is dead.** They are dispatched from `peb-draw-roof-sheeting` (Framing.lsp) onto **PRO-05b**. 3.4 and 3.6 corrected. |
+| C15 | **Eave height.** `section-height-basis` (25-Jul): "Eave → use as-is, no ht", dim `0 → H`. `eave-height-definition` (3-Sep): eave includes haunch AND purlin, dim `0 → H + purlinD`. | **3-Sep wins** — S30. |
+| C16 | **Fascia height.** `fascia-standards`: "auto-derives peak − eave". `fascia-vertical-section`: "auto = **rise + 235**, not rise". | **rise + 235** — the visible peak is the ridge SHEETING top, purlin 200 + cladding 35 above the rafter rise. |
+| C17 | **Mezzanine floors.** "keep provision for UNLIMITED mezzanine floors" vs a hard cap of 3 in all three places (bridge MZ1-3 loop, engine MZ`<n>` drawers, contract `indexed.MZ = 3`). | **Cap stands until lifted deliberately**, and all three lift together. Default is 1. Render-gated. |
+| C18 | **The multi-call hang.** "4+ `*-from-file` calls in one drawing desync; do not tile" (25-Jun). | **Obsolete.** Thirteen sheets are drawn into one model space every run. The tiling was rebuilt (`peb-tile-place` + Phase 1½). |
+| C19 | **`peb-titleblock-mammut` is defined twice** (Plan.lsp and Section.lsp ~6546), as are the three interpretation functions. | **Plan.lsp wins** (loaded last). Edit Plan.lsp for runtime effect; the drift guard keeps the interpretation core byte-identical. → S80, S82 |
+| C20 | **Doc structure.** `## 5. THE DOC SET` sat at line 1607, in the middle of section 4B, between 4B.50 and 4B.51. | **Moved to the end**, where it belongs. |
+| C21 | **Stale code references.** 3.1 cited `Standard.lsp:415` for `peb-all-sheets`; it is at **605**. | Corrected. Treat every `file:line` in this book as a hint, not a promise. |
+
+**Still open, deliberately.**
+- `peb-comp-fall` draws the old FALL glyph on canopy strips (C9).
+- `Section.lsp` ~1503 gates on `(= stype "MS")`, so the CROSS SECTION of a multi-span single
+  slope still draws as a clear span. Do **not** copy the Plan fix: the MS branch assumes a gable
+  and the interior columns must land under a **sloping** rafter.
+- Side-by-side areas of UNEQUAL width leave the attached area's stations unlettered — needs an
+  owner call.
+- Bottom / Top&Bottom / Centre-Curved / Parapet fascias draw the plan band only, no section.
+- A `FA_<W>_GUTTER = Valley` request still renders the standard eave gutter.
+- `moduleMap` lists PRO-10 / PRO-11 for Stair.lsp; no such pages exist (C3).
 
 ---
 
@@ -119,9 +792,14 @@ pull the raw `.txt` bundle for debugging. *(sales.ts:514/536/557/581)*
 
 ## 3. WITHIN-PD DRAWING-GENERATION RULES
 
-**3.1 — The shipped proposal set is EXACTLY three sheets: Cover · Column Layout Plan ·
-Cross-Section.** Framing and elevations are removed from the shipped set; their engines are
-complete and runnable on demand but excluded from `peb-all-sheets`. *(Standard.lsp:415)*
+**3.1 — The shipped proposal set is the PRO-00…PRO-09 set — see §0.3/S13 for the table.**
+PRO-00…PRO-06 on every job, PRO-07/08 when the building has a mezzanine, PRO-09 when it has
+stairs. *(availablePages, drawingData.ts:1670-1729; buildPdfScr/buildDwgScr, drawingRender.ts)*
+⚠ **The old "EXACTLY three sheets" rule (3-Jul-2026) is history** — it described the set as it
+stood before the framing, sheeting, roof, mezzanine and staircase sheets were wired in.
+`peb-all-sheets` (*Standard.lsp:605*, not 415) still draws only Cover + Plan + Section: it is the
+LEGACY dispatcher, and the only path that reaches it is the opt-in `PEB_REUSE_OPEN_ACAD` fast
+path, which is off by default. Fix it before enabling that path — see §0.10/C1 and C11.
 
 **3.2 — Load order: Standard → Section → Plan → Cover.** Standard loads first (primitive
 library + standards + orchestrator) and draws nothing itself. *(Cover.lsp:11-15)*
@@ -133,15 +811,18 @@ algorithms so grids register. Move a bubble on the CLP and it moves everywhere.
 **3.4 — Every element belongs to exactly one sheet** (no element on two sheets). Summary:
 - **Column Layout Plan** — grid, columns, bracing, all structural footprints (mezz/crane/
   partition/stairs/canopy/roof-ext/fascia/monitor), wall-opening footprints, dimensions.
-- **Roof Plan** — ridge/valley, gutters/downspouts, purlins, **and all roof accessories**
-  (skylights/vents — moved off the CLP, enforced Plan.lsp:1561).
+- **PRO-05a ROOF FRAMING PLAN / PRO-05b ROOF SHEETING PLAN** — ridge/valley,
+  gutters/downspouts, purlins, **and all roof accessories** (skylights/vents/monitor — moved off
+  the CLP, enforced Plan.lsp:1561). ⚠ They are dispatched by `peb-draw-roof-sheeting`
+  (*MAIMAAR_PEB_Framing.lsp:2934/2943*) onto **PRO-05b** — NOT by `C:PEB-ROOF`
+  (`MAIMAAR_PEB_Roof.lsp`), which is behind `PEB_DRAFT_SHEETS` and effectively dead. §0.10/C14.
 - **Wall Elevations** — wall cladding, clad openings, girts, wall condition, wall bracing.
 - **Framing Elevations** — bare steel + base plates (NO cladding — the discriminator).
 - **Cross-Section** — frame profile, connection plates, the **full sheeting/insulation spec**,
   heights, mezz/crane-in-section.
 - **Cover** — title/index + LIST OF DRAWINGS.
-- **Deliberate shared exception:** the FALL/slope glyph is drawn identically on both the CLP
-  and Roof Plan by one shared routine (owner 7-Jul) — intentional, not duplication.
+- **Deliberate shared exception:** the FALL/slope glyph is drawn identically on every plan-type
+  sheet by one shared routine (owner 7-Jul) — intentional, not duplication. → 4B.13
 - Full ownership matrix → `DRAWING_CONTENT_RULES.md §7`.
 
 **3.5 — Structure type is a short STYPE code** (from the frame-code map): CS clear-span ·
@@ -152,18 +833,30 @@ STYPE.** *(Section.lsp:117-147, 7324)*
 
 **3.6 — Components are STYPE-independent overlays, dispatched by toggle**, in a fixed order
 (mezzanine before stairs so `ST_IN_MEZZ` can anchor): **canopy → mezzanine → stairs →
-roof-ext → fascia → monitor → partition → crane**; roof accessories are dispatched by the
-Roof engine, never the Plan. *(peb-draw-components, Plan.lsp:2079)*
+roof-ext → fascia → monitor → partition → crane**; roof accessories are NOT dispatched here —
+they belong to `peb-draw-roof-sheeting` (Framing.lsp) on **PRO-05b**, never to the Plan.
+*(peb-draw-components, Plan.lsp:2079)*
 
-**3.7 — ALL text is `romand.shx`; dimension arrowheads are OPEN** (owner 19-Jul). The
-Arial/`romans.shx` literals in Standard.lsp are overridden at runtime — ignore them; only
-the bold company name is Arial. *(Plan.lsp:3901-3904)*
+**3.7 — ALL text is `romand.shx`; dimension arrowheads are OPEN** (owner 19-Jul).
+**Leader and callout arrowheads stay FILLED — that is the other half of the rule** (4B.62), and
+so do the FALL glyph and its disc. The Arial/`romans.shx` literals in Standard.lsp are overridden
+at runtime — ignore them; only the bold company name is Arial. Ticks are retired (DIMTSZ 0).
+*(Plan.lsp:3901-3904; peb-dim-set-vars Plan.lsp:7420 / Section.lsp:978,1622 set DIMBLK "_OPEN")*
 
-**3.8 — Dimensions are standardised:** DIMTXT/DIMASZ 600, DIMEXE/DIMEXO 100, DIMGAP 10,
-whole millimetres (DIMDEC 0). Text ladder SMALL 50 / DIM 56 / ANNOT 300 / HEADING 320 /
-LABEL 400 / TITLE 450. *(Standard.lsp:121, 150)*
+**3.8 — Dimensions are standardised:** **DIMTXT comes from the `peb-th 'DIM` ladder — never a
+literal**; DIMASZ 320, DIMTSZ 0, DIMEXE/DIMEXO 100-120, DIMGAP 10, whole millimetres (DIMDEC 0).
+Text ladder SMALL 50 / DIM 56 / ANNOT 300 / HEADING 320 / LABEL 400 / TITLE 450.
+*(Standard.lsp:121, 150; peb-dim-set-vars Plan.lsp:7415-7420)*
+⚠ The historical literals — "DIMTXT 500" (27-Jun) and "DIMTXT/DIMASZ 600" — are superseded by the
+ladder, which is the ONE source. §0.10/C6.
 
-**3.8b — Dual display is UNIVERSAL: every dimension shows BOTH mm & ft-inches** (e.g.
+**3.8b — ⚠ SUPERSEDED by 4B.62 (owner, 3-Sep-2026): feet belong on the OVERALL extent —
+length, width, height — and on NOTHING else.** General Note 1 already states every dimension is
+in millimetres, so a bare number needs no unit; putting `[ft'-in"]` on every dimension of a 6 m
+view ran the labels into each other. See §0.6/S56. The original clause is kept below because the
+`*PEB-DIM-DISPLAY*` mechanism it describes is still the mechanism — only its SCOPE narrowed.
+
+*(superseded text)* **Dual display is UNIVERSAL: every dimension shows BOTH mm & ft-inches** (e.g.
 `60957 [200'-0"]`), on EVERY sheet. The Section is always dual (`dim-mm-ft` → `DIMALT`
 architectural feet-inches). The Column Layout Plan matches it: `*PEB-DIM-DISPLAY*` defaults
 to `MMFT`, and both the labelled dims (`peb-fmt-value`) and the bay/module chains
@@ -216,8 +909,11 @@ frame-code map and BSF→legacy translation must behave identically for every sh
 currently **copied** into Plan.lsp AND Section.lsp and **have already drifted** — until the
 shared-`_peb_core.lsp` refactor lands, any edit to one MUST be mirrored in the other. Audit +
 canonical union + extraction spec → `PD_MASTER_REFERENCE.md §6`. (b) Standard.lsp's fallback
-layers/fonts are superseded at runtime — not the source of truth. (c) Roof/Elevation/Framing
-are excluded from `peb-all-sheets` — wire in only on an owner call. Full coverage ledger
+layers/fonts are superseded at runtime — not the source of truth. (c) ⚠ **CORRECTED 4-Sep-2026:**
+Roof/Elevation/Framing ARE shipped — they are PRO-03a/03b, PRO-04a/04b, PRO-05a/05b, driven by
+`buildPdfScr`/`buildDwgScr`/`availablePages`, not by `peb-all-sheets`. `peb-all-sheets`
+(Standard.lsp:605) is the legacy 3-sheet dispatcher and is reached only by the opt-in
+`PEB_REUSE_OPEN_ACAD` fast path. §0.3/S13, §0.10/C1+C11. Full coverage ledger
 (dead/defaulted/unemitted, with every field) → `PD_MASTER_REFERENCE.md §4`.
 
 ---
@@ -1603,15 +2299,6 @@ once and repeated for context.
 > `T` is the AutoLISP TRUE constant and binding it fails with *"incorrect object to bind: T"* —
 > caught only because the drawer was probed, since the enclosing `vl-catch-all-apply` swallows it
 > into a silently missing detail. Same class as the `rem` trap already recorded.
-
-## 5. THE DOC SET (how the four files relate)
-| File | Holds | Read it when |
-|---|---|---|
-| **PD_RULEBOOK.md** (this) | Every rule, organized; the BSF↔PD contract | You want the law — what must/mustn't happen |
-| **PD_MASTER_REFERENCE.md** | LSP code/function index · full per-key trigger matrix · coverage ledger | You need to know what a specific field/key does end-to-end |
-| **PD_BSF_SYNC_MECHANISM.md** | The zero-conflict mechanism: key contract · drift guard · shared core · default policy · realtime · gap register | You want to guarantee BSF and PD can never drift, or to fill a gap |
-| **DRAWING_CONTENT_RULES.md** | Per-sheet element-ownership matrix | You need to know which sheet owns an element |
-
 
 ### 4B.51 The gutter is 0.50 mm — a traced sheet gives you the SHAPE, not the house spec
 
@@ -3023,3 +3710,13 @@ In a U-stair, landings alternate ends: landing 0 is at RIGHT (where flight 1 lan
 `peb-stair-col-max-h` computes this: it takes a column index (0=left, 1=right), the list of landing heights, mezzanine height, and the stair shape, and returns the maximum height that column pair should extend to. Both `peb-stair-elev` and `peb-stair-section` call it before drawing their columns.
 
 **Test by rendering a 1-landing and 3-landing stair:** the two column pairs should have different heights, and on a 1-landing stair the right pair should trim at the landing, not extend to the mezzanine.
+
+---
+
+## 5. THE DOC SET (how the four files relate)
+| File | Holds | Read it when |
+|---|---|---|
+| **PD_RULEBOOK.md** (this) | Every rule, organized; the BSF↔PD contract | You want the law — what must/mustn't happen |
+| **PD_MASTER_REFERENCE.md** | LSP code/function index · full per-key trigger matrix · coverage ledger | You need to know what a specific field/key does end-to-end |
+| **PD_BSF_SYNC_MECHANISM.md** | The zero-conflict mechanism: key contract · drift guard · shared core · default policy · realtime · gap register | You want to guarantee BSF and PD can never drift, or to fill a gap |
+| **DRAWING_CONTENT_RULES.md** | Per-sheet element-ownership matrix | You need to know which sheet owns an element |

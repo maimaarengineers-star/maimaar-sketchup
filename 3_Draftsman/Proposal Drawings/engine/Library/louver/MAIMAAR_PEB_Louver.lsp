@@ -1,6 +1,6 @@
 ;;; ============================================================================
 ;;;  MAIMAAR_PEB_Louver.lsp — WALL LOUVER GEOMETRY  (FIXED · ADJUSTABLE · SAND-TRAP)
-;;;  PEB COMPONENT LIBRARY — Library/louver/
+;;;  PEB COMPONENT LIBRARY — Library/Louver/
 ;;; ============================================================================
 ;;;
 ;;;  WHY THIS FILE EXISTS.

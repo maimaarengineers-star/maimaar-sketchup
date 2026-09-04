@@ -57,7 +57,7 @@ const scr = [
   load('MAIMAAR_PEB_Standard.lsp'), load('MAIMAAR_PEB_Section.lsp'), load('MAIMAAR_PEB_Plan.lsp'),
   load('MAIMAAR_PEB_Roof.lsp'), load('MAIMAAR_PEB_Elevation.lsp'), load('MAIMAAR_PEB_Framing.lsp'),
   load('MAIMAAR_PEB_Cover.lsp'),
-  load('Library/louver/MAIMAAR_PEB_Louver.lsp'),
+  load('Library/Louver/MAIMAAR_PEB_Louver.lsp'),
   load('MAIMAAR_PEB_PDF.lsp'),
   dataFile
     ? '(peb-louver-sample-from-file "' + q(WORK + '/' + dataFile) + '")'

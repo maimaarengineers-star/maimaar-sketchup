@@ -9695,6 +9695,29 @@
         (draw-eave-features wid H nil (/ rise (/ wid 2.0))))   ; gable eave, lip anchored to the sheet (owner G3)
       (draw-rafter-label  wid H rise ht)))
 
+  ;; ── GRAVITY RIDGE VENTILATOR (RA_RV_*) — THE SYMBOL, ON THE RIDGE ────────────────────
+  ;;
+  ;;  The ridge ventilator is the OUTLET of the ventilation system the louvers feed (the
+  ;;  louvers are the intake — Library/Louver/). It had no key in the data file and no
+  ;;  geometry anywhere, so a building quoted with six ridge ventilators was drawn with a
+  ;;  bare ridge, and the section — the one sheet where a customer looks for the roof
+  ;;  build-up — said nothing about them.
+  ;;
+  ;;  SYMBOL ONLY, deliberately (owner 4-Sep-2026: "Only symbol for the Proposal Drawings
+  ;;  ... In Next Phases we will develop the complete in all respect"). The drawer lives in
+  ;;  Library/Ridge Ventilator/ and its profile is traced off MSPL-203's own approval
+  ;;  detail, so the symbol is the real product simplified, never a cartoon.
+  ;;
+  ;;  A SINGLE-SLOPE roof has no ridge, so it is skipped rather than guessed at — monoRise
+  ;;  is non-nil exactly when there is no ridge to sit on.
+  (if (and (boundp 'peb-rv-place)
+           (null monoRise) (> rise 0.0)
+           (= (strcase (peb-tb-or (MSPL-Get-Str data "RA_RV_ON") "No")) "YES"))
+    (vl-catch-all-apply (function (lambda ( / rvx rvq)
+      (setq rvx (peb-ridge-x data wid)
+            rvq (atoi (peb-tb-or (MSPL-Get-Str data "RA_RV_QTY") "0")))
+      (peb-rv-place rvx (+ H rise) 1.0 T rvq)))))
+
   ;; ── VERTICAL FASCIA (FA_*) on the sidewalls of a normal PEB frame ──
   ;; The RC frame type has its OWN concrete parapet/fascia (draw-rc-fascia), so it is
   ;; excluded here; every other frame type gets the manual's vertical fascia detail.
