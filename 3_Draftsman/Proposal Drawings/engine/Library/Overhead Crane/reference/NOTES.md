@@ -125,3 +125,37 @@ MSPL-032, the Thal/HBA CLPs and the 210-25 gantry DXF are in this folder.
   assumed to act at bumper height or 375 mm above floor level") but not the detail. Not drawn.
 * The **210-25 gantry DXF** (8.3 MB, in this folder) carries "MAIN BEAM", "CRANE BRACKET" and
   "X : HOOK LENGTH" callouts — worth parsing for real bracket and hook-approach geometry.
+
+## Parsed: MSPL-210-25 gantry DXF (5-Sep-2026)
+
+16,982 entities, 41 layers, **349 DIMENSION entities carrying 109 distinct measured values**.
+Callouts present: `SUPPLY & INSTALLATION OVER HEAD CRANE GANTRY`, **`MAIN BEAM`**,
+**`CRANE BRACKET`**, **`X : HOOK LENGTH`**.
+
+Dimensions above 500 mm, grouped by the view they sit in:
+
+| band | values |
+|---|---|
+| runway chain (appears at **two** Y bands — two views of the same run) | 4520, 4595, 4725, 5060 … total **42496** |
+| span-ish | **17898**, 14840, 14461 |
+| heights | 9450, 9320, 9044, 9040, 8875, 8000, 7830, 7800, 6884 |
+| members | 5426, 5148, 5060, 4750, **3800**, 2852, 2574, 2000, 1800, 1794 |
+| details | 1292, 1018, 912, 750, 718, 658, 650, 600, 562 |
+| plate / bolt | 109 values from 5 to 380 |
+
+**Honest limit on this parse.** The `MAIN BEAM` and `CRANE BRACKET` labels sit in a differently
+scaled coordinate space from the title block, and a dimension's *value* does not say what it
+measures. So these are **candidates, not identifications**:
+
+* **3800** — a lone dimension in its own band, the right order for a **wheel base** (the live BSF
+  job carries 3900).
+* **17898** — the right order for a **crane span**.
+* The 5–380 cluster is bracket plate and bolt detailing — the bracket's own geometry is in there.
+
+**`X : HOOK LENGTH` is the hook approach**, and it is written as a VARIABLE (`X :`), not a number
+— the drawing parameterises it rather than fixing it. That is itself the finding: hook approach is
+crane-maker data, not a Maimaar constant, which is why the manual does not give one either.
+
+**Not drawn, and should not be guessed:** bracket cantilever and hook approach both need the sheet
+LOOKED at, not inferred from a value list. Next step is to rasterise the region around the
+`CRANE BRACKET` label and read it.

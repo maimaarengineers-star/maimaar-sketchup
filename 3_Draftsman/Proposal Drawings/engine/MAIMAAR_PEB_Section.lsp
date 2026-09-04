@@ -7841,8 +7841,8 @@
     (vl-catch-all-apply (function (lambda ()
       (entmake (list '(0 . "LTYPE") '(100 . "AcDbSymbolTableRecord")
                      '(100 . "AcDbLinetypeTableRecord") '(2 . "CRANEBRG") '(70 . 0)
-                     '(3 . "Crane bridge . . . .") '(72 . 65) '(73 . 2) '(40 . 300.0)
-                     '(49 . 0.0) '(74 . 0) '(49 . -300.0) '(74 . 0))))))) ; TRUE DOTS (owner 5-Sep-2026)
+                     '(3 . "Crane bridge . . . .") '(72 . 65) '(73 . 2) '(40 . 130.0)
+                     '(49 . 0.0) '(74 . 0) '(49 . -130.0) '(74 . 0))))))) ; TRUE DOTS (owner 5-Sep-2026)
                      ;; "Beam will be in Dotted to differentiate, as Bridge is normally not in
                      ;; Maimaar Scope" - and on a crane the MAIN BEAM *is* the bridge girder (the
                      ;; 210-25 gantry drawing labels it exactly that). This pattern read 150 dash /
