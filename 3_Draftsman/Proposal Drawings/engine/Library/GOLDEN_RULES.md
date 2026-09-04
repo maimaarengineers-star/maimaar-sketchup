@@ -528,3 +528,44 @@ head then crossed all 48 of them. Three rounds of work went into thinning the ba
 panel outlines: 1,628 entities down to 96) and none of it helped, because **the horizontals were
 never the fault. The full-height verticals were.** When a drawing looks wrong in a way that
 tidying does not fix, the geometry is telling you the building is not built the way you drew it.
+
+### 34. THE FACE SHOWS PANEL JOINTS, NOT RIBS — and a wall light is a PANEL, not a hole
+
+A sheeted face — wall or roof — shows **one line per panel joint at the COVER width**, plus the
+two end edges. `n = L ÷ cover` panels gives `n+1` lines. 22 m at 1000 cover = 22 panels, 23
+lines. The cover is **read** (`peb-panel-cover` / `PN_<KEY>_COVER`), never assumed: a lock-seam
+surface lays out at **470**, not 1000.
+
+**Ribs are never drawn on the face.** The 35 mm rib at 250 pitch is a roll-forming dimension;
+four pitches make the 1000 cover. The DETAILS sheet draws the true profile (`peb-sd-sprofile`).
+
+**A wall light is a panel in the run** — it replaces a sheet on the module, it is not an opening
+cut into one. So it carries the same four edges as any panel and lands on the same joint
+stations, and the cladding courses above and below butt to it.
+
+**Three independent sources say so, and one of them is a mistake I made on 4-Sep-2026.**
+Asked for "profiling lines", I reasoned from what the eye sees standing at a real wall — the rib
+shadows at 250, with the side lap invisible because it is formed to sit *in* a rib — and
+recommended drawing the rib rhythm thinned for legibility. That is correct physics and the wrong
+drawing. The evidence:
+
+* **S43 in `PD_RULEBOOK.md`**, the owner's own words: *"if we have 22m length of end wall, there
+  must be 22 or 23 lines to show 2 side lines of each panel, for all roofs and all walls"* — and
+  *"Ribs are not drawn on the face."*
+* **Mammut's own proposal elevation** (`MAMMUT_08_PearlKhas_Elevations_Poultry.dxf`): the
+  `SHEETING` layer is declared and holds **zero entities**. Their proposal face is plain — bay
+  grid and a text callout naming the panel, nothing more.
+* **Maimaar's erection sheets** (Awan Sports 045-MSPL, Gold Panel 035-MSPL, Tekla 2022): panels
+  marked one by one at the module — `SWS-1/(2863)`, `9*SWS-5/(628)` — with the wall light inline
+  among them as `5*WL-1/(1700)`. No rib lines anywhere.
+
+**The lesson is the general one:** a drawing is a convention, not a photograph. What the eye
+resolves at 1 m it cannot resolve at 1:300, and reasoning from the real object will confidently
+produce the wrong sheet. Check the reference and the rule book before reasoning from first
+principles — and when they disagree with the reasoning, they win.
+
+**Legibility floor**, since it decides how many lines survive: joint spacing on A4 is
+`219 × cover ÷ L` mm. Below **1.5 mm** lines stop being information and plot as a grey band, so
+`peb-panel-lines` thins to every 2nd joint, then every 3rd. Never bypass it with a hard-coded
+step — `MAIMAAR_PEB_Elevation.lsp` stepped a literal 1500 (neither rib nor cover) and so escaped
+the guard entirely.

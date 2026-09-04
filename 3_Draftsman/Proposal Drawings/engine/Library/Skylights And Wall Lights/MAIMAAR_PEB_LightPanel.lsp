@@ -256,6 +256,23 @@
     (progn
       (peb-acc-line x0 y0        (+ x0 w) y0        lay lw)     ; sill of the band
       (peb-acc-line x0 (+ y0 h)  (+ x0 w) (+ y0 h)  lay lw)     ; head of the band
+      ;; ── AND ITS TWO SIDE EDGES: A LIGHT IS A PANEL IN THE RUN ─────────────────────────
+      ;; PD_RULEBOOK S17: "A light panel is a CLADDING item: it replaces a sheet on the module,
+      ;; it is not an opening cut into one." Maimaar's own erection sheets say the same in the
+      ;; field - WL-1/(1700) sits inline in the panel sequence beside SWS-5/(628), marked and
+      ;; lengthed exactly like a sheet.
+      ;;
+      ;; Splitting the cladding into three courses (the sheet really does break at the
+      ;; wall-light girts) left this band with NO vertical lines at all, so 44 separate 1000
+      ;; panels drew as one undivided strip. These are the panel's own side edges; because the
+      ;; panels butt, they land on the same 1000 stations as the courses above and below and
+      ;; the vertical rhythm runs unbroken brickwork to eave - which is S43's "one line per
+      ;; panel joint at the cover width" applied to the band as well as the steel.
+      ;;
+      ;; On the WALL LIGHT pen (0.50), not CLADDING (0.18): the band is a different material
+      ;; and on a monochrome plot lineweight is the only thing that can say so.
+      (peb-acc-line x0 y0 x0 (+ y0 h) lay lw)                   ; left edge
+      (peb-acc-line (+ x0 w) y0 (+ x0 w) (+ y0 h) lay lw)       ; right edge
       ;; ── IT MUST READ AS NATURAL LIGHT (owner 4-Sep-2026: "show the wall lights like natural
       ;;    lighting") ────────────────────────────────────────────────────────────────────────
       ;; Sill and head alone say "a gap in the sheeting"; they do not say DAYLIGHT COMES THROUGH

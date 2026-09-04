@@ -228,12 +228,17 @@
   ;; ── sheeting panel lines (only when the wall is sheeted) ────
   (if (not wallOpen)
     (progn
+      ;; ── ONE LINE PER PANEL JOINT, AT THE COVER WIDTH (S43) ──────────────────────────
+      ;; This stepped a literal 1500, which is neither the rib (250) nor the panel cover
+      ;; (1000) - the exact class of error S43 was written to kill, and it names the old 333
+      ;; case as its precedent. It also bypassed peb-panel-lines entirely, so it escaped the
+      ;; 1.5 mm A4 legibility guard and would plot as a grey band on a long wall.
+      ;; The cover is READ, never assumed: a lock-seam surface lays out at 470, not 1000.
       (setvar "CLAYER" "SHEETING")
-      (setq gx (+ ox 1500.0))
-      (while (< gx (+ ox faceLen))
+      (foreach sx (peb-panel-lines faceLen (peb-panel-cover data "WALL"))
+        (setq gx (+ ox sx))
         (command "_.LINE" (list gx yb)
-                 (list gx (if isEnd (peb-elev-roof-y stype (- gx ox) wid top slopeD numGab) sideTop)) "")
-        (setq gx (+ gx 1500.0)))))
+                 (list gx (if isEnd (peb-elev-roof-y stype sx wid top slopeD numGab) sideTop)) ""))))
 
   ;; ── wall X-bracing in braced bays/panels ────────────────────
   (setq braced (if (boundp 'peb-braced-bays) (peb-braced-bays stations) nil)
