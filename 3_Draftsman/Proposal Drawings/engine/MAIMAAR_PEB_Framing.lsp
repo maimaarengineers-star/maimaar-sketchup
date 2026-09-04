@@ -2671,6 +2671,31 @@
      ;; cladding item, so it is drawn where the sheeting is drawn (standing rule, owner 3-Sep-2026).
      ;; The framing elevation above deliberately does NOT get it.
      (peb-fr-wall-lights data surf ox base faceLen stations revView))))
+  ;; ── GRAVITY RIDGE VENTILATOR (RA_RV_*) — on the END WALL elevation ────────────────────
+  ;;
+  ;;  An END wall elevation is the one wall view that shows the gable, so it is the one that
+  ;;  can show the ventilator — seen end-on, sitting astride the apex, exactly as the cross
+  ;;  section shows it. A SIDE wall hides the ridge behind the wall itself, so it gets
+  ;;  nothing rather than a guess.
+  ;;
+  ;;  SHEETING elevation only, following the wall-light standing rule above: the framing
+  ;;  elevation is about structure, and this is an accessory on the finished roof.
+  ;;
+  ;;  SYMBOL ONLY (owner 4-Sep-2026) — Library/Ridge Ventilator/, traced off MSPL-203.
+  ;;
+  ;;  THE CALLOUT TAKES THIS SHEET'S OWN SIZE, which is peb-th's ANNOT — the elevations
+  ;;  annotate at 664 plotted (WALL SHEETING, the wall-light band), where the cross section
+  ;;  annotates at 198 and passes a literal 220. One component, two host sheets, two sizes,
+  ;;  and the drawer holds neither: the caller supplies it. Passing the section's 220 here
+  ;;  made the ventilator callout a third the size of every label around it.
+  (if (and isEnd (boundp 'peb-rv-place) (boundp 'peb-ridge-x) (> rise 0.0)
+           (= (strcase (peb-tb-or (MSPL-Get-Str data "RA_RV_ON") "No")) "YES"))
+    (vl-catch-all-apply (function (lambda ( / rvx rvy rvq)
+      (setq rvx (peb-ridge-x data faceLen))
+      (if revView (setq rvx (- faceLen rvx)))     ; outside view — see the mirror note
+      (setq rvy (peb-fr-topy rvx faceLen base eaveH eaveHi eaveLo rise rtype hiSide)
+            rvq (atoi (peb-tb-or (MSPL-Get-Str data "RA_RV_QTY") "0")))
+      (peb-rv-place (+ ox rvx) rvy 1.0 T rvq (peb-th 'ANNOT))))))
   (setvar "CLAYER" prev)
   (princ))
 
