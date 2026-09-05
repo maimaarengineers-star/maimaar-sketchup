@@ -4794,7 +4794,19 @@
       ;; format code "{\\Fromand.shx; … }".
       (setvar "CLAYER" "TEXT")
       ;; Pre-split spec into max 2 lines (same as wall sheeting).
-      (setq rLine2_2L (peb-split-2-lines rLine2))
+      ;; wrapped to the room between this label and the next (see peb-split-to-width)
+      ;; The gap BETWEEN the two labels, not the distance to the building's right edge.  Measured
+      ;; to the edge (W - labRX = 3,658) the cap floored at 12 characters and the roof spec became
+      ;; a seven-line tower that ran off the top of the sheet into the drawing title.  There is
+      ;; open paper to the RIGHT of this label; what it must not do is reach LEFT into the wall
+      ;; block, so both are capped by the same gap and end up the same height.
+      ;; NOT labWX - it is not assigned until the WALL block, 100 lines below this one, so reading
+      ;; it here handed nil to a subtraction, the error unwound draw-cladding, and every label
+      ;; after this point silently vanished from the section: the title, the dimensions, EAVE
+      ;; GUTTER, COLUMN, RAFTER, all of it.  Nothing reported anything (S88).  The same constant
+      ;; expression the wall block uses is spelled out instead.
+      (setq rLine2_2L (peb-split-to-width rLine2
+                        (peb-clad-maxch (- labRX (- 0 girtDepth cladThk)) *PEB-TEXT-SCALE*)))
       (setq rBarY     (+ labRY (* 175 *PEB-TEXT-SCALE*)))
       (setq rBarLen   300.0)                  ; 300 mm bar (Option B)
       ;; \H0.72x; shrinks the whole panel callout (heading + build-up spec)
@@ -4960,7 +4972,7 @@
       ;; Force the spec text to AT MOST 2 lines via explicit paragraph
       ;; break.  Heading + spec then becomes a 3-line block
       ;; (heading\\Pspec1\\Pspec2) that splits cleanly across the bar.
-      (setq wLine2_2L (peb-split-2-lines wLine2))
+      (setq wLine2_2L (peb-split-to-width wLine2 (peb-clad-maxch (- labRX labWX) *PEB-TEXT-SCALE*)))
       (setq wBarY      (+ labWY (* 175 *PEB-TEXT-SCALE*)))
       ;; Bar length — Option B per user: 300 mm horizontal v2-v3
       ;; segment so the text lands right next to the bar.
@@ -6801,6 +6813,47 @@
     (list (vl-string-trim " " (substr s 1 (+ p 8)))       ; up to & incl "SHEETING" (8 chars)
           (vl-string-trim " " (substr s (+ p 9))))         ; the spec (may start with "AZ ...")
     (list s nil)))
+
+;; -- WRAP A SHEETING SPEC TO THE ROOM AVAILABLE ---------------------------------------------
+;; Owner 5-Sep-2026: "in Section, some Text of Roof Sheeting Labelling is Mixing with Text."
+;;
+;; peb-split-2-lines forces AT MOST two lines. That was fine when specs were short and is the
+;; whole problem now they are not: "0.50 MM PPGI (S-TYPE) + 50MM FIBERGLASS INSULATION
+;; (12KG/M3)" split in two gives a 39-character line, and at this M-Ladder's plotted height
+;; (595, MEASURED off the rendered sheet, not the 387 that 600 x TEXT-SCALE predicts) that is
+;; about 22,000 mm wide on an 18,290 mm building. The BLOCK IS WIDER THAN THE FRAME. Two of
+;; them, one growing right from the left sheeting face and one from 0.80 W, meet in the middle
+;; whatever level they sit at - which is why moving one down on 5-Sep only traded the collision
+;; for two others, against the EAVE GUTTER label and the slope tag.
+;;
+;; So it wraps to a CHARACTER CAP the caller computes from the gap actually available between
+;; the two labels. Any number of lines: the block grows downward, where there is room.
+(defun peb-split-to-width (txt maxCh / words idx w line out)
+  (if (or (null txt) (= txt "")) (setq txt ""))
+  (if (or (null maxCh) (< maxCh 8)) (setq maxCh 8))
+  (setq words '())
+  (while (setq idx (vl-string-search " " txt))
+    (if (> idx 0) (setq words (cons (substr txt 1 idx) words)))
+    (setq txt (substr txt (+ idx 2))))
+  (if (> (strlen txt) 0) (setq words (cons txt words)))
+  (setq words (reverse words) line "" out "")
+  (foreach w words
+    (cond
+      ((= line "") (setq line w))
+      ((<= (+ (strlen line) 1 (strlen w)) maxCh) (setq line (strcat line " " w)))
+      (T (setq out (if (= out "") line (strcat out "\\P" line)) line w))))
+  (if (/= line "") (setq out (if (= out "") line (strcat out "\\P" line))))
+  out)
+
+;; Characters that fit in `avail` model units at the sheeting M-Ladder's PLOTTED text height.
+;; 922 x TS x 0.42 = 595 at TS 1.536, which is what the rendered sheet measures; 0.94 em per
+;; character is the measured ROMAND advance (GOLDEN_RULES 37). Floored at 12 so a narrow
+;; building gets a readable stack rather than one word per line.
+(defun peb-clad-maxch (avail ts / h n)
+  (setq ts (if (and ts (> ts 0.0)) ts 1.0)
+        h  (* 922.0 ts 0.42)
+        n  (if (> h 0.0) (fix (/ (- (abs avail) (* 900.0 ts)) (* h 0.94))) 20))
+  (max 12 (min 30 n)))
 
 (defun peb-split-2-lines (txt / words idx total halfTotal acc line1 line2 w orig)
   ;;  Split a string into AT MOST 2 lines, joined by MText paragraph
