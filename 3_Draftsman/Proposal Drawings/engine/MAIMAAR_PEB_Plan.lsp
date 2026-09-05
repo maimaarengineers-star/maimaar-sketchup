@@ -3010,11 +3010,16 @@
 ;; against the thing it has to sit over — here, 40% of the drawn width.  Short
 ;; headings ("ROOF FRAMING PLAN" is 33%) are untouched; only the long ones shrink.
 ;; txt-bold multiplies by TEXT-SCALE, so this returns the RAW height to hand it.
+;; THE EM IS 0.94, MEASURED (GOLDEN_RULES 37).  This carried 0.62 until 5-Sep-2026 and emcheck
+;; reported the engine clean the whole time: the character count is taken on one line
+;; (n (max 1 (strlen s))) and spent on the next, and the check only looked for `strlen` on the
+;; SAME line as the constant.  Believing a title a third narrower than it is means this cap lets
+;; a heading run wider than the width it was asked to fit inside.
 (defun peb-head-h (s faceLen / n hmax ts)
   (setq ts (if (and *PEB-TEXT-SCALE* (> *PEB-TEXT-SCALE* 0.01)) *PEB-TEXT-SCALE* 1.0)
         n  (max 1 (strlen s)))
   (if (> faceLen 1.0)
-    (progn (setq hmax (/ (* 0.34 faceLen) (* n 0.62 ts)))
+    (progn (setq hmax (/ (* 0.34 faceLen) (* n 0.94 ts)))
            (max (* 0.45 (peb-th 'HEADING)) (min (peb-th 'HEADING) hmax)))
     (peb-th 'HEADING)))
 
@@ -3052,7 +3057,7 @@
   ;; plan) nothing changes — the cap is not reached.  On a short one it shrinks to fit
   ;; rather than running out into the bubbles.
   (setq n   (strlen (strcat "MATCH LINE - SHEET " otherSheet))
-        hMx (/ (* 0.80 (- y1 y0)) (* n 0.62 (if (> *PEB-TEXT-SCALE* 0.01) *PEB-TEXT-SCALE* 1.0)))
+        hMx (/ (* 0.80 (- y1 y0)) (* n 0.94 (if (> *PEB-TEXT-SCALE* 0.01) *PEB-TEXT-SCALE* 1.0))) ; emcheck-ok 0.80 = 80% of the SPAN, not a character width (0.94 is, alongside it)
         hLb (max (* 0.40 (peb-th 'ANNOT)) (min (peb-th 'ANNOT) hMx)))
   (setvar "CLAYER" "TEXT")
   (txt "MC" (list (+ x (* 700.0 *PEB-TEXT-SCALE*)) (/ (+ y0 y1) 2.0)) hLb 90
@@ -6315,7 +6320,7 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                     (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0) 0.94)   ; measured advance, rule 37
             aSlp (/ (min (- aCx aBw) (- len aCx aBw)) (max 1.0 (- aCy aBh)))
             aDrp (max (* aTxH 1.35)
-                      (/ (- (+ (/ aHtW 2.0) (* aTxH 0.60)) aBw) (max 0.05 aSlp))))
+                      (/ (- (+ (/ aHtW 2.0) (* aTxH 0.60)) aBw) (max 0.05 aSlp)))) ; emcheck-ok 0.60 = a fraction of the text HEIGHT, not an advance width
       (txt-bold "MC" (list aCx (- aCy aBh aDrp)) (peb-th 'SMALL) 0 aHt)))
 
   ;; ── Grid lines (Phase-2A v19 — extend to sheeting outer lines) ──
