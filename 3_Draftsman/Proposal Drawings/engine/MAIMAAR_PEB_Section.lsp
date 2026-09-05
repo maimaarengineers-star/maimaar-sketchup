@@ -7828,8 +7828,18 @@
 ;;  module columns; the hook height is CRn_HOOK_HEIGHT.  Coords: X = 0..wid across
 ;;  the width, Y = 0..H (FFL..eave).  Self-contained (no dependency on the plan file).
 ;; ============================================================================
+;; ── THE SAME LINE MAMMUT USES ──────────────────────────────────────────────────────────────
+;; Owner 5-Sep-2026: "Also use the same line material they have used."
+;;
+;; On the extracted sheet (reference/MBS_169-PK-13_Zealcon, Mammut PK-013-169) the crane is drawn
+;; in THIN SOLID line - hoist, hook, beam, the lot - with a long-dash centreline through the lift
+;; axis, and its scope said by the LABEL, not by the linetype. It is not dashed anywhere.
+;;
+;; This drew it HIDDEN at a 300 linetype scale. That is the same ruling the owner already made on
+;; the component library - "This is clear Solid picture" - and the same reasoning: every hidden
+;; line on a PEB sheet is dashed, so a dashed crane reads as "behind something", not "not ours".
 (defun peb-crane-sec-line (xa ya xb yb)
-  (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-SEC") (cons 6 "HIDDEN") (cons 48 300.0)
+  (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-SEC") (cons 370 13)
                  (list 10 xa ya 0.0) (list 11 xb yb 0.0))))
 (defun peb-crane-sec-box (xa ya xb yb)
   (peb-crane-sec-line xa ya xb ya) (peb-crane-sec-line xb ya xb yb)
@@ -7851,7 +7861,9 @@
                      ;; same thing as every other hidden line on the sheet, so it could not carry
                      ;; "not our scope". A dot is a dash of length ZERO.
   (setq es (if (> (getvar "LTSCALE") 0.0) (/ 1.0 (getvar "LTSCALE")) 1.0))
-  (if (tblsearch "LTYPE" "CRANEBRG")
+  ;; SOLID now - see peb-crane-sec-line. The CRANEBRG linetype is left defined so a job that
+  ;; wants the old dashed bridge can have it back with one edit.
+  (if nil
     (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-SEC") (cons 6 "CRANEBRG") (cons 48 es) (cons 370 15)
                    (list 10 xa ya 0.0) (list 11 xb yb 0.0)))
     (peb-crane-sec-line xa ya xb yb)))
@@ -8212,116 +8224,35 @@
                   crRow (* crTh 1.45))                       ; and a line pitch that clears it
             (txt-rom "MC" (list hoistX (- hookH crRow)) (/ crTh sc) 0.0
                       (strcat "HOOK HEIGHT : " (rtos hookH 2 0)))
-            (txt-rom "MC" (list hoistX (- hookH (* crRow 2.0))) (/ crTh sc) 0.0
-                      (strcat "CAP " capStr " MT"))
-            (if (and cls (/= cls ""))
-              (txt-rom "MC" (list hoistX (- hookH (* crRow 3.0))) (/ (peb-th 'MARK) sc) 0.0
-                        (strcat "CMAA CLASS " cls)))
-            ;; ── CRANE SPAN — THE BSF'S FIGURE, NOT THE DRAWN ONE ──────────────────────────
-            ;; This printed the span it had DRAWN - inner flange to inner flange - as though it
-            ;; were the crane's span. On MSPL-26-276 that put "SPAN c/c RAILS : 15996" on the
-            ;; sheet while the BSF, and the order the crane supplier will quote against, says
-            ;; 17,690. The CLP has always read CRn_SPAN (Plan.lsp); the section never did, so the
-            ;; same proposal could state two different spans on two sheets.
+            ;; ══ THE CRANE IS LABELLED THE WAY MAMMUT LABELS IT ═══════════════════════════
+            ;; Owner 5-Sep-2026: "Remove all the Labelling of the Crane and only Show the Crane
+            ;; Capacity 10 Tons as shown in Mammut Drawing we extracted."
             ;;
-            ;; BSF = single truth, so the LABEL quotes the BSF. The GEOMETRY stays where it is,
-            ;; on each column's inner flange, because that is the owner's universal rule and
-            ;; General Note 3 says the proposal drawing is indicative. When the two differ by
-            ;; more than 2 % the drawn figure is named as indicative rather than left to be
-            ;; scaled off and believed.
-            (setq bsfSpan (MSPL-Get-Num data (strcat pre "SPAN")))
-            (txt-rom "MC" (list hoistX (- hookH (* crRow 3.9))) (/ (peb-th 'MARK) sc) 0.0
-                      (strcat "SPAN c/c RAILS : "
-                              (rtos (if (and bsfSpan (> bsfSpan 0.0)) bsfSpan (- xBR xBL)) 2 0)))
-            (if (and bsfSpan (> bsfSpan 0.0)
-                     (> (abs (- bsfSpan (- xBR xBL))) (* bsfSpan 0.02)))
-              (txt-rom "MC" (list hoistX (- hookH (* crRow 4.55))) (/ (peb-th 'MARK) sc) 0.0
-                        (strcat "INDICATIVE " (rtos (- xBR xBL) 2 0) " ON COLUMN FLANGE")))
-            ;; ── part labels drawn ONCE (manual convention), spaced with leaders into clear space ──
-            (if (not labeled)
-              (progn
-                ;; ── THE PART LABELS, OUTSIDE THE BUILDING ─────────────────────────────────
-                ;; They were placed one per part, each at its own offset from the feature it
-                ;; names. On a building where bridge, rail, beam and hoist sit within a metre of
-                ;; each other - which is most of them - the four labels landed on top of one
-                ;; another: MSPL-26-276 printed CRANE BRIDGE, CL OF RAFTER, CRANE RAIL, HOIST and
-                ;; HEIGHT OF CRANE BEAM all through each other in a band about 400 mm deep.
-                ;;
-                ;; Stacking them in a column INSIDE the frame was not enough either - two passes
-                ;; of widening still ran them into the frame's own COLUMN and RAFTER callouts.
-                ;; There is no room: an 18 m building at 1:209 has none to spare between its
-                ;; girder and its rafter.
-                ;;
-                ;; So they go OUTSIDE, clear of the right-hand column, with leaders back to the
-                ;; parts. That is what the Mammut sheet this convention came from does
-                ;; (reference/MBS_169-PK-13_Zealcon: crane text in one place, led to the parts),
-                ;; and it is S64 - a label must not land on geometry, or on another label.
-                ;;
-                ;; Row pitch is crRow, computed from the text height, so the spacing cannot fail
-                ;; when the text size changes (S57).
-                (setq lblX (+ xR (* u 2.2))
-                      lblR (* crRow 1.45)
-                      lblY (+ bridgeTop (* crRow 1.20)))
-                (txt-rom "ML" (list lblX lblY) (/ (peb-th 'MARK) sc) 0.0
-                          (strcat "HEIGHT OF CRANE BEAM : " (rtos railTop 2 0)))
-                ;; CRANE BRIDGE — leader from the bridge
-                (setq lblY (- lblY lblR))
-                (peb-crane-sec-line (+ midX (* u 2.0)) bridgeTop (- lblX (* u 0.4)) lblY)
-                (txt-rom "ML" (list lblX lblY) (/ crTh sc) 0.0 "CRANE BRIDGE (BY OTHERS)")
-                ;; HOIST
-                (setq lblY (- lblY lblR))
-                (peb-crane-sec-line (+ hoistX (* u 0.85)) (- hoistTop (* u 0.55)) (- lblX (* u 0.4)) lblY)
-                (txt-rom "ML" (list lblX lblY) (/ crTh sc) 0.0 "HOIST (BY OTHERS)")
-                ;; CRANE BEAM — Maimaar's, and the label now says so
-                (setq lblY (- lblY lblR))
-                (peb-crane-sec-line xBR beamBot (- lblX (* u 0.4)) lblY)
-                (txt-rom "ML" (list lblX lblY) (/ crTh sc) 0.0
-                          (if isUH "CRANE BEAM (BY OTHERS)" "CRANE BEAM (MAIMAAR SCOPE)"))
-                ;; CRANE RAIL — TR only (the rail sits on the beam TOP; UH runs on the bottom flange)
-                ;;
-                ;; AND IT IS NOT "BY OTHERS". This said so for months and it is wrong on a
-                ;; customer's drawing: Maimaar supplies the crane BEAM and the RAIL - only the
-                ;; bridge, the hoist and the end carriages are the crane supplier's. That is the
-                ;; owner's standing ruling ("Since we will be providing the Crane Beam, so show
-                ;; the Crane Beam in Solid Lines"), it is what the component library draws, and it
-                ;; is what the Mammut sheet this convention came from actually says.
-                (if (not isUH)
-                  (progn
-                    (setq lblY (- lblY lblR))
-                    (peb-crane-sec-line xBR railTop (- lblX (* u 0.4)) lblY)
-                    (txt-rom "ML" (list lblX lblY) (/ crTh sc) 0.0 "CRANE RAIL (MAIMAAR SCOPE)")))
-                ;; ── Mammut Zealcon house-polish (owner 19-Jul) ──
-                ;; CL OF RAFTER — bridge centre = rafter centreline; label offset LEFT (the bridge/height
-                ;; labels sit right of centre) via a short tick + leader so nothing overlaps
-                (peb-crane-sec-line midX (+ bridgeTop (* u 0.15)) midX (+ bridgeTop (* u 0.80)))
-                (peb-crane-sec-line midX (+ bridgeTop (* u 0.80)) (- midX (* u 3.10)) (+ bridgeTop (* u 0.80)))
-                (txt-rom "MR" (list (- midX (* u 3.20)) (+ bridgeTop (* u 0.80))) (/ (max (* u 0.30) (peb-th 'MARK)) sc) 0.0 "CL OF RAFTER")
-                ;; LEVEL DATUM at the crane beam (metres from FFL) — Mammut-style level tag, left of the rail
-                (entmake (list (cons 0 "SOLID") (cons 8 "COMP-CRANE-SEC")
-                               (list 10 (- xBL (* u 0.55)) railTop 0.0)
-                               (list 11 (- xBL (* u 0.78)) (+ railTop (* u 0.22)) 0.0)
-                               (list 12 (- xBL (* u 0.78)) (- railTop (* u 0.22)) 0.0)
-                               (list 13 (- xBL (* u 0.78)) (- railTop (* u 0.22)) 0.0)))
-                (txt-rom "MR" (list (- xBL (* u 0.90)) railTop) (/ (max (* u 0.30) (peb-th 'MARK)) sc) 0.0
-                          (strcat "CRANE BEAM +" (rtos (/ railTop 1000.0) 2 3) " M"))
-                ;; AT GRID note — the crane frame applies only at its run grid lines (Mammut convention)
-                (if (/= (MSPL-Get-Str data (strcat pre "GRID_LOC")) "")
-                  (txt-rom "MC" (list hoistX (- hookH (* crRow 5.45))) (/ (peb-th 'MARK) sc) 0.0
-                            (strcat "CRANE AT " (strcase (MSPL-Get-Str data (strcat pre "GRID_LOC"))) " ONLY")))
-                ;; ── THE GIRDER'S OWN DEPTH, WRITTEN DOWN ──────────────────────────────────
-                ;; Owner 5-Sep-2026: "Bridge is Show too small" / "Bridge overall depth is almost
-                ;; 1000mm" / "and on End Reduces to 350-450mm".
-                ;;
-                ;; It WAS too small - 366 against the 1,080 the rule gives - and that is fixed at
-                ;; the source. But the depth was also nowhere on the sheet, so the only way to
-                ;; check it was to hold a scale against the drawing. Both figures now print.
-                (txt-rom "MC" (list hoistX (- hookH (* crRow 6.35))) (/ (peb-th 'MARK) sc) 0.0
-                          (strcat "BRIDGE GIRDER : " (rtos bd 2 0) " DEEP, "
-                                  (rtos (if (boundp 'peb-crn-girder-end-web)
-                                          (min (* bd 0.55) (peb-crn-girder-end-web)) (* bd 0.37))
-                                        2 0)
-                                  " AT THE ENDS"))
-                (setq labeled T)))
+            ;; The extracted sheet is reference/MBS_169-PK-13_Zealcon (Mammut PK-013-169, checked
+            ;; by the owner himself in 2013). Its whole crane annotation is:
+            ;;
+            ;;      20 (M.T.) TOP RUNNING OVERHEAD CRANE
+            ;;      CRANE HOOK HEIGHT: 7315          <- a dimension off F.F.L.
+            ;;
+            ;; and nothing else. No CRANE BRIDGE, no HOIST, no CRANE RAIL, no CMAA class, no span,
+            ;; no grid note, no girder depth, no level tag. This sheet had grown all of them, and
+            ;; on MSPL-26-276 they filled the building.
+            ;;
+            ;; So: ONE label, in Mammut's own wording, plus the HOOK HEIGHT - which is a dimension
+            ;; rather than labelling, is on the Mammut sheet, and is the figure the owner has said
+            ;; sets the eave height ("Mostly Gives the Height of Building from FFL to Crane Hook").
+            ;; Everything the drawing needs to say about scope is said by the linetype and by the
+            ;; TFP; a proposal cross-section is indicative (General Note 3), not a parts list.
+            ;; set at the MARK height, not the label height: 36 characters at crTh comes to
+            ;; about 17,900 - the whole width of an 18.29 m building - and the line ran out
+            ;; through both columns. Mammut sets this one small too.
+            (txt-rom "MC" (list hoistX (- hookH (* crRow 2.0))) (/ (peb-th 'MARK) sc) 0.0
+                      (strcat (rtos cap 2 0) " (M.T.) "
+                              (if isUH "UNDERHUNG OVERHEAD CRANE" "TOP RUNNING OVERHEAD CRANE")))
+            (if (not labeled) (setq labeled T))
+                ;; The CL OF RAFTER note, the crane-beam level tag and the AT GRID note all
+                ;; went with the rest of the labelling - see the block above. They are recoverable
+                ;; from git if a job ever wants them back.
             (princ))))
           (setq n 3)))               ; drew one crane -> break the loop (one per section)
         (setq n (1+ n)))

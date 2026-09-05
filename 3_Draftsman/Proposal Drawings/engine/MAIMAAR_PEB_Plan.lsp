@@ -4755,8 +4755,31 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                 (peb-comp-layer "COMP-CRANE-FP" 8)       ; grey dashed footprint layer
                 (setvar "CLAYER" "COMP-CRANE-FP")
                 (setq bx  (+ x0 (* (- x1 x0) 0.62))      ; bridge station along the run
-                      gw  (max 450.0 (min 1000.0 (* (- yF yN) 0.05))) ; girder/detail scale ~5% of drawn span
-                      rbw 200.0                           ; crane-beam top-flange width = STANDARD 200mm (true)
+                      ;; ── GIRDER WIDTH AND BEAM FLANGE, FROM THE LIBRARY ────────────────
+                      ;; Both of these were guesses kept here, next to a component library that
+                      ;; owns the rules - the same split that let the SECTION draw a 366 girder
+                      ;; where the rule says 1,080.
+                      ;;
+                      ;;   gw  was 5 % of the drawn span, clamped 450..1000 -> 800 on this job,
+                      ;;       against peb-crn-girder-width's 594 (0.55 x a 1,080 depth).
+                      ;;   rbw was a flat "STANDARD 200", against the 225 measured off MSPL-032's
+                      ;;       single-part sheet and the rule fitted to it.
+                      ;;
+                      ;; Both now ask the library when it is loaded - it is, on every PD render -
+                      ;; and keep the old expression as the fallback so a bare Plan.lsp still draws.
+                      gw  (if (boundp 'peb-crn-girder-width)
+                            (max 300.0 (min 1400.0
+                              (peb-crn-girder-width
+                                (peb-crn-girder-depth
+                                  (if (and span (> span 0.0)) span (- yF yN)) cap))))
+                            (max 450.0 (min 1000.0 (* (- yF yN) 0.05))))
+                      rbw (if (boundp 'peb-crn-beam-flange)
+                            ;; the runway BAY is the crane run divided by its bays; there is no
+                            ;; bay variable in this scope, and the beam depth rule only needs a
+                            ;; representative one, so it is derived from the run.
+                            (peb-crn-beam-flange
+                              (peb-crn-beam-depth (max 4000.0 (min 9000.0 (/ (- x1 x0) 4.0))) cap))
+                            200.0)
                       txc (+ bx (/ gw 2.0))              ; girder centre-x
                       tyc (/ (+ yN yF) 2.0)              ; bridge mid-span
                       flts (max 0.7 (/ (getvar "LTSCALE") 130.0))) ; finer, LTSCALE-aware dash density
