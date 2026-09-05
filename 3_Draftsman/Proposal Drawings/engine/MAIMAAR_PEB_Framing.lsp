@@ -1442,7 +1442,7 @@
       (setvar "CLAYER" prev)
       (princ))))
 
-(defun peb-draw-framing-elev (surf ox oy data / len wid slopeD stype rtype
+(defun peb-draw-framing-elev (surf ox oy data / len wid slopeD stype rtype wallClr
                               eaveH clrH eaveHi eaveLo brickH hiName hiSide wallEave
                               faceLen stations isEnd base colhw rise ridgeRise
                               i x g yTop pts cx prev braced b x0 x1 y0 y1 lbl bubGap bubR revView hdTxt gMarks
@@ -2163,7 +2163,24 @@
 
   ;; 9. eave-height dim (left) + bay/station dim chain (below the bubbles)
   (vl-catch-all-apply (function (lambda ()
-    (peb-fr-overall-v (- ox (* 1500 *PEB-DIM-SCALE*)) base (+ base clrH)
+    ;; ── THIS WALL'S OWN CLEAR HEIGHT, NOT THE BUILDING'S ────────────────────────────────
+    ;; Owner 5-Sep-2026: "Lower Eave Side and High Eave Side Clear Height to be Fixed."
+    ;;
+    ;; On a single slope the two side walls are NOT the same height - the roof falls across
+    ;; the width, so NSW stands at the low eave and FSW at the high one, 1,829 mm taller on
+    ;; this job.  The WALL was already drawn correctly: wallEave is picked per surface a few
+    ;; hundred lines above (eaveHi for the high side, eaveLo for the low).  The DIMENSION was
+    ;; not - it printed clrH, the building's single clear height, so both elevations read
+    ;; "10,670 C.H" and the high wall's number was simply wrong on a customer's drawing.
+    ;;
+    ;; wallEave is the drawn eave for THIS surface; backing out the same eave addition that
+    ;; produced it returns this wall's clear height, so the dimension follows the wall it is
+    ;; measuring.  Falls back to clrH when wallEave is not set (non-mono roofs, end walls),
+    ;; where the two are equal anyway.
+    (setq wallClr (if (and wallEave (> wallEave 0.0))
+                    (max 0.0 (- wallEave (peb-eave-add data)))
+                    clrH))
+    (peb-fr-overall-v (- ox (* 1500 *PEB-DIM-SCALE*)) base (+ base wallClr)
                       ;; SAY WHICH HEIGHT IT IS (owner 31-Aug: "in plan we write the word Clear
                       ;; Height, here also we have to mention this in elevation ... what i want
                       ;; the sync in all the drawings of the building").  The elevations printed a
@@ -2174,7 +2191,7 @@
                       ;; rather than copied, so the sheets cannot drift on WHICH basis it is even
                       ;; though they print it at three different lengths.  C.H / E.H per the owner:
                       ;; this string already carries mm and feet, so the label has to be short.
-                      (strcat (peb-dim-mft clrH) " "
+                      (strcat (peb-dim-mft wallClr) " "
                               (peb-height-tag-abbr (MSPL-Get-Str data "HEIGHT_REF")))))))
   ;; the dim chain clears the bubble by its ACTUAL radius, not a fixed drop
   (setq noteY (- base bubGap bubR (* 600.0 *PEB-DIM-SCALE*)))
