@@ -7828,45 +7828,41 @@
 ;;  module columns; the hook height is CRn_HOOK_HEIGHT.  Coords: X = 0..wid across
 ;;  the width, Y = 0..H (FFL..eave).  Self-contained (no dependency on the plan file).
 ;; ============================================================================
-;; ── THE SAME LINE MAMMUT USES ──────────────────────────────────────────────────────────────
-;; Owner 5-Sep-2026: "Also use the same line material they have used."
+;; ── THE CRANE PEN, TO THE OWNER'S SPEC ─────────────────────────────────────────────────────
+;; Owner 5-Sep-2026: "LINE TYPE IS HIDDEN - - - -, Scale - 1, Colour - White, line Weight .050".
 ;;
-;; On the extracted sheet (reference/MBS_169-PK-13_Zealcon, Mammut PK-013-169) the crane is drawn
-;; in THIN SOLID line - hoist, hook, beam, the lot - with a long-dash centreline through the lift
-;; axis, and its scope said by the LABEL, not by the linetype. It is not dashed anywhere.
+;; VERIFIED IN THE FILE, not off a picture. reference/MBS_169-PK-13_Zealcon/PK13169.dxf carries
+;; 216 entities on its `Crane` layer:
 ;;
-;; This drew it HIDDEN at a 300 linetype scale. That is the same ruling the owner already made on
-;; the component library - "This is clear Solid picture" - and the same reasoning: every hidden
-;; line on a PEB sheet is dashed, so a dashed crane reads as "behind something", not "not ours".
+;;      140  HIDDEN        26  Continuous        (the rest BYLAYER)
+;;      216  lineweight 5  = 0.05 mm             every single one
+;;      colour mostly BYLAYER (white on that layer)
+;;
+;; So HIDDEN it is. I had just changed this to SOLID on the strength of a rastered crop where the
+;; dashes were too small to see - the DXF was already converted and sitting in the reference
+;; folder, and I read the picture instead of the drawing. That is exactly what golden rule 19 is
+;; for, and it cost a round trip.
+;;
+;; THE REAL DEFECT WAS NEVER "HIDDEN vs SOLID". It was the SCALE and the WEIGHT: this drew HIDDEN
+;; at linetype scale 300 and pen 13-15. At scale 300 the dashes are three hundred times too long,
+;; so on an 18 m section the crane read as a solid line made of enormous strokes - which is why it
+;; never looked like Mammut's however the linetype was set. Scale 1 and 0.05 mm is what the file
+;; says, and it is what makes a hidden line read AS a hidden line.
 (defun peb-crane-sec-line (xa ya xb yb)
-  (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-SEC") (cons 370 13)
+  (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-SEC")
+                 (cons 6 "HIDDEN") (cons 48 (peb-crane-lts)) (cons 62 7) (cons 370 5)
                  (list 10 xa ya 0.0) (list 11 xb yb 0.0))))
+
 (defun peb-crane-sec-box (xa ya xb yb)
   (peb-crane-sec-line xa ya xb ya) (peb-crane-sec-line xb ya xb yb)
   (peb-crane-sec-line xb yb xa yb) (peb-crane-sec-line xa yb xa ya))
 ;; owner-chosen SHORT-DASH thick line for the crane BRIDGE (150 dash / 120 gap, true mm), matching the
 ;; plan's CRANEBRG.  Bridge = "by others" reference member, drawn dashed (the crane BEAM stays solid).
-(defun peb-crane-sec-dash (xa ya xb yb / es)
-  (if (not (tblsearch "LTYPE" "CRANEBRG"))
-    (vl-catch-all-apply (function (lambda ()
-      (entmake (list '(0 . "LTYPE") '(100 . "AcDbSymbolTableRecord")
-                     '(100 . "AcDbLinetypeTableRecord") '(2 . "CRANEBRG") '(70 . 0)
-                     '(3 . "Crane bridge . . . .") '(72 . 65) '(73 . 2) '(40 . 130.0)
-                     '(49 . 0.0) '(74 . 0) '(49 . -130.0) '(74 . 0))))))) ; TRUE DOTS (owner 5-Sep-2026)
-                     ;; "Beam will be in Dotted to differentiate, as Bridge is normally not in
-                     ;; Maimaar Scope" - and on a crane the MAIN BEAM *is* the bridge girder (the
-                     ;; 210-25 gantry drawing labels it exactly that). This pattern read 150 dash /
-                     ;; 120 gap - a short DASH, not dots - even though it is called CRANEDOT and its
-                     ;; own comment says the owner asked for dotted on 19-Jul. A dash also says the
-                     ;; same thing as every other hidden line on the sheet, so it could not carry
-                     ;; "not our scope". A dot is a dash of length ZERO.
-  (setq es (if (> (getvar "LTSCALE") 0.0) (/ 1.0 (getvar "LTSCALE")) 1.0))
-  ;; SOLID now - see peb-crane-sec-line. The CRANEBRG linetype is left defined so a job that
-  ;; wants the old dashed bridge can have it back with one edit.
-  (if nil
-    (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-SEC") (cons 6 "CRANEBRG") (cons 48 es) (cons 370 15)
-                   (list 10 xa ya 0.0) (list 11 xb yb 0.0)))
-    (peb-crane-sec-line xa ya xb yb)))
+;; The bridge used its own CRANEBRG short dash at a true-mm scale. Mammut gives the bridge the
+;; same HIDDEN pen as the rest of the crane, so it does too now - one pen for the whole component.
+(defun peb-crane-sec-dash (xa ya xb yb)
+  (peb-crane-sec-line xa ya xb yb))
+
 (defun peb-crane-sec-dbox (xa ya xb yb)
   (peb-crane-sec-dash xa ya xb ya) (peb-crane-sec-dash xb ya xb yb)
   (peb-crane-sec-dash xb yb xa yb) (peb-crane-sec-dash xa yb xa ya))
@@ -7874,17 +7870,19 @@
 ;; solid (continuous) primitives for the DETAILED HOIST symbol — a small crisp detail
 ;; reads badly in HIDDEN dashes, and both the manual (Tech §10.6 p262-263) and the Maimaar
 ;; house reference draw the hoist body/hook in solid lines.
+;; The 26 Continuous entities on Mammut's Crane layer are the hoist body and hook - a small crisp
+;; detail reads badly in dashes at any scale. Solid, but at the same 0.05 pen as everything else.
 (defun peb-crane-sec-sline (xa ya xb yb)
-  (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-SEC")
+  (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-SEC") (cons 62 7) (cons 370 5)
                  (list 10 xa ya 0.0) (list 11 xb yb 0.0))))
 (defun peb-crane-sec-sbox (xa ya xb yb)
   (peb-crane-sec-sline xa ya xb ya) (peb-crane-sec-sline xb ya xb yb)
   (peb-crane-sec-sline xb yb xa yb) (peb-crane-sec-sline xa yb xa ya))
 (defun peb-crane-sec-circ (cx cy r)
-  (entmake (list (cons 0 "CIRCLE") (cons 8 "COMP-CRANE-SEC")
+  (entmake (list (cons 0 "CIRCLE") (cons 8 "COMP-CRANE-SEC") (cons 62 7) (cons 370 5)
                  (list 10 cx cy 0.0) (cons 40 r))))
 (defun peb-crane-sec-arc (cx cy r a0 a1)   ; a0/a1 in DEGREES (entmake ARC wants radians)
-  (entmake (list (cons 0 "ARC") (cons 8 "COMP-CRANE-SEC")
+  (entmake (list (cons 0 "ARC") (cons 8 "COMP-CRANE-SEC") (cons 62 7) (cons 370 5)
                  (list 10 cx cy 0.0) (cons 40 r)
                  (cons 50 (* a0 (/ pi 180.0))) (cons 51 (* a1 (/ pi 180.0))))))
 (defun peb-crane-sec-cross (cx cy a)
@@ -8084,7 +8082,22 @@
               (setq capY     (- clearHt (* u 0.60))        ; TR ceiling: bridge top kept clear of the rafters
                     bridgeTop capY
                     bridgeBot (- bridgeTop bd)
-                    railTop  (- bridgeBot etH)             ; top of rail (bridge end-truck rides on it)
+                    ;; ── THE BRIDGE RESTS ON THE END CARRIAGE ────────────────────────────────
+                    ;; Owner 5-Sep-2026, marking the gap in red on this very view: "Rest the
+                    ;; Bridge on End Carriage."
+                    ;;
+                    ;; The rail was placed etH below bridgeBot - the girder's FULL-depth soffit.
+                    ;; But the girder does not reach that far at its ends: it takes one tapered
+                    ;; cut down to a ~400 end web, which is what actually lands on the carriage.
+                    ;; So the carriage sat a whole girder depth less an end web - about 680 mm -
+                    ;; BELOW the thing it is supposed to be carrying, and the bridge floated.
+                    ;;
+                    ;; Measured from the END web, so the two meet. The end depth comes from the
+                    ;; same library rule the girder is drawn with, so they cannot disagree.
+                    railTop  (- bridgeTop
+                                (if (boundp 'peb-crn-girder-end-web)
+                                  (min (* bd 0.55) (peb-crn-girder-end-web)) (* bd 0.37))
+                                etH)                       ; top of rail (bridge end-truck rides on it)
                     beamTop  (- railTop railNubH)          ; top of the crane I-beam
                     beamBot  (- beamTop beamD)
                     hoistTop bridgeBot

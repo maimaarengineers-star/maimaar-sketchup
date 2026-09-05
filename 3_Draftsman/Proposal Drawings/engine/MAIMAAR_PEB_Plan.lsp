@@ -4484,8 +4484,21 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
 ;;          therefore compare cap>20 (t) and span>15000 (mm).
 ;; ============================================================================
 ;; small HIDDEN-linetype helpers for the crane footprint (open line + closed box) on COMP-CRANE-FP.
+;; HIDDEN at SCALE 1 and 0.05 mm - the owner's spec, verified against Mammut's own Crane layer
+;; (216 entities, all lineweight 5, 140 of them HIDDEN). The `lts` argument is ignored: a per-call
+;; linetype scale is what let this drift to 300 on the section and read as solid.
+;; The hoist symbol is SOLID - Mammut's Crane layer carries it as its 26 Continuous entities -
+;; but at the same white 0.05 pen as the rest of the crane.
+(defun peb-crane-sol-line (xa ya xb yb)
+  (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-FP") (cons 62 7) (cons 370 5)
+                 (list 10 xa ya 0.0) (list 11 xb yb 0.0))))
+(defun peb-crane-sol-circle (cx cy r)
+  (entmake (list (cons 0 "CIRCLE") (cons 8 "COMP-CRANE-FP") (cons 62 7) (cons 370 5)
+                 (list 10 cx cy 0.0) (cons 40 r))))
+
 (defun peb-crane-fp-line (xa ya xb yb lts)
-  (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-FP") (cons 6 "HIDDEN") (cons 48 lts)
+  (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-FP") (cons 6 "HIDDEN") (cons 48 (peb-crane-lts))
+                 (cons 62 7) (cons 370 5)
                  (list 10 xa ya 0.0) (list 11 xb yb 0.0))))
 (defun peb-crane-fp-box (xa ya xb yb lts)
   (peb-crane-fp-line xa ya xb ya lts) (peb-crane-fp-line xb ya xb yb lts)
@@ -4493,60 +4506,35 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
 ;; CRANE-BEAM runway line — a distinctive LONG-DASH linetype (900 dash / 300 gap, TRUE mm via
 ;; per-entity scale 1/LTSCALE) so the crane runway reads clearly apart from the short-dash sheeting /
 ;; grid / other HIDDEN lines on the plan (owner 19-Jul).  Falls back to HIDDEN if the LT can't be made.
-(defun peb-crane-beam-line (xa ya xb yb / es)
-  (if (not (tblsearch "LTYPE" "CRANEBEAM"))
-    (vl-catch-all-apply (function (lambda ()
-      (entmake (list '(0 . "LTYPE") '(100 . "AcDbSymbolTableRecord")
-                     '(100 . "AcDbLinetypeTableRecord") '(2 . "CRANEBEAM") '(70 . 0)
-                     '(3 . "Crane beam ____ ____") '(72 . 65) '(73 . 2) '(40 . 1200.0)
-                     '(49 . 900.0) '(74 . 0) '(49 . -300.0) '(74 . 0)))))))
-  (setq es (if (> (getvar "LTSCALE") 0.0) (/ 1.0 (getvar "LTSCALE")) 1.0))
-  (if (tblsearch "LTYPE" "CRANEBEAM")
-    (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-FP") (cons 6 "CRANEBEAM") (cons 48 es)
-                   (list 10 xa ya 0.0) (list 11 xb yb 0.0)))
-    (peb-crane-fp-line xa ya xb yb (max 0.7 (/ (getvar "LTSCALE") 130.0)))))
-;; end-carriage WHEEL — a small solid (continuous) circle so the 2 wheels read as wheels, not dashes.
+;; The runway beam had a CRANEBEAM long-dash of its own at a true-mm scale. Same pen as the rest
+;; of the crane now: HIDDEN, scale 1, white, 0.05 - the owner's spec, and what Mammut's own Crane
+;; layer carries on every one of its 216 entities. One component, one pen.
+(defun peb-crane-beam-line (xa ya xb yb)
+  (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-FP") (cons 6 "HIDDEN") (cons 48 (peb-crane-lts))
+                 (cons 62 7) (cons 370 5)
+                 (list 10 xa ya 0.0) (list 11 xb yb 0.0))))
+
+;; ── RESTORED, AND ON THE OWNER'S PEN ───────────────────────────────────────────────────────
+;; peb-crane-wheel, peb-crane-dot-line and peb-crane-dot-circle were deleted by accident: an edit
+;; to peb-crane-beam-line took its end anchor from the next BLANK LINE and swallowed the three
+;; functions after it. The CLP then drew its runways and its labels but no bridge, no wheels and
+;; no hook - and nothing errored, because a call to an undefined function inside the drawer's
+;; vl-catch-all-apply is swallowed whole. lispcheck.js is what found it (S88: a balanced file is
+;; not a working one - check DEFINED vs CALLED).
+;;
+;; Restored to the owner's spec: HIDDEN, effective scale 1200 via peb-crane-lts, white, 0.05.
+;; The CRANEDOT linetype is retired with them - one pen for the whole component.
 (defun peb-crane-wheel (cx cy r)
   (entmake (list (cons 0 "CIRCLE") (cons 8 "COMP-CRANE-FP") (cons 6 "Continuous")
+                 (cons 62 7) (cons 370 5)
                  (list 10 cx cy 0.0) (cons 40 r))))
-;; CRANEDOT — a true DOTTED linetype (dot / 130 gap, TRUE mm via per-entity scale 1/LTSCALE) for the
-;; hoist / trolley symbol, so it reads DOTTED even on its short segments (a plain HIDDEN dash covers a
-;; short segment whole and prints solid).  Owner 19-Jul.  Ensures the linetype once, then draws.
-(defun peb-crane-dot-ensure ( )
-  (if (not (tblsearch "LTYPE" "CRANEDOT"))
-    (vl-catch-all-apply (function (lambda ()
-      (entmake (list '(0 . "LTYPE") '(100 . "AcDbSymbolTableRecord")
-                     '(100 . "AcDbLinetypeTableRecord") '(2 . "CRANEDOT") '(70 . 0)
-                     '(3 . "Crane bridge . . . .") '(72 . 65) '(73 . 2) '(40 . 130.0)
-                     '(49 . 0.0) '(74 . 0) '(49 . -130.0) '(74 . 0)))))))) ; TRUE DOTS (owner 5-Sep-2026)
-                     ;; "Beam will be in Dotted to differentiate, as Bridge is normally not in
-                     ;; Maimaar Scope" - and on a crane the MAIN BEAM *is* the bridge girder (the
-                     ;; 210-25 gantry drawing labels it exactly that). This pattern read 150 dash /
-                     ;; 120 gap - a short DASH, not dots - even though it is called CRANEDOT and its
-                     ;; own comment says the owner asked for dotted on 19-Jul. A dash also says the
-                     ;; same thing as every other hidden line on the sheet, so it could not carry
-                     ;; "not our scope". A dot is a dash of length ZERO.
-                     ;; PITCH 130, NOT 300 (owner 5-Sep-2026: "make the dotted lines more
-                     ;; closer to give hard footprint of crane to show it more visible").
-                     ;; At 300 the dots fall ~1.4 mm apart at 1:209 and the footprint reads as
-                     ;; a scatter; at 130 it reads as a firm line that is still plainly dotted,
-                     ;; which is the whole job - visible AND marked as not our scope.
-;; THICK dotted line/circle for the bridge girder + hoist symbol (owner 19-Jul: show them as THICK
-;; dotted).  Lineweight 0.15mm (cons 370 15) is honoured by the DWG-To-PDF monochrome plot.
-(defun peb-crane-dot-line (xa ya xb yb / es)
-  (peb-crane-dot-ensure)
-  (setq es (if (> (getvar "LTSCALE") 0.0) (/ 1.0 (getvar "LTSCALE")) 1.0))
-  (if (tblsearch "LTYPE" "CRANEDOT")
-    (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-FP") (cons 6 "CRANEDOT") (cons 48 es)
-                   (cons 370 15)
-                   (list 10 xa ya 0.0) (list 11 xb yb 0.0)))
-    (peb-crane-fp-line xa ya xb yb (max 0.7 (/ (getvar "LTSCALE") 130.0)))))
-(defun peb-crane-dot-circle (cx cy r / es)
-  (peb-crane-dot-ensure)
-  (setq es (if (> (getvar "LTSCALE") 0.0) (/ 1.0 (getvar "LTSCALE")) 1.0))
-  (entmake (list (cons 0 "CIRCLE") (cons 8 "COMP-CRANE-FP")
-                 (cons 6 (if (tblsearch "LTYPE" "CRANEDOT") "CRANEDOT" "HIDDEN")) (cons 48 es)
-                 (cons 370 15)
+(defun peb-crane-dot-line (xa ya xb yb)
+  (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-FP") (cons 6 "HIDDEN")
+                 (cons 48 (peb-crane-lts)) (cons 62 7) (cons 370 5)
+                 (list 10 xa ya 0.0) (list 11 xb yb 0.0))))
+(defun peb-crane-dot-circle (cx cy r)
+  (entmake (list (cons 0 "CIRCLE") (cons 8 "COMP-CRANE-FP") (cons 6 "HIDDEN")
+                 (cons 48 (peb-crane-lts)) (cons 62 7) (cons 370 5)
                  (list 10 cx cy 0.0) (cons 40 r))))
 
 (defun peb-draw-crane (data len wid /
@@ -4754,7 +4742,11 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                 (if (boundp 'safe-load-ltype) (vl-catch-all-apply (function (lambda () (safe-load-ltype "HIDDEN")))))
                 (peb-comp-layer "COMP-CRANE-FP" 8)       ; grey dashed footprint layer
                 (setvar "CLAYER" "COMP-CRANE-FP")
-                (setq bx  (+ x0 (* (- x1 x0) 0.62))      ; bridge station along the run
+                ;; 0.78 along the run, not 0.62. The AREA NO. tag is a grey SOLID at the
+                ;; building centre, and at 0.62 the trolley symbol landed underneath it and
+                ;; simply disappeared - a filled region drawn over a 0.05 mm symbol wins.
+                ;; Same reason the capacity block moved off wid*0.50.
+                (setq bx  (+ x0 (* (- x1 x0) 0.78))      ; bridge station along the run
                       ;; ── GIRDER WIDTH AND BEAM FLANGE, FROM THE LIBRARY ────────────────
                       ;; Both of these were guesses kept here, next to a component library that
                       ;; owns the rules - the same split that let the SECTION draw a 366 girder
@@ -4806,22 +4798,39 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                                     (+ txc (* gw 0.85)) (+ yy (* gw 0.32)) flts)
                   (peb-crane-wheel (- txc (* gw 0.52)) yy (* gw 0.20))
                   (peb-crane-wheel (+ txc (* gw 0.52)) yy (* gw 0.20)))
-                ;; TROLLEY + HOOK — accurate hoist symbol (mid-run), proportioned in girder-widths:
-                ;; connector cap, main trolley box (with internal division), hook block, hook eye.
+                ;; ── THE HOIST SYMBOL, TRACED FROM THE MAMMUT CLP ─────────────────────────
+                ;; Owner 5-Sep-2026, sending the crop: "Draw the shape of the Crane for Symbol on
+                ;; CLP". On the Mammut plan the trolley is a small stack read across the bridge:
+                ;;
+                ;;      a RIBBED CAP (the motor, three short bands)
+                ;;      a NECK
+                ;;      the BODY, a plain rectangle
+                ;;      a small CIRCLE low in the body
+                ;;
+                ;; and the bridge is simply two parallel lines running the span. Nothing else -
+                ;; no internal divisions, no hook block, no separate hook eye. What was here was a
+                ;; six-box assembly invented before that drawing was found.
+                ;;
+                ;; Drawn SOLID: on Mammut's Crane layer the 26 Continuous entities are exactly
+                ;; this symbol; the dashes are for the bridge and the runways.
                 (foreach s (list
-                     (list (- txc (* gw 1.14)) (- tyc (* gw 1.40)) (+ txc (* gw 1.14)) (- tyc (* gw 1.40)))
-                     (list (+ txc (* gw 1.14)) (- tyc (* gw 1.40)) (+ txc (* gw 1.14)) (+ tyc (* gw 1.40)))
-                     (list (+ txc (* gw 1.14)) (+ tyc (* gw 1.40)) (- txc (* gw 1.14)) (+ tyc (* gw 1.40)))
-                     (list (- txc (* gw 1.14)) (+ tyc (* gw 1.40)) (- txc (* gw 1.14)) (- tyc (* gw 1.40)))
-                     (list (- txc (* gw 1.14)) (- tyc (* gw 0.40)) (+ txc (* gw 1.14)) (- tyc (* gw 0.40)))
-                     (list (- txc (* gw 0.67)) (+ tyc (* gw 1.40)) (- txc (* gw 0.67)) (+ tyc (* gw 2.10)))
-                     (list (- txc (* gw 0.67)) (+ tyc (* gw 2.10)) (+ txc (* gw 0.67)) (+ tyc (* gw 2.10)))
-                     (list (+ txc (* gw 0.67)) (+ tyc (* gw 2.10)) (+ txc (* gw 0.67)) (+ tyc (* gw 1.40)))
-                     (list (- txc (* gw 0.90)) (- tyc (* gw 1.40)) (- txc (* gw 0.90)) (- tyc (* gw 2.68)))
-                     (list (- txc (* gw 0.90)) (- tyc (* gw 2.68)) (+ txc (* gw 0.90)) (- tyc (* gw 2.68)))
-                     (list (+ txc (* gw 0.90)) (- tyc (* gw 2.68)) (+ txc (* gw 0.90)) (- tyc (* gw 1.40))))
-                  (peb-crane-dot-line (nth 0 s) (nth 1 s) (nth 2 s) (nth 3 s)))   ; DOTTED hoist symbol
-                (peb-crane-dot-circle (- txc (* gw 0.37)) (- tyc (* gw 2.00)) (* gw 0.37))  ; hook eye
+                     ;; ribbed cap - three bands, reading across the bridge
+                     (list (- txc (* gw 0.55)) (- tyc (* gw 2.55)) (+ txc (* gw 0.55)) (- tyc (* gw 2.55)))
+                     (list (- txc (* gw 0.55)) (- tyc (* gw 2.20)) (+ txc (* gw 0.55)) (- tyc (* gw 2.20)))
+                     (list (- txc (* gw 0.55)) (- tyc (* gw 1.85)) (+ txc (* gw 0.55)) (- tyc (* gw 1.85)))
+                     (list (- txc (* gw 0.55)) (- tyc (* gw 2.55)) (- txc (* gw 0.55)) (- tyc (* gw 1.85)))
+                     (list (+ txc (* gw 0.55)) (- tyc (* gw 2.55)) (+ txc (* gw 0.55)) (- tyc (* gw 1.85)))
+                     ;; neck
+                     (list (- txc (* gw 0.80)) (- tyc (* gw 1.85)) (+ txc (* gw 0.80)) (- tyc (* gw 1.85)))
+                     (list (- txc (* gw 0.80)) (- tyc (* gw 1.85)) (- txc (* gw 0.80)) (- tyc (* gw 1.35)))
+                     (list (+ txc (* gw 0.80)) (- tyc (* gw 1.85)) (+ txc (* gw 0.80)) (- tyc (* gw 1.35)))
+                     ;; body
+                     (list (- txc (* gw 1.15)) (- tyc (* gw 1.35)) (+ txc (* gw 1.15)) (- tyc (* gw 1.35)))
+                     (list (+ txc (* gw 1.15)) (- tyc (* gw 1.35)) (+ txc (* gw 1.15)) (+ tyc (* gw 1.35)))
+                     (list (+ txc (* gw 1.15)) (+ tyc (* gw 1.35)) (- txc (* gw 1.15)) (+ tyc (* gw 1.35)))
+                     (list (- txc (* gw 1.15)) (+ tyc (* gw 1.35)) (- txc (* gw 1.15)) (- tyc (* gw 1.35))))
+                  (peb-crane-sol-line (nth 0 s) (nth 1 s) (nth 2 s) (nth 3 s)))
+                (peb-crane-sol-circle txc (+ tyc (* gw 0.80)) (* gw 0.34))   ; the small circle, low in the body
                 ;; ── LABEL THE CRANE at the footprint (owner 19-Jul): capacity + CMAA + hoist note,
                 ;;    centred just below the hoist so the crane is identified AT its bridge (kept clear
                 ;;    of the FALL roof tag by stacking DOWN-span, not out to the side). ──

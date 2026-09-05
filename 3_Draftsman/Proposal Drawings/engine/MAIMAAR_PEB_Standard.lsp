@@ -120,6 +120,27 @@
     (WHITE . 7)  (RED . 1)  (YELLOW . 2)  (GREEN . 3)  (CYAN . 4)
     (BLUE . 5)   (MAGENTA . 6) (GREY . 8) (LTGREY . 9) (BROWN . 30) (ORANGE . 32)))
 
+;; ── THE CRANE'S LINETYPE SCALE ─────────────────────────────────────────────────────────────
+;; Owner 5-Sep-2026: "LINE TYPE IS HIDDEN - - - -, Scale - 1, Colour - White, line Weight .050".
+;;
+;; The "Scale - 1" is read off AutoCAD's Properties palette on the Mammut drawing, where it is
+;; the ENTITY linetype scale. What you see is entity_scale x drawing LTSCALE, and Mammut's file
+;; carries $LTSCALE = 1200 (verified in reference/MBS_169-PK-13_Zealcon/PK13169.dxf). So their
+;; dashes are drawn at an effective 1200.
+;;
+;; Ours is not 1200. Plan.lsp sets LTSCALE to max(60, max(len,wid)/400) - about 76 on an 18 x 30 m
+;; building. Copying the NUMBER 1 into our drawing would give an effective 76, sixteen times
+;; shorter than Mammut's, and the crane would read as a solid line. Copying the APPEARANCE means
+;; asking for an effective 1200 whatever our LTSCALE happens to be.
+;;
+;; This is the same trap in the opposite direction from the one that was already here: the crane
+;; was drawn HIDDEN at a per-entity scale of 300, which on top of LTSCALE 76 gave an effective
+;; 22,800 - dashes twenty metres long, which is also a solid line.
+(defun peb-crane-lts ( / L)
+  (setq L (getvar "LTSCALE"))
+  (if (or (null L) (<= L 0.0)) (setq L 1.0))
+  (/ 1200.0 L))
+
 (defun peb-color (sym / p)
   (if (setq p (assoc sym *PEB-COLORS*)) (cdr p) 7))
 
