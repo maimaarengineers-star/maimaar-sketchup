@@ -1946,6 +1946,71 @@
 ;; position carries meaning (a dimension's midpoint, the AREA tag - which has its own reason to
 ;; stay put: the braced bays' vertical text sits either side of centre and the tag lands in it).
 ;; Falls back to len/2 when there is no bay list, so nothing can break for want of one.
+;; ---- AND THE OTHER HALF OF IT, IN X ---------------------------------------------------------
+;; peb-clear-of-grid lands a label at the bay centre nearest the middle of the building. That keeps
+;; it off a COLUMN line, which is what it was written for, but it says nothing about what else is in
+;; that bay - and on a 4-bay building peb-braced-bays braces bays 1 and 2, the two in the middle. So
+;; the rule aimed the eave tags at exactly the bays with cross-bracing in them.
+;;
+;; That is why fixing Y alone did not reduce the count on 276-26: the tags came off the purlins and
+;; landed on the diagonals instead. Cross-bracing crosses every Y in its bay, so no Y can avoid it -
+;; the label has to be in a different BAY, which is an X decision.
+;;
+;; The FALL glyph in this same file has always done this (it skips fallBraced when choosing a bay).
+;; The eave tags now use the same idea, and its comment claiming "the tags are at a bay centre so
+;; the bracing is not in their way either" is finally true rather than aspirational.
+(defun peb-clear-of-unbraced-bay (len bayPts / braced bp i n best bd c)
+  (setq braced (peb-braced-bays bayPts)
+        bp     (vl-sort bayPts '<)
+        n      (1- (length bp))
+        best   (/ len 2.0)
+        bd     1.0e18
+        i      0)
+  (while (< i n)
+    (if (not (member i braced))
+      (progn
+        (setq c (/ (+ (nth i bp) (nth (1+ i) bp)) 2.0))
+        (if (< (abs (- c (/ len 2.0))) bd)
+          (setq bd (abs (- c (/ len 2.0))) best c))))
+    (setq i (1+ i)))
+  best)
+
+;; ---- THE ROOF PURLIN ROWS, AS ONE RULE -------------------------------------------------------
+;; The roof framing plan draws purlins at wid/nRows intervals, nRows = round(wid/1500). That rule
+;; lived only inside the drawer, so nothing else could know where the purlins were - which is why a
+;; label could be placed straight onto one and nobody could tell in advance.
+;; Both the drawer and peb-clear-in-y read this, so the label cannot disagree with the member.
+(defun peb-roof-purlin-rows (wid / n i out)
+  (setq n (fix (+ 0.5 (/ wid 1500.0))))
+  (if (< n 2) (setq n 2))
+  (setq i 1 out '())
+  (while (< i n)
+    (setq out (cons (* (/ wid (float n)) i) out) i (1+ i)))
+  (reverse out))
+
+;; ---- S64 IN Y: A LABEL MUST NOT LAND ON GEOMETRY ---------------------------------------------
+;; peb-clear-of-grid has always done this in X - it lands the label mid-bay, clear of a column
+;; line. There was no Y equivalent, so the eave tags took a blind fraction of the width
+;; (wid x 0.085) and landed wherever that fell. On 276-26 that was straight through a purlin on
+;; both roof plans, and no adjustment of the fraction fixes it: the next building has a different
+;; width and the purlins move with it.
+;;
+;; Same idea as peb-clear-of-grid, one axis over: find the gap that CONTAINS the wanted Y and
+;; return its middle. The field edges count as bounds, so a label near the wall is handled too.
+;;
+;; It refuses rather than pretends: if the gap cannot hold a label `h` tall, the target comes back
+;; untouched. A rule that always returned an answer would quietly move labels into gaps they still
+;; do not fit, and the drawing would look considered while being just as wrong.
+(defun peb-clear-in-y (target h wid ys / bounds prev lo hi)
+  (setq bounds (append (list 0.0) (vl-sort ys '<) (list wid)) prev nil lo nil hi nil)
+  (foreach y bounds
+    (if (and prev (null lo) (>= y target) (<= prev target))
+      (setq lo prev hi y))
+    (setq prev y))
+  (if (and lo hi (> (- hi lo) h))
+    (/ (+ lo hi) 2.0)
+    target))
+
 (defun peb-clear-of-grid (len bayPts / bp prev best bd c)
   (setq best (/ len 2.0) bd 1.0e18)
   (if (and bayPts (> (length bayPts) 1))
@@ -1960,8 +2025,14 @@
   best)
 
 (defun peb-fall-glyph-set (data stype len wid bayPts mgRidgePts mgGableW /
-                           bays fallBraced fallUsed slopeXs nFall k tgt off found fallU sx mgY rY)
+                           bays fallBraced fallUsed slopeXs nFall k tgt off found fallU sx mgY rY
+                           purlYs eaveH)
   (setq bays (max 1 (1- (length bayPts))))
+  ;; What the eave tags have to keep clear of, and how tall they are. eaveH is the DRAWN height
+  ;; (the rung times the sheet's scale), because the gap has to hold the text as it plots, not
+  ;; as it is written - S57.
+  (setq purlYs (peb-roof-purlin-rows wid)
+        eaveH  (* (peb-th 'SMALL) (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)))
   (setq fallBraced (peb-braced-bays bayPts) fallUsed '() slopeXs '())
   (setq nFall (if (<= bays 2) 1 2))   ; owner 4-Jul: FALL in 2 places only (1 on a tiny 1-2 bay building)
   (setq k 1)
@@ -2077,10 +2148,14 @@
           ;; through HIGH EAVE.  8.5% clears the runway on any building without reaching the
           ;; braced bays, and the tags are at a bay centre so the bracing is not in their way
           ;; either.  They still read as naming the eave they sit beside.
-          (progn (txt "MC" (list (peb-clear-of-grid len bayPts) (* wid 0.085)) (peb-th 'SMALL) 0 "HIGH EAVE")
-                 (txt "MC" (list (peb-clear-of-grid len bayPts) (* wid 0.915)) (peb-th 'SMALL) 0 "LOW EAVE"))
-          (progn (txt "MC" (list (peb-clear-of-grid len bayPts) (* wid 0.915)) (peb-th 'SMALL) 0 "HIGH EAVE")
-                 (txt "MC" (list (peb-clear-of-grid len bayPts) (* wid 0.085)) (peb-th 'SMALL) 0 "LOW EAVE"))))
+          ;; CLEAR IN BOTH AXES NOW. X was already computed to miss a column line; Y was the raw
+          ;; fraction, which put both tags through a purlin on 276-26. peb-clear-in-y moves the
+          ;; wanted Y to the middle of the purlin gap it falls in - 0.085 and 0.915 stay as the
+          ;; INTENT (just inboard of each eave) and the rule decides where that actually lands.
+          (progn (txt "MC" (list (peb-clear-of-unbraced-bay len bayPts) (peb-clear-in-y (* wid 0.085) eaveH wid purlYs)) (peb-th 'SMALL) 0 "HIGH EAVE")
+                 (txt "MC" (list (peb-clear-of-unbraced-bay len bayPts) (peb-clear-in-y (* wid 0.915) eaveH wid purlYs)) (peb-th 'SMALL) 0 "LOW EAVE"))
+          (progn (txt "MC" (list (peb-clear-of-unbraced-bay len bayPts) (peb-clear-in-y (* wid 0.915) eaveH wid purlYs)) (peb-th 'SMALL) 0 "HIGH EAVE")
+                 (txt "MC" (list (peb-clear-of-unbraced-bay len bayPts) (peb-clear-in-y (* wid 0.085) eaveH wid purlYs)) (peb-th 'SMALL) 0 "LOW EAVE"))))
       (T
         (foreach sx slopeXs
           (arrow-down-big sx (* wid 0.5) fallU)))))))

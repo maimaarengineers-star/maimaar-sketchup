@@ -81,13 +81,11 @@
     (command "_.LINE" (list (+ ox g) oy) (list (+ ox g) (+ oy wid)) ""))
   ;; purlins along the length at ~1.5 m rows across the width
   (setvar "CLAYER" "PURLINS")
-  (setq purlSp 1500.0 nRows (fix (+ 0.5 (/ wid purlSp))))
-  (if (< nRows 2) (setq nRows 2))
-  (setq i 1)
-  (while (< i nRows)
-    (setq y (+ oy (* (/ wid (float nRows)) i)))
-    (command "_.LINE" (list ox y) (list (+ ox len) y) "")
-    (setq i (1+ i)))
+  ;; The row positions come from peb-roof-purlin-rows (Plan.lsp) rather than being computed here,
+  ;; so the label placer can know exactly where these lines are. It used to be the other way round:
+  ;; this loop was the only thing that knew, and peb-fall-glyph-set placed the eave tags blind.
+  (foreach y (peb-roof-purlin-rows wid)
+    (command "_.LINE" (list ox (+ oy y)) (list (+ ox len) (+ oy y)) ""))
   ;; ── MEMBER LABELS (owner 26-Aug) ────────────────────────────────────────
   ;; "Label the girts and purlins ... as per Mammut Sample Drawings and Maimaar Own
   ;; Drawings."  Checked the reference sets first: they label members with a PLAIN
