@@ -2070,11 +2070,17 @@
             (arrow-down-big sx (* wid 0.5) fallU)))   ; FSW high (default) -> fall toward NSW
         (setvar "CLAYER" "TEXT")
         (if (wcmatch (strcase (MSPL-Get-Str data "RA_MONO_HIGH")) "*NSW*")
-          ;; placed clear of the column line - see peb-clear-of-grid
-          (progn (txt "MC" (list (peb-clear-of-grid len bayPts) (* wid 0.055)) (peb-th 'SMALL) 0 "HIGH EAVE")
-                 (txt "MC" (list (peb-clear-of-grid len bayPts) (* wid 0.945)) (peb-th 'SMALL) 0 "LOW EAVE"))
-          (progn (txt "MC" (list (peb-clear-of-grid len bayPts) (* wid 0.945)) (peb-th 'SMALL) 0 "HIGH EAVE")
-                 (txt "MC" (list (peb-clear-of-grid len bayPts) (* wid 0.055)) (peb-th 'SMALL) 0 "LOW EAVE"))))
+          ;; Placed clear of the column line (peb-clear-of-grid) AND inboard of the crane runway.
+          ;; Owner 5-Sep-2026: "Show the Crane Beam Top Clean Proper line."  At 5.5% of the width
+          ;; these tags sat about 1,000 mm inside the wall, which on a crane job is exactly where
+          ;; the runway beam and its brackets run - textgeom reported COMP-CRANE-FP straight
+          ;; through HIGH EAVE.  8.5% clears the runway on any building without reaching the
+          ;; braced bays, and the tags are at a bay centre so the bracing is not in their way
+          ;; either.  They still read as naming the eave they sit beside.
+          (progn (txt "MC" (list (peb-clear-of-grid len bayPts) (* wid 0.085)) (peb-th 'SMALL) 0 "HIGH EAVE")
+                 (txt "MC" (list (peb-clear-of-grid len bayPts) (* wid 0.915)) (peb-th 'SMALL) 0 "LOW EAVE"))
+          (progn (txt "MC" (list (peb-clear-of-grid len bayPts) (* wid 0.915)) (peb-th 'SMALL) 0 "HIGH EAVE")
+                 (txt "MC" (list (peb-clear-of-grid len bayPts) (* wid 0.085)) (peb-th 'SMALL) 0 "LOW EAVE"))))
       (T
         (foreach sx slopeXs
           (arrow-down-big sx (* wid 0.5) fallU)))))))
@@ -4700,7 +4706,7 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                         x0 x1 yLo yHi bcx hcx hcy hr dg s bx capLbl capY clsY crLbT
                         gw etL etW yr
                         midx runTxt capInt byoth craneIdx runY ah a ax dir capX clX clY
-                        bracedXs usedCapX b bestX bestD cand dmin bxc px fr crLbH hsS hsP ln ac ci pl pt
+                        bracedXs usedCapX b bestX bestD cand dmin bxc px fr crLbH hsS hsP ln ac ci pl pt cbTrim cbX0 cbX1
                         yN yF flts txc tyc thw thh yy pt
                         wgys nW letOfs gfW gtW vf vt yy0 yy1 rbw off xb colOff off0 off1 cbIn)
   (if (= (strcase (MSPL-Get-Str data "CR_TOGGLE")) "YES")
@@ -4786,21 +4792,27 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                 ;; a "C/L OF RAFTER" bridge centreline.  The runway rides on BRACKETS off the main
                 ;; columns, so no separate crane columns are drawn (true even for the 50 t crane).
 
-                ;; (1) RUNNING-LENGTH double-headed arrow along the length, just inside the near
-                ;;     eave; a 2nd/3rd crane in series stacks downward.  Capacity + run ride on it.
+                ;; ── THE RUNNING-LENGTH ARROW IS GONE TOO ──────────────────────────────────
+                ;; Owner 5-Sep-2026, circling the top of the sheet: "Show the Crane Beam Top Clean
+                ;; Proper line."
+                ;;
+                ;; This drew a double-headed arrow the full length of the run, at runY - which is
+                ;; just inside the near eave, i.e. straight along the crane beam.  It existed to
+                ;; carry the "CRANE RUN LENGTH: 30,480" note, and that note moved into the short
+                ;; label on the bridge earlier today.  What was left was an arrow with nothing to
+                ;; say, lying on top of the beam it was measuring: an unlabelled dimension is not a
+                ;; dimension, it is a line across the steel.
+                ;;
+                ;; The beam now reads as what it is - two clean parallel lines with its brackets on
+                ;; the columns - and the run length is still on the sheet, in the one place the
+                ;; crane is described.
+                ;;
+                ;; runY is still computed: the crane FOOTPRINT block below uses it to stack a
+                ;; second and third crane clear of the first.
                 (setq runY (- wid (* u 1.35 craneIdx))
                       ah   (* u 0.40))
                 (if (< runY (* wid 0.55)) (setq runY (* wid 0.55)))
-                (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE")
-                               (list 10 x0 runY 0.0) (list 11 x1 runY 0.0)))
-                (foreach a (list (list x0 1.0) (list x1 -1.0))
-                  (setq ax (car a) dir (cadr a))
-                  (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE")
-                                 (list 10 ax runY 0.0)
-                                 (list 11 (+ ax (* dir ah)) (+ runY (* ah 0.30)) 0.0)))
-                  (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE")
-                                 (list 10 ax runY 0.0)
-                                 (list 11 (+ ax (* dir ah)) (- runY (* ah 0.30)) 0.0))))
+
                 ;; The separate "CRANE RUN LENGTH" note that used to print here is gone.  Owner
                 ;; 5-Sep-2026: "Remove the Unnecessary line for Crane Labelling.  Just Make the
                 ;; short words & for Crane Capacity, Span and Run Length."  The run length is one
@@ -4946,9 +4958,28 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                 ;; (1) RUNWAY BEAMS — each drawn as a DOUBLE LONG-DASH line (beam width rbw), sitting
                 ;;     just INSIDE the module column's inner flange (yN / yF).  Long-dash linetype
                 ;;     differentiates the crane beam from the sheeting / grid lines.
+                ;; ── THE BEAM STOPS AT THE LAST COLUMN ─────────────────────────────────────
+                ;; Owner 5-Sep-2026, twice, with a red X over the corner: "Crane Beam is Going
+                ;; Beyond the Columns" and then "Trim the Crane Beam at Last Column on All 4
+                ;; Corners."
+                ;;
+                ;; The first pass clamped the BRACKETS, which were hanging 267 mm outboard.  The
+                ;; beam itself still ran grid-to-grid, so it reached the column's CENTRELINE and
+                ;; carried on to the far face - measured, 35 mm past the corner column's outer
+                ;; face at x 108,568 against a face at 108,603.
+                ;;
+                ;; A runway beam lands on a bracket bolted to the column's INNER face; there is no
+                ;; beam outboard of that face, and drawing one puts steel where none is fabricated.
+                ;; Trimmed by half a column web (cbTrim) at each end, so all four corners stop
+                ;; square on the last column, and the brackets are clamped to the same line so the
+                ;; two still meet.
+                (setq cbTrim (/ (if (and (boundp '*PEB-COL-WEB*) *PEB-COL-WEB*) *PEB-COL-WEB* 700.0) 2.0)
+                      cbX0   (+ x0 cbTrim)
+                      cbX1   (- x1 cbTrim))
+                (if (>= cbX0 cbX1) (setq cbX0 x0 cbX1 x1))   ; a very short run keeps its full beam
                 (foreach yy (list yN yF)
-                  (peb-crane-beam-line x0 (- yy (/ rbw 2.0)) x1 (- yy (/ rbw 2.0)))
-                  (peb-crane-beam-line x0 (+ yy (/ rbw 2.0)) x1 (+ yy (/ rbw 2.0))))
+                  (peb-crane-beam-line cbX0 (- yy (/ rbw 2.0)) cbX1 (- yy (/ rbw 2.0)))
+                  (peb-crane-beam-line cbX0 (+ yy (/ rbw 2.0)) cbX1 (+ yy (/ rbw 2.0))))
                 ;; (3) BRACKETS — the runway rides on a bracket off each main column; draw a small
                 ;;     support pad where a runway crosses a column (bay grid line) inside the run.
                 (foreach xb bayPts
@@ -4970,8 +5001,8 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                       ;; so an interior bracket still straddles its column and an end one stops
                       ;; square with the beam.
                       ;; the bracket is Maimaar's, like the beam it carries - solid pen
-                      (peb-crane-steel-box (max x0 (- xb (* gw 0.45))) (- yy (/ rbw 2.0))
-                                           (min x1 (+ xb (* gw 0.45))) (+ yy (/ rbw 2.0))))))
+                      (peb-crane-steel-box (max cbX0 (- xb (* gw 0.45))) (- yy (/ rbw 2.0))
+                                           (min cbX1 (+ xb (* gw 0.45))) (+ yy (/ rbw 2.0))))))
                 ;; BRIDGE GIRDER — two THICK DOTTED lines across the span between the two runways.
                 (peb-crane-dot-line bx yN bx yF)
                 (peb-crane-dot-line (+ bx gw) yN (+ bx gw) yF)
