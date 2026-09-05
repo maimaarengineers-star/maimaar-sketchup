@@ -2026,13 +2026,23 @@
 
 (defun peb-fall-glyph-set (data stype len wid bayPts mgRidgePts mgGableW /
                            bays fallBraced fallUsed slopeXs nFall k tgt off found fallU sx mgY rY
-                           purlYs eaveH)
+                           purlYs eaveH eaveOut)
   (setq bays (max 1 (1- (length bayPts))))
   ;; What the eave tags have to keep clear of, and how tall they are. eaveH is the DRAWN height
   ;; (the rung times the sheet's scale), because the gap has to hold the text as it plots, not
   ;; as it is written - S57.
   (setq purlYs (peb-roof-purlin-rows wid)
         eaveH  (* (peb-th 'SMALL) (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)))
+  ;; ON THE SHEETING PLAN THE TAG LEAVES THE FIELD, because no position inside it can work.
+  ;; The roof sheeting plan draws one line per panel JOINT - 1000 mm cover, so a joint every metre -
+  ;; and the eave tag is ~3,700 wide. There is no gap it fits in, in X or in Y; measured on 276-26,
+  ;; four joints crossed each tag wherever it was put. A clearance rule cannot solve that, and
+  ;; shrinking the tag to fit between two joints would take it below the ladder.
+  ;;
+  ;; So it goes just OUTSIDE the roof outline, beside the eave it names - which is where a
+  ;; draughtsman would put it anyway, and it still reads as naming that eave. One text height of
+  ;; clear air off the edge: enough to be plainly outside, close enough to belong to it.
+  (setq eaveOut (and *PEB-SHEET-KIND* (eq *PEB-SHEET-KIND* 'SHEETING)))
   (setq fallBraced (peb-braced-bays bayPts) fallUsed '() slopeXs '())
   (setq nFall (if (<= bays 2) 1 2))   ; owner 4-Jul: FALL in 2 places only (1 on a tiny 1-2 bay building)
   (setq k 1)
@@ -2152,10 +2162,10 @@
           ;; fraction, which put both tags through a purlin on 276-26. peb-clear-in-y moves the
           ;; wanted Y to the middle of the purlin gap it falls in - 0.085 and 0.915 stay as the
           ;; INTENT (just inboard of each eave) and the rule decides where that actually lands.
-          (progn (txt "MC" (list (peb-clear-of-unbraced-bay len bayPts) (peb-clear-in-y (* wid 0.085) eaveH wid purlYs)) (peb-th 'SMALL) 0 "HIGH EAVE")
-                 (txt "MC" (list (peb-clear-of-unbraced-bay len bayPts) (peb-clear-in-y (* wid 0.915) eaveH wid purlYs)) (peb-th 'SMALL) 0 "LOW EAVE"))
-          (progn (txt "MC" (list (peb-clear-of-unbraced-bay len bayPts) (peb-clear-in-y (* wid 0.915) eaveH wid purlYs)) (peb-th 'SMALL) 0 "HIGH EAVE")
-                 (txt "MC" (list (peb-clear-of-unbraced-bay len bayPts) (peb-clear-in-y (* wid 0.085) eaveH wid purlYs)) (peb-th 'SMALL) 0 "LOW EAVE"))))
+          (progn (txt "MC" (list (peb-clear-of-unbraced-bay len bayPts) (if eaveOut (- 0 (* eaveH 1.15)) (peb-clear-in-y (* wid 0.085) eaveH wid purlYs))) (peb-th 'SMALL) 0 "HIGH EAVE")
+                 (txt "MC" (list (peb-clear-of-unbraced-bay len bayPts) (if eaveOut (+ wid (* eaveH 1.15)) (peb-clear-in-y (* wid 0.915) eaveH wid purlYs))) (peb-th 'SMALL) 0 "LOW EAVE"))
+          (progn (txt "MC" (list (peb-clear-of-unbraced-bay len bayPts) (if eaveOut (+ wid (* eaveH 1.15)) (peb-clear-in-y (* wid 0.915) eaveH wid purlYs))) (peb-th 'SMALL) 0 "HIGH EAVE")
+                 (txt "MC" (list (peb-clear-of-unbraced-bay len bayPts) (if eaveOut (- 0 (* eaveH 1.15)) (peb-clear-in-y (* wid 0.085) eaveH wid purlYs))) (peb-th 'SMALL) 0 "LOW EAVE"))))
       (T
         (foreach sx slopeXs
           (arrow-down-big sx (* wid 0.5) fallU)))))))
@@ -6843,6 +6853,7 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   ;; ── FALL glyphs (owner 4-Jul; unified 7-Jul) ──────────────────
   ;; MAX 2-3 fall symbols, snapped to unbraced bays, autosized — now via the SHARED routine so the
   ;; Column Layout Plan and the Roof Plan draw the SAME glyph set. (See peb-fall-glyph-set.)
+  (setq *PEB-SHEET-KIND* 'CLP)
   (peb-fall-glyph-set data stype len wid bayPts mgRidgePts mgGableW)
 
   ;; ── Wall labels ───────────────────────────────────────────────

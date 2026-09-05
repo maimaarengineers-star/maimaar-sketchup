@@ -1862,8 +1862,18 @@
   (dim-arrow-h x1 y "R")
   (dim-arrow-h x2 y "L")
   ;; Text
-  (txt-dim "MC" (list mid (+ y (* 360 *PEB-DIM-SCALE*))) 300 0 mmTxt)
-  (if (/= ftTxt "") (txt-dim "MC" (list mid (- y (* 360 *PEB-DIM-SCALE*))) 280 0 ftTxt))
+  ;; THE DIM RUNG, not 300/280 (S57/S58: dimension text is sized for PAPER, from the ladder).
+  ;; The ladder exists so the same KIND of text prints at the same size on every sheet whatever
+  ;; that sheet's scale. The column layout plan gets this right - its dimensions are (peb-th 'DIM)
+  ;; and print at 2.5 mm. This sheet hard-coded 300, which prints at 300/700 x 2.5 = 1.07 mm: the
+  ;; SAME dimension, on the same drawing set, at well under half the size. The feet line was 280,
+  ;; a second unexplained number a whisker below the first.
+  ;;
+  ;; The offset was already expressed in DIM-SCALE, so it travels with the text; only the heights
+  ;; were loose. Both lines now take DIM, and the feet line keeps its slightly-smaller reading by
+  ;; sitting on the ladder's rung below rather than by being 20 units short of nothing in particular.
+  (txt-dim "MC" (list mid (+ y (* 360 *PEB-DIM-SCALE*))) (peb-th 'DIM) 0 mmTxt)
+  (if (/= ftTxt "") (txt-dim "MC" (list mid (- y (* 360 *PEB-DIM-SCALE*))) (peb-th 'SMALL) 0 ftTxt))
 )
 
 
@@ -6926,8 +6936,9 @@
   out)
 
 ;; Characters that fit in `avail` model units at the sheeting M-Ladder's PLOTTED text height.
-;; 600 (the MLEADER base) x TS x 0.42 = 387 at TS 1.536, which is what the rendered sheet
-;; measures once the scale is applied ONCE - see peb-make-mleader, where it used to be squared;
+;; SMALL (the MLEADER base, from the ladder) x TS x 0.42 = 355 at TS 1.536, which is what the
+;; rendered sheet measures once the scale is applied ONCE - see peb-make-mleader, where it used
+;; to be squared, and where the base was 600 until it was put on the ladder on 5-Sep;
 ;; 0.94 em per
 ;; character is the measured ROMAND advance (GOLDEN_RULES 37). Floored at 12 so a narrow
 ;; building gets a readable stack rather than one word per line.
@@ -6940,6 +6951,16 @@
         h  (* (float (peb-th 'SMALL)) ts 0.42)
         n  (if (> h 0.0) (fix (/ (- (abs avail) (* 900.0 ts)) (* h 0.94))) 20))
   (max 12 (min 30 n)))
+
+;; One line out of a "line1\Pline2" string. peb-split-2-lines returns the MText paragraph form,
+;; which an MLEADER renders as two lines by itself; txt-bold draws it literally, backslash-P and
+;; all, so a caller drawing with TEXT has to take the halves apart.
+(defun peb-line-of (s n / i)
+  (setq i (vl-string-search "\P" s))
+  (cond
+    ((null i) (if (= n 1) s ""))
+    ((= n 1) (substr s 1 i))
+    (T (substr s (+ i 3)))))
 
 (defun peb-split-2-lines (txt / words idx total halfTotal acc line1 line2 w orig)
   ;;  Split a string into AT MOST 2 lines, joined by MText paragraph
@@ -8612,6 +8633,7 @@
 
 (defun C:PEB-SECTION
   ( / dataFile data
+    hdTop hdMid hdSub hdSubTxt hdY2 hdYr hdYm hdYt
     project client propinput propno fulldate
     bldgno revno
     len wid widInput stype slopeStr slopeD rise ridgeXoff
@@ -10382,28 +10404,58 @@
   (setq hdBase (if (and (= stype "F2") *PEB-F2-HEAD-SUB*)
                  *PEB-F2-HEAD-SUB*
                  (+ H rise (* 6200 *PEB-TEXT-SCALE*))))
+  ;; THE HEADING BLOCK, ON THE LADDER - three tiers, three rungs.
+  ;;
+  ;; 500 / 350 / 260 print at 1.8 / 1.3 / 0.95 mm. The bottom of that is below MARK, the smallest
+  ;; DEFINED size on the ladder, and the top of it is a drawing heading printing smaller than the
+  ;; body text on the plans. The hierarchy was real - three distinct sizes - but none of the three
+  ;; was a size anybody chose.
+  ;;
+  ;; ANNOT / SMALL / MARK keeps three distinct tiers and lands them at 3.0 / 2.0 / 1.45 mm. The
+  ;; info bar is the constrained one: it is a long string centred on a drawing only `wid` wide, so
+  ;; it goes on the smallest defined rung and is SPLIT across two lines (peb-split-2-lines, already
+  ;; used for the M-Ladder spec) rather than being allowed to run off both ends of the section.
+  ;;
+  ;; THE GAPS ARE DERIVED FROM THE HEIGHTS (S57). 1900 / 1100 / 700 were flat numbers, so raising a
+  ;; heading used to close the gap under it - which is exactly how the info bar came to overlap the
+  ;; M-Ladder headings and get patched with "+1100" on 23-Jul. Expressed as multiples of the text
+  ;; they space, the block opens up with the text instead of colliding with it.
+  ;; THE STACK IS COMPUTED, NOT GUESSED. My first attempt at this put BUILDING CROSS-SECTION 415
+  ;; units above the info bar when two lines of 400 and 550 need at least (400+550)/2 = 475 between
+  ;; their centres just to touch - so the two overlapped, and textclash caught it. Each row now sits
+  ;; a half-height of itself plus a half-height of its neighbour plus clear air above the row below,
+  ;; which is the only way a stack survives someone changing one of the three rungs.
+  (setq hdTop  (peb-th 'ANNOT)
+        hdMid  (peb-th 'SMALL)
+        hdSub  (peb-th 'MARK)
+        hdY2   (* 1.30 hdSub)                                   ; info bar, upper of two lines
+        hdYr   (+ hdY2 (* 0.5 hdSub) (* 0.60 hdSub))            ; the rule above it
+        hdYm   (+ hdYr (* 0.60 hdMid) (* 0.5 hdMid))            ; BUILDING CROSS-SECTION
+        hdYt   (+ hdYm (* 0.5 hdMid) (* 0.60 hdTop) (* 0.5 hdTop)))  ; frame type
   ;; Top line: frame type (e.g. CLEAR SPAN GABLE / MULTI-GABLE / SINGLE SLOPE)
   (txt-bold "MC"
-            (list (/ wid 2.0) (+ hdBase (* 1900 *PEB-TEXT-SCALE*)))
-            500 0
+            (list (/ wid 2.0) (+ hdBase (* hdYt *PEB-TEXT-SCALE*)))
+            hdTop 0
             (peb-structure-label stype))
   ;; Second line: generic "BUILDING CROSS-SECTION"
   (txt-bold "MC"
-            (list (/ wid 2.0) (+ hdBase (* 1100 *PEB-TEXT-SCALE*)))
-            350 0
+            (list (/ wid 2.0) (+ hdBase (* hdYm *PEB-TEXT-SCALE*)))
+            hdMid 0
             "BUILDING CROSS-SECTION")
   ;; Underline beneath title
   (setvar "CLAYER" "TEXT")
   (command "LINE"
     (list (- (/ wid 2.0) (* 6000 *PEB-TEXT-SCALE*))
-          (+ hdBase (* 700 *PEB-TEXT-SCALE*)))
+          (+ hdBase (* hdYr *PEB-TEXT-SCALE*)))
     (list (+ (/ wid 2.0) (* 6000 *PEB-TEXT-SCALE*))
-          (+ hdBase (* 700 *PEB-TEXT-SCALE*))) "")
+          (+ hdBase (* hdYr *PEB-TEXT-SCALE*))) "")
   ;; Subtitle: short summary line - use widInput (out-to-out of sheeting,
   ;; matches the dimension shown at the bottom of the section).
-  (txt-bold "MC"
-       (list (/ wid 2.0) hdBase)
-       260 0
+  ;; Built first, then split: at MARK it is ~54% wider than it was at 260, and it was already
+  ;; overhanging a section only `wid` across. peb-split-2-lines breaks it at a word boundary into
+  ;; two balanced lines - the same helper the M-Ladder spec uses - so it reads at a defined size
+  ;; instead of fitting by being too small to read.
+  (setq hdSubTxt
      (if (= stype "F2")
        ;; Multi-storey flat roof: roof clear height + count of mezzanine (intermediate) floors.
        (strcat (rtos (/ widInput 1000.0) 2 1) "m SPAN  |  ROOF C.H "
@@ -10431,6 +10483,16 @@
                  ;; already meant, so ridge = eave + rise exactly.
                  (T (strcat "RIDGE " (rtos (/ (+ H (peb-purlin-depth) rise) 1000.0) 2 1)
                             "m  |  SLOPE " slopeStr))))))
+  ;; Two lines if it is long enough to need them. txt-bold draws \P literally rather than as a
+  ;; paragraph break, so the split is drawn as two calls with the upper one a line-height above.
+  (if (> (strlen hdSubTxt) 46)
+    (progn
+      (setq hdSubTxt (peb-split-2-lines hdSubTxt))
+      (txt-bold "MC" (list (/ wid 2.0) (+ hdBase (* hdY2 *PEB-TEXT-SCALE*)))
+                hdSub 0 (peb-line-of hdSubTxt 1))
+      (txt-bold "MC" (list (/ wid 2.0) hdBase) hdSub 0 (peb-line-of hdSubTxt 2)))
+    (txt-bold "MC" (list (/ wid 2.0) hdBase) hdSub 0 hdSubTxt))
+
 
   ;; ── Title block (auto-widens for narrow buildings, scales uniformly for big) ──
   ;; Min: 35 m so small buildings still get readable cells.

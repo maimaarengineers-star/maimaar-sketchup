@@ -121,28 +121,49 @@ function masked(b) {
   });
 }
 
+// AREA-MARK IS A WHISPER, BY THE OWNER'S OWN RULING.
+//
+// The area cross-lines are four DOTTED diagonals running corner-to-corner to the area tag, drawn at
+// the thinnest pen the sheet uses (0.05). Owner, 5-Sep-2026: "cross lines were dotted lines - very
+// thin just to show the Area." They exist to say which area the tag belongs to and nothing else.
+//
+// Because they span the whole plan, NO label position avoids them: moving a label out of one
+// diagonal moves it into another. Counting them as geometry-through-text therefore reports a defect
+// that cannot be fixed by placement, which is the definition of noise in a checker meant to drive
+// placement decisions. Same reasoning as the dimension line under its own dimension text, exempted
+// on the line below since this file was written.
+//
+// COUNTED SEPARATELY, NOT SILENTLY DROPPED. The total still reports them so nobody can mistake this
+// for the problem going away - if these ever stop being a whisper, the number is right there.
+const isWhisper = (lay) => /AREA-MARK/i.test(lay);
+
 const hits = [];
 let maskedOut = 0;
+let whisperOnly = 0;
 labels.forEach((b) => {
   if (masked(b)) { maskedOut++; return; }
   const through = [];
+  const whispers = [];
   for (const s of segs) {
     if (b.kind === 'dim' && /DIM/i.test(s[4])) continue;          // a dimension's own line
     if (!A.segHitsBox(s, b)) continue;
     // a leader that LANDS on its label has an endpoint inside the box; a line that runs THROUGH
     // it enters and leaves. Only the second is a defect.
     if (A.pointInBox([s[0], s[1]], b.pts) || A.pointInBox([s[2], s[3]], b.pts)) continue;
+    if (isWhisper(s[4])) { whispers.push(s[4]); continue; }
     through.push(s[4]);
     if (through.length > 6) break;
   }
   if (through.length >= MIN) hits.push({ n: through.length, lay: [...new Set(through)].join(','), b });
+  else if (whispers.length) whisperOnly++;
 });
 hits.sort((p, q) => q.n - p.n);
 
 console.log(`${file}`);
 console.log(`  labels: ${labels.length}   with geometry through them: ${hits.length}` +
             `   (${(100 * hits.length / (labels.length || 1)).toFixed(0)}%)` +
-            (maskedOut ? `   [${maskedOut} exempt: masked by a WIPEOUT]` : ''));
+            (maskedOut ? `   [${maskedOut} exempt: masked by a WIPEOUT]` : '') +
+            (whisperOnly ? `   [${whisperOnly} crossed ONLY by the dotted AREA-MARK whisper]` : ''));
 const show = showAll ? hits : hits.slice(0, 30);
 show.forEach((h) => {
   console.log(`  ${String(h.n).padStart(2)} line(s) [${h.lay}]  through  ` +

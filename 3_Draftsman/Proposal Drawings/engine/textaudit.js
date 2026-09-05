@@ -27,7 +27,10 @@ const LADDER = { MARK: 400, SMALL: 550, DIM: 700, ANNOT: 830, LABEL: 970, HEADIN
 // Both must come from (peb-th 'X): one rung, read twice, cannot disagree with itself.
 const MLEADER_SITES = [
   { re: /vla-put-TextHeight\s+\w+\s+([0-9.]+)/g, what: 'MLEADER text height' },
-  { re: /peb-clad-maxch[\s\S]{0,240}?\(\*\s+([0-9.]+)\s+ts/g, what: 'M-Ladder wrap measure' },
+  // Bound to `h` specifically. Matching any (* N ts) inside the function reported the 900
+  // MARGIN as a text height once the real height moved onto the ladder - a false positive, and
+  // a checker that cries wolf is one people learn to scroll past.
+  { re: /peb-clad-maxch[\s\S]{0,240}?h\s+\(\*\s+([0-9.]+)\s+ts/g, what: 'M-Ladder wrap measure' },
 ];
 
 function mleaderPass(name, src, rows) {

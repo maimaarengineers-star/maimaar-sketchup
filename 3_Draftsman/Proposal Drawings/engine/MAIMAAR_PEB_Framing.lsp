@@ -240,6 +240,7 @@
   ;; peb-fall-glyph-set places in absolute model coords; both roof drawers are called
   ;; at 0,0 and tiled afterwards by peb-tile-place, so ox/oy are zero here.
   (setq *PEB-ROOF-SLOPE* (format-slope (MSPL-Get-Str data "SLOPE")))
+  (setq *PEB-SHEET-KIND* 'FRAMING)
   (vl-catch-all-apply (function (lambda ()
     (peb-fall-glyph-set data stype len wid bayPts mgRid mgGableW))))
 
@@ -3479,6 +3480,7 @@
   ;;     Framing Plan use, so all three plan sheets show the fall identically
   ;;     (owner 26-Aug).  See the note in peb-draw-roof-framing.
   (setq *PEB-ROOF-SLOPE* (format-slope (MSPL-Get-Str data "SLOPE")))
+  (setq *PEB-SHEET-KIND* 'SHEETING)
   (vl-catch-all-apply (function (lambda ()
     (peb-fall-glyph-set data stype len wid bayPts mgRid mgGableW))))
 
