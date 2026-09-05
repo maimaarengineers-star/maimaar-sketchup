@@ -67,7 +67,23 @@
 (defun peb-crn-dash  (xa ya xb yb) (peb-crn-pen xa ya xb yb 130.0 30))  ; girder / main beam
 (defun peb-crn-truck (xa ya xb yb) (peb-crn-pen xa ya xb yb  90.0 20))  ; end truck, trolley
 (defun peb-crn-wheel (xa ya xb yb) (peb-crn-pen xa ya xb yb  70.0 13))  ; wheels
-(defun peb-crn-motor (xa ya xb yb) (peb-crn-pen xa ya xb yb  40.0 35))  ; MOTOR - densest, heaviest
+(defun peb-crn-motor (xa ya xb yb) (peb-crn-pen xa ya xb yb  40.0 35))
+
+;; ── THE MOTOR, DOTTED, ON THE PLAN ─────────────────────────────────────────────────────────
+;; Owner 5-Sep-2026: "Show the Motor from the Top View in Dotted Line."
+;;
+;; Everything on this component draws SOLID by default - see the note in peb-crn-pen: the
+;; reference sheet says scope with a LABEL, not with a linetype. The motors on the TOP VIEW are
+;; the exception the owner has asked for, and they are a good one: seen from above a motor is
+;; carried on the far side of the girder or under the trolley, so it is genuinely a hidden
+;; outline there, which is exactly what a dashed line is for.
+;;
+;; *PEB-CRN-DOTTED* is bound as a LOCAL, so it is T only for the duration of this call and
+;; AutoLISP hands it back afterwards. That is the same dynamic-scope mechanism that made naming a
+;; local `t` so destructive; used on a variable of our own it is the right tool.
+(defun peb-crn-motor-dot (xa ya xb yb / *PEB-CRN-DOTTED*)
+  (setq *PEB-CRN-DOTTED* T)
+  (peb-crn-pen xa ya xb yb 40.0 35))  ; MOTOR - densest, heaviest
 
 ;; ── THE BRIDGE GIRDER, SEEN IN A BUILDING CROSS-SECTION ────────────────────────────────────
 ;;
@@ -702,12 +718,12 @@
   (peb-crn-truck cx (- yc (* gw 0.30)) cx (+ yc (* gw 0.30)))
   ;; the HOIST MOTOR, sitting on the trolley
   (setq ml (* tl 0.42) mo (* gw 0.95))
-  (peb-crn-motor (- cx (/ ml 2.0)) (+ y1 (* gw 0.45)) (+ cx (/ ml 2.0)) (+ y1 (* gw 0.45)))
-  (peb-crn-motor (- cx (/ ml 2.0)) (+ y1 (* gw 0.45) mo) (+ cx (/ ml 2.0)) (+ y1 (* gw 0.45) mo))
-  (peb-crn-motor (- cx (/ ml 2.0)) (+ y1 (* gw 0.45)) (- cx (/ ml 2.0)) (+ y1 (* gw 0.45) mo))
-  (peb-crn-motor (+ cx (/ ml 2.0)) (+ y1 (* gw 0.45)) (+ cx (/ ml 2.0)) (+ y1 (* gw 0.45) mo))
+  (peb-crn-motor-dot (- cx (/ ml 2.0)) (+ y1 (* gw 0.45)) (+ cx (/ ml 2.0)) (+ y1 (* gw 0.45)))
+  (peb-crn-motor-dot (- cx (/ ml 2.0)) (+ y1 (* gw 0.45) mo) (+ cx (/ ml 2.0)) (+ y1 (* gw 0.45) mo))
+  (peb-crn-motor-dot (- cx (/ ml 2.0)) (+ y1 (* gw 0.45)) (- cx (/ ml 2.0)) (+ y1 (* gw 0.45) mo))
+  (peb-crn-motor-dot (+ cx (/ ml 2.0)) (+ y1 (* gw 0.45)) (+ cx (/ ml 2.0)) (+ y1 (* gw 0.45) mo))
   ;; shaft line, so it reads as a motor and not another box
-  (peb-crn-motor (- cx (/ ml 2.0)) (+ y1 (* gw 0.45) (/ mo 2.0))
+  (peb-crn-motor-dot (- cx (/ ml 2.0)) (+ y1 (* gw 0.45) (/ mo 2.0))
                  (+ cx (/ ml 2.0)) (+ y1 (* gw 0.45) (/ mo 2.0)))
   (princ))
 
@@ -718,11 +734,11 @@
   (setq gw (abs (- y1 y0)) mo (* gw 0.90) ml (* et 0.34)
         mx0 (+ ex (* sgn (* et 0.33))) mx1 (+ mx0 (* sgn ml))
         yb (- y0 (* gw 0.60) mo))
-  (peb-crn-motor mx0 yb mx1 yb)
-  (peb-crn-motor mx0 (+ yb mo) mx1 (+ yb mo))
-  (peb-crn-motor mx0 yb mx0 (+ yb mo))
-  (peb-crn-motor mx1 yb mx1 (+ yb mo))
-  (peb-crn-motor mx0 (+ yb (/ mo 2.0)) mx1 (+ yb (/ mo 2.0)))
+  (peb-crn-motor-dot mx0 yb mx1 yb)
+  (peb-crn-motor-dot mx0 (+ yb mo) mx1 (+ yb mo))
+  (peb-crn-motor-dot mx0 yb mx0 (+ yb mo))
+  (peb-crn-motor-dot mx1 yb mx1 (+ yb mo))
+  (peb-crn-motor-dot mx0 (+ yb (/ mo 2.0)) mx1 (+ yb (/ mo 2.0)))
   (princ))
 
 
@@ -1608,7 +1624,8 @@
       "END CARRIAGE  WELDED BOX, WHEELS ON THE BOTTOM; THE BRIDGE JUST RESTS ON TOP"
       "   200 X 200 SQUARE BOX, 1500 LONG, UNDER A 1000-1400 GIRDER  -  owner, 5-Sep-2026"
       "WHEEL BASE  1200, FROM A 1500 CARRIAGE LESS 150 EACH END  -  owner"
-      "   NOTE  the live BSF (MSPL-26-276) carries 3,900 ; CMAA guidance is >= span/7 = 3,048"
+      (strcat "   NOTE  the live BSF (MSPL-26-276) carries 3,900 ; CMAA guidance is >= span/7 = "
+              (peb-crn-comma (/ span 7.0)))
       "   a short wheel base under a long span is what lets a crane skew on its runway"
       "   STACK  TOR -15 wheel bottom / 0 rail / +18 box soffit / +85 wheel top / +218 box top"
       "VERTICAL IMPACT  10%  PENDANT OPERATED  -  manual table 8.3"
@@ -1627,7 +1644,14 @@
         dbw 0)
   (foreach L dbl (setq dbw (max dbw (strlen L))))
   (setq dbw (* dbw th4 0.85 (peb-crn-em))                    ; the longest line
-        dbn (fix (+ 0.99 (/ (length dbl) 2.0)))      ; lines per column
+        dbn (fix (+ 0.99 (/ (length dbl) 2.0))))     ; lines per column, before adjustment
+  ;; ...backed off to a GROUP BOUNDARY. A line that starts with a space is a continuation of the
+  ;; one above it, so a column that begins on one starts mid-thought - which is how the wheel-base
+  ;; group came to be split across the gutter, its heading at the foot of column 1 and its three
+  ;; continuations at the head of column 2.
+  (while (and (> dbn 1) (= " " (substr (nth dbn dbl) 1 1)))
+    (setq dbn (1- dbn)))
+  (setq
         dbi 0
         dby sy)
   (foreach L dbl
