@@ -8011,6 +8011,7 @@
                                   capY bridgeTop bridgeBot railTop beamTop beamBot hoistTop hoistBot crTh crRow
                                   xBL xBR cb cx bx dir hw labeled hkTip modCount modSeen k a total idxInMod hoistX
                                   brD gpH bxi rW dW wx typ isUH braceDir rafYL rafYR rafY bdBS
+                                  endWeb girEndBot carTop carBot
                                   lblX lblY lblR bsfSpan spBS)
   (if (= (strcase (MSPL-Get-Str data "CR_TOGGLE")) "YES")
     (progn
@@ -8102,40 +8103,20 @@
                                     (if (and spBS (> spBS 0.0)) spBS (* wid 0.85)) cap))))
                              (T (* u 0.90)))
                   brkLen   (* u 1.00))                    ; bracket cantilever length off the column face
-            ;; vertical stack — differs by TYPE:
-            ;;   TR: beam ON a column bracket -> rail on top -> end-truck WHEEL on rail -> bridge ABOVE.
-            ;;   UH: beam HUNG from the rafter -> trolley/end-truck rides the beam BOTTOM flange -> bridge BELOW.
-            (if isUH
-              (setq beamTop  (- clearHt (* u 0.95))        ; beam hung just below the rafter (hanger drop)
-                    beamBot  (- beamTop beamD)
-                    railTop  beamBot                       ; underhung running surface = beam BOTTOM flange
-                    bridgeTop (- beamBot ft (* u 0.12))    ; end-truck + bridge UNDER the beam bottom flange
-                    bridgeBot (- bridgeTop bd)
-                    hoistTop bridgeBot
-                    hoistBot (- bridgeBot (* u 1.40)))
-              (setq capY     (- clearHt (* u 0.60))        ; TR ceiling: bridge top kept clear of the rafters
-                    bridgeTop capY
-                    bridgeBot (- bridgeTop bd)
-                    ;; ── THE BRIDGE RESTS ON THE END CARRIAGE ────────────────────────────────
-                    ;; Owner 5-Sep-2026, marking the gap in red on this very view: "Rest the
-                    ;; Bridge on End Carriage."
-                    ;;
-                    ;; The rail was placed etH below bridgeBot - the girder's FULL-depth soffit.
-                    ;; But the girder does not reach that far at its ends: it takes one tapered
-                    ;; cut down to a ~400 end web, which is what actually lands on the carriage.
-                    ;; So the carriage sat a whole girder depth less an end web - about 680 mm -
-                    ;; BELOW the thing it is supposed to be carrying, and the bridge floated.
-                    ;;
-                    ;; Measured from the END web, so the two meet. The end depth comes from the
-                    ;; same library rule the girder is drawn with, so they cannot disagree.
-                    railTop  (- bridgeTop
-                                (if (boundp 'peb-crn-girder-end-web)
-                                  (min (* bd 0.55) (peb-crn-girder-end-web)) (* bd 0.37))
-                                etH)                       ; top of rail (bridge end-truck rides on it)
-                    beamTop  (- railTop railNubH)          ; top of the crane I-beam
-                    beamBot  (- beamTop beamD)
-                    hoistTop bridgeBot
-                    hoistBot (- bridgeBot (* u 1.40))))
+            ;; ── THE VERTICAL STACK IS COMPUTED ONCE, BELOW ────────────────────────────────
+            ;; There used to be TWO of these, and that was the bug behind the owner's red mark-up.
+            ;; A provisional stack was computed here, before the rail positions xBL/xBR and the
+            ;; true rafter heights were known, and then the whole thing was computed AGAIN a few
+            ;; lines down once they were - the second one silently overwriting every level.
+            ;;
+            ;; So a correction made here had no effect on the drawing at all.  That is exactly how
+            ;; the bridge came to float above its end carriage: the fix went into the copy that is
+            ;; discarded, the sheet kept drawing from the copy that is kept, and the two had
+            ;; drifted apart.  Balanced and plausible, and dead (S88).
+            ;;
+            ;; Nothing between here and there reads a crane level - the intervening code only works
+            ;; out column offsets and rafter y's - so the provisional copy was pure redundancy.
+            ;; One stack now, after everything it depends on exists.
             (setq idxL (vl-position xL cols) idxR (vl-position xR cols)
                   hwL  (peb-crane-sec-colhw cols idxL ht u)
                   hwR  (peb-crane-sec-colhw cols idxR ht u)
@@ -8154,17 +8135,52 @@
             (if isUH
               (setq beamTop  (- (min rafYL rafYR) (* u 0.90))
                     beamBot  (- beamTop beamD)
-                    railTop  beamBot
+                    railTop  beamBot                       ; underhung running surface = beam BOTTOM flange
                     bridgeTop (- beamBot ft (* u 0.12))
                     bridgeBot (- bridgeTop bd)
                     hoistTop bridgeBot
                     hoistBot (- bridgeBot (* u 1.40)))
-              ;; TOP-RUNNING — clamp the bridge below BOTH the clear height AND the TRUE rafter underside
-              ;; at the two rails (owner STANDING RULE: bridge never crosses the rafter; off-centre safe).
+              ;; ── TOP-RUNNING: EVERY LEVEL IS THE ONE ABOVE IT, MINUS A DEPTH ──────────────
+              ;; Owner 5-Sep-2026, marking this view in red: "Crane Bridge to Rest on End
+              ;; Carriage ... Make the Crane Beam Rest on Bracket."
+              ;;
+              ;; Neither did.  railTop was measured as bridgeBot - etH, i.e. down from the girder's
+              ;; FULL-depth soffit - but a plate girder does not reach full depth at its ends.  It
+              ;; takes a tapered cut down to a ~400 mm end web, and THAT is the face that lands on
+              ;; the carriage.  Measured on the plotted sheet, the carriage sat 750 mm below the
+              ;; thing it was carrying and the beam sat 700 mm below where the bracket was drawn.
+              ;;
+              ;; Now the stack is a single chain, each level the one above minus a depth, so no two
+              ;; members can be measured from different datums and disagree:
+              ;;
+              ;;      bridgeTop                          girder top (clear of clear-height AND rafter)
+              ;;      girEndBot = bridgeTop - endWeb     the girder's END depth - what actually lands
+              ;;      carTop    = girEndBot              ** THE BRIDGE RESTS ON THE CARRIAGE **
+              ;;      carBot    = carTop  - etH          end carriage
+              ;;      railTop   = carBot                 wheel tread
+              ;;      beamTop   = railTop - railNubH     the rail sits on the beam
+              ;;      beamBot   = beamTop - beamD        ** THE BEAM RESTS ON THE BRACKET **
+              ;;
+              ;; endWeb comes from the component library (peb-crn-girder-end-web) so this sheet and
+              ;; the library's own detail sheets cannot disagree about the girder's end depth.
+              ;;
+              ;; The carriage keeps the section's readable etH rather than the library's true
+              ;; 200 mm: at 1:209 a true carriage is 0.96 mm on paper and a true wheel 0.48 mm,
+              ;; which is not a drawing.  Same reason fw has a 180 mm floor.  True crane-detail
+              ;; sizes belong on the library's detail sheets, which plot at a detail scale.
+              ;;
+              ;; capY still clamps the bridge below BOTH the clear height and the TRUE rafter
+              ;; underside at the two rails (owner STANDING RULE: the bridge never crosses the
+              ;; rafter; safe when the ridge is off-centre).
               (setq capY     (min (- clearHt (* u 0.60)) (- (min rafYL rafYR) (* u 0.40)))
                     bridgeTop capY
                     bridgeBot (- bridgeTop bd)
-                    railTop  (- bridgeBot etH)
+                    endWeb   (if (boundp 'peb-crn-girder-end-web)
+                               (min (* bd 0.55) (peb-crn-girder-end-web)) (* bd 0.37))
+                    girEndBot (- bridgeTop endWeb)
+                    carTop   girEndBot
+                    carBot   (- carTop etH)
+                    railTop  carBot
                     beamTop  (- railTop railNubH)
                     beamBot  (- beamTop beamD)
                     hoistTop bridgeBot
@@ -8221,14 +8237,22 @@
               (peb-crane-sec-sline (- bx (* u 0.10)) railTop (+ bx (* u 0.10)) railTop)                       ; rail head
               (peb-crane-sec-sline bx (+ beamTop (* railNubH 0.35)) bx railTop)                               ; rail web
               (peb-crane-sec-sline (- bx (* u 0.10)) (+ beamTop (* railNubH 0.35)) (+ bx (* u 0.10)) (+ beamTop (* railNubH 0.35))) ; rail base
-              ;; END CARRIAGE + WHEELS (manual tech_p262/263): the bridge end-truck rides on the rail via
-              ;; TWO flanged wheels; draw both wheels ON the rail + the end-truck frame up to the bridge.
-              (setq rW (* etH 0.30) dW (* fw 0.72))
-              (foreach wx (list (- bx dW) (+ bx dW))
-                (peb-crane-sec-circ wx (+ railTop rW) rW)                         ; wheel on the rail
-                (peb-crane-sec-sline wx (+ railTop rW) wx (+ railTop (* rW 2.05)))) ; axle stub to the frame
-              (peb-crane-sec-sline (- bx dW) (+ railTop (* rW 2.05)) (+ bx dW) (+ railTop (* rW 2.05))) ; axle beam
-              (peb-crane-sec-sbox (- bx (* fw 1.05)) (+ railTop (* rW 2.05)) (+ bx (* fw 1.05)) bridgeBot))) ; end-truck frame
+              ;; ── END CARRIAGE + ONE WHEEL ──────────────────────────────────────────────
+              ;; Owner 5-Sep-2026: "Only One wheel End Side will be visible."
+              ;;
+              ;; He is right, and two were drawn.  A building cross-section looks ALONG the crane
+              ;; runway, so an end carriage is seen END-ON: its two wheels are one directly behind
+              ;; the other and the drawing can only show the near one.  Two wheels side by side is
+              ;; the PLAN's view of the carriage, not the section's - and the plan already draws
+              ;; them that way.
+              ;;
+              ;; The frame now spans carBot..carTop, and carTop IS the girder's end soffit, so the
+              ;; bridge lands on the carriage instead of floating above it.  The wheel sits in the
+              ;; frame and drops below it onto the rail, which is what makes the contact read.
+              (setq rW (* etH 0.30))
+              (peb-crane-sec-sbox (- bx (* fw 1.05)) (+ carBot (* etH 0.12)) (+ bx (* fw 1.05)) carTop)
+              (peb-crane-sec-circ bx (+ railTop rW) rW)                      ; the one visible wheel, on the rail
+              (peb-crane-sec-sline bx (+ railTop (* rW 2.0)) bx (+ carBot (* etH 0.12))))) ; axle stub into the frame
             ;; ── crane BRIDGE girder — spans c/c of rails (on the end trucks for TR / under the beams for
             ;;    UH) — DASHED (by others).  PER-FRAME RULE: this typical section is a frame WITHIN the
             ;;    crane run, so the crane is shown; per-frame sections outside the run would omit it. ──
