@@ -721,3 +721,56 @@ The BSF still carries whatever was ticked, and **QE prices the end frames from t
 this rule**. On a crane job whose form says *Bearing Frame*, the drawing now shows main frames
 that the estimate has not paid for. The same rule belongs on the BSF, where it would drive the
 price as well as the picture. Flagged, deliberately not patched silently in the engine.
+
+## 40. A PER-WALL QUANTITY MUST NOT BE READ OFF THE BUILDING
+
+*Owner 5-Sep-2026: "Lowever Eave Side and High Eave Side Clear Height to be Fixed" and "Also Fix
+the Girts Placement as well."*
+
+On a single-slope shed the two side walls are different heights. Anything anchored on "the clear
+height" therefore has to ask **which wall**, and three separate places were asking the building
+instead:
+
+| what | said | should say |
+|---|---|---|
+| framing C.H dimension | `clrH` | this wall's clear height |
+| sheeting C.H dimension | `clrH` | same |
+| girt ladder (`*PEB-WF-CLEAR*`) | `clrH`, **set before `wallEave` existed** | same |
+
+The girt one could not have been right even in principle: the `setq` ran *above* the `cond` that
+works out `wallEave`. MSPL-26-276 drew the FSW with 9 girts stopping at 10,470 under a dimension
+that said 12,499 — 2,029 mm of sheet on nothing — and the sheeting sheet printed 10,670 for a wall
+the framing sheet beside it called 12,499.
+
+**One derivation, `peb-wall-clear`, used by all three.** When you add a fourth consumer, call it;
+do not repeat the subtraction.
+
+### 40b. The TOP girt reaches only the posts that carry it
+
+Every other girt sits below the shortest post, so it runs full width and the question never comes
+up. The top one does not. On a sloping end wall the posts step down with the roof, and the tempting
+fix — cap the girt at the shortest post — drags it down to where that post can reach and breaks the
+even ladder. The owner's ruling is the opposite: **keep the spacing, and let the girt end where the
+steel ends.** `peb-girt-span` returns the longest contiguous run of posts reaching `girt + 200`, or
+nil for fewer than two. On a level wall that is every post, i.e. the full width, unchanged.
+
+## 41. `ScaleFactor` ALREADY SCALES THE TEXT — DO NOT PRE-MULTIPLY (S57, again)
+
+`vla-put-ScaleFactor` on an MLEADER scales the whole entity, **text height included**. Passing
+`vla-put-TextHeight` a height that has already been multiplied by `*PEB-TEXT-SCALE*` squares the
+scale: 600 × 1.536 × 1.536 = 1,417, and the cladding note printed at 3.6 mm on paper next to
+1.3 mm call-outs. This is S57's "never pre-multiply a text height by the text scale" wearing a
+different hat — the multiplier is not in the helper you are calling, it is on the object.
+
+**Two traps came with it, both of which cost a render each:**
+
+1. **The copy you edit may be dead.** `peb-make-mleader` and `peb-make-mtext-line` are each defined
+   in *both* `Section.lsp` and `Plan.lsp`. Load order is Standard → Section → Plan and `defun` is
+   last-writer-wins, so **Plan's copy runs even on the section**. Fixing Section's produced a
+   byte-for-byte identical DXF. Before believing a sizing fix, `grep -n "defun <name>"` across all
+   the `.lsp` files and count the definitions.
+
+2. **A helper's two branches can want different units.** `peb-label-pline-leader` handed the same
+   number to `peb-make-mtext-line` (which takes a FINAL height) and to `txt` (which takes a RAW one
+   and scales it) — so one label printed at two sizes depending on whether an ActiveX call threw.
+   When a function has an MTEXT path and a `txt` fallback, check which unit each wants.
