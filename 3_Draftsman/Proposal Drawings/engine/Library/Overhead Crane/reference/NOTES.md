@@ -346,3 +346,51 @@ an I-section carries them on the outside of the web, and they are on Maimaar's o
 End depth is now `0.325 × mid-depth` (floor 300), not a flat 325: the quoted *"reduces to
 300-350mm"* went with a 1,000 deep girder, so it is a ratio. Gives 325 at 1,000 — the built
 figure exactly — and 455 at 1,400.
+
+## THE WHEEL AND THE END CARRIAGE — the stack, all from the owner
+
+Owner 5-Sep-2026, three messages that together close the whole junction:
+
+> *"Wheel Height is only 100mm and out of which 25mm is overlapped on the Crane Beam"*
+> *"End View Will of Wheel will be small and Straight Lines"*
+> *"Also EndCarriage will be 300mmx300 Box i think & Wheel is 50mm overlapping with end carriage"*
+
+```
+   carriage top      TOR + 325     <- the girder's reduced end web lands here
+   carriage soffit   TOR +  25         300 x 300 square box
+   wheel top         TOR +  75         the wheel laps 50 UP into the box
+   TOP OF RAIL       TOR    0          50 x 50 rail, on the beam centreline
+   wheel bottom      TOR -  25         and 25 DOWN past the rail, flanges either side
+```
+
+**100 wheel = 25 down + 50 inside the carriage + 25 showing between them.** The three figures
+are mutually consistent, which is the check that they are remembered right.
+
+**These override the GH catalogue and the override is deliberate.** GH puts a Ø250 wheel and a
+345 × 128 carriage under a 10 MT double-girder crane, and that is what this drew. A figure
+measured on the job outranks a vendor band — the same ruling that took the crane beam flange from
+the recalled 300 to the sheet's 225. GH still supplies A2 − A1, the overhang past the wheel
+centres, which the owner has not given.
+
+**The wheel is drawn differently in the two views, and that is the point.** Seen END-ON (the
+bridge side view, and the crane beam section — both look *along* the runway) it is a small
+stepped rectangle of straight lines: tread, then flanges. Seen from its SIDE (the carriage
+elevation, page 4) it is a circle. It used to be drawn as a circle in all three, which claimed a
+view two of them do not have.
+
+## RUNWAY TOLERANCE — CMAA / AISC
+
+From `crane1.com/cmaa-aisc-crane-runway-rail-tolerance` (owner, "Just Idea"):
+
+| | |
+|---|---|
+| Rail elevation | ± 3/8" on an assumed reference |
+| Rail straightness | ± 3/8" either side of the rail centreline |
+| Rail-to-rail elevation | ± 1/4" within the nominal span |
+| Span variation | ± 1/4" on nominal crane span |
+| **Rail c/l to girder c/l eccentricity** | **≤ 3/4 of the web thickness** (typ. 3/8") |
+| Max rate of change | 1/4" in 20 ft, for both elevation and straightness |
+
+The eccentricity line is the one that earns its place on the drawing: it is the code putting a
+number on *"welded in the middle of Crane Beam"*. On the MSPL-032 8 mm web that is **6 mm max**,
+and it is now called out on the rail blow-up.
