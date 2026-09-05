@@ -1442,6 +1442,29 @@
       (setvar "CLAYER" prev)
       (princ))))
 
+;; ── THE GIRTS BELONG TO THE WALL, NOT TO THE BUILDING ──────────────────────────────────────────
+;; Owner 5-Sep-2026: "Also Fix the Girts Placement as well."
+;;
+;; Rule G1 anchors the girt ladder on the clear height and caps the top girt at `clear - 200`,
+;; because a side-wall column stops at the clear height and a girt above it has nothing to fix to.
+;; That rule was right; the number fed to it was not.  `*PEB-WF-CLEAR*` was set to `clrH` - the
+;; BUILDING's clear height - and it was set BEFORE `wallEave` had even been computed, so it could
+;; not have known which wall it was on even in principle.
+;;
+;; On a single-slope shed the two side walls are not the same height.  MSPL-26-276 runs FSW at
+;; 12,499 clear and NSW at 10,670: both walls got a ladder capped at 10,470, so the FSW was drawn
+;; with 2,029 mm of bare sheet between its top girt and its eave - the same 1,829 mm difference
+;; the clear-height DIMENSION on that sheet now prints correctly.  The dimension said one thing
+;; and the steel under it said another.
+;;
+;; This is the identical fault to the one fixed in the C.H. dimension: a per-wall quantity read
+;; off the building. One derivation, used by the dimension, by the framing girts and by the
+;; sheeting girts, so the three cannot drift apart (golden rule 3).
+(defun peb-wall-clear (wallEave clrH data)
+  (if (and wallEave (> wallEave 0.0))
+    (max 0.0 (- wallEave (peb-eave-add data)))
+    clrH))
+
 (defun peb-draw-framing-elev (surf ox oy data / len wid slopeD stype rtype wallClr
                               eaveH clrH eaveHi eaveLo brickH hiName hiSide wallEave
                               faceLen stations isEnd base colhw rise ridgeRise
@@ -1505,6 +1528,9 @@
     ((= surf "NSW") (setq wallEave (if (vl-string-search "NSW" hiName) eaveHi eaveLo)))
     ((= surf "FSW") (setq wallEave (if (vl-string-search "FSW" hiName) eaveHi eaveLo)))
     (T              (setq wallEave eaveH)))
+  ;; NOW that wallEave is known, give rule G1 the clear height of THIS wall (peb-wall-clear).
+  ;; The setq above ran before the cond and could only ever see the building figure.
+  (setq *PEB-WF-CLEAR* (peb-wall-clear wallEave clrH data))
   ;; stations + face length
   (if isEnd
     (setq faceLen wid
@@ -1879,15 +1905,20 @@
   ;; So the ceiling for a full-length girt is the MINIMUM post top, not the eave.
   ;; (Above it the triangle is peb-fr-gable-girts' job - and that function already gets this
   ;; right, drawing each level only between the posts that actually reach it.)
-  (setq *PEB-WF-POSTTOP* nil)
+  (setq *PEB-WF-POSTTOP* nil *PEB-WF-POSTS* nil)
   (if isEnd
     (progn
-      (setq minTop nil gg 0)
+      (setq minTop nil gg 0 *PEB-WF-POSTS* nil)
       (foreach g stations
         (setq d0 (- (peb-fr-topy g faceLen base eaveH eaveHi eaveLo rise rtype hiSide)
                     (if rdepL (nth gg rdepL) rdepC)))
         (if (or (null minTop) (< d0 minTop)) (setq minTop d0))
+        ;; The MINIMUM alone answers "how high may a FULL-LENGTH girt go". It cannot answer
+        ;; "how far along the wall does the TOP girt reach", which needs every post's own top -
+        ;; so keep the list (absolute x . absolute top), in station order. See peb-girt-span.
+        (setq *PEB-WF-POSTS* (cons (cons (+ ox g) d0) *PEB-WF-POSTS*))
         (setq gg (1+ gg)))
+      (setq *PEB-WF-POSTS* (reverse *PEB-WF-POSTS*))
       (setq *PEB-WF-POSTTOP* minTop)))
   (setq gbase  (peb-fr-brick-clamp gbase  surf data)           ; see peb-fr-brick-clamp
         gbaseR (peb-fr-brick-clamp gbaseR surf data))
@@ -2177,9 +2208,7 @@
     ;; produced it returns this wall's clear height, so the dimension follows the wall it is
     ;; measuring.  Falls back to clrH when wallEave is not set (non-mono roofs, end walls),
     ;; where the two are equal anyway.
-    (setq wallClr (if (and wallEave (> wallEave 0.0))
-                    (max 0.0 (- wallEave (peb-eave-add data)))
-                    clrH))
+    (setq wallClr *PEB-WF-CLEAR*)   ; one derivation - see peb-wall-clear
     (peb-fr-overall-v (- ox (* 1500 *PEB-DIM-SCALE*)) base (+ base wallClr)
                       ;; SAY WHICH HEIGHT IT IS (owner 31-Aug: "in plan we write the word Clear
                       ;; Height, here also we have to mention this in elevation ... what i want
@@ -2354,8 +2383,50 @@
     (setq ggY (+ ggY ggSp)))
   (princ))
 
+;; ── HOW FAR DOES THE TOP GIRT REACH (owner 5-Sep-2026) ────────────────────────────────────────
+;; "on End Wall, Last Girt will be Just on 3 Columns will not Extend beyond as marked, so that we
+;;  keep proper spacing" - and "same will continue on the side walls".
+;;
+;; A girt is only real where a post carries it. Every OTHER girt in the ladder sits below the
+;; shortest post, so it runs the full width and the question never comes up; the TOP girt is the
+;; one that sits high enough for the answer to differ from post to post.
+;;
+;; On a sloping end wall the posts step down with the roof. On MSPL-26-276 the LEW tops are
+;; 12,540 / 12,140 / 11,530 / 10,711, and a top girt one 1,400 step above the last one lands at
+;; 11,003: the first three posts clear it, the fourth is 292 mm short. Drawing it full width would
+;; hang 6 m of girt off the end of the steel - and squeezing the whole ladder down so the fourth
+;; post could reach is what breaks the even 1,400 spacing the owner is protecting.
+;;
+;; So the girt stops at the last post that reaches it: three columns here, and on a LEVEL wall -
+;; which is what both side walls of a single-slope shed are - every post reaches it and the answer
+;; is the full width, unchanged. ONE rule, both kinds of wall.
+;;
+;; Returns (x0 . x1) in absolute coordinates, clipped to this wall-face segment, or nil when
+;; fewer than two posts reach the level - a girt on one post is not a girt.
+(defun peb-girt-span (gy x0 x1 / posts run best cur need)
+  (setq posts (if (boundp '*PEB-WF-POSTS*) *PEB-WF-POSTS* nil)
+        need  (+ gy 200.0))                      ; 200 of post above the girt, as rule G1 uses
+  (if (null posts)
+    (cons x0 x1)                                 ; no post data (level wall) -> full width
+    (progn
+      ;; longest CONTIGUOUS run of posts that reach `need`, in station order
+      (setq cur nil best nil)
+      (foreach pr posts
+        (if (>= (cdr pr) need)
+          (setq cur (cons (car pr) cur))
+          (progn (if (and cur (or (null best) (> (length cur) (length best)))) (setq best cur))
+                 (setq cur nil))))
+      (if (and cur (or (null best) (> (length cur) (length best)))) (setq best cur))
+      (if (or (null best) (< (length best) 2))
+        nil
+        (progn
+          (setq run (reverse best))
+          (setq x0 (max x0 (car run)) x1 (min x1 (last run)))
+          (if (> (- x1 x0) 100.0) (cons x0 x1) nil))))))
+
 (defun peb-fr-wallface (ox0 flen wbase gbase colhw owText eaveTop skipBaseLine
-                        / gsp pdep i gy owU isRcc hEnt bc bx0 by0 bx1 by1 lv esY)
+                        / gsp pdep i gy owU isRcc hEnt bc bx0 by0 bx1 by1 lv esY
+                          gsSpan gyT gvLast)
   (setvar "CLAYER" "GIRTS")
   ;; ── RULE G1: THE GIRTS ARE ANCHORED, NOT STEPPED (owner 4-Sep-2026) ────────────────────
   ;; This was `gsp 1400.0` stepped up from the dado while below `eaveTop - 200`. Two things were
@@ -2395,9 +2466,17 @@
              nil))
   (if lv
     (progn
+      ;; Every level runs the full width EXCEPT the top one, which reaches only as far as the
+      ;; posts that carry it (owner 5-Sep-2026, "same will continue on the side walls").
+      ;; On a level side wall every post reaches it and this is the full width, exactly as before.
+      (setq gvLast (last lv))
       (foreach gy lv
-        (command "_.LINE" (list ox0 gy) (list (+ ox0 flen) gy) "")
-        (command "_.LINE" (list ox0 (+ gy pdep)) (list (+ ox0 flen) (+ gy pdep)) ""))
+        (setq gsSpan (if (equal gy gvLast 1e-6) (peb-girt-span gy ox0 (+ ox0 flen))
+                                                (cons ox0 (+ ox0 flen))))
+        (if gsSpan
+          (progn
+            (command "_.LINE" (list (car gsSpan) gy) (list (cdr gsSpan) gy) "")
+            (command "_.LINE" (list (car gsSpan) (+ gy pdep)) (list (cdr gsSpan) (+ gy pdep)) ""))))
       ;; ── THE EAVE STRUT (owner 4-Sep-2026) ────────────────────────────────────────────────
       ;; The ladder now stops at the top girt, 200 below the clear height, because a girt above
       ;; the column has nothing to fix to. Something still has to carry the sheeting from there
@@ -2420,15 +2499,52 @@
       ;; CEILING = the lowest post top on an end wall (see *PEB-WF-POSTTOP* at the call site),
       ;; else the old eave - 200. A girt above the shortest post has nothing to fix to at that
       ;; end of the wall, and drawing it anyway is exactly the "line in the air".
+      ;; The ceiling is 200 below whichever support governs - the lowest post top, or the eave.
+      ;; It was `POSTTOP` bare in that branch and `eaveTop - 200` in the other, so an end wall
+      ;; could put a girt hard on the top of its shortest post with no margin at all.
       (setq gsp 1400.0 i 1
-            esY (if (and (boundp '*PEB-WF-POSTTOP*) *PEB-WF-POSTTOP*
-                         (< *PEB-WF-POSTTOP* (- eaveTop 200.0)))
-                  *PEB-WF-POSTTOP* (- eaveTop 200.0)))
+            esY (- (if (and (boundp '*PEB-WF-POSTTOP*) *PEB-WF-POSTTOP*
+                            (< *PEB-WF-POSTTOP* eaveTop))
+                     *PEB-WF-POSTTOP* eaveTop)
+                   200.0))
       (while (< (+ wbase gbase (* i gsp)) esY)
         (setq gy (+ wbase gbase (* i gsp)))
         (command "_.LINE" (list ox0 gy) (list (+ ox0 flen) gy) "")
         (command "_.LINE" (list ox0 (+ gy pdep)) (list (+ ox0 flen) (+ gy pdep)) "")
-        (setq i (1+ i)))))
+        (setq i (1+ i)))
+      ;; ── THE TOP GIRT (owner 5-Sep-2026: "we need to add one more girt here") ────────────────
+      ;; This ladder STEPPED to the ceiling and stopped BELOW it - it never placed a girt AT the
+      ;; top. With a 1400 step the leftover was whatever the division happened to leave: on
+      ;; MSPL-26-276 the end walls ended at 9,603 against a ceiling of 10,470, so 1,067 mm of
+      ;; sheet at the low corner - rising to 2,896 at the high corner of a single-slope shed -
+      ;; hung on nothing at all. No top girt, and no eave strut either: the strut is drawn only
+      ;; in the anchored branch above, which end walls do not take.
+      ;;
+      ;; The anchored side-wall ladder always FINISHES with a girt at `clear - 200`. This makes
+      ;; the end wall finish the same way - 200 below whichever support governs it. The two do not
+      ;; land on exactly the same level (10,511 against the NSW's 10,470 on this building) because
+      ;; the end wall measures from its post top and the side wall from the clear height; 41 mm is
+      ;; 0.16 mm on a 1:259 sheet. They are close, not coincident - do not "fix" one to match the
+      ;; other without checking which support each is actually fixed to.
+      ;;
+      ;; Only when the leftover is worth a member: below ~300 the new girt would draw on top of
+      ;; the last one, which is the "one thick smudge" the eave strut was fixed for on 4-Sep.
+      ;; LEVEL: one more step of the ladder's own spacing. NOT capped at esY, and that is the
+      ;; whole point of the owner's ruling. esY is the ceiling for a FULL-LENGTH girt - the
+      ;; shortest post minus 200 - so capping there drags the top girt down to where the
+      ;; shortest post can reach it (10,511 here), which both breaks the even 1,400 run and
+      ;; puts the girt 908 above its neighbour instead of 1,400. Keep the spacing; let
+      ;; peb-girt-span decide how far the girt actually reaches, and draw nothing if no pair
+      ;; of posts carries it.
+      (setq gy  (+ wbase gbase (* (1- i) gsp))
+            gyT (+ gy gsp))
+      (if (> gyT (+ wbase gbase))
+        (progn
+          (setq gsSpan (peb-girt-span gyT ox0 (+ ox0 flen)))
+          (if gsSpan
+            (progn
+              (command "_.LINE" (list (car gsSpan) gyT) (list (cdr gsSpan) gyT) "")
+              (command "_.LINE" (list (car gsSpan) (+ gyT pdep)) (list (cdr gsSpan) (+ gyT pdep)) "")))))))
   (if (> gbase 200.0)
     (progn
       (if (not skipBaseLine)
@@ -2614,6 +2730,9 @@
         ((= surf "NSW") (setq wallEave (if (vl-string-search "NSW" hiName) eaveHi eaveLo)))
         ((= surf "FSW") (setq wallEave (if (vl-string-search "FSW" hiName) eaveHi eaveLo)))
         (T (setq wallEave eaveH)))
+  ;; NOW that wallEave is known, give rule G1 the clear height of THIS wall (peb-wall-clear).
+  ;; The setq above ran before the cond and could only ever see the building figure.
+  (setq *PEB-WF-CLEAR* (peb-wall-clear wallEave clrH data))
   (if isEnd
     (setq faceLen wid
           ;; same merged end-wall stations the FRAMING elevation uses, so the two
@@ -2908,8 +3027,15 @@
       "S" 600.0))))
   ;; OVERALL HEIGHT — the sheeting sheet never carried one; the framing sheet beside
   ;; it did, so the pair disagreed about what the wall measured (owner 26-Aug).
+  ;; PER WALL, not per building (owner 5-Sep-2026: "Lowever Eave Side and High Eave Side Clear
+  ;; Height to be Fixed").  This said `clrH` while the FRAMING sheet beside it said `wallClr`, so
+  ;; on a single-slope shed the two sheets printed different numbers for the same wall: framing
+  ;; FSW 12,499 / NSW 10,670, sheeting 10,670 for BOTH.  The comment right below - "the pair
+  ;; disagreed about what the wall measured" - was written when the sheeting sheet had no height
+  ;; dimension at all; adding one off the building figure fixed the missing dimension and left
+  ;; the disagreement.  Same derivation as the framing twin now (peb-wall-clear).
   (vl-catch-all-apply (function (lambda ()
-    (peb-fr-overall-v (- ox (* 1500 *PEB-DIM-SCALE*)) base (+ base clrH)
+    (peb-fr-overall-v (- ox (* 1500 *PEB-DIM-SCALE*)) base (+ base *PEB-WF-CLEAR*)
                       ;; SAY WHICH HEIGHT IT IS (owner 31-Aug: "in plan we write the word Clear
                       ;; Height, here also we have to mention this in elevation ... what i want
                       ;; the sync in all the drawings of the building").  The elevations printed a
@@ -2920,7 +3046,7 @@
                       ;; rather than copied, so the sheets cannot drift on WHICH basis it is even
                       ;; though they print it at three different lengths.  C.H / E.H per the owner:
                       ;; this string already carries mm and feet, so the label has to be short.
-                      (strcat (peb-dim-mft clrH) " "
+                      (strcat (peb-dim-mft *PEB-WF-CLEAR*) " "
                               (peb-height-tag-abbr (MSPL-Get-Str data "HEIGHT_REF")))))))
   ;; the dim chain clears the bubble by its ACTUAL radius, not a fixed drop
   (setq noteY (- base bubGap bubR (* 600.0 *PEB-DIM-SCALE*)))
