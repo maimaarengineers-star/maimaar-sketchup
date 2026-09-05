@@ -8329,7 +8329,15 @@
             ;; it measures.  The remaining 550-vs-480 gap is small and is NOT worth a blind edit;
             ;; the way to close it is to measure the plotted heights per sheet, which is a pass of
             ;; its own across all nine.
-            (setq crTh  (max (* u 0.40) (peb-th 'SMALL))     ; the drawn height these labels use
+            ;; MEASURED, not reasoned.  This sheet carries its own *PEB-TEXT-SCALE* (1.536 on
+            ;; MSPL-26-276), so a ladder rung does NOT plot the same here as on the plan, and the
+            ;; only way to settle a size is to render and measure - which is how the CLP's twin was
+            ;; settled earlier today.  Measured on the section: HOOK HEIGHT printed at 550 while
+            ;; the other crane label on the same sheet, "10 (M.T.) TOP RUNNING OVERHEAD CRANE",
+            ;; printed at 400, and the member callouts beside them at 338.  One class, two sizes.
+            ;; MARK puts the two crane texts on one size.  Owner 5-Sep-2026: "Size of Text for
+            ;; Different Labelling are too small, too big."
+            (setq crTh  (peb-th 'MARK)     ; the drawn height these labels use
                   crRow (* crTh 1.45))                       ; and a line pitch that clears it
             (txt-rom "MC" (list hoistX (- hookH crRow)) (/ crTh sc) 0.0
                       (strcat "HOOK HEIGHT : " (rtos hookH 2 0)))

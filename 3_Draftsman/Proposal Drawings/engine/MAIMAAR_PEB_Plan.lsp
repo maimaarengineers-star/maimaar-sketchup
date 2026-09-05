@@ -737,8 +737,21 @@
   ;; some of the sheets, so a sheet that set nothing drew whatever size the PREVIOUS sheet had
   ;; left in the global.  peb-bub-r (Standard.lsp) is 4B.31's 720 x TEXT-SCALE for every sheet.
   (setq r (peb-bub-r) prev (getvar "CLAYER") pc (getvar "CECOLOR"))
-  (setq h (* r (cond ((<= (strlen label) 1) 0.95)   ; emcheck-ok: fraction of BUBBLE RADIUS, not an advance width
-                     ((= (strlen label) 2) 0.66)    ; emcheck-ok: fraction of BUBBLE RADIUS, not an advance width
+  ;; ── ONE BUBBLE SIZE PER SHEET ─────────────────────────────────────────────────────────────
+  ;; Owner 5-Sep-2026: "Size of Text for Different Labelling are too small, too big."
+  ;;
+  ;; The radius is uniform (peb-bub-r), so only the TEXT varied - and it varied by CHARACTER
+  ;; COUNT: one character filled the circle at 0.95r, two dropped to 0.66r.  On the column layout
+  ;; that put "A" at 1,120 and "A'" at 778 in ADJACENT BUBBLES ON THE SAME GRID LINE - a 44%
+  ;; difference between two labels a reader takes in together, which is exactly what reads as
+  ;; sizes wandering.
+  ;;
+  ;; One and two characters now share the two-character size.  That covers every real grid label
+  ;; - A, B, A', 1, 12 - so a sheet's bubbles are one size.  It costs the single letters some
+  ;; height (1,120 -> 778, still 3.6 mm on paper at 1:214, larger than any other label on the
+  ;; sheet), and it buys uniformity, which is what the eye actually reads.  Three or more
+  ;; characters still shrink: they genuinely do not fit otherwise.
+  (setq h (* r (cond ((<= (strlen label) 2) 0.66)   ; emcheck-ok: fraction of BUBBLE RADIUS, not an advance width
                      (T 0.48))))                    ; 3+ chars -> fit
   (setq d (cond ((= dir "D") (list 0.0 -1.0)) ((= dir "U") (list 0.0 1.0))
                 ((= dir "L") (list -1.0 0.0)) (T (list 1.0 0.0)))
