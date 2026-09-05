@@ -4671,7 +4671,12 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                   (if (> dmin bestD) (setq bestD dmin bestX cand)))
                 (setq capX    (if bestX bestX (/ (+ x0 x1) 2.0))
                       usedCapX (cons capX usedCapX)
-                      capY     (* wid 0.50))
+                      ;; NOT the centre line. capY was wid*0.50 - dead centre of the building,
+                      ;; which is exactly where the plan's own CLEAR HT and SINGLE SLOPE banner
+                      ;; sits. The crane block and the building block printed through each other
+                      ;; on every crane job. The clearance search above already keeps capX off
+                      ;; the braced bays; this keeps capY off the centre band.
+                      capY     (* wid 0.30))
                 (txt-rom "MC" (list capX (+ capY (* u 0.35))) (/ (max (* u 0.50) (peb-th 'SMALL)) sc) 0.0
                           "OVER HEAD CRANE")
                 (txt-rom "MC" (list capX (- capY (* u 0.35))) (/ (max (* u 0.50) (peb-th 'SMALL)) sc) 0.0
@@ -4798,14 +4803,25 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                 ;;    centred just below the hoist so the crane is identified AT its bridge (kept clear
                 ;;    of the FALL roof tag by stacking DOWN-span, not out to the side). ──
                 (setvar "CLAYER" "COMP-CRANE")
+                ;; ── THE HOIST, NAMED ONCE ────────────────────────────────────────────────
+                ;; This used to repeat the capacity and the CMAA class here, at the trolley -
+                ;; and the footprint block above already prints both, chosen by clearance logic
+                ;; that deliberately avoids the braced bays. Two copies of the same two facts,
+                ;; a few hundred millimetres apart, is what turned the middle of MSPL-26-276's
+                ;; CLP into a knot: OVER HEAD CRANE, 10 TONES, CMAA CLASS C, 10 TONES CRANE,
+                ;; CMAA CLASS C HOIST (BY OTHERS) and CRANE BRIDGE (BY OTHERS) all in one place.
+                ;;
+                ;; The capacity and class belong in ONE place - the footprint block, which has
+                ;; the clearance logic. What belongs HERE is the hoist's own name, because the
+                ;; hoist symbol is what is drawn here.
                 (txt-rom "MC" (list txc (+ tyc (* gw 4.05))) (/ (max (* u 0.42) (peb-th 'SMALL)) sc) 0.0
-                          (strcat capInt " TONES CRANE"))
-                (txt-rom "MC" (list txc (+ tyc (* gw 5.00))) (/ (max (* u 0.30) (peb-th 'MARK)) sc) 0.0
-                          (if (and cls (/= cls ""))
-                            (strcat "CMAA CLASS " cls "   HOIST (BY OTHERS)")
-                            "HOIST (BY OTHERS)"))
-                ;; bridge girder named alongside it (reads up the span)
-                (txt-rom "MC" (list (- bx (* gw 1.05)) (/ (+ yN tyc) 2.0)) (/ (max (* u 0.30) (peb-th 'MARK)) sc) 90.0
+                          "HOIST (BY OTHERS)")
+                ;; bridge girder named alongside it, reading up the span - moved further off the
+                ;; centreline so it stops crossing the footprint block
+                ;; ...and in the FAR half. It read up from the near runway to the trolley, which
+                ;; is the same half the capacity block now occupies, so the two crossed. The
+                ;; bridge spans the whole width, so either half names it equally well.
+                (txt-rom "MC" (list (- bx (* gw 2.40)) (/ (+ yF tyc) 2.0)) (/ (max (* u 0.30) (peb-th 'MARK)) sc) 90.0
                           "CRANE BRIDGE (BY OTHERS)")
                 ;; STOPS / BUMPERS — bar across the beam width at each of the 4 runway ends.
                 (foreach pt (list (list x0 yN) (list x1 yN) (list x0 yF) (list x1 yF))
