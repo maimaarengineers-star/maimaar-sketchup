@@ -7966,7 +7966,8 @@
                                   idxL idxR hwL hwR brkLen fw ft beamD railNubH etH bd
                                   capY bridgeTop bridgeBot railTop beamTop beamBot hoistTop hoistBot crTh crRow
                                   xBL xBR cb cx bx dir hw labeled hkTip modCount modSeen k a total idxInMod hoistX
-                                  brD gpH bxi rW dW wx typ isUH braceDir rafYL rafYR rafY bdBS)
+                                  brD gpH bxi rW dW wx typ isUH braceDir rafYL rafYR rafY bdBS
+                                  lblX lblY lblR bsfSpan)
   (if (= (strcase (MSPL-Get-Str data "CR_TOGGLE")) "YES")
     (progn
       (setq u  (max 250.0 (/ wid 45.0))
@@ -8193,36 +8194,85 @@
             (if (and cls (/= cls ""))
               (txt-rom "MC" (list hoistX (- hookH (* crRow 3.0))) (/ (peb-th 'MARK) sc) 0.0
                         (strcat "CMAA CLASS " cls)))
-            ;; CRANE SPAN (centre-to-centre of rails) — the actual rail span (inner flange to inner flange)
+            ;; ── CRANE SPAN — THE BSF'S FIGURE, NOT THE DRAWN ONE ──────────────────────────
+            ;; This printed the span it had DRAWN - inner flange to inner flange - as though it
+            ;; were the crane's span. On MSPL-26-276 that put "SPAN c/c RAILS : 15996" on the
+            ;; sheet while the BSF, and the order the crane supplier will quote against, says
+            ;; 17,690. The CLP has always read CRn_SPAN (Plan.lsp); the section never did, so the
+            ;; same proposal could state two different spans on two sheets.
+            ;;
+            ;; BSF = single truth, so the LABEL quotes the BSF. The GEOMETRY stays where it is,
+            ;; on each column's inner flange, because that is the owner's universal rule and
+            ;; General Note 3 says the proposal drawing is indicative. When the two differ by
+            ;; more than 2 % the drawn figure is named as indicative rather than left to be
+            ;; scaled off and believed.
+            (setq bsfSpan (MSPL-Get-Num data (strcat pre "SPAN")))
             (txt-rom "MC" (list hoistX (- hookH (* crRow 3.9))) (/ (peb-th 'MARK) sc) 0.0
-                      (strcat "SPAN c/c RAILS : " (rtos (- xBR xBL) 2 0)))
+                      (strcat "SPAN c/c RAILS : "
+                              (rtos (if (and bsfSpan (> bsfSpan 0.0)) bsfSpan (- xBR xBL)) 2 0)))
+            (if (and bsfSpan (> bsfSpan 0.0)
+                     (> (abs (- bsfSpan (- xBR xBL))) (* bsfSpan 0.02)))
+              (txt-rom "MC" (list hoistX (- hookH (* crRow 4.55))) (/ (peb-th 'MARK) sc) 0.0
+                        (strcat "INDICATIVE " (rtos (- xBR xBL) 2 0) " ON COLUMN FLANGE")))
             ;; ── part labels drawn ONCE (manual convention), spaced with leaders into clear space ──
             (if (not labeled)
               (progn
-                ;; CRANE BRIDGE — shifted toward the module centre, clear of the knee
-                (txt-rom "MC" (list (+ midX (* u 1.6)) (+ bridgeTop (* crRow 0.85))) (/ crTh sc) 0.0 "CRANE BRIDGE (BY OTHERS)")
-                ;; HOIST — short leader off the RIGHT of the hoist into open space
-                (peb-crane-sec-line (+ hoistX (* u 0.85)) (- hoistTop (* u 0.55)) (+ hoistX (* u 1.45)) (- hoistTop (* u 0.55)))
-                (txt-rom "ML" (list (+ hoistX (* u 1.55)) (- hoistTop (* crRow 0.75))) (/ crTh sc) 0.0 "HOIST (BY OTHERS)")
-                ;; CRANE BEAM — leader from the crane beam down-inward to the label (type-aware name)
-                (peb-crane-sec-line xBL beamBot (+ xBL (* u 1.1)) (- beamBot (* u 0.9)))
-                (txt-rom "ML" (list (+ xBL (* u 1.2)) (- beamBot (* crRow 1.15))) (/ crTh sc) 0.0
-                          (if isUH "CRANE BEAM (BY OTHERS)" "CRANE BEAM"))
-                ;; CRANE RAIL (BY OTHERS) — TR only (rail sits on the beam TOP; UH runs on the bottom flange)
+                ;; ── THE PART LABELS, OUTSIDE THE BUILDING ─────────────────────────────────
+                ;; They were placed one per part, each at its own offset from the feature it
+                ;; names. On a building where bridge, rail, beam and hoist sit within a metre of
+                ;; each other - which is most of them - the four labels landed on top of one
+                ;; another: MSPL-26-276 printed CRANE BRIDGE, CL OF RAFTER, CRANE RAIL, HOIST and
+                ;; HEIGHT OF CRANE BEAM all through each other in a band about 400 mm deep.
+                ;;
+                ;; Stacking them in a column INSIDE the frame was not enough either - two passes
+                ;; of widening still ran them into the frame's own COLUMN and RAFTER callouts.
+                ;; There is no room: an 18 m building at 1:209 has none to spare between its
+                ;; girder and its rafter.
+                ;;
+                ;; So they go OUTSIDE, clear of the right-hand column, with leaders back to the
+                ;; parts. That is what the Mammut sheet this convention came from does
+                ;; (reference/MBS_169-PK-13_Zealcon: crane text in one place, led to the parts),
+                ;; and it is S64 - a label must not land on geometry, or on another label.
+                ;;
+                ;; Row pitch is crRow, computed from the text height, so the spacing cannot fail
+                ;; when the text size changes (S57).
+                (setq lblX (+ xR (* u 2.2))
+                      lblR (* crRow 1.45)
+                      lblY (+ bridgeTop (* crRow 1.20)))
+                (txt-rom "ML" (list lblX lblY) (/ (peb-th 'MARK) sc) 0.0
+                          (strcat "HEIGHT OF CRANE BEAM : " (rtos railTop 2 0)))
+                ;; CRANE BRIDGE — leader from the bridge
+                (setq lblY (- lblY lblR))
+                (peb-crane-sec-line (+ midX (* u 2.0)) bridgeTop (- lblX (* u 0.4)) lblY)
+                (txt-rom "ML" (list lblX lblY) (/ crTh sc) 0.0 "CRANE BRIDGE (BY OTHERS)")
+                ;; HOIST
+                (setq lblY (- lblY lblR))
+                (peb-crane-sec-line (+ hoistX (* u 0.85)) (- hoistTop (* u 0.55)) (- lblX (* u 0.4)) lblY)
+                (txt-rom "ML" (list lblX lblY) (/ crTh sc) 0.0 "HOIST (BY OTHERS)")
+                ;; CRANE BEAM — Maimaar's, and the label now says so
+                (setq lblY (- lblY lblR))
+                (peb-crane-sec-line xBR beamBot (- lblX (* u 0.4)) lblY)
+                (txt-rom "ML" (list lblX lblY) (/ crTh sc) 0.0
+                          (if isUH "CRANE BEAM (BY OTHERS)" "CRANE BEAM (MAIMAAR SCOPE)"))
+                ;; CRANE RAIL — TR only (the rail sits on the beam TOP; UH runs on the bottom flange)
+                ;;
+                ;; AND IT IS NOT "BY OTHERS". This said so for months and it is wrong on a
+                ;; customer's drawing: Maimaar supplies the crane BEAM and the RAIL - only the
+                ;; bridge, the hoist and the end carriages are the crane supplier's. That is the
+                ;; owner's standing ruling ("Since we will be providing the Crane Beam, so show
+                ;; the Crane Beam in Solid Lines"), it is what the component library draws, and it
+                ;; is what the Mammut sheet this convention came from actually says.
                 (if (not isUH)
                   (progn
-                    (peb-crane-sec-line xBL railTop (+ xBL (* u 1.3)) (+ railTop (* u 0.85)))
-                    (txt-rom "ML" (list (+ xBL (* u 1.4)) (+ railTop (* u 0.85))) (/ (max (* u 0.34) (peb-th 'MARK)) sc) 0.0
-                              "CRANE RAIL (BY OTHERS)")))
-                ;; HEIGHT OF CRANE BEAM — noted once (top of crane beam above FFL)
-                (txt-rom "MC" (list (+ midX (* u 1.6)) (+ bridgeTop (* crRow 1.95))) (/ (peb-th 'MARK) sc) 0.0
-                          (strcat "HEIGHT OF CRANE BEAM : " (rtos railTop 2 0)))
+                    (setq lblY (- lblY lblR))
+                    (peb-crane-sec-line xBR railTop (- lblX (* u 0.4)) lblY)
+                    (txt-rom "ML" (list lblX lblY) (/ crTh sc) 0.0 "CRANE RAIL (MAIMAAR SCOPE)")))
                 ;; ── Mammut Zealcon house-polish (owner 19-Jul) ──
                 ;; CL OF RAFTER — bridge centre = rafter centreline; label offset LEFT (the bridge/height
                 ;; labels sit right of centre) via a short tick + leader so nothing overlaps
                 (peb-crane-sec-line midX (+ bridgeTop (* u 0.15)) midX (+ bridgeTop (* u 0.80)))
-                (peb-crane-sec-line midX (+ bridgeTop (* u 0.80)) (- midX (* u 1.35)) (+ bridgeTop (* u 0.80)))
-                (txt-rom "MR" (list (- midX (* u 1.45)) (+ bridgeTop (* u 0.80))) (/ (max (* u 0.30) (peb-th 'MARK)) sc) 0.0 "CL OF RAFTER")
+                (peb-crane-sec-line midX (+ bridgeTop (* u 0.80)) (- midX (* u 3.10)) (+ bridgeTop (* u 0.80)))
+                (txt-rom "MR" (list (- midX (* u 3.20)) (+ bridgeTop (* u 0.80))) (/ (max (* u 0.30) (peb-th 'MARK)) sc) 0.0 "CL OF RAFTER")
                 ;; LEVEL DATUM at the crane beam (metres from FFL) — Mammut-style level tag, left of the rail
                 (entmake (list (cons 0 "SOLID") (cons 8 "COMP-CRANE-SEC")
                                (list 10 (- xBL (* u 0.55)) railTop 0.0)
@@ -8233,7 +8283,7 @@
                           (strcat "CRANE BEAM +" (rtos (/ railTop 1000.0) 2 3) " M"))
                 ;; AT GRID note — the crane frame applies only at its run grid lines (Mammut convention)
                 (if (/= (MSPL-Get-Str data (strcat pre "GRID_LOC")) "")
-                  (txt-rom "MC" (list hoistX (- hookH (* crRow 4.8))) (/ (peb-th 'MARK) sc) 0.0
+                  (txt-rom "MC" (list hoistX (- hookH (* crRow 5.45))) (/ (peb-th 'MARK) sc) 0.0
                             (strcat "CRANE AT " (strcase (MSPL-Get-Str data (strcat pre "GRID_LOC"))) " ONLY")))
                 (setq labeled T)))
             (princ))))
