@@ -170,16 +170,42 @@ for (const b of boxes) {
   const xs = b.pts.map((p) => p[0]), ys = b.pts.map((p) => p[1]);
   const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
   const near = (px, py) => px > x0 - b.h * 0.5 && px < x1 + b.h * 0.5 && py > y0 - b.h * 0.5 && py < y1 + b.h * 0.5;
-  let best = null;
+  // FOLLOW THE LEADER TO ITS END - it is a CHAIN, not one segment.
+  //
+  // peb-label-with-leader draws (command "_.LINE" arrowPt elbow labelPos ""), which AutoCAD turns
+  // into TWO segments: arrowPt->elbow and elbow->label. Taking the far end of the segment that
+  // touches the label therefore lands on the ELBOW, which is up beside the text and nowhere near
+  // the member - and that is exactly what this checker did. It reported eleven arrows "pointing at
+  // nothing" that were measured from the wrong end of their own leader.
+  //
+  // So: start at the label, step to the far end, and keep stepping to any further segment that
+  // begins where the last one stopped. The terminus is the arrow tip.
+  const NEARPT = (ax, ay, bx, by) => Math.hypot(ax - bx, ay - by) < 1.0;
+  let chain = null;
   for (const s2 of segs) {
-    if (!/^(TEXT|ARROWS)$/i.test(s2[4])) continue;        // (3) leaders live on TEXT/ARROWS
+    if (!/^(TEXT|ARROWS)$/i.test(s2[4])) continue;
     const aIn = near(s2[0], s2[1]), bIn = near(s2[2], s2[3]);
-    if (aIn === bIn) continue;                            // (3) exactly one end at the label
-    const tx = aIn ? s2[2] : s2[0], ty = aIn ? s2[3] : s2[1];
-    const len = Math.hypot(tx - (x0 + x1) / 2, ty - (y0 + y1) / 2);
-    if (len < b.h) continue;                              // a stub is not a leader
-    if (!best || len > best.len) best = { len, tipx: tx, tipy: ty };
+    if (aIn === bIn) continue;
+    chain = aIn ? { x: s2[2], y: s2[3] } : { x: s2[0], y: s2[1] };
+    break;
   }
+  if (chain) {
+    const used = new Set();
+    for (let hop = 0; hop < 6; hop++) {
+      let next = null;
+      for (let i = 0; i < segs.length; i++) {
+        if (used.has(i)) continue;
+        const s3 = segs[i];
+        if (!/^(TEXT|ARROWS)$/i.test(s3[4])) continue;
+        if (NEARPT(s3[0], s3[1], chain.x, chain.y) && !near(s3[2], s3[3])) { next = { i, x: s3[2], y: s3[3] }; break; }
+        if (NEARPT(s3[2], s3[3], chain.x, chain.y) && !near(s3[0], s3[1])) { next = { i, x: s3[0], y: s3[1] }; break; }
+      }
+      if (!next) break;
+      used.add(next.i);
+      chain = { x: next.x, y: next.y };
+    }
+  }
+  const best = chain ? { tipx: chain.x, tipy: chain.y } : null;
   if (best) ladders.push({ txt: b.txt, tipx: best.tipx, tipy: best.tipy, lay: b.lay, plain: true });
 }
 
