@@ -861,9 +861,22 @@
   (peb-crn-aheadv x y1  1 aL aW)
   (peb-crn-dimline (- x tk) y0 (+ x tk) y0)
   (peb-crn-dimline (- x tk) y1 (+ x tk) y1)
+  ;; ── A VERTICAL DIMENSION KEEPS A VERTICAL LABEL, EVEN WHEN IT DOES NOT FIT ────────────────
+  ;; Owner 5-Sep-2026: "Rotate the Dimension of End Carriage in the Elevation."
+  ;;
+  ;; It was not rotated, and the reason is this fallback.  S72 says a dimension too small for its
+  ;; text puts the TEXT OUTSIDE - which is right - but the old else-branch also turned the text
+  ;; back to HORIZONTAL on the way out.  The end carriage is about 345 deep against a label of
+  ;; "A10  345", so it takes this branch every time and its depth dimension was the one dimension
+  ;; on the elevation lying on its side while every neighbour read up the page.
+  ;;
+  ;; Outside is the part S72 asks for; horizontal is not.  So the label now stays at 90 degrees
+  ;; and moves clear of the upper arrowhead instead, which is how a small vertical dimension is
+  ;; drawn by hand.  Both branches now read up the page, so a dimension no longer changes its
+  ;; orientation because of how long its own text happens to be.
   (if (< (* (strlen lbl) th (peb-crn-em)) (abs (- y1 y0)))
     (txt "MC" (list (- x (* th 0.95)) (/ (+ y0 y1) 2.0)) th 90.0 lbl)
-    (txt "ML" (list (+ x (* th 0.9)) (/ (+ y0 y1) 2.0)) th 0.0 lbl)))
+    (txt "ML" (list (- x (* th 0.95)) (+ (max y0 y1) (* th 0.85))) th 90.0 lbl)))
 
 ;; a leader: elbow out of the part, then the note
 (defun peb-crn-note (px py tx ty lbl th just)
