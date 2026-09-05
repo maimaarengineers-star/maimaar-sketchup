@@ -7850,7 +7850,7 @@
 ;; says, and it is what makes a hidden line read AS a hidden line.
 (defun peb-crane-sec-line (xa ya xb yb)
   (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-SEC")
-                 (cons 6 "HIDDEN") (cons 48 (peb-crane-lts)) (cons 62 7) (cons 370 5)
+                 (cons 6 (peb-crane-ltype)) (cons 48 (peb-crane-lts)) (cons 62 7) (cons 370 5)
                  (list 10 xa ya 0.0) (list 11 xb yb 0.0))))
 
 (defun peb-crane-sec-box (xa ya xb yb)
@@ -7889,51 +7889,85 @@
   (peb-crane-sec-sline (- cx a) cy (+ cx a) cy)
   (peb-crane-sec-sline cx (- cy a) cx (+ cy a)))
 
+;; ── THE HIDDEN SET — FOR THE BRIDGE AND THE HOIST ONLY ────────────────────────────────
+;; Owner 5-Sep-2026, narrowing the linetype spec: "for the Bridge and Hoist", and giving the
+;; reason: "Hidden Line Type ... why it is there, the reason is that this is always (By Others),
+;; so we just mark for customer view".
+;;
+;; So the linetype IS the scope mark. What is Maimaar's stays solid; what the crane supplier
+;; brings is dashed. On this section that divides as:
+;;
+;;      HIDDEN   bridge girder, hoist, end carriage        (the crane supplier's)
+;;      SOLID    crane beam, rail, bracket                 (ours - we fabricate and ship them)
+;;
+;; The hoist could not follow that rule before, because peb-crane-sec-hoist was built out of the
+;; SAME -sline/-sbox/-circ/-arc primitives as the crane beam and its bracket. One pen cannot say
+;; two different things, so the hoist gets its own.
+(defun peb-crane-hid-line (xa ya xb yb) (peb-crane-sec-line xa ya xb yb))
+(defun peb-crane-hid-box (xa ya xb yb)
+  (peb-crane-hid-line xa ya xb ya) (peb-crane-hid-line xb ya xb yb)
+  (peb-crane-hid-line xb yb xa yb) (peb-crane-hid-line xa yb xa ya))
+(defun peb-crane-hid-circ (cx cy r)
+  (entmake (list (cons 0 "CIRCLE") (cons 8 "COMP-CRANE-SEC")
+                 (cons 6 (peb-crane-ltype)) (cons 48 (peb-crane-lts)) (cons 62 7) (cons 370 5)
+                 (list 10 cx cy 0.0) (cons 40 r))))
+(defun peb-crane-hid-arc (cx cy r a0 a1)
+  (entmake (list (cons 0 "ARC") (cons 8 "COMP-CRANE-SEC")
+                 (cons 6 (peb-crane-ltype)) (cons 48 (peb-crane-lts)) (cons 62 7) (cons 370 5)
+                 (list 10 cx cy 0.0) (cons 40 r)
+                 (cons 50 (* a0 (/ pi 180.0))) (cons 51 (* a1 (/ pi 180.0))))))
+(defun peb-crane-hid-cross (cx cy a)
+  (peb-crane-hid-line (- cx a) cy (+ cx a) cy)
+  (peb-crane-hid-line cx (- cy a) cx (+ cy a)))
+
 ;; DETAILED HOIST / TROLLEY in ELEVATION (manual Tech §10.6 p262-263; Maimaar house reference
 ;; = the magenta EOT hoist).  cx = hook centreline, topY = hang line just under the bridge,
 ;; s = section scale (u).  Trolley body (drum housing) + centre-cross, LEFT open-C end frame,
 ;; RIGHT stepped connector -> motor CYLINDER (vertical hatch + rounded end + nub), bottom
 ;; MOUNTING plate with 4 bolt dots, HOOK block + curved hook.  Returns the hook-tip y.
+;; DRAWN ON THE HIDDEN PEN (owner: hidden = By Others). It used to share the solid -sline/-sbox
+;; set with the crane BEAM and its bracket, which are Maimaar's - so the sheet could not tell a
+;; customer which of the two we supply. Same geometry, scope-correct pen.
 (defun peb-crane-sec-hoist (cx topY s / bt bb ym ct cbb pb hy hr i xh d bax bay)
   (setq bt (- topY (* s 0.06)) bb (- bt (* s 0.70)) ym (/ (+ bt bb) 2.0))
   ;; main body (drum housing) + centre cross
-  (peb-crane-sec-sbox (- cx (* s 0.70)) bb (+ cx (* s 0.70)) bt)
-  (peb-crane-sec-cross cx ym (* s 0.12))
+  (peb-crane-hid-box (- cx (* s 0.70)) bb (+ cx (* s 0.70)) bt)
+  (peb-crane-hid-cross cx ym (* s 0.12))
   ;; LEFT open-C end frame (opening faces the body)
-  (peb-crane-sec-sline (- cx (* s 0.94)) (- ym (* s 0.17)) (- cx (* s 0.94)) (+ ym (* s 0.17)))
-  (peb-crane-sec-sline (- cx (* s 0.94)) (+ ym (* s 0.17)) (- cx (* s 0.80)) (+ ym (* s 0.17)))
-  (peb-crane-sec-sline (- cx (* s 0.94)) (- ym (* s 0.17)) (- cx (* s 0.80)) (- ym (* s 0.17)))
+  (peb-crane-hid-line (- cx (* s 0.94)) (- ym (* s 0.17)) (- cx (* s 0.94)) (+ ym (* s 0.17)))
+  (peb-crane-hid-line (- cx (* s 0.94)) (+ ym (* s 0.17)) (- cx (* s 0.80)) (+ ym (* s 0.17)))
+  (peb-crane-hid-line (- cx (* s 0.94)) (- ym (* s 0.17)) (- cx (* s 0.80)) (- ym (* s 0.17)))
   ;; RIGHT stepped connector block
-  (peb-crane-sec-sbox (+ cx (* s 0.70)) (- ym (* s 0.22)) (+ cx (* s 0.98)) (+ ym (* s 0.22)))
+  (peb-crane-hid-box (+ cx (* s 0.70)) (- ym (* s 0.22)) (+ cx (* s 0.98)) (+ ym (* s 0.22)))
   ;; motor CYLINDER + vertical hatch + rounded right end + end nub
   (setq ct (+ ym (* s 0.18)) cbb (- ym (* s 0.18)))
-  (peb-crane-sec-sline (+ cx (* s 0.98)) cbb (+ cx (* s 1.36)) cbb)
-  (peb-crane-sec-sline (+ cx (* s 0.98)) ct  (+ cx (* s 1.36)) ct)
-  (peb-crane-sec-sline (+ cx (* s 0.98)) cbb (+ cx (* s 0.98)) ct)
-  (peb-crane-sec-arc (+ cx (* s 1.36)) ym (* s 0.18) 270.0 90.0)
+  (peb-crane-hid-line (+ cx (* s 0.98)) cbb (+ cx (* s 1.36)) cbb)
+  (peb-crane-hid-line (+ cx (* s 0.98)) ct  (+ cx (* s 1.36)) ct)
+  (peb-crane-hid-line (+ cx (* s 0.98)) cbb (+ cx (* s 0.98)) ct)
+  (peb-crane-hid-arc (+ cx (* s 1.36)) ym (* s 0.18) 270.0 90.0)
   (setq i 1)
   (while (<= i 4)
     (setq xh (+ cx (* s (+ 0.98 (* i 0.076)))))
-    (peb-crane-sec-sline xh cbb xh ct) (setq i (1+ i)))
-  (peb-crane-sec-sbox (+ cx (* s 1.54)) (- ym (* s 0.10)) (+ cx (* s 1.64)) (+ ym (* s 0.10)))
+    (peb-crane-hid-line xh cbb xh ct) (setq i (1+ i)))
+  (peb-crane-hid-box (+ cx (* s 1.54)) (- ym (* s 0.10)) (+ cx (* s 1.64)) (+ ym (* s 0.10)))
   ;; bottom MOUNTING plate + 4 bolt dots + centre cross
   (setq pb (- bb (* s 0.32)))
-  (peb-crane-sec-sbox (- cx (* s 0.78)) pb (+ cx (* s 0.78)) bb)
+  (peb-crane-hid-box (- cx (* s 0.78)) pb (+ cx (* s 0.78)) bb)
   (foreach d (list (list (- cx (* s 0.60)) (- bb (* s 0.09)))
                    (list (+ cx (* s 0.60)) (- bb (* s 0.09)))
                    (list (- cx (* s 0.60)) (+ pb (* s 0.09)))
                    (list (+ cx (* s 0.60)) (+ pb (* s 0.09))))
-    (peb-crane-sec-circ (car d) (cadr d) (* s 0.05)))
-  (peb-crane-sec-cross cx (/ (+ pb bb) 2.0) (* s 0.09))
+    (peb-crane-hid-circ (car d) (cadr d) (* s 0.05)))
+  (peb-crane-hid-cross cx (/ (+ pb bb) 2.0) (* s 0.09))
   ;; HOOK block + curved hook + throat cross
-  (peb-crane-sec-sbox (- cx (* s 0.12)) (- pb (* s 0.12)) (+ cx (* s 0.12)) pb)
+  (peb-crane-hid-box (- cx (* s 0.12)) (- pb (* s 0.12)) (+ cx (* s 0.12)) pb)
   ;; open-J hook: shank -> belly curve (top->left->bottom->lower-right, mouth upper-right) -> inward barb
   (setq hy (- pb (* s 0.50)) hr (* s 0.20))
-  (peb-crane-sec-sline cx (- pb (* s 0.12)) cx (+ hy hr))                 ; shank to top of curve
-  (peb-crane-sec-arc cx hy hr 90.0 315.0)                                ; belly curve
+  (peb-crane-hid-line cx (- pb (* s 0.12)) cx (+ hy hr))                 ; shank to top of curve
+  (peb-crane-hid-arc cx hy hr 90.0 315.0)                                ; belly curve
   (setq bax (+ cx (* hr 0.707)) bay (- hy (* hr 0.707)))                 ; arc end (315 deg)
-  (peb-crane-sec-sline bax bay (+ cx (* hr 0.10)) (- hy (* hr 0.02)))    ; inward barb tip
-  (peb-crane-sec-cross cx hy (* s 0.05))
+  (peb-crane-hid-line bax bay (+ cx (* hr 0.10)) (- hy (* hr 0.02)))    ; inward barb tip
+  (peb-crane-hid-cross cx hy (* s 0.05))
   (- hy hr))
 
 (defun peb-crane-sec-colhw (cols idx ht u / w)
@@ -8205,9 +8239,16 @@
             ;; stiffeners and stops there (rule 32). The dashed primitive is handed IN so the pen
             ;; cannot drift from the rest of the assembly (rule 3); guarded, so a missing library
             ;; falls back to exactly the box that shipped before.
-            (if (boundp 'peb-crn-bridge-elev)
-              (peb-crn-bridge-elev xBL bridgeBot xBR bridgeTop)
-              (peb-crane-sec-dbox xBL bridgeBot xBR bridgeTop))
+            ;; ── AND ON THE HIDDEN PEN ────────────────────────────────────────────────────
+            ;; The library draws SOLID by default - right for its own development sheet, wrong
+            ;; here, where hidden is what marks the bridge as the crane supplier's. *PEB-CRN-DOTTED*
+            ;; is the library's own switch for exactly this; bound as a LOCAL so it is T only for
+            ;; this call and AutoLISP hands it back afterwards, leaving the library's default alone.
+            ((lambda ( / *PEB-CRN-DOTTED*)
+               (setq *PEB-CRN-DOTTED* T)
+               (if (boundp 'peb-crn-bridge-elev)
+                 (peb-crn-bridge-elev xBL bridgeBot xBR bridgeTop)
+                 (peb-crane-sec-dbox xBL bridgeBot xBR bridgeTop))))
             ;; ── spread SERIES cranes: if >1 crane shares this width-module, offset each hoist
             ;;    across the bridge span so symbols + labels never stack on an identical midX ──
             (setq k        (strcat gfW "_" gtW)

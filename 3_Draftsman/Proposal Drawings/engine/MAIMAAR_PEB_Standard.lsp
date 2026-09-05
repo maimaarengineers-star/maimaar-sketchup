@@ -120,26 +120,49 @@
     (WHITE . 7)  (RED . 1)  (YELLOW . 2)  (GREEN . 3)  (CYAN . 4)
     (BLUE . 5)   (MAGENTA . 6) (GREY . 8) (LTGREY . 9) (BROWN . 30) (ORANGE . 32)))
 
-;; ── THE CRANE'S LINETYPE SCALE ─────────────────────────────────────────────────────────────
-;; Owner 5-Sep-2026: "LINE TYPE IS HIDDEN - - - -, Scale - 1, Colour - White, line Weight .050".
+;; ── THE CRANE'S LINETYPE ───────────────────────────────────────────────────────────────────
+;; Owner 5-Sep-2026: "LINE TYPE IS HIDDEN - - - -, Scale - 1, Colour - White, line Weight .050",
+;; then, twice over: "All Crane Bridge Items Must be Shown in Dashed Line in PDF like Mammut".
 ;;
-;; The "Scale - 1" is read off AutoCAD's Properties palette on the Mammut drawing, where it is
-;; the ENTITY linetype scale. What you see is entity_scale x drawing LTSCALE, and Mammut's file
-;; carries $LTSCALE = 1200 (verified in reference/MBS_169-PK-13_Zealcon/PK13169.dxf). So their
-;; dashes are drawn at an effective 1200.
+;; WHY IT KEPT PRINTING SOLID, AND IT WAS NEVER THE LINETYPE.
 ;;
-;; Ours is not 1200. Plan.lsp sets LTSCALE to max(60, max(len,wid)/400) - about 76 on an 18 x 30 m
-;; building. Copying the NUMBER 1 into our drawing would give an effective 76, sixteen times
-;; shorter than Mammut's, and the crane would read as a solid line. Copying the APPEARANCE means
-;; asking for an effective 1200 whatever our LTSCALE happens to be.
+;; This engine plots from LAYOUTS (GOLDEN RULE 31), and it never sets PSLTSCALE, so PSLTSCALE is
+;; at AutoCAD's default of 1 -- "scale linetypes in paper space".  Under PSLTSCALE 1 a pattern
+;; length is read in PAPER millimetres, not model millimetres.  The pattern here was written as
+;; 300 / 150, meaning to say "300 mm on the building".  AutoCAD read it as 300 mm ON THE SHEET --
+;; one dash longer than the A1 page -- and drew the crane as a single unbroken stroke.
 ;;
-;; This is the same trap in the opposite direction from the one that was already here: the crane
-;; was drawn HIDDEN at a per-entity scale of 300, which on top of LTSCALE 76 gave an effective
-;; 22,800 - dashes twenty metres long, which is also a solid line.
+;; That is why every attempt to fix this by changing the LINETYPE failed.  HIDDEN, CRANEHID,
+;; entity scale 300, entity scale 1, entity scale 1/LTSCALE: under PSLTSCALE 1 they all resolve to
+;; a dash measured in paper mm, and every value tried was far bigger than the sheet.  Measured on
+;; the plotted DXF the crane region held four unbroken runs over 10 mm and not one dash.
+;;
+;; PSLTSCALE is NOT changed here.  Setting it to 0 would fix the crane and silently re-scale every
+;; other dashed linetype on all nine sheets -- bracing, hidden framing, sheeting -- none of which
+;; has been looked at.  A one-component defect does not get a drawing-wide switch.
+;;
+;; Instead the pattern is stated in the unit AutoCAD is actually reading: PAPER MILLIMETRES.
+;;
+;;      1.5 mm dash / 0.75 mm gap, on paper, on every sheet, at every viewport scale
+;;
+;; which is what Mammut's sheet measures: their $LTSCALE 1200 on the imperial acad.lin HIDDEN
+;; (0.25 / -0.125) gives a 300 mm dash on a building plotted at 1:209 -- 1.44 mm in the customer's
+;; hand.  We now print 1.5.  The entity scale stays 1/LTSCALE, which cancels the drawing's own
+;; LTSCALE so the figure above is absolute and cannot drift when a bigger building raises LTSCALE.
+(defun peb-crane-ltype ( )
+  (if (not (tblsearch "LTYPE" "CRANEHID"))
+    (vl-catch-all-apply (function (lambda ()
+      (entmake (list '(0 . "LTYPE") '(100 . "AcDbSymbolTableRecord")
+                     '(100 . "AcDbLinetypeTableRecord") '(2 . "CRANEHID") '(70 . 0)
+                     '(3 . "Crane hidden  1.5 / 0.75 PAPER mm") '(72 . 65) '(73 . 2) '(40 . 2.25)
+                     '(49 . 1.5) '(74 . 0) '(49 . -0.75) '(74 . 0)))))))
+  (if (tblsearch "LTYPE" "CRANEHID") "CRANEHID" "HIDDEN"))
+
+;; Cancel the drawing's LTSCALE so the pattern above is an absolute paper measurement.
 (defun peb-crane-lts ( / L)
   (setq L (getvar "LTSCALE"))
   (if (or (null L) (<= L 0.0)) (setq L 1.0))
-  (/ 1200.0 L))
+  (/ 1.0 L))
 
 (defun peb-color (sym / p)
   (if (setq p (assoc sym *PEB-COLORS*)) (cdr p) 7))

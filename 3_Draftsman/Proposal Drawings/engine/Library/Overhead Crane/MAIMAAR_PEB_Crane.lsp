@@ -49,17 +49,33 @@
   (setq es (if (> (getvar "LTSCALE") 0.0) (/ 1.0 (getvar "LTSCALE")) 1.0))
   (if (and (boundp '*PEB-CRN-DOTTED*) *PEB-CRN-DOTTED*)
     (progn
-      (setq nm (strcat "CRNDOT" (itoa (fix pitch))))
-      (if (not (tblsearch "LTYPE" nm))
-        (vl-catch-all-apply (function (lambda ()
-          (entmake (list '(0 . "LTYPE") '(100 . "AcDbSymbolTableRecord")
-                         '(100 . "AcDbLinetypeTableRecord") (cons 2 nm) '(70 . 0)
-                         (cons 3 (strcat "Crane dotted " (itoa (fix pitch)))) '(72 . 65) '(73 . 2)
-                         (cons 40 pitch) '(49 . 0.0) '(74 . 0) (cons 49 (- pitch)) '(74 . 0)))))))
-      (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-SEC")
-                     (cons 6 (if (tblsearch "LTYPE" nm) nm "HIDDEN"))
-                     (cons 48 es) (cons 370 (fix lw))
-                     (list 10 xa ya 0.0) (list 11 xb yb 0.0))))
+;; ── ONE PEN, DEFINED ONCE ────────────────────────────────────────────────────────────
+      ;; This used to build a CRNDOT pattern of its own, per pitch, so the component carried four
+      ;; linetypes the rest of the set knew nothing about. The PD now defines the crane's linetype
+      ;; centrally - peb-crane-ltype, CRANEHID at 300/150, which is what Mammut's sheet measures -
+      ;; and this asks for it whenever the drawing has it. The per-pitch fallback stays for the
+      ;; library's own standalone sample, which loads no sheet engine.
+      ;;
+      ;; The WEIGHT drops to 5 (0.05 mm) with it: the owner's spec is one weight for the whole
+      ;; crane, so the girder/truck/wheel/motor ladder does not apply when this is drawn onto a
+      ;; proposal sheet. It still applies on the library's own sample, which never sets the flag.
+      (if (boundp 'peb-crane-ltype)
+        (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-SEC")
+                       (cons 6 (peb-crane-ltype)) (cons 48 (peb-crane-lts))
+                       (cons 62 7) (cons 370 5)
+                       (list 10 xa ya 0.0) (list 11 xb yb 0.0)))
+        (progn
+          (setq nm (strcat "CRNDOT" (itoa (fix pitch))))
+          (if (not (tblsearch "LTYPE" nm))
+            (vl-catch-all-apply (function (lambda ()
+              (entmake (list '(0 . "LTYPE") '(100 . "AcDbSymbolTableRecord")
+                             '(100 . "AcDbLinetypeTableRecord") (cons 2 nm) '(70 . 0)
+                             (cons 3 (strcat "Crane dotted " (itoa (fix pitch)))) '(72 . 65) '(73 . 2)
+                             (cons 40 pitch) '(49 . 0.0) '(74 . 0) (cons 49 (- pitch)) '(74 . 0)))))))
+          (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-SEC")
+                         (cons 6 (if (tblsearch "LTYPE" nm) nm "HIDDEN"))
+                         (cons 48 es) (cons 370 (fix lw))
+                         (list 10 xa ya 0.0) (list 11 xb yb 0.0))))))
     (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-SEC") (cons 370 (fix lw))
                    (list 10 xa ya 0.0) (list 11 xb yb 0.0)))))
 
