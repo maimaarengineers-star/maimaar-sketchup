@@ -434,3 +434,79 @@ Carriage & Wheel Width is only 15-20mm..."`) and following it:
 - **No seats on the carriage top** — *"your drawings are showing boxes on the End Carriage. there
   are no such boxes. Bridge Just Rest On It."* Those were the GH catalogue's double-girder
   bearing pads. On this crane the bridge lands on a plain box top.
+
+---
+
+## THE POLISH PASS — applying the set's own AutoCAD rules
+
+Owner, 5-Sep-2026: *"Apply all the Rules of Autocad Established for Proposal Drawings and make
+the Crane Bridge Most Beautiful Drawing in the whole world"* / *"Sync the side view with the Top
+View"* / *"Keep working and Sync with Proposal 276-26"*.
+
+Audited against `PD_RULEBOOK.md §0`. The crane sheet was breaking four standing rules:
+
+| | was | now |
+|---|---|---|
+| **S55** arrowheads | plain ticks | **open V**, sized off the text |
+| **S58** dimension layer | component layer | **DIMENSIONS** |
+| **S57** one text size on paper | one model height for all 4 pages | per-page height, **3.2 mm on A1** |
+| **S54** all text romand | `·` printed as `?` | romand-safe characters only |
+
+**S57 mattered most.** The four pages plot from four *different windows* onto the same A1, so
+each has its own scale — page 1 fits a 17.7 m span, page 3 a 420 mm section blown up 15×. One
+model-space text height therefore came out four different sizes on paper, and that alone was most
+of why the set did not read as one document. `peb-crn-page-th` works backwards from which of
+width or height binds on 841 × 594 and returns the height that plots to the same millimetres.
+
+### Two things are now MEASURED that used to be assumed
+
+**A romand character is 0.94 em wide, not 0.62.** Set an 88-character line at height 100 and ask
+`vla-GetBoundingBox`: `em-per-char = 0.9417`. A **52 % underestimate** — it is why the two-column
+data block printed through itself at a gutter the arithmetic called clear. Corrected in
+`peb-crn-em` and in `scratchpad/measure_dxf.js`. → GOLDEN_RULES 37
+
+**Each page's plot window is the measured extent of what was drawn in its band**
+(`peb-crn-band-extent`), not a hand-kept expression. A note anchored 2.4 girder-depths left of
+the girder, then running its own text 9,000 further left, fell straight off page 2 — the formula
+had no way to know the text was there. Measuring it made that class of defect impossible.
+
+**And the page aspect is solved, not guessed.** The frame's margins scale with *width* while its
+title strip scales with *height*, so the framed aspect is not the content's:
+`framed_W = 1.092 W`, `framed_H = 1.140 H + 0.062 W`. The fit stays on the width only while
+**H ≤ 0.622 W**. Two guesses in a row landed the wrong side of that and the whole page shrank.
+
+### Sheet identity
+
+Each page now carries a border and a three-cell title strip — company / sheet title + capacity
+and span / sheet *n* of 4 — and says **DEVELOPMENT SAMPLE, NOT A CUSTOMER DELIVERABLE**, because
+it is one. The capacity and span are passed in; the strip used to carry `SPAN 21,335` as a
+literal and went stale the moment the sample was pointed at MSPL-26-276.
+
+### Synced to the live BSF — MSPL-26-276
+
+inquiry 5401, area 5172, component `crane_system`:
+
+| | | | |
+|---|---|---|---|
+| capacity | 10 MT | span | 17.69 m |
+| hook height | 6.0 m | wheel base | 3.9 m |
+| runway length | 30.48 m | type | Top Running (TR), Pendant |
+| service class | C | loading category | 3 |
+| manufacturer | Kone | loads | 84 vert / 11 horiz |
+
+Building 30.48 × 18.29 m, eave 10.67, bays 1@7.24 + 2@8.00 + 1@7.24.
+
+**Span, capacity and wheel base come from there. The CRANE BEAM SECTION does not** — it stays
+anchored on MSPL-032, whose single-part sheet is the only place the actual plate sizes exist, and
+page 3 says so on its own face. Two sources, each named where it is used.
+
+**The wheel base is still the open conflict:** the BSF carries 3,900, the owner's 1500 carriage
+gives 1,200, and CMAA wants ≥ span/7 ≈ 2,530 on this span. All three are printed in the page-4
+data block.
+
+### Top view synced to the side view
+
+`peb-crn-bridge-plan` drew the carriage 1.35 × the girder width — about 1,166 across where the
+box is 200 — and the wheels as squares of 0.16 × girder depth, about 192, where a wheel is
+18 × 100. Both were placeholders from before any of those figures were known. Everything in the
+plan now comes from the same rules the side view and the section use, so the views cannot drift.

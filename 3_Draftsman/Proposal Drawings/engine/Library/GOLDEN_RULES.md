@@ -609,3 +609,29 @@ block sat was 12,000 units out, and an empty shot was read as "the code never ra
 
 PDF byte size is a real signal though: this sheet went 30 KB → 121 KB the moment the truncation
 was fixed. A deliverable that suddenly shrinks has lost something.
+
+## 37. A ROMAND CHARACTER IS 0.94 EM WIDE, NOT 0.62 — MEASURE IT, DON'T ESTIMATE IT
+
+Every width estimate in this repo used **0.62 × height × chars** for `romand.shx` — the figure in
+`scratchpad/measure_dxf.js`. Asked directly, AutoCAD says otherwise. Set an 88-character line at
+height 100 through the engine's own `txt` and read `vla-GetBoundingBox`:
+
+```
+em-per-char = 0.9417
+```
+
+**A 52 % underestimate.** It is why a two-column data block printed straight through itself at a
+gutter the arithmetic said was clear, and why several label placements on the crane sheet needed
+a second pass *after* they had been "checked" against `measure_dxf.js`.
+
+Both are corrected: `peb-crn-em` in the crane library, and the estimator in `measure_dxf.js`.
+
+**The lesson is the method, not the number.** A width that decides whether two things collide is
+a MEASUREMENT, and AutoCAD will give it to you — `vla-GetBoundingBox` on the entity you just
+made. Never settle a collision with a remembered constant; a DXF stores no extents for shx text,
+which is exactly why the wrong figure survived so long.
+
+The same applies to page windows: the crane sample now derives each page's plot window from
+`vla-GetBoundingBox` over everything drawn in that page's band, instead of from hand-kept
+expressions that had to be edited in step with the drawing and were not. A label can no longer be
+clipped by a window that did not know it was there.

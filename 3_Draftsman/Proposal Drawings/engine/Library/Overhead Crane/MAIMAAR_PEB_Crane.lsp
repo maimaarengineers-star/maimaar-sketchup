@@ -647,9 +647,23 @@
 ;;   wb           the WHEEL BASE inside it - the two are no longer the same number, because the
 ;;                carriage runs a stub past each wheel centre
 ;;   wr           wheel radius (0 = skip the wheels)
-(defun peb-crn-bridge-plan (x0 y0 x1 y1 et wb wr / gw yc tw ex sgn e wy)
+(defun peb-crn-bridge-plan (x0 y0 x1 y1 et cw wb cap / gw yc ex sgn e wy ww wl)
+  ;; ── SYNCED WITH THE SIDE VIEW ──────────────────────────────────────────────────────────────
+  ;; Owner 5-Sep-2026: "Sync the side view with the Top View."
+  ;;
+  ;; Everything here now comes from the same rules the side view and the section use, so the two
+  ;; views cannot drift:
+  ;;
+  ;;   END CARRIAGE   et long ALONG THE RUNWAY (1500) x cw ACROSS THE GIRDER (200)
+  ;;   WHEELS         2 per carriage at the wheel base (1200), each 18 across x 100 along
+  ;;
+  ;; It used to draw the carriage 1.35 x the girder width - about 1,166 across where the box is
+  ;; 200 - and the wheels as squares of 0.16 x girder depth, about 192, where a wheel is 18 x 100.
+  ;; Both were stylised placeholders from before any of these figures were known, and they made
+  ;; the top view disagree with every other view on the sheet.
   (setq gw (abs (- y1 y0)) yc (/ (+ y0 y1) 2.0)
-        tw (* gw 1.35))                          ; end-truck width, measured ALONG the girder
+        ww (* (peb-crn-wheel-width cap) 0.5)     ; half the wheel ACROSS the girder - 9
+        wl (* (peb-crn-wheel-dia cap) 0.5))      ; half the wheel ALONG the runway - 50
   (if (or (< (abs (- x1 x0)) 1.0) (< gw 1.0))
     (princ)
     (progn
@@ -659,23 +673,17 @@
       (if (> et 1.0)
         (foreach e (list (list x0 1.0) (list x1 -1.0))
           (setq ex (car e) sgn (cadr e))
-          ;; END TRUCK — long axis ACROSS the girder (it runs on the runway), length = wheel base
-          (peb-crn-truck (- ex (* sgn (* tw 0.15))) (- yc (/ et 2.0))
-                         (+ ex (* sgn (* tw 0.85))) (- yc (/ et 2.0)))
-          (peb-crn-truck (- ex (* sgn (* tw 0.15))) (+ yc (/ et 2.0))
-                         (+ ex (* sgn (* tw 0.85))) (+ yc (/ et 2.0)))
-          (peb-crn-truck (- ex (* sgn (* tw 0.15))) (- yc (/ et 2.0))
-                         (- ex (* sgn (* tw 0.15))) (+ yc (/ et 2.0)))
-          (peb-crn-truck (+ ex (* sgn (* tw 0.85))) (- yc (/ et 2.0))
-                         (+ ex (* sgn (* tw 0.85))) (+ yc (/ et 2.0)))
-          ;; TWO WHEELS PER TRUCK (manual: NWb = 2) — fore and aft ON the runway, so they sit on
-          ;; the truck's two ends, straddling the rail line at ex.
-          (if (> wr 1.0)
-            (foreach wy (list (- yc (* wb 0.5)) (+ yc (* wb 0.5)))
-              (peb-crn-wheel (- ex wr) (- wy wr) (+ ex wr) (- wy wr))
-              (peb-crn-wheel (- ex wr) (+ wy wr) (+ ex wr) (+ wy wr))
-              (peb-crn-wheel (- ex wr) (- wy wr) (- ex wr) (+ wy wr))
-              (peb-crn-wheel (+ ex wr) (- wy wr) (+ ex wr) (+ wy wr))))))
+          ;; END CARRIAGE - long axis ALONG THE RUNWAY, centred on the rail line at ex
+          (peb-crn-truck (- ex (* cw 0.5)) (- yc (/ et 2.0)) (+ ex (* cw 0.5)) (- yc (/ et 2.0)))
+          (peb-crn-truck (- ex (* cw 0.5)) (+ yc (/ et 2.0)) (+ ex (* cw 0.5)) (+ yc (/ et 2.0)))
+          (peb-crn-truck (- ex (* cw 0.5)) (- yc (/ et 2.0)) (- ex (* cw 0.5)) (+ yc (/ et 2.0)))
+          (peb-crn-truck (+ ex (* cw 0.5)) (- yc (/ et 2.0)) (+ ex (* cw 0.5)) (+ yc (/ et 2.0)))
+          ;; TWO WHEELS PER CARRIAGE (manual: NWb = 2), at the wheel base, on the rail line
+          (foreach wy (list (- yc (* wb 0.5)) (+ yc (* wb 0.5)))
+            (peb-crn-wheel (- ex ww) (- wy wl) (+ ex ww) (- wy wl))
+            (peb-crn-wheel (- ex ww) (+ wy wl) (+ ex ww) (+ wy wl))
+            (peb-crn-wheel (- ex ww) (- wy wl) (- ex ww) (+ wy wl))
+            (peb-crn-wheel (+ ex ww) (- wy wl) (+ ex ww) (+ wy wl)))))
       (princ))))
 
 ;; ── THE TROLLEY, AND THE MOTOR ON IT ────────────────────────────────────────────────
@@ -746,12 +754,14 @@
 ;; the sample silently: the side view and its labels drew, and the span dimension, the whole top
 ;; view and every label after it did not. Same class as the LISP silent-failure rule; the sheet
 ;; just stops, with no error anywhere.
-(defun peb-crn-sample-dim (x0 x1 y lbl th / t1)
-  (setq t1 (* th 0.55))
-  (peb-crn-dash x0 y x1 y)
-  (peb-crn-dash x0 (- y t1) x0 (+ y t1))
-  (peb-crn-dash x1 (- y t1) x1 (+ y t1))
-  (txt "MC" (list (/ (+ x0 x1) 2.0) (+ y (* th 0.9))) th 0.0 lbl))
+(defun peb-crn-sample-dim (x0 x1 y lbl th / aL aW tk)
+  (setq aL (* th 0.78) aW (* th 0.25) tk (* th 0.45))
+  (peb-crn-dimline x0 y x1 y)
+  (peb-crn-ahead x0 y -1 aL aW)
+  (peb-crn-ahead x1 y  1 aL aW)
+  (peb-crn-dimline x0 (- y tk) x0 (+ y tk))
+  (peb-crn-dimline x1 (- y tk) x1 (+ y tk))
+  (txt "MC" (list (/ (+ x0 x1) 2.0) (+ y (* th 0.85))) th 0.0 lbl))
 
 ;; Maimaar's OWN steel is solid - only the crane is dotted.
 (defun peb-crn-sample-solid (xa ya xb yb)
@@ -765,29 +775,53 @@
   (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-SEC") (cons 370 13)
                  (list 10 xa ya 0.0) (list 11 xb yb 0.0))))
 
-;; ── DIMENSIONS FOR THE ENLARGED DETAIL ──────────────────────────────────────────
-;; Ticks, not arrowheads: the detail's own dimensions sit inside a 400 mm section blown up 8x,
-;; and a 700-unit DIMASZ arrowhead from the building sheets would be bigger than the plate it
-;; points at. Drawn as plain lines for the same reason peb-crn-sample-dim is — an open DIM
-;; command in a headless script eats the rest of the file (the LISP silent-failure class).
-(defun peb-crn-dimh (x0 x1 y lbl th)
-  (peb-crn-sample-solid x0 y x1 y)
-  (peb-crn-sample-solid x0 (- y (* th 0.5)) x0 (+ y (* th 0.5)))
-  (peb-crn-sample-solid x1 (- y (* th 0.5)) x1 (+ y (* th 0.5)))
-  (txt "MC" (list (/ (+ x0 x1) 2.0) (+ y (* th 0.55))) th 0.0 lbl))
+;; ── DIMENSIONS, TO THE SET'S OWN RULES ─────────────────────────────────────────────────────
+;; PD_RULEBOOK §0 S55: "Dimension arrowheads are the OPEN V, at 300/95. Leader and callout heads
+;; stay FILLED. Ticks are retired." S58: "Dimensions go in the PEB-DIM style at normal weight on
+;; the DIMENSIONS layer." This sheet was drawing plain ticks on the component layer, which is the
+;; one thing on it that did not look like a Maimaar drawing.
+;;
+;; Built from primitives rather than a native DIMLINEAR for the reason peb-fr-overall-h gives:
+;; DIMLINEAR runs its extension lines from the definition points to the dim line, which on these
+;; details would drive them straight through the geometry being measured. Same shape as
+;; peb-fr-dimarrow so the two families read alike - plain line, open V tipping outward at each
+;; end, witness tick at each extent, value centred above.
+;;
+;; The head is sized off the TEXT, not off *PEB-DIM-SCALE*: these four pages each plot at their
+;; own scale, so one model-space arrowhead would come out four different sizes on paper. 0.78 x
+;; text height puts it at about the 300/95 proportion the set uses.
+(defun peb-crn-ahead (x y dir aL aW)
+  (peb-crn-dimline x y (- x (* dir aL)) (+ y aW))
+  (peb-crn-dimline x y (- x (* dir aL)) (- y aW)))
 
-;; A vertical dimension rotates its text into the gap it measures - which only works while the
-;; text is SHORTER than the gap. "GIRDER DEPTH 1200" set at 386 is about 4,070 units long and the
-;; girder it measures is 1,200 deep, so it ran three times past both ends of its own dimension
-;; line and through the title above and the hook note below. When the label will not fit, it is
-;; set horizontally outside the line instead. romand has no metrics here, so the length is the
-;; same 0.62-em estimate measure_dxf.js uses.
-(defun peb-crn-dimv (y0 y1 x lbl th)
-  (peb-crn-sample-solid x y0 x y1)
-  (peb-crn-sample-solid (- x (* th 0.5)) y0 (+ x (* th 0.5)) y0)
-  (peb-crn-sample-solid (- x (* th 0.5)) y1 (+ x (* th 0.5)) y1)
-  (if (< (* (strlen lbl) th 0.62) (abs (- y1 y0)))
-    (txt "MC" (list (- x (* th 0.55)) (/ (+ y0 y1) 2.0)) th 90.0 lbl)
+(defun peb-crn-aheadv (x y dir aL aW)          ; the same head, turned for a vertical dim
+  (peb-crn-dimline x y (+ x aW) (- y (* dir aL)))
+  (peb-crn-dimline x y (- x aW) (- y (* dir aL))))
+
+(defun peb-crn-dimline (xa ya xb yb)
+  (entmake (list (cons 0 "LINE") (cons 8 "DIMENSIONS") (cons 370 18)
+                 (list 10 xa ya 0.0) (list 11 xb yb 0.0))))
+
+(defun peb-crn-dimh (x0 x1 y lbl th / aL aW tk)
+  (setq aL (* th 0.78) aW (* th 0.25) tk (* th 0.45))
+  (peb-crn-dimline x0 y x1 y)
+  (peb-crn-ahead x0 y -1 aL aW)
+  (peb-crn-ahead x1 y  1 aL aW)
+  (peb-crn-dimline x0 (- y tk) x0 (+ y tk))
+  (peb-crn-dimline x1 (- y tk) x1 (+ y tk))
+  (txt "MC" (list (/ (+ x0 x1) 2.0) (+ y (* th 0.95))) th 0.0 lbl))
+
+;; S72 - "A dimension too small for its text puts the TEXT outside." romand has no metrics here,
+;; so the width comes from peb-crn-em, measured at 0.94.
+(defun peb-crn-dimv (y0 y1 x lbl th / aL aW tk)
+  (setq aL (* th 0.78) aW (* th 0.25) tk (* th 0.45))
+  (peb-crn-dimline x y0 x y1)
+  (peb-crn-aheadv x y0 -1 aL aW)
+  (peb-crn-aheadv x y1  1 aL aW)
+  (peb-crn-dimline (- x tk) y0 (+ x tk) y0)
+  (peb-crn-dimline (- x tk) y1 (+ x tk) y1)
+  (if (< (* (strlen lbl) th (peb-crn-em)) (abs (- y1 y0)))
+    (txt "MC" (list (- x (* th 0.95)) (/ (+ y0 y1) 2.0)) th 90.0 lbl)
     (txt "ML" (list (+ x (* th 0.9)) (/ (+ y0 y1) 2.0)) th 0.0 lbl)))
 
 ;; a leader: elbow out of the part, then the note
@@ -795,6 +829,136 @@
   (peb-crn-sample-solid px py tx ty)
   (peb-crn-sample-solid tx ty (+ tx (if (equal just "ML") (* th 0.8) (- 0 (* th 0.8)))) ty)
   (txt just (list (+ tx (if (equal just "ML") (* th 1.1) (- 0 (* th 1.1)))) ty) th 0.0 lbl))
+
+;; ── HOW WIDE A STRING ACTUALLY IS ──────────────────────────────────────────────────────────
+;; MEASURED, not estimated. Everything on this sheet that had to know a string's width used
+;; 0.62 em per character - the figure in scratchpad/measure_dxf.js - and that figure is WRONG for
+;; the style peb-std-setup installs. Asking AutoCAD for the bounding box of an 88-character line
+;; set at height 100 gives:
+;;
+;;      em-per-char = 0.9417
+;;
+;; a 52 % underestimate. It is why the two-column data block printed straight through itself at a
+;; gutter that the arithmetic said was clear, and why several label placements on this sheet
+;; needed a second pass after they were "checked". A string is half again as wide as the estimate
+;; everyone has been using.
+;;
+;; Kept as a function so the next person who measures it has one place to correct.
+(defun peb-crn-em () 0.94)
+
+;; ── ONE TEXT SIZE ON PAPER, ACROSS FOUR DIFFERENT SCALES ───────────────────────────────────
+;; PD_RULEBOOK §0 S57: "One text height per sheet, from the ladder, sized for PAPER.
+;; *PEB-TEXT-SCALE* is computed from the SHEET, never from the building."
+;;
+;; This set breaks that rule in a way a single-sheet drawing cannot. The four pages are plotted
+;; from four DIFFERENT WINDOWS onto the same A1 paper, so each has its own scale - page 1 fits a
+;; 21 m span, page 3 fits a 420 mm section blown up 15x. One model-space text height therefore
+;; came out four different sizes on paper, and that alone is most of why the set did not read as
+;; one document.
+;;
+;; So each page gets the model-space height that plots to the SAME millimetres. Work backwards:
+;; find which of width or height binds on a 841 x 594 sheet, take that scale, and divide.
+;; The frame is allowed for - it adds 3 % margin each side and a strip below.
+(defun peb-crn-page-th (w h mm / sc)
+  (setq w  (* w 1.06)                       ; the margins peb-crn-page-frame adds
+        h  (* h 1.135)                      ; the margins plus the title strip
+        sc (if (>= (/ w h) (/ 841.0 594.0)) (/ 841.0 w) (/ 594.0 h)))
+  (/ mm sc))
+
+;; 3.2 mm of body text on A1. Titles run 1.15 - 1.6 x that, notes 0.85 x, which keeps the whole
+;; set inside the 2 - 5 mm band the house sheets use.
+(defun peb-crn-paper-text () 3.2)
+
+;; ── WHAT WAS ACTUALLY DRAWN, MEASURED ──────────────────────────────────────────────────────
+;; The page windows used to be hand-written expressions that had to be kept in step with the
+;; drawing by hand - and were not. A note anchored 2.4 girder-depths left of the girder, then
+;; running its own text 9,000 further left, fell straight off the left edge of page 2; the window
+;; formula had no way of knowing the text was there, because romand text carries no extents in
+;; the DXF and nothing measured it.
+;;
+;; So the windows are now MEASURED instead. Every entity in a page's Y band is asked for its
+;; bounding box and the union is the page. A label can no longer be clipped by a window that did
+;; not know about it, and there is no pair of expressions left to drift apart.
+;;
+;; TEXT is the reason this has to go through vla-GetBoundingBox rather than the DXF: AutoCAD
+;; knows the extents of a romand string, the file does not.
+(defun peb-crn-band-extent (ylo yhi / ms x0 y0 x1 y1 p1 p2 cy)
+  (setq ms (vla-get-ModelSpace (vla-get-ActiveDocument (vlax-get-acad-object))))
+  (vlax-for e ms
+    (if (not (vl-catch-all-error-p
+               (vl-catch-all-apply (function (lambda () (vla-GetBoundingBox e (quote p1) (quote p2)))))))
+      (progn
+        (setq p1 (vlax-safearray->list p1) p2 (vlax-safearray->list p2)
+              cy (/ (+ (cadr p1) (cadr p2)) 2.0))
+        (if (and (>= cy ylo) (<= cy yhi))
+          (setq x0 (if x0 (min x0 (car p1)) (car p1))
+                x1 (if x1 (max x1 (car p2)) (car p2))
+                y0 (if y0 (min y0 (cadr p1)) (cadr p1))
+                y1 (if y1 (max y1 (cadr p2)) (cadr p2)))))))
+  (if x0 (list x0 y0 x1 y1) nil))
+
+;; 17690 -> "17,690". The set's own peb-comma lives in Plan.lsp and this library must not
+;; depend on a sheet engine, so it carries its own.
+(defun peb-crn-comma (n / s i out)
+  (setq s (rtos n 2 0) i (strlen s) out "")
+  (while (> i 0)
+    (setq out (strcat (substr s i 1) out))
+    (setq i (1- i))
+    (if (and (> i 0) (= 0 (rem (- (strlen s) i) 3))) (setq out (strcat "," out))))
+  out)
+
+;; ── A BORDER AND A TITLE STRIP ─────────────────────────────────────────────────────────────
+;; Owner 5-Sep-2026: "Keep doing the audit Fixing, Polishing to make the Drawing Most Beautiful."
+;;
+;; The four pages carried a view title and nothing else - no border, no identity, no sheet
+;; number. A drawing floating on white paper reads as a sketch however careful the geometry is,
+;; and this is the cheapest thing that changes that. The strip also stops the sheet lying about
+;; what it is: it says DEVELOPMENT SAMPLE, because it is one.
+;;
+;; Drawn from the plot window itself, so a page that grows keeps its frame.
+;;   wx0 wy0 wx1 wy1  the page's content window · ttl sheet title · n of tot · th text height
+(defun peb-crn-page-frame (wx0 wy0 wx1 wy1 ttl n tot th cap spn / m sh fy0 bx0 bx1 by1 c1 c2)
+  (setq m   (* (- wx1 wx0) 0.030)             ; margin round the content
+        sh  (* (- wy1 wy0) 0.075)             ; title strip height
+        bx0 (- wx0 m)  bx1 (+ wx1 m)
+        by1 (+ wy1 m)  fy0 (- wy0 m sh)       ; the strip hangs below the content
+        c1  (+ bx0 (* (- bx1 bx0) 0.46))      ; the two dividers in the strip
+        c2  (+ bx0 (* (- bx1 bx0) 0.78)))
+  ;; the border - heavier than anything inside it, so the eye reads it as the edge
+  ;; GROUP ORDER MATTERS (S86): entity properties - 8, 370 - go AFTER (cons 100 "AcDbEntity")
+  ;; and BEFORE the second subclass marker. Written the other way round this entmake returns nil
+  ;; and the border silently does not exist, which is exactly how it first rendered: a title
+  ;; strip floating with no box round it.
+  (entmake (list (cons 0 "LWPOLYLINE") (cons 100 "AcDbEntity")
+                 (cons 8 "COMP-CRANE-SEC") (cons 370 50)
+                 (cons 100 "AcDbPolyline") (cons 90 4) (cons 70 1)
+                 (list 10 bx0 fy0) (list 10 bx1 fy0) (list 10 bx1 by1) (list 10 bx0 by1)))
+  ;; the strip, and its two dividers
+  (peb-crn-sample-solid bx0 (+ fy0 sh) bx1 (+ fy0 sh))
+  (peb-crn-sample-solid c1 fy0 c1 (+ fy0 sh))
+  (peb-crn-sample-solid c2 fy0 c2 (+ fy0 sh))
+  ;; left cell - who and what
+  (txt "ML" (list (+ bx0 (* m 0.5)) (+ fy0 (* sh 0.66))) (* th 1.15) 0.0
+       "MAIMAAR STEEL (PVT) LTD")
+  (txt "ML" (list (+ bx0 (* m 0.5)) (+ fy0 (* sh 0.30))) (* th 0.85) 0.0
+       "OVERHEAD CRANE  -  COMPONENT LIBRARY")
+  ;; middle cell - the sheet
+  (txt "ML" (list (+ c1 (* m 0.5)) (+ fy0 (* sh 0.66))) (* th 1.15) 0.0 ttl)
+  ;; The capacity and span come IN - the strip used to carry "SPAN 21,335" as a literal, which
+  ;; went stale the moment the sample was pointed at MSPL-26-276 and its 17,690 span. A title
+  ;; block that disagrees with the drawing above it is worse than no title block.
+  ;;
+  ;; And no middle dots: romand has no glyph for U+00B7 and printed it as "?" - S54 says all text
+  ;; is romand, so the text has to stay inside what romand can set.
+  (txt "ML" (list (+ c1 (* m 0.5)) (+ fy0 (* sh 0.30))) (* th 0.85) 0.0
+       (strcat (rtos cap 2 0) " MT   -   SPAN " (peb-crn-comma spn)
+               "   -   DEVELOPMENT SAMPLE, NOT A CUSTOMER DELIVERABLE"))
+  ;; right cell - where you are in the set
+  (txt "MC" (list (+ c2 (* (- bx1 c2) 0.5)) (+ fy0 (* sh 0.66))) (* th 1.4) 0.0
+       (strcat "SHEET " (itoa n) " OF " (itoa tot)))
+  (txt "MC" (list (+ c2 (* (- bx1 c2) 0.5)) (+ fy0 (* sh 0.30))) (* th 0.85) 0.0
+       "SCALE: TO FIT")
+  (list bx0 (- fy0 (* m 0.5)) bx1 (+ by1 (* m 0.5))))     ; the window to plot, frame included
 
 ;; ── THE CRANE BEAM, ENLARGED — THE VIEW THAT SHOWS THE PLATE THICKNESSES ───────────────
 ;; Owner 5-Sep-2026: "Show the Solid Thickness of Crane Beam Plates Webs and Flanges", and
@@ -1045,8 +1209,6 @@
   ;; the gap dim goes on the LEFT - on the right it sat shoulder to shoulder with the 15 lap
   (peb-crn-dimv yr (+ yr (* k (peb-crn-rail-gap 10.0))) (- cx (* fw 4.2))
                 (rtos (peb-crn-rail-gap 10.0) 2 0) th)
-  (peb-crn-dimh (- cx tw) (+ cx tw) (+ yr (* k (- wd lp)) (* k 40.0))
-                (strcat "WHEEL WIDTH  " (rtos (peb-crn-wheel-width 10.0) 2 0)) th)
   (peb-crn-dimv (+ yr (* k (peb-crn-carriage-soffit 10.0))) gy (- cx (* k 230.0))
                 (rtos (peb-crn-carriage-depth 10.0) 2 0) th)
   ;; THE BRACKET - the beam SITS ON IT (reference/1-2-1.png), so its top is at the bottom flange.
@@ -1139,11 +1301,11 @@
                 (strcat "RAIL FOOT  " (rtos rw 2 0)) th)
   (peb-crn-dimv ry (+ ry (* rk rh)) (- rx (* rk bw 0.72))
                 (strcat "RAIL HEIGHT  " (rtos rh 2 0)) th)
-  (txt "MC" (list rx (- ry (* rk ft) (* th 2.2))) (* th 0.9) 0.0
+  (txt "MC" (list rx (- ry (* rk ft) (* th 2.4))) (* th 0.9) 0.0
        (strcat "ON THE " (rtos bw 2 0) " TOP FLANGE, ON THE BEAM CENTRELINE"))
   ;; CMAA/AISC put a number on "on the centreline": the eccentricity of the rail centreline from
   ;; the girder web may not exceed three quarters of the web thickness. On an 8 web that is 6 mm.
-  (txt "MC" (list rx (- ry (* rk ft) (* th 3.4))) (* th 0.85) 0.0
+  (txt "MC" (list rx (- ry (* rk ft) (* th 4.0))) (* th 0.85) 0.0
        (strcat "CMAA/AISC: RAIL TO WEB ECCENTRICITY <= 0.75 x WEB  =  "
                (rtos (* wt 0.75) 2 0) " MAX"))
   (txt "MC" (list rx (- ry (* rk ft) (* th 4.0))) (* th 1.05) 0.0 "CRANE RAIL  -  BLOWN UP 5x")
@@ -1177,8 +1339,9 @@
                         " BOX  -  THE WHEEL LAPS "
                         (rtos (peb-crn-wheel-in-carriage 10.0) 2 0) " UP INTO IT") th "ML")
   (peb-crn-note cx (+ gy (* k bd 0.10)) (- cx (* xf 6.4)) (+ y1 (* k bd 2.10))
-                (strcat "END CARRIAGE WHEEL  " (rtos wd 2 0) " HIGH, "
-                        (rtos lp 2 0) " LAPPED ONTO THE BEAM  (CRANE - BY OTHERS)") th "MR")
+                (strcat "END CARRIAGE WHEEL  " (rtos wd 2 0) " HIGH X "
+                        (rtos (peb-crn-wheel-width 10.0) 2 0) " WIDE, "
+                        (rtos lp 2 0) " LAPPED ONTO THE RAIL  (CRANE - BY OTHERS)") th "MR")
 
   (txt "MC" (list (+ cx (* xf 5.0)) (+ y1 (* k bd 3.10))) (* th 1.5) 0.0
        "CRANE BEAM  -  SECTION, ELEVATION AND RAIL")
@@ -1186,12 +1349,14 @@
        "PLATE SIZES READ OFF THE MSPL-032 SINGLE-PART SHEET  (MAIMAAR FACTORY, 10 MT)")
   (princ))
 
-(defun peb-draw-crane-sample (span cap wbase / d et cl wb gw rw wr yc y0 yT x0 x1 th tl rx0 rx1 sy L hx hy rxc cbd cry gey pp pg1 pg2 pg3 pg4)
+(defun peb-draw-crane-sample (span cap wbase / d et cl wb gw rw wr yc y0 yT x0 x1 th th1 th2 th3 th4 tl rx0 rx1 sy L hx hy rxc cbd cry gey pp pg1 pg2 pg3 pg4 dbi dby dbl dbw dbn)
   ;; STYLISED PROPORTIONS, stated as such (rule 20). Depth ~ span/18 is the working proportion for
   ;; a welded box girder in this capacity range; a job's own CRn_BRIDGE overrides it. Everything
   ;; TRACED is named on the sheet itself, so the drawing carries its own provenance.
   (setq d  (peb-crn-girder-depth span cap)
-        gw (* d 0.72)
+        ;; the girder's plan width from its own rule - the side view and the section both
+        ;; work off peb-crn-girder-width, and the top view now does too
+        gw (peb-crn-girder-width d)
         ;; `et` is now purely a LAYOUT PITCH - the spacing the top view's labels, dimension
         ;; lines and page window are set out on. It used to be the wheel base, which meant that
         ;; shortening the carriage from 3,900 to 1,500 would have collapsed the whole top view
@@ -1230,6 +1395,16 @@
         pg3 (* -2.0 pp)
         pg4 (* -3.0 pp))
 
+  ;; ── ONE TEXT SIZE ON PAPER (S57) ────────────────────────────────────────────────────────
+  ;; A text height has to be chosen BEFORE the text is drawn, so unlike the page WINDOWS - which
+  ;; are measured off the finished drawing - these are estimates of each page's final size. They
+  ;; only have to be close: a 10 % error in text height is invisible, whereas a 10 % error in a
+  ;; window clips a label off the sheet, which is why the two are worked out differently.
+  (setq th1 (peb-crn-page-th (+ (* et 4.9) span) (* et 7.7)  (peb-crn-paper-text))
+        th2 (peb-crn-page-th (+ (* d 25.0) span) (* d 16.0)  (peb-crn-paper-text))
+        th3 (peb-crn-page-th (* span 3.70)       (* span 2.60) (peb-crn-paper-text))
+        th4 (peb-crn-page-th (+ (* d 13.0) span) (* d 34.0)  (peb-crn-paper-text)))
+
   ;; ══ PAGE 1 - TOP VIEW ════════════════════════════════════════════════════════════════════
   (setq y0 0.0 yT gw yc (/ gw 2.0)
         rx0 (- x0 (* et 1.9)) rx1 (+ x1 (* et 1.9)))
@@ -1243,25 +1418,25 @@
       (peb-crn-sample-solid (- rxc (/ rw 2.0)) (- yc (* et 1.9)) (- rxc (/ rw 2.0)) (+ yc (* et 1.9)))
       (peb-crn-sample-solid (+ rxc (/ rw 2.0)) (- yc (* et 1.9)) (+ rxc (/ rw 2.0)) (+ yc (* et 1.9)))
       (peb-crn-sample-solid rxc (- yc (* et 1.9)) rxc (+ yc (* et 1.9)))))
-  (peb-crn-bridge-plan x0 y0 x1 yT cl wb wr)
+  (peb-crn-bridge-plan x0 y0 x1 yT cl (peb-crn-carriage-width cap) wb cap)
   (peb-crn-trolley-plan (/ span 2.0) y0 yT tl)
   (peb-crn-bridge-motor x0 1.0 cl y0 yT)          ; bridge travel motor on the left carriage
-  (txt "MC" (list (/ span 2.0) (+ yc (* et 3.6))) (* th 1.6) 0.0 "CRANE BRIDGE  -  TOP VIEW")
-  (txt "MC" (list (/ span 2.0) (+ yc (* et 3.0))) (* th 0.9) 0.0
+  (txt "MC" (list (/ span 2.0) (+ yc (* et 2.95))) (* th1 1.6) 0.0 "CRANE BRIDGE  -  TOP VIEW")
+  (txt "MC" (list (/ span 2.0) (+ yc (* et 2.55))) (* th1 0.9) 0.0
        "CRANE BRIDGE, HOIST AND MOTORS - NOT IN MAIMAAR SCOPE (BY OTHERS)")
-  (txt "MC" (list (/ span 2.0) (- yc (* gw 2.4))) (* th 0.9) 0.0 "TROLLEY")
-  (txt "MC" (list (/ span 2.0) (+ yc (* gw 3.1))) (* th 0.9) 0.0 "HOIST MOTOR")
-  (txt "ML" (list (+ x0 (* gw 2.2)) (- yc (* gw 2.9))) (* th 0.9) 0.0 "BRIDGE TRAVEL MOTOR")
-  (txt "MR" (list (- x0 (* cl 0.40)) (+ yc (* cl 0.85))) (* th 0.9) 0.0
-       (strcat "END CARRIAGE  " (rtos cl 2 0) " LONG"))
-  (txt "MC" (list x0 (- yc (* et 2.15))) (* th 0.9) 0.0 "RUNWAY BEAM + RAIL")
-  (txt "ML" (list (+ x1 (* et 0.55)) (- yc (* et 1.15))) (* th 0.9) 0.0
-       "2 WHEELS AT THE BOTTOM OF EACH END CARRIAGE")
-  (peb-crn-sample-dim x0 x1 (+ yc (* et 2.4))
-                      (strcat "CRANE SPAN  -  C/C OF RUNWAY BEAMS   " (rtos span 2 0)) th)
-  (peb-crn-sample-dim x0 x1 (- yc (* et 2.8))
+  (txt "MC" (list (/ span 2.0) (- yc (* gw 2.4))) (* th1 0.9) 0.0 "TROLLEY")
+  (txt "MC" (list (/ span 2.0) (+ yc (* gw 3.1))) (* th1 0.9) 0.0 "HOIST MOTOR")
+  (txt "ML" (list (+ x0 (* gw 2.2)) (- yc (* gw 2.9))) (* th1 0.9) 0.0 "BRIDGE TRAVEL MOTOR")
+  (peb-crn-note x0 (+ yc (* cl 0.5)) (- x0 (* cl 0.55)) (+ yc (* cl 1.15))
+                (strcat "END CARRIAGE  " (rtos cl 2 0) " LONG") (* th1 0.9) "MR")
+  (txt "MC" (list x0 (- yc (* et 2.15))) (* th1 0.9) 0.0 "RUNWAY BEAM + RAIL")
+  (peb-crn-note x1 (- yc (* wb 0.5)) (+ x1 (* et 0.45)) (- yc (* et 1.05))
+                "2 WHEELS AT THE BOTTOM OF EACH END CARRIAGE" (* th1 0.9) "ML")
+  (peb-crn-sample-dim x0 x1 (+ yc (* et 2.15))
+                      (strcat "CRANE SPAN  -  C/C OF RUNWAY BEAMS   " (rtos span 2 0)) th1)
+  (peb-crn-sample-dim x0 x1 (- yc (* et 2.50))
                       (strcat "BRIDGE TRAVELS ALONG THE RUNWAYS - END CARRIAGE " (rtos cl 2 0)
-                              " LONG, WHEEL BASE " (rtos wb 2 0)) th)
+                              " LONG, WHEEL BASE " (rtos wb 2 0)) th1)
 
   ;; ══ PAGE 2 - SIDE VIEW ═══════════════════════════════════════════════════════════════════
   (setq sy (+ pg2 (* d 3.0)))
@@ -1302,18 +1477,18 @@
   ;; 1200mm", "which reduces to 350-450mm on Edges" - so the view should state them rather than
   ;; leave them to be scaled off. The dim lines are solid because a dimension is drawing
   ;; furniture, not steel; the LINETYPE says whose scope the member is, and these are not members.
-  (peb-crn-dimv sy (+ sy d) (* span 0.70) (rtos d 2 0) (* th 0.9))
+  (peb-crn-dimv sy (+ sy d) (* span 0.70) (rtos d 2 0) (* th2 0.9))
   (peb-crn-dimv (- (+ sy d) (min (* d 0.55) (peb-crn-girder-end-web))) (+ sy d)
                 (+ x1 (* d 1.3))
-                (rtos (min (* d 0.55) (peb-crn-girder-end-web)) 2 0) (* th 0.9))
-  (txt "MC" (list (/ span 2.0) (+ sy d (* th 2.4))) (* th 1.2) 0.0 "SIDE VIEW  -  ALONG THE GIRDER")
-  (txt "ML" (list (+ x1 (* d 3.2)) (+ sy (* d 0.55))) (* th 0.9) 0.0
+                (rtos (min (* d 0.55) (peb-crn-girder-end-web)) 2 0) (* th2 0.9))
+  (txt "MC" (list (/ span 2.0) (+ sy d (* th2 2.4))) (* th2 1.2) 0.0 "SIDE VIEW  -  ALONG THE GIRDER")
+  (txt "ML" (list (+ x1 (* d 3.2)) (+ sy (* d 0.55))) (* th2 0.9) 0.0
        (strcat "CRANE BRIDGE - GIRDER DEPTH " (rtos d 2 0) "  (RULE: 500 + SPAN/30.5)  -  STRAIGHT BOX, ONE TAPERED CUT AT EACH END"))
-  (txt "ML" (list (+ x1 (* d 3.2)) (- sy (* d 0.75))) (* th 0.9) 0.0 "CRANE BEAM + RAIL  (MAIMAAR SCOPE - SOLID)")
-  (txt "ML" (list (+ x1 (* d 3.2)) (- sy (* d 1.45))) (* th 0.9) 0.0 "CRANE BEAM BRACKET  (MAIMAAR SCOPE)")
-  (txt "MR" (list (- x0 (* d 2.4)) (- sy (* d 0.22))) (* th 0.9) 0.0
+  (txt "ML" (list (+ x1 (* d 3.2)) (- sy (* d 0.75))) (* th2 0.9) 0.0 "CRANE BEAM + RAIL  (MAIMAAR SCOPE - SOLID)")
+  (txt "ML" (list (+ x1 (* d 3.2)) (- sy (* d 1.45))) (* th2 0.9) 0.0 "CRANE BEAM BRACKET  (MAIMAAR SCOPE)")
+  (txt "MR" (list (- x0 (* d 2.4)) (- sy (* d 0.22))) (* th2 0.9) 0.0
        (strcat "END CARRIAGE  -  STRAIGHT BOX, ONLY " (rtos (peb-crn-carriage-depth cap) 2 0) " DEEP"))
-  (txt "MR" (list (- x0 (* d 2.4)) (- sy (* d 0.62))) (* th 0.9) 0.0 "WHEEL ON THE BOTTOM, ON THE RAIL")
+  (txt "MR" (list (- x0 (* d 2.4)) (- sy (* d 0.62))) (* th2 0.9) 0.0 "WHEEL ON THE BOTTOM, ON THE RAIL")
   ;; ── THE HOIST MOTOR AND THE HOOK — WHAT THE BUILDING HEIGHT IS QUOTED TO ──────────────────
   ;; Owner 5-Sep-2026: "Motor with Crane Hook. Mostly Gives the Height of Building from FFL to
   ;; Crane Hook (Crane Hook Height)". The manual says the same from the other end — "Eave height
@@ -1324,9 +1499,9 @@
   (setq hx (/ span 2.0) hy (- sy (* d 1.9)))
   ;; the traced hoist assembly, hung from the girder underside
   (peb-crn-hoist-elev hx sy (* d 2.6))
-  (txt "ML" (list (+ hx (* d 1.15)) (- sy (* d 0.55))) (* th 0.9) 0.0 "HOIST (BY OTHERS)")
-  (txt "ML" (list (+ hx (* d 1.15)) (- sy (* d 1.35))) (* th 0.9) 0.0 "CRANE HOOK")
-  (txt "MC" (list (/ span 2.0) (- sy (* d 2.6))) (* th 0.85) 0.0
+  (txt "ML" (list (+ hx (* d 1.15)) (- sy (* d 0.55))) (* th2 0.9) 0.0 "HOIST (BY OTHERS)")
+  (txt "ML" (list (+ hx (* d 1.15)) (- sy (* d 1.35))) (* th2 0.9) 0.0 "CRANE HOOK")
+  (txt "MC" (list (/ span 2.0) (- sy (* d 2.6))) (* th2 0.85) 0.0
        "HOOK HEIGHT IS MEASURED FFL TO THE HOOK - IT SETS THE EAVE HEIGHT")
 
   ;; ══ PAGE 3 - CRANE BEAM: SECTION, ELEVATION AND RAIL ═════════════════════════════════════
@@ -1341,11 +1516,35 @@
   ;; to two (see peb-crn-beam-detail), which is still enough to show a spacing.
   (peb-crn-beam-detail (* span 0.34) sy cbd
                        (/ (* span 0.30) (+ cbd (* 2.0 (peb-crn-flange-thk cbd))))
-                       (* th 0.92))
+                       (* th3 0.92))
   (setq sy (- sy (* span 0.42)))
 
   ;; ══ PAGE 2, LOWER - THE HOIST, ENLARGED ═════════════════════════════════════════════════
-  (setq sy (- pg2 (* d 4.5)))
+  ;; Spread, not crammed. The side view of a 21 m girder is a wide, short drawing: the page fits
+  ;; it BY WIDTH, so the two views can be pushed apart until they fill the sheet's height without
+  ;; either of them plotting one millimetre smaller. At 4.5 d the pair used half the page and the
+  ;; other half was blank.
+  ;; The page fits this block BY WIDTH - it is a 17.7 m girder with a note column beside it - so
+  ;; the height is free until it runs out. An A1 sheet is 594/841 of its width, so the block can
+  ;; be about 0.71 x its own width tall before the fit changes hands, and every millimetre up to
+  ;; that point is page being used rather than page being wasted.
+  ;;
+  ;; MEASURED, and then solved - two guesses in a row were wrong in opposite directions.
+  ;;
+  ;; The catch is that the FRAME's margins scale with the page WIDTH (m = 3 % of it) while its
+  ;; title strip scales with the height, so the framed aspect is not the content's aspect:
+  ;;
+  ;;      framed_W = 1.092 W        framed_H = 1.140 H + 0.062 W
+  ;;
+  ;; and the fit stays on the width only while framed_W / framed_H >= 841/594, i.e.
+  ;;
+  ;;      H <= 0.622 W
+  ;;
+  ;; Measured at 20 d the block was 50,232 x 37,793 - over that limit, so the fit changed hands
+  ;; to the HEIGHT and everything on the page shrank. 17 d was still over it. 13.5 d gives about
+  ;; 30,800 against a limit of 31,300: the two views sit at the top and bottom of the sheet at
+  ;; the full width-fitted scale, which is the most page this drawing can use.
+  (setq sy (- pg2 (* d 13.5)))
 
   ;; ══ HOIST DETAIL, AT LARGE SCALE ════════════════════════════════════════════════════════
   ;; The hoist drawn at true scale on a 21 m span is a blob — 3 m of machine against 21 m of
@@ -1355,10 +1554,10 @@
   ;; actually be judged: end cap, finned motor, shoulder, mid box, drum housing, sheave pin,
   ;; bolted bottom plate, hook.
   (peb-crn-hoist-elev (* span 0.30) sy (* span 0.34))
-  (txt "MC" (list (* span 0.30) (+ sy (* th 2.6))) (* th 1.2) 0.0 "HOIST DETAIL  -  ENLARGED")
-  (txt "ML" (list (* span 0.52) (- sy (* span 0.05))) (* th 0.85) 0.0
+  (txt "MC" (list (* span 0.30) (+ sy (* th2 2.6))) (* th2 1.2) 0.0 "HOIST DETAIL  -  ENLARGED")
+  (txt "ML" (list (* span 0.52) (- sy (* span 0.05))) (* th2 0.85) 0.0
        "TRACED FROM reference/crane-in-PEB-section_reference.webp")
-  (txt "ML" (list (* span 0.52) (- sy (* span 0.09))) (* th 0.85) 0.0
+  (txt "ML" (list (* span 0.52) (- sy (* span 0.09))) (* th2 0.85) 0.0
        "END CAP / FINNED MOTOR / SHOULDER / MID BOX / DRUM HOUSING / SHEAVE / PLATE / HOOK")
 
   ;; ══ THE END CARRIAGE ═════════════════════════════════════════════════════════════════════
@@ -1374,7 +1573,7 @@
   (setq sy (+ pg4 (* d 1.0)))
   (peb-crn-carriage-elev (* span 0.5) sy wb cap
                          (/ (* span 0.80) (+ wb (peb-crn-carriage-over cap)))
-                         (* th 0.92))
+                         (* th4 0.92))
   (setq sy (- sy (* d 8.0)))
 
   ;; ══ THE DATA BLOCK - every number, and where it came from ════════════════════════════════
@@ -1382,9 +1581,24 @@
   ;; end carriage, which ends cleanly, so 2.2 d is enough. The 6.4 left a hand's width of blank
   ;; sheet between the last drawing and the notes.
   ;; ══ PAGE 4, LOWER - THE DATA BLOCK ═══════════════════════════════════════════════════════
-  (setq sy (- pg4 (* d 9.0)))
-  (foreach L (list
-      (strcat "CAPACITY  " (rtos cap 2 0) " MT")
+  (setq sy (- pg4 (* d 5.0)))
+  ;; ── TWO COLUMNS, GUTTERED OFF THE LONGEST LINE ──────────────────────────────────────────
+  ;; Set as one column this block ran 24 lines deep and about as wide as it was tall, which made
+  ;; page 4 nearly square - and a square drawing on a 1.42 sheet is fitted by its HEIGHT and
+  ;; plots small, throwing the width away. Two columns turn the same text into a wide, short
+  ;; block and the whole page plots larger for nothing.
+  ;;
+  ;; The column offset is MEASURED off the longest line, not guessed. Guessed at 46 ems it was
+  ;; shorter than the longest line and the two columns printed straight through each other.
+  ;; romand carries no metrics here, so the width comes from peb-crn-em -
+  ;; MEASURED at 0.94 em, not the 0.62 that was assumed and that made these two columns overlap.
+  (setq dbl (list
+      (strcat "CAPACITY  " (rtos cap 2 0) " MT  -  BSF MSPL-26-276, area 5172")
+      (strcat "SPAN  " (rtos span 2 0) "  C/C OF RUNWAY BEAMS  -  BSF ; RUNWAY LENGTH 30,480")
+      "HOOK HEIGHT  6,000 FFL TO HOOK  -  BSF ; SERVICE CLASS C, LOADING CATEGORY 3"
+      "LOADS  84 VERTICAL / 11 HORIZONTAL  -  BSF ; MAKE: KONE, TOP RUNNING, PENDANT"
+      "BUILDING  30,480 X 18,290, EAVE 10,670, BAYS 1@7,240 + 2@8,000 + 1@7,240  -  BSF"
+      "SECTION SOURCE  the crane beam plates are MSPL-032's, not this job's  -  see sheet 3"
       "TYPE  TOP RUNNING (TR)  -  manual ch.8 lists TR / monorail / underhung / jib / semi-gantry"
       "END CARRIAGE WHEELS  2 PER END, 4 TOTAL  -  manual ch.8  NWb = 2  (worked 10 MT example)"
       "WHEEL  100 HIGH X 18 WIDE; 15 LAPS DOWN ONTO THE RAIL  -  owner, 5-Sep-2026"
@@ -1410,37 +1624,75 @@
       "   MSPL-032 single parts: CRB-1,2 x4 each ; OF33,34,35,37 x4 each ; ST4 x128"
       "   (225 - 8) / 2 = 108 - THE STIFFENER CONFIRMS BOTH THE FLANGE AND THE WEB"
       "GIRDER  1000 deep at 50 ft (15,240) span, 10 MT  -  Maimaar production, 2026")
-    (progn
-      (txt "ML" (list x0 sy) (* th 0.85) 0.0 L)
-      (setq sy (- sy (* th 1.8)))))
+        dbw 0)
+  (foreach L dbl (setq dbw (max dbw (strlen L))))
+  (setq dbw (* dbw th4 0.85 (peb-crn-em))                    ; the longest line
+        dbn (fix (+ 0.99 (/ (length dbl) 2.0)))      ; lines per column
+        dbi 0
+        dby sy)
+  (foreach L dbl
+    (txt "ML" (list (+ x0 (if (< dbi dbn) 0.0 (+ dbw (* th4 3.0))))
+                    (- dby (* th4 1.8 (rem dbi dbn))))
+         (* th4 0.85) 0.0 L)
+    (setq dbi (1+ dbi)))
+  (setq sy (- dby (* th4 1.8 dbn)))
 
   ;; ── THE FOUR PLOT WINDOWS ────────────────────────────────────────────────────────────────
   ;; Fitted to each block rather than to a common box: the whole point of four pages is that a
   ;; small drawing is no longer plotted at the scale the biggest one needs. Read by
   ;; sample/render_sample.js, which plots one page per window and merges them into one PDF.
+  ;; ── THE FOUR PAGES, FRAMED ──────────────────────────────────────────────────────────────
+  ;; The windows are worked out first, then each one gets a border and title strip drawn round
+  ;; it, and peb-crn-page-frame hands back the slightly larger window that includes the frame -
+  ;; so the frame can never be the thing that falls off the edge of its own page.
+  ;; ── THE FOUR PAGES ──────────────────────────────────────────────────────────────────────
+  ;; Each window is the MEASURED extent of everything drawn in that page's band, padded a little,
+  ;; then framed. peb-crn-page-frame hands back the window that includes its own border, so the
+  ;; frame can never be the thing that falls off the edge of its own page.
   (setq *PEB-CRN-PAGES*
-    (list
-      ;; 1  TOP VIEW - the span, plus the label margin each side
-      (list (- x0 (* et 2.0))    (- pg1 (* et 3.4))   (+ x1 (* et 2.9))   (+ pg1 (* et 4.3)))
-      ;; 2  SIDE VIEW + HOIST DETAIL - the note column on the right runs to about x1 + 14 d
-      (list (- x0 (* d 7.5))     (- pg2 (* d 10.5))   (+ x1 (* d 17.5))   (+ pg2 (* d 5.5)))
-      ;; 3  CRANE BEAM - section, elevation, rail blow-up, and the note columns both sides
-      (list (- (* span 0.34) (* span 1.05))  (- pg3 (* span 1.15))
-            (+ (* span 0.34) (* span 2.65))  (+ pg3 (* span 1.45)))
-      ;; 4  END CARRIAGE + DATA BLOCK
-      (list (- x0 (* d 2.0))     (- pg4 (* d 20.5))   (+ x1 (* d 11.0))   (+ pg4 (* d 13.5)))))
+    (mapcar
+      (function
+        (lambda (pg)
+          (peb-crn-page-frame
+            (- (nth 0 (nth 1 pg)) (* (- (nth 2 (nth 1 pg)) (nth 0 (nth 1 pg))) 0.015))
+            (- (nth 1 (nth 1 pg)) (* (- (nth 3 (nth 1 pg)) (nth 1 (nth 1 pg))) 0.030))
+            (+ (nth 2 (nth 1 pg)) (* (- (nth 2 (nth 1 pg)) (nth 0 (nth 1 pg))) 0.015))
+            (+ (nth 3 (nth 1 pg)) (* (- (nth 3 (nth 1 pg)) (nth 1 (nth 1 pg))) 0.030))
+            (nth 2 pg) (nth 0 pg) 4 (* (nth 3 pg) 0.9) cap span)))
+      (list
+        (list 1 (peb-crn-band-extent (- pg1 (* pp 0.5)) (+ pg1 (* pp 0.5)))
+                "CRANE BRIDGE  -  TOP VIEW" th1)
+        (list 2 (peb-crn-band-extent (- pg2 (* pp 0.5)) (+ pg2 (* pp 0.5)))
+                "SIDE VIEW ALONG THE GIRDER, AND THE HOIST" th2)
+        (list 3 (peb-crn-band-extent (- pg3 (* pp 0.5)) (+ pg3 (* pp 0.5)))
+                "CRANE BEAM  -  SECTION, ELEVATION AND RAIL" th3)
+        (list 4 (peb-crn-band-extent (- pg4 (* pp 0.5)) (+ pg4 (* pp 0.5)))
+                "END CARRIAGE, AND THE DATA THIS SHEET IS BUILT ON" th4))))
   (princ))
 
 (defun C:PEB-CRANE-SAMPLE ( / )
   (vl-load-com) (setvar "CMDECHO" 0) (setvar "OSMODE" 0)
   (if (boundp 'peb-std-setup) (vl-catch-all-apply (function (lambda () (peb-std-setup)))))
-  ;; Component scale, not building scale — see the note in the wall-light sample: peb-th's ladder
-  ;; is tuned for a 48 m building and would dwarf a 21 m girder drawn on its own.
+  ;; Component scale, not building scale - see the note in the wall-light sample: peb-th's ladder
+  ;; is tuned for a 48 m building and would dwarf a girder drawn on its own.
   (setq *PEB-TEXT-SCALE* 1.0 *PEB-DIM-SCALE* 1.0)
-  ;; Thal 125-23, traced: 10 MT on a 21.335 m span.
-  ;; Thal 125-23 traced: 10 MT on a 21.335 m span. Wheel base 3.9 m from the live BSF
-  ;; (MSPL-26-276) - the manual gives the wheel COUNT, a job gives the base.
-  (peb-draw-crane-sample 21335.0 10.0 3900.0)
+  ;; ── DRIVEN BY THE LIVE BSF, PROPOSAL MSPL-26-276 ──────────────────────────────────────────
+  ;; Owner 5-Sep-2026: "Keep working and Sync with Proposal 276-26."
+  ;;
+  ;; inquiry 5401, area 5172, component crane_system - read straight off the CRM:
+  ;;
+  ;;      capacity        10 MT            span            17.69 m
+  ;;      hook height     6.0 m            wheel base      3.9 m
+  ;;      runway length   30.48 m          type            Top Running (TR), Pendant
+  ;;      service class   C                loading cat.    3
+  ;;      manufacturer    Kone             loads           84 vert / 11 horiz
+  ;;      building        30.48 x 18.29 m, eave 10.67, bays 1@7.24 + 2@8.00 + 1@7.24
+  ;;
+  ;; The span, capacity and wheel base come from there. The CRANE BEAM SECTION does NOT - it stays
+  ;; anchored on MSPL-032, whose single-part sheet is the only place the actual plate sizes exist,
+  ;; and it says so on its own page. Two sources, each named where it is used, rather than one
+  ;; blurred set of numbers that belongs to neither job.
+  (peb-draw-crane-sample 17690.0 10.0 3900.0)
   (command "_.ZOOM" "_E")
-  (princ "\nBridge sample drawn: TOP + SIDE view.")
+  (princ "\nCrane sample drawn: 4 pages, from BSF MSPL-26-276.")
   (princ))
