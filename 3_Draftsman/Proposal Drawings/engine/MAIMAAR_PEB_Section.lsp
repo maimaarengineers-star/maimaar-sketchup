@@ -7967,7 +7967,7 @@
                                   capY bridgeTop bridgeBot railTop beamTop beamBot hoistTop hoistBot crTh crRow
                                   xBL xBR cb cx bx dir hw labeled hkTip modCount modSeen k a total idxInMod hoistX
                                   brD gpH bxi rW dW wx typ isUH braceDir rafYL rafYR rafY bdBS
-                                  lblX lblY lblR bsfSpan)
+                                  lblX lblY lblR bsfSpan spBS)
   (if (= (strcase (MSPL-Get-Str data "CR_TOGGLE")) "YES")
     (progn
       (setq u  (max 250.0 (/ wid 45.0))
@@ -8032,8 +8032,31 @@
                   railNubH (* u 0.28)                     ; crane rail on top of the beam
                   etH      (* u 0.55)                     ; end-truck (bridge-to-rail) connection height
                   bdBS     (MSPL-Get-Num data (strcat pre "BRIDGE"))   ; bridge girder depth from BS (CRn_BRIDGE, mm)
-                  bd       (if (and bdBS (> bdBS 0.0))    ; use the real depth (clamped drawable), else representative
-                             (max (* u 0.5) (min (* u 2.0) bdBS)) (* u 0.90))
+                  spBS     (MSPL-Get-Num data (strcat pre "SPAN"))     ; crane span, c/c of runways
+                  ;; ── THE BRIDGE GIRDER DEPTH ────────────────────────────────────────────────
+                  ;; Owner 5-Sep-2026: "Bridge is Show too small."
+                  ;;
+                  ;; It was. With no CRn_BRIDGE on the BSF this fell back to u * 0.90 - on an
+                  ;; 18.29 m building that is 366 mm of girder, against the 1,080 the owner's own
+                  ;; two built anchors give for a 17,690 span (1000 at 15,240, 1200 at 21,335).
+                  ;; THREE TIMES TOO SHALLOW. And the clamp made it worse: a correct BSF depth was
+                  ;; squeezed to u * 2.0 = 812, so even entering the right number could not fix it.
+                  ;;
+                  ;; The component library owns this rule now - peb-crn-girder-depth, fitted
+                  ;; through both anchors - and the library is loaded on every PD render, so the
+                  ;; section can simply ask it. That is what "sync the library with CLP and
+                  ;; Section" means in practice: ONE rule, not a second guess living here.
+                  ;;
+                  ;; A BSF depth still wins when it is given; the clamp is widened to u * 4.0 so
+                  ;; it can no longer crush a real girder, and kept so a mistyped value cannot
+                  ;; blow the section apart.
+                  bd       (cond
+                             ((and bdBS (> bdBS 0.0)) (max (* u 0.5) (min (* u 4.0) bdBS)))
+                             ((boundp 'peb-crn-girder-depth)
+                                (max (* u 0.5) (min (* u 4.0)
+                                  (peb-crn-girder-depth
+                                    (if (and spBS (> spBS 0.0)) spBS (* wid 0.85)) cap))))
+                             (T (* u 0.90)))
                   brkLen   (* u 1.00))                    ; bracket cantilever length off the column face
             ;; vertical stack — differs by TYPE:
             ;;   TR: beam ON a column bracket -> rail on top -> end-truck WHEEL on rail -> bridge ABOVE.
@@ -8285,6 +8308,19 @@
                 (if (/= (MSPL-Get-Str data (strcat pre "GRID_LOC")) "")
                   (txt-rom "MC" (list hoistX (- hookH (* crRow 5.45))) (/ (peb-th 'MARK) sc) 0.0
                             (strcat "CRANE AT " (strcase (MSPL-Get-Str data (strcat pre "GRID_LOC"))) " ONLY")))
+                ;; ── THE GIRDER'S OWN DEPTH, WRITTEN DOWN ──────────────────────────────────
+                ;; Owner 5-Sep-2026: "Bridge is Show too small" / "Bridge overall depth is almost
+                ;; 1000mm" / "and on End Reduces to 350-450mm".
+                ;;
+                ;; It WAS too small - 366 against the 1,080 the rule gives - and that is fixed at
+                ;; the source. But the depth was also nowhere on the sheet, so the only way to
+                ;; check it was to hold a scale against the drawing. Both figures now print.
+                (txt-rom "MC" (list hoistX (- hookH (* crRow 6.35))) (/ (peb-th 'MARK) sc) 0.0
+                          (strcat "BRIDGE GIRDER : " (rtos bd 2 0) " DEEP, "
+                                  (rtos (if (boundp 'peb-crn-girder-end-web)
+                                          (min (* bd 0.55) (peb-crn-girder-end-web)) (* bd 0.37))
+                                        2 0)
+                                  " AT THE ENDS"))
                 (setq labeled T)))
             (princ))))
           (setq n 3)))               ; drew one crane -> break the loop (one per section)
