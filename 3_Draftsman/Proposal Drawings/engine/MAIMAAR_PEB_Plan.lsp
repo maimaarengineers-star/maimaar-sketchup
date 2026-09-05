@@ -7619,7 +7619,9 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
     ;; Standard -> Section -> Plan and defun is last-writer-wins, so the section's own copy is
     ;; dead code - fixing it there changed nothing at all, and the render came back byte for byte
     ;; identical. Both are corrected so they cannot disagree, but this is the live one.
-    (function (lambda () (vla-put-TextHeight mleader 600.0))))   ; base only - ScaleFactor scales it
+    ;; ON THE LADDER, and the SAME rung Section.lsp uses - Plan.lsp keeps its own copy of
+    ;; peb-make-mleader, so a fix applied to one of them leaves the other quietly on 600.
+    (function (lambda () (vla-put-TextHeight mleader (float (peb-th 'SMALL))))))   ; base only - ScaleFactor scales it
   ;; Use Standard text style by default.  Callers wanting bold/Arial
   ;; should embed MText format codes (e.g. "{\\Fromand.shx;…}") in the
   ;; text string — this leaves regular weight as the surrounding default.

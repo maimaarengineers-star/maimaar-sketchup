@@ -8,7 +8,41 @@
 //   node textaudit.js MAIMAAR_PEB_*.lsp
 const fs = require('fs');
 
-const LADDER = { SMALL: 550, DIM: 700, ANNOT: 830, LABEL: 970, HEADING: 1400, TITLE: 1650 };
+// MARK was missing here while Standard.lsp has defined it since 28-Aug, so this reported
+// "ladder min 550" and would have called a legitimate MARK-sized call a deviation. An audit whose
+// copy of the standard has drifted from the standard is worse than no audit: it is wrong with
+// authority. Keep this list identical to *PEB-TEXT-HEIGHTS*.
+const LADDER = { MARK: 400, SMALL: 550, DIM: 700, ANNOT: 830, LABEL: 970, HEADING: 1400, TITLE: 1650 };
+
+// THE M-LADDER PATH, which this audit could not see until 5-Sep-2026.
+//
+// Owner: "audit all the text and MLadder Text, to check the size and placement". The M-Ladder
+// callouts - ROOF SHEETING / WALL SHEETING, the two notes stating the SPEC a customer buys - are
+// MLEADERs. They never touch txt / txt-bold / txt-rom, so every scan above walked straight past
+// them, and their height sat at 600 for months: not a rung, just a number. Worse, a SECOND copy of
+// 600 lived in peb-clad-maxch, which measures the line wrap for that same text - so the height and
+// the wrap agreed only for as long as nobody touched one of them.
+//
+// This looks for a raw number handed to the MLEADER height, or to anything measuring against it.
+// Both must come from (peb-th 'X): one rung, read twice, cannot disagree with itself.
+const MLEADER_SITES = [
+  { re: /vla-put-TextHeight\s+\w+\s+([0-9.]+)/g, what: 'MLEADER text height' },
+  { re: /peb-clad-maxch[\s\S]{0,240}?\(\*\s+([0-9.]+)\s+ts/g, what: 'M-Ladder wrap measure' },
+];
+
+function mleaderPass(name, src, rows) {
+  const flat = src.split('\n').map((l) => l.replace(/;.*$/, '')).join('\n');
+  for (const site of MLEADER_SITES) {
+    site.re.lastIndex = 0;
+    let m;
+    while ((m = site.re.exec(flat))) {
+      const h = parseFloat(m[1]);
+      if (!isFinite(h)) continue;
+      const line = flat.slice(0, m.index).split('\n').length;
+      rows.push({ f: name, line, h, src: site.what + ': ' + m[0].replace(/\s+/g, ' ').slice(0, 66) });
+    }
+  }
+}
 const rows = [];
 let ok = 0;
 
@@ -73,6 +107,7 @@ const FILES = process.argv.slice(2).length ? process.argv.slice(2) : engineFiles
 for (const f of FILES) {
   const name = f.split(/[\\/]/).pop();
   joinedPass(name, fs.readFileSync(f, 'utf8'), rows);
+  mleaderPass(name, fs.readFileSync(f, 'utf8'), rows);
   fs.readFileSync(f, 'utf8').split('\n').forEach((raw, i) => {
     const line = raw.replace(/;.*$/, '');
     // (txt "ML" <pt> <height> <rot> <string>)  and every sibling that draws text.
@@ -115,4 +150,5 @@ const near = (v) => {
   return bd === 0 ? best + ' (exact)' : best + ' is ' + LADDER[best];
 };
 rows.sort((a, b) => a.h - b.h);
-for (const r of rows) console.log(r.f + '  ' + r.line + '  h=' + r.h + '  (ladder min 550)  ' + r.src);
+const LMIN = Math.min.apply(null, Object.values(LADDER));
+for (const r of rows) console.log(r.f + '  ' + r.line + '  h=' + r.h + '  (ladder min ' + LMIN + ')  ' + r.src);

@@ -1190,7 +1190,13 @@
     ;; 600 base, scaled ONCE by the MLEADER, is 922 at TS 1.536 - which is exactly the number
     ;; peb-clad-maxch measures its line wrap against, so the two now agree by construction
     ;; instead of by coincidence.
-    (function (lambda () (vla-put-TextHeight mleader 600.0))))   ; base only - ScaleFactor scales it
+    ;; ON THE LADDER (owner 5-Sep: audit the text and M-Ladder text for size).
+    ;; 600 was not a rung - the ladder runs MARK 400, SMALL 550, DIM 700, ANNOT 830 - so the one
+    ;; annotation on the sheet that a customer reads for the SPEC was the one size nobody chose.
+    ;; It escaped every audit because textaudit.js scans the txt/txt-bold/txt-rom helpers and an
+    ;; MLEADER goes nowhere near them; that gap is closed in textaudit.js in the same change.
+    ;; SMALL (550) is the nearest rung, so this is an 8% reduction, not a re-layout.
+    (function (lambda () (vla-put-TextHeight mleader (float (peb-th 'SMALL))))))   ; base only - ScaleFactor scales it
   ;; Use Standard text style by default.  Callers wanting bold/Arial
   ;; should embed MText format codes (e.g. "{\\Fromand.shx;…}") in the
   ;; text string — this leaves regular weight as the surrounding default.
@@ -6926,8 +6932,12 @@
 ;; character is the measured ROMAND advance (GOLDEN_RULES 37). Floored at 12 so a narrow
 ;; building gets a readable stack rather than one word per line.
 (defun peb-clad-maxch (avail ts / h n)
+  ;; THE SAME RUNG peb-make-mleader uses, read from the ladder rather than repeated. This
+  ;; function measures how many characters fit on a line of M-Ladder text, so it has to be sized
+  ;; from that text's actual height. It used to carry its own copy of 600.0, which meant the wrap
+  ;; and the height agreed only for as long as nobody changed one of them.
   (setq ts (if (and ts (> ts 0.0)) ts 1.0)
-        h  (* 600.0 ts 0.42)
+        h  (* (float (peb-th 'SMALL)) ts 0.42)
         n  (if (> h 0.0) (fix (/ (- (abs avail) (* 900.0 ts)) (* h 0.94))) 20))
   (max 12 (min 30 n)))
 
@@ -7676,25 +7686,34 @@
   (txt-dim "MC" (list (- xdim (* 460 *PEB-DIM-SCALE*)) midY) h 90 str)
   (setvar "CECOLOR" oc))
 
-(defun rm-label (ptx pty tx ty just str)
+(defun rm-label (ptx pty tx ty just str / h g)
+  ;; 160 was 0.58 mm on paper. Same fix as rm-mladder above, and the leader gap is likewise taken
+  ;; from the text height instead of a flat 80.
   (setvar "CLAYER" "TEXT")
   (command "_.LINE" (list ptx pty) (list tx ty) "")
-  (txt just (list (if (= just "ML") (+ tx (* 80 *PEB-TEXT-SCALE*)) (- tx (* 80 *PEB-TEXT-SCALE*))) ty)
-       160 0 str))
+  (setq h (peb-th 'SMALL) g (* h 0.27))
+  (txt just (list (if (= just "ML") (+ tx (* g *PEB-TEXT-SCALE*)) (- tx (* g *PEB-TEXT-SCALE*))) ty)
+       h 0 str))
 
 ;; M-LADDER member callout (owner 21-Jul): OPEN arrow at the member tip, riser UP to level `lvl`, then a
 ;; horizontal bar to `landx`, ROMAND text at the bar end.  Drawn on the (white) TEXT layer -> plots black.
 ;; Callers STAGGER `lvl` so no two bars/labels collide; to avoid a riser cutting another bar, give the
 ;; INNER member (nearer the ridge) the HIGHER level and land ladders on their own side.
-(defun rm-mladder (tipx tipy lvl landx txt / a b right)
+(defun rm-mladder (tipx tipy lvl landx txt / a b right h g)
   (setq right (> landx tipx) a (* 210 *PEB-TEXT-SCALE*) b (* 75 *PEB-TEXT-SCALE*))
   (setvar "CLAYER" "TEXT") (setvar "PLINEWID" 0.0)
   ;; (M-ladder arrow)
   (command "_.PLINE" (list (- tipx b) (+ tipy a)) (list tipx tipy) (list (+ tipx b) (+ tipy a)) "")  ; open arrow (down at member)
   (command "_.LINE" (list tipx tipy) (list tipx lvl) "")                                             ; riser UP
   (command "_.LINE" (list tipx lvl) (list landx lvl) "")                                             ; horizontal bar
+  ;; 150 was 0.54 mm on paper - under MARK, the smallest DEFINED rung, and effectively unreadable.
+  ;; SMALL, because this names the monitor type and a customer has to read it.
+  ;; THE GAP IS COMPUTED FROM THE HEIGHT (S57): the clear air between the bar end and the lettering
+  ;; existed as a flat 90 units, so it stayed put while the text grew. Expressed as a fraction of
+  ;; the text height it tracks the ladder, which is the whole point of having one.
+  (setq h (peb-th 'SMALL) g (* h 0.30))
   (txt-rom (if right "ML" "MR")
-           (list (if right (+ landx (* 90 *PEB-TEXT-SCALE*)) (- landx (* 90 *PEB-TEXT-SCALE*))) lvl) 150 0 txt))
+           (list (if right (+ landx (* g *PEB-TEXT-SCALE*)) (- landx (* g *PEB-TEXT-SCALE*))) lvl) h 0 txt))
 
 (defun rm-mon-purlins (x1 y1 x2 y2 n depth skipLast / dx dy L ux uy vx vy i iEnd tt px py)
   ;; Z-purlins on the monitor rafter TOP FLANGE — ABOVE it and FOLLOWING its slope (universal rule).
