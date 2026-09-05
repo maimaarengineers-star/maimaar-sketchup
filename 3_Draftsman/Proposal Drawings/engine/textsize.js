@@ -44,7 +44,11 @@ if (!body.length) { console.log('no drawing-body annotation'); process.exit(0); 
 //
 // Every sheet carries exactly one view heading. Assign each annotation to the nearest heading in
 // X and the split is the render's own, not a guess.
-const HEADING = /(PLAN|SECTION|ELEVATIONS?|DETAILS?|SCHEDULE)$/;
+// Headings on this set end in more than PLAN/SECTION: the wall sheets are titled
+// "NSW - NEAR SIDE WALL FRAMING" and "... SHEETING", so a pattern that stops at PLAN
+// silently folds four elevations into whichever neighbour matched, and then reports their
+// different label sizes as one sheet disagreeing with itself.
+const HEADING = /(PLAN|SECTION|ELEVATIONS?|DETAILS?|SCHEDULE|FRAMING|SHEETING)$/;
 const centre = (b) => b.pts.reduce((s, p) => s + p[0], 0) / b.pts.length;
 const heads = body.filter((b) => HEADING.test(b.txt.trim()) && b.txt.length < 40)
                   .map((b) => ({ x: centre(b), name: b.txt.trim(), h: b.h }))

@@ -2885,7 +2885,22 @@
   ;; CUSTOMER
   (setq bt yCur rh (* s 0.048) yCur (- yCur rh))
   (tb-mtext (+ X0 (* W 0.04)) (- bt (* lbl 1.3)) lbl cw 1 "CUSTOMER :" grey)
-  (tb-mtext midX (+ yCur (* rh 0.28)) (tb-fith (if tbBlind "" (tb-get "CUSTOMER")) cw bv) cw 5 (if tbBlind "" (tb-get "CUSTOMER")) green)
+  ;; ── THE CUSTOMER VALUE SITS UNDER ITS LABEL, NOT THROUGH IT ───────────────────────────────
+  ;; Owner 5-Sep-2026: "Overlapping of Words."  On every sheet in the set, "UNNAMED CLIENT"
+  ;; printed through "CUSTOMER :".
+  ;;
+  ;; Two reasons, both here.  The value was anchored 5 - MIDDLE-centre - so it straddled its
+  ;; anchor and grew UP into the label, while every other label/value pair in this block anchors
+  ;; at the top and grows down.  And it was placed at yCur + 0.28 x rh, measured from the row's
+  ;; BOTTOM, on a row half the height of the PROJECT row above it that carries the same two lines.
+  ;; Measured on the rendered sheet: label bottom and value top 18 units apart, with the text 249
+  ;; and 356 tall.
+  ;;
+  ;; Anchored 2 - TOP-centre - so it still centres horizontally but grows downward like its
+  ;; neighbours, and placed 2.9 label-heights down, which puts its underside exactly on the row
+  ;; line and leaves half a label height of air under "CUSTOMER :".  The row height is unchanged,
+  ;; so nothing below it moves - the block is bounded and an extra row would run into the next one.
+  (tb-mtext midX (- bt (* lbl 2.9)) (tb-fith (if tbBlind "" (tb-get "CUSTOMER")) cw bv) cw 2 (if tbBlind "" (tb-get "CUSTOMER")) green)
   (tb-hdiv yCur)
   ;; STEEL CONTRACTOR : enlarged logo + MAIMAAR wordmark + address (owner 10-Jul: "make Maimaar Steel
   ;; Pvt Ltd prominent in the right side table").  Hierarchy is LOGO > NAME > ADDRESS:
