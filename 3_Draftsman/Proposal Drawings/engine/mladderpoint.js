@@ -63,8 +63,11 @@ const EXPECT = [
   [/\bGIRTS?\b/i,                     /^(GIRTS|CLADDING)$/i],
   [/\bPURLINS?\b/i,                   /^PURLINS$/i],
   [/\bSHEETING\b|\bCLADDING\b/i,      /^(SHEETING|CLADDING)$/i],
-  [/\bRAFTERS?\b/i,                   /^(STRUCTURE|FRAME|COLUMNS|COL-OUTER)$/i],
-  [/\bCOLUMNS?\b/i,                   /^(COLUMNS|COL-OUTER|STRUCTURE|FRAME)$/i],
+  // GRID-LINES belongs in both: on a PLAN sheet the rafter and the column line ARE the bay grid
+  // line. Plan.lsp says so where it places the label - "each bay-grid position carries a slim
+  // dotted RAFTER line ... already drawn as the GRID-LINES per column position above".
+  [/\bRAFTERS?\b/i,                   /^(STRUCTURE|FRAME|COLUMNS|COL-OUTER|GRID-LINES)$/i],
+  [/\bCOLUMNS?\b/i,                   /^(COLUMNS|COL-OUTER|STRUCTURE|FRAME|GRID-LINES)$/i],
   [/\bGUTTER\b/i,                     /^(GUTTER|CLADDING|SHEETING)$/i],
   [/\bDOWN ?PIPE\b|\bDOWN ?SPOUT\b/i, /^(GUTTER|CLADDING|SHEETING)$/i],
   [/\bBRACING\b|\bBRACE\b/i,          /^(CROSS|BRACING)$/i],
@@ -88,12 +91,30 @@ for (const e of ents) {
     const x1 = +e.g['10'], y1 = +e.g['20'], x2 = +e.g['11'], y2 = +e.g['21'];
     if ([x1, y1, x2, y2].every(Number.isFinite)) segs.push([x1, y1, x2, y2, lay]);
   } else if (e.t === 'LWPOLYLINE' || e.t === 'POLYLINE') {
-    const xs = e.all && e.all['10'] ? e.all['10'].map(Number) : [];
-    const ys = e.all && e.all['20'] ? e.all['20'].map(Number) : [];
-    for (let i = 1; i < Math.min(xs.length, ys.length); i++) {
+    // WALK e.all AS PAIRS. It is an ORDERED ARRAY of [code, value], not a map keyed by group code -
+    // so e.all['10'] is undefined and this read NO vertices at all. Every polyline in the drawing
+    // was invisible to this checker, including the single FRAME entity that IS the cross-section's
+    // column and rafter outline. That is why RAFTER and COLUMN kept reporting "nearest member is
+    // CLADDING": the member they point at was never in the comparison.
+    //
+    // Fourth time this file has been wrong, and the second time from exactly this misreading of
+    // e.all. Once is a slip; twice is a shape of mistake worth naming in the code.
+    const xs = [], ys = [];
+    if (Array.isArray(e.all)) {
+      for (const [c, v] of e.all) {
+        if (c === '10') xs.push(parseFloat(v));
+        else if (c === '20') ys.push(parseFloat(v));
+      }
+    }
+    const n = Math.min(xs.length, ys.length);
+    for (let i = 1; i < n; i++) {
       if ([xs[i - 1], ys[i - 1], xs[i], ys[i]].every(Number.isFinite)) {
         segs.push([xs[i - 1], ys[i - 1], xs[i], ys[i], lay]);
       }
+    }
+    // closed polyline: the last vertex joins the first (group 70 bit 1)
+    if (n > 2 && e.g && (parseInt(e.g['70'], 10) & 1)) {
+      segs.push([xs[n - 1], ys[n - 1], xs[0], ys[0], lay]);
     }
   }
 }
@@ -159,7 +180,15 @@ for (const e of ents) {
 //     up grid lines and member lines that merely passed nearby. A leader STARTS at the label: one
 //     endpoint inside or within half a text height of the box, the other well outside it.
 const DIMLIKE = /^[\d,.'"\s\[\]\-x×]+$|^\d[\d,]*\s*\[/;
-const isMemberGeom = (lay) => !/^(TEXT|ARROWS|DIMENSIONS|AREA-MARK|GRID-LINES)$/i.test(lay);
+// WHAT COUNTS AS GEOMETRY A LEADER MAY LAND ON. Annotation furniture only is excluded - the
+// leader's own arrowhead (TEXT/ARROWS), dimension lines, and the dotted AREA-MARK whisper.
+//
+// GRID-LINES IS NOT EXCLUDED, and that was the last false positive in this file. On the plan sheets
+// the rafter is DRAWN as the bay grid line - Plan.lsp says so where it places the label: "each
+// bay-grid position carries a slim dotted RAFTER line ... already drawn as the GRID-LINES per
+// column position above". Excluding grid lines therefore hid the very member the RAFTER label
+// points at, and the tip that measured 0 from it was reported as "pointing at nothing".
+const isMemberGeom = (lay) => !/^(TEXT|ARROWS|DIMENSIONS|AREA-MARK)$/i.test(lay);
 
 const { boxes } = A.annotationBoxes(ents);
 for (const b of boxes) {
