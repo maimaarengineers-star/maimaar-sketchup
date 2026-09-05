@@ -209,7 +209,7 @@
   (defun cov-val (x w ytop rhh s / boxw h)
     (setq boxw (- w (* Hc 0.024)))
     (setq h (min (* rhh 0.40)
-                 (/ boxw (* (max 1.0 (float (strlen s))) 0.95))))
+                 (/ boxw (* (max 1.0 (float (strlen s))) 0.94))))   ; 0.94 = MEASURED ROMAND advance (rule 37)
     (tb-mtext (+ x (* Hc 0.010)) (- ytop (* rhh 0.64)) h boxw 4
               (strcat "{\\Fromand.shx;" s "}") green))
   ;; PROJECT TITLE: a long multi-word title WRAPS to fill its taller cell BELOW the label without overrunning.

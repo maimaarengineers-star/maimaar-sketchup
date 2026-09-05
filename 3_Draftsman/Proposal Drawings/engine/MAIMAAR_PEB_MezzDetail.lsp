@@ -357,7 +357,7 @@
 ;; (An earlier version of this file used 0.95 here, on a misreading of the
 ;; title-block fitter's constant.  0.95 is not a character width: it made the
 ;; data panel wider than the section it sat under and drove the sheet to 4.9:1.)
-(defun mzd-tw (str h) (* 0.62 h (strlen str)))
+(defun mzd-tw (str h) (* 0.94 h (strlen str)))        ; 0.94 = the MEASURED ROMAND advance width (GOLDEN_RULES 37); it was 0.62 here, which under-reports every string by a third
 ;; 0.75 -> 0.90 (3-Sep-2026), MEASURED OFF THIS SHEET'S OWN PLOT.  The first sheet this module
 ;; ever produced put VIEW B across the end of the notes, and the arithmetic names the culprit:
 ;; the notes column was allotted 0.75 x height x 75 characters plus its gutter, and note 3 ran
@@ -366,7 +366,7 @@
 ;; a label through the thing beside it; one that over-estimates costs white space.  0.90 clears
 ;; the measurement with margin, and it is used by EVERY lane and column on this sheet, so the
 ;; correction lands everywhere the old number was quietly too small.
-(defun mzd-tw-safe (str h) (* 0.90 h (strlen str)))
+(defun mzd-tw-safe (str h) (* 0.94 h (strlen str)))   ; the measured width IS the safe one
 
 ;; ---- DRAW TEXT THE WAY THE REST OF THE SET DRAWS IT  (3-Sep-2026) -------------------------
 ;; This module wrote its own TEXT call - (command "_.TEXT" "_J" just pt h rot str) - and it was
@@ -419,7 +419,7 @@
   (if (or (null faceLen) (<= faceLen 0.0) (= str ""))
     cap
     (progn
-      (setq h (/ (* faceLen 0.34) (* 0.62 (max 1 (strlen str)))))
+      (setq h (/ (* faceLen 0.34) (* 0.94 (max 1 (strlen str)))))   ; measured advance, see mzd-tw
       (max (* cap 0.45) (min cap h)))))
 
 ;; ---------------------------------------------------------------------------
@@ -489,7 +489,7 @@
   (setq h (mzd-h 'DIM))
   (if (> (mzd-tw label h) (- yh yl (* sz 2.0)))
     (setq h (max (* (mzd-h 'DIM) 0.45)
-                 (/ (- yh yl (* sz 2.0)) (* 0.62 (max 1 (strlen label)))))))
+                 (/ (- yh yl (* sz 2.0)) (* 0.94 (max 1 (strlen label)))))))   ; measured advance, see mzd-tw
   (if (> (mzd-tw label h) (- yh yl (* sz 2.0)))
     (mzd-txt-d "ML" (list (- x (* h 0.75)) (+ yh (* sz 0.8))) h 90 label)
     (mzd-txt-d "MC" (list (- x (* h 0.75)) (* 0.5 (+ yl yh))) h 90 label))
@@ -513,7 +513,7 @@
   (setq h (mzd-h 'DIM))
   (if (> (mzd-tw label h) (- xh xl (* sz 2.0)))
     (setq h (max (* (mzd-h 'DIM) 0.45)
-                 (/ (- xh xl (* sz 2.0)) (* 0.62 (max 1 (strlen label)))))))
+                 (/ (- xh xl (* sz 2.0)) (* 0.94 (max 1 (strlen label)))))))   ; measured advance, see mzd-tw
   (mzd-txt-d "MC" (list (* 0.5 (+ xl xh)) (+ y (* sz 0.55))) h 0 label)
   (setvar "CLAYER" prev)
   (princ))

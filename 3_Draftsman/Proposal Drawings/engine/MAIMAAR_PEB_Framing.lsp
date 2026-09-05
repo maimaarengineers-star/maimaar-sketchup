@@ -1187,7 +1187,7 @@
       ;; label only moves LEFT, deeper into a wall that starts 13,800 further left again, so it
       ;; cannot grow the extents or change the plotted scale.
       (setq lbl   (strcat (itoa n) " No. FIBERGLASS WALL LIGHT")
-            lw    (* (strlen lbl) (peb-th 'ANNOT) ts 0.95)
+            lw    (* (strlen lbl) (peb-th 'ANNOT) ts 0.94)   ; 0.94 = MEASURED ROMAND advance (rule 37)
             lax   (+ ox x0 (* 1.5 cover))                    ; arrow onto a panel in the band
             lry   (+ base sill (/ panL 2.0))
             lty   (if (and annY (> annY 0.0)) annY (+ base eaveMm (* 1200.0 ts)))

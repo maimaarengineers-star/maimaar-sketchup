@@ -345,7 +345,7 @@
   ;; draughtsman does and what leaves the neighbouring dimension its own room.
   (setq txt  (peb-stair-dimtext (abs (- x1 x0)) s)
         span (abs (- x1 x0))
-        tlen (* (strlen txt) t2 0.62))
+        tlen (* (strlen txt) t2 0.94))       ; 0.94 = the MEASURED ROMAND advance width (GOLDEN_RULES 37); it was 0.62 here, which under-reports every string by a third
   (if (< tlen (* span 0.95))
     (txt-dim "BC" (list (/ (+ x0 x1) 2.0) (+ y (* t2 0.5)))
               (/ t2 (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 0.0 txt)
@@ -1544,7 +1544,7 @@
   ;; dimension too small to letter, and it keeps every nested dim in its own lane.
   (setq txt  (peb-stair-dimtext (abs (- y1 y0)) s)
         span (abs (- y1 y0))
-        tlen (* (strlen txt) t2 0.62))       ; ROMAND is proportional; 0.62 of the height per char
+        tlen (* (strlen txt) t2 0.94))       ; ROMAND is proportional; 0.94 MEASURED per char (rule 37)
   (if (< tlen (* span 0.9))
     (txt-dim "BC" (list (- x (* t2 0.5)) (/ (+ y0 y1) 2.0))
               (/ t2 (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)) 90.0 txt)

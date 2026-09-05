@@ -116,7 +116,7 @@
 ;; ROMAND's advance width is 0.62 of the cap height — the same figure peb-fit-txt-h uses.
 ;; This is how a caption's width is known BEFORE it is drawn, which is how columns get laid
 ;; out on a pitch that cannot overlap instead of on a guessed millimetre gap.
-(defun peb-lv-txt-w (s) (* 0.62 (peb-lv-th) (strlen (if s s ""))))
+(defun peb-lv-txt-w (s) (* 0.94 (peb-lv-th) (strlen (if s s ""))))  ; 0.94 = MEASURED ROMAND advance (rule 37)
 
 ;; ---------------------------------------------------------------------------
 ;;  TYPE. The BSF says "Fixed" / "Adjustable" / "Sand-trap" (components.js LOUVER_SPEC),

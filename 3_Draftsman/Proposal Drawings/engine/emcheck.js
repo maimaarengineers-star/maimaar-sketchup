@@ -44,6 +44,10 @@ files.forEach((p) => {
   const rel = path.relative(ROOT, p);
   const lines = fs.readFileSync(p, 'utf8').split(/\r?\n/);
   lines.forEach((ln, i) => {
+    // An explicit, readable exemption for the handful of constants that are NOT advance widths -
+    // a fraction of a bubble's radius, or a deliberate tightening applied on top of the real em.
+    // Written in the source next to the number, so the reason travels with it.
+    if (/emcheck-ok/.test(ln)) return;
     const code = ln.replace(/;.*$/, '');                 // drop lisp comments
     if (!WIDTHY.test(code)) return;
     if (!/[*(]/.test(code)) return;

@@ -6988,7 +6988,7 @@
   ;; value to fit).  Char-width ratio = romand ALL-CAPS true advance ~0.86 (uppercase romand is wide).  The
   ;; "too small" complaint was really the \f-vs-\F font bug (text rendered the NARROW Arial fallback, so it
   ;; looked tiny) — fixed separately; here 0.86 sizes to fill without overflow.  min(field-height, width/(n*0.86)).
-  (min mh (/ mw (* (max 1.0 (float (strlen s))) 0.86))))
+  (min mh (/ mw (* (max 1.0 (float (strlen s))) 0.94))))   ; 0.94 = the MEASURED ROMAND advance width (GOLDEN_RULES 37); it was 0.62 here, which under-reports every string by a third
 
 ;; strip an embedded unit suffix ("0 KN/m2" -> "0", "135 km/h" -> "135")
 (defun peb-num-only (s / p)
@@ -7495,7 +7495,7 @@
 (defun rm-dim-fit-h (str span baseH / ts availw w)
   (setq ts (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)
         availw (- (abs span) (* 2.0 (* 260.0 *PEB-DIM-SCALE*)) 150.0)
-        w (max 1.0 (* (strlen str) 0.62 ts)))
+        w (max 1.0 (* (strlen str) 0.94 ts)))   ; 0.94 = the MEASURED ROMAND advance width (GOLDEN_RULES 37); it was 0.62 here, which under-reports every string by a third
   (if (< availw 220.0) (setq availw 220.0))
   (max 110.0 (min baseH (/ availw w))))
 

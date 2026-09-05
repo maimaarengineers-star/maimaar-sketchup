@@ -1681,7 +1681,7 @@
       "GIRDER  1000 deep at 50 ft (15,240) span, 10 MT  -  Maimaar production, 2026")
         dbw 0)
   (foreach L dbl (setq dbw (max dbw (strlen L))))
-  (setq dbw (* dbw th4 0.85 (peb-crn-em))                    ; the longest line
+  (setq dbw (* dbw th4 0.85 (peb-crn-em))   ; emcheck-ok: 0.85 is a tightening ON TOP of peb-crn-em
         dbn (fix (+ 0.99 (/ (length dbl) 2.0))))     ; lines per column, before adjustment
   ;; ...backed off to a GROUP BOUNDARY. A line that starts with a space is a continuation of the
   ;; one above it, so a column that begins on one starts mid-thought - which is how the wheel-base

@@ -737,8 +737,8 @@
   ;; some of the sheets, so a sheet that set nothing drew whatever size the PREVIOUS sheet had
   ;; left in the global.  peb-bub-r (Standard.lsp) is 4B.31's 720 x TEXT-SCALE for every sheet.
   (setq r (peb-bub-r) prev (getvar "CLAYER") pc (getvar "CECOLOR"))
-  (setq h (* r (cond ((<= (strlen label) 1) 0.95)   ; 1 char  -> fills the circle
-                     ((= (strlen label) 2) 0.66)    ; 2 chars -> fit
+  (setq h (* r (cond ((<= (strlen label) 1) 0.95)   ; emcheck-ok: fraction of BUBBLE RADIUS, not an advance width
+                     ((= (strlen label) 2) 0.66)    ; emcheck-ok: fraction of BUBBLE RADIUS, not an advance width
                      (T 0.48))))                    ; 3+ chars -> fit
   (setq d (cond ((= dir "D") (list 0.0 -1.0)) ((= dir "U") (list 0.0 1.0))
                 ((= dir "L") (list -1.0 0.0)) (T (list 1.0 0.0)))
@@ -3837,7 +3837,7 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
       ;;     monitor's own ridge line running down the centre.
       (setq mlbl "ROOF MONITOR"
             mlh  (peb-fit-txt-h mlbl (* (- x1 x0) 0.30) (peb-th 'ANNOT))
-            mlw  (* 0.62 mlh (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0) (strlen mlbl))
+            mlw  (* 0.94 mlh (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0) (strlen mlbl))  ; 0.94 = the MEASURED ROMAND advance width (GOLDEN_RULES 37); it was 0.62 here, which under-reports every string by a third
             mlx0 (- mcx (/ mlw 2.0))
             mlx1 (+ mcx (/ mlw 2.0)))
       ;; --- its sheeting runs, at the SAME 1000 cover the main roof uses: one material, two levels.
