@@ -4740,7 +4740,14 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                 ;;
                 ;; The capacity moves to the footprint block below, which has the clearance logic;
                 ;; this line carries the run length alone, in Mammut's wording.
-                (txt-rom "MC" (list midx (+ runY (* u 0.32))) (/ (max (* u 0.42) (peb-th 'SMALL)) sc) 0.0
+                ;; CLEAR OF THE EAVE LABEL BY A FULL LINE.  The offset was u * 0.32 alone, which
+                ;; put this string 8 units clear of HIGH EAVE - eight, against a text height of
+                ;; 550.  Not an overlap, so it passed a strict check, and a hairline as far as a
+                ;; reader is concerned.  A clearance is measured from the height of the text it
+                ;; has to clear (S57), so one full text height is added and the two can no longer
+                ;; graze at any building size.  Found by scratchpad/textclash.js --gap 0.35.
+                (txt-rom "MC" (list midx (+ runY (* u 0.32) (max (* u 0.42) (peb-th 'SMALL))))
+                          (/ (max (* u 0.42) (peb-th 'SMALL)) sc) 0.0
                           (strcat "CRANE RUN LENGTH: " runTxt))
 
                 ;; (2) capacity label — placed on the run at the interior point with the MOST
@@ -6168,7 +6175,25 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
     )
     (T
       (progn (setvar "CLAYER" "TEXT")
-             (txt "MC" (list (* len 0.50) (- (* wid 0.50) (* 1300 *PEB-TEXT-SCALE*))) (peb-th 'SMALL) 0 (peb-roof-label stype rooftype)))   ; owner 5-Jul: below the AREA tag
+             ;; ── ONE LANE BELOW THE HEIGHT TAG, NOT A SECOND GUESS AT "BELOW THE BOX" ──────
+             ;; Owner 5-Sep-2026: "GOLDEN RULE NO TEXT MUST OVERRIDE ON THE OTHER TEXT."
+             ;;
+             ;; This label and the CLEAR HT. tag were each placed "below the AREA tag" by their
+             ;; own hand-tuned offset - 1300 x scale here, aBh + 1.35 x aTxH there - written at
+             ;; different times by people who did not know about each other.  They landed 101
+             ;; apart with 440-high text, so on MSPL-26-276 the sheet printed CLEAR HT. 10,670
+             ;; and SINGLE SLOPE straight through one another.  Found by measuring the plotted
+             ;; model, not by looking: scratchpad/textclash.js.
+             ;;
+             ;; Two labels stacked under one box need ONE cursor, not two constants.  This is now
+             ;; the height tag's own position minus a full line, and the line is derived from the
+             ;; tag's text height (S57), so the two move together if either size changes and can
+             ;; never meet again.  Falls back to the old constant if the area block has not run.
+             (txt "MC" (list (* len 0.50)
+                             (if (and aTxH aBh)
+                               (- aCy aBh (* aTxH 1.35) (* aTxH 1.45))
+                               (- (* wid 0.50) (* 1300 *PEB-TEXT-SCALE*))))
+                   (peb-th 'SMALL) 0 (peb-roof-label stype rooftype)))
     )
   )
 

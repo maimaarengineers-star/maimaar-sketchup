@@ -635,3 +635,61 @@ The same applies to page windows: the crane sample now derives each page's plot 
 `vla-GetBoundingBox` over everything drawn in that page's band, instead of from hand-kept
 expressions that had to be edited in step with the drawing and were not. A label can no longer be
 clipped by a window that did not know it was there.
+
+---
+
+## 38. NO TEXT MAY PRINT ON OTHER TEXT — AND THE ONLY PROOF IS A MEASUREMENT
+
+Owner, 5-Sep-2026: *"Do the Audit of all dimensions and all Text and Fix all it — GOLDEN RULE NO
+TEXT MUST OVERRIDE ON THE OTHER TEXT."*
+
+Prove it with `scratchpad/textclash.js`, which reads a model DXF, builds a true oriented box for
+every `TEXT` and `MTEXT` from its anchor, justification, rotation and height, and reports every
+overlapping pair worst-first.
+
+```
+node -e "require('./dist/services/drawingRender.js').render(<id>,{format:'dxf'})"   # from 2_Sales CRM
+node textclash.js <the .dxf it names>            # strict overlaps — must be ZERO
+node textclash.js <the .dxf> --gap 0.35 --all    # near-misses, for review
+```
+
+`render(id,{format:'dxf'})` writes the model and files nothing; `renderDwg` files into the
+proposal folder, so never use that for an audit.
+
+**Looking at the sheet is not evidence, in either direction.** On MSPL-26-276 two labels I was
+sure collided — `CRANE RUN LENGTH` with `HIGH EAVE`, and the crane capacity with `BRACED BAY` —
+clear each other by 8 and 1,315 units. Meanwhile the pair that really did print through each
+other, `CLEAR HT. 10,670` over `SINGLE SLOPE`, looked like ordinary crowding.
+
+**The defect is nearly always two hand-tuned offsets, not one bad number.** Those two labels were
+each placed "below the AREA tag" by its own constant — `1300 × scale` in one file's function,
+`aBh + 1.35 × aTxH` in another — written at different times by people who did not know about each
+other, and they landed 101 apart with 440-high text. Two labels stacked under one anchor need ONE
+cursor, and the pitch comes from the text height (S57), never from a constant.
+
+**Non-overlap is not enough.** 8 units of clearance under a 550 text height is a hairline that
+reads as a collision. Use `--gap 0.35` and treat what it finds as real, except deliberate
+groupings that are meant to read together: a title-block label over its value, `FALL` over `1:10`,
+a dimension chain under its overall, a two-line label like `BEARING FRAME` / `BOTH ENDS`.
+
+### Two things that are NOT clashes, and one trap in the DXF
+
+- **A mask re-assert.** The AREA tag is drawn early so the corner diagonals terminate on real box
+  corners, then drawn again last over a `WIPEOUT`, because the grid and ridge lines are drawn
+  after it and would strike through the lettering. Identical string, identical anchor, identical
+  height — the reader sees one label. The checker skips this pattern; do not "fix" it.
+
+- **Group 11 means two different things.** On a `TEXT` it is the alignment point. On an `MTEXT`
+  it is the **X-axis direction vector** — every vertical dimension string on the CLP carries
+  `50` absent and `11/21 = 0,1`, meaning 90°. Read those as horizontal and two dimension texts
+  standing side by side up the left of the sheet report as a 93 % collision.
+
+- **`MTEXT` over 250 characters splits across group 3 (leading chunks) and group 1 (the rest).**
+  A parser that does first-wins on every group and *also* accumulates group 3 stores the opening
+  chunk twice; the GENERAL NOTES block then measures half again too tall and invents a clash with
+  the statement below it. A checker that reports clashes that are not there gets ignored, which
+  is worse than not having one.
+
+Widths use the **measured 0.94 em** of rule 37. Anything narrower turns this tool into a rubber
+stamp — under-reporting every string by half again is exactly why "checked for clashes" used to
+come back clean on sheets that clashed.
