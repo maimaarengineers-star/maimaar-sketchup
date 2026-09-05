@@ -6124,6 +6124,12 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   ;; Global linetype scale tied to building size so DASHED/CENTER linetypes
   ;; (grid lines, cross-bracing) actually render as dashes at this scale.
   (setvar "LTSCALE" (max 60.0 (/ (max len wid) 400.0)))
+  ;; Tell the dimension helpers which edge is the far one, so a chain placed above the plan
+  ;; starts its extension lines at the TOP of the building instead of at y = 0 and dragging a
+  ;; solid line down through the whole drawing.  Cleared at the end of this sheet - the section
+  ;; draws its own dimensions in the same AutoCAD session and must not inherit this building's
+  ;; width.
+  (setq *PEB-DIM-EDGE* wid)
   ;; ── THE DASHED OUTLINE, IN PAPER MILLIMETRES ──────────────────────────────────────────────
   ;; Owner 5-Sep-2026: "we developed very beautiful outer lines of the building, one solid line
   ;; outside and then one dotted line, all those have become worse."
@@ -7279,6 +7285,7 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
       (setvar "CLAYER" "TEXT")
       (txt-bold "MC" (list aCx aCy) (peb-th 'SMALL) 0 aLbl)))))
 
+  (setq *PEB-DIM-EDGE* nil)          ; do not leak this sheet's edge to the next one
   (command "UNDO" "END")
   (setvar "GRIDMODE" 0)
   (setvar "SNAPMODE" 0)
@@ -7439,13 +7446,13 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   (setq dimPt (list (/ (+ x1 x2) 2.0) y))
   (if override
     (command "_DIMLINEAR"
-             (list x1 0.0)
-             (list x2 0.0)
+             (list x1 (peb-dim-basey y))
+             (list x2 (peb-dim-basey y))
              "_T" override
              dimPt)
     (command "_DIMLINEAR"
-             (list x1 0.0)
-             (list x2 0.0)
+             (list x1 (peb-dim-basey y))
+             (list x2 (peb-dim-basey y))
              dimPt))
   (setvar "CLAYER" oldLayer)
 )
@@ -8041,6 +8048,29 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
 
 
 
+;; ── WHERE A HORIZONTAL DIM'S EXTENSION LINES START ────────────────────────────────────────────
+;; Owner 5-Sep-2026: "Fix the dimension extension lines too" / "Keep the small Gap bw the dims."
+;;
+;; peb-dim-h-stretch hard-coded its two definition points at y = 0.0 and then placed the dimension
+;; line wherever the caller asked.  For the length chains, which sit ABOVE the plan, that means
+;; AutoCAD draws each extension line from the BOTTOM edge of the building all the way up to the
+;; dimension - a full-height solid line on the DIMENSIONS layer, landing exactly on the end-wall
+;; column line and covering its dashes.  That is what was still making the end walls read solid
+;; after the linetype fix, measured at x 55.0: a solid run from y 45.3 to 136.5 on a building
+;; spanning 43.8 to 129.5.
+;;
+;; An extension line belongs between the FEATURE and its dimension line, and nowhere else.  So the
+;; definition points go on whichever building edge the dimension is nearer.  DIMEXO (100) then
+;; leaves the small gap between the steel and the start of the witness, which is the gap the owner
+;; asked to keep, and DIMEXE runs it just past the dimension line.
+;;
+;; The caller declares the building's far edge in *PEB-DIM-EDGE*.  Unset - which is every caller
+;; that has not opted in - it returns 0.0 and behaviour is exactly as before, so no other sheet
+;; moves.
+(defun peb-dim-basey (y / w)
+  (setq w (if (boundp '*PEB-DIM-EDGE*) *PEB-DIM-EDGE* nil))
+  (if (and w (> w 0.0) (> y (/ w 2.0))) w 0.0))
+
 (defun peb-dim-h-stretch (x1 x2 y override / lastBefore oldLayer newEnts result)
   ;;  Horizontal dim with TWO-TIER strategy:
   ;;    1. Try (command "_DIMLINEAR" …) — creates a native, associative,
@@ -8065,13 +8095,13 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
       (function (lambda ()
         (if override
           (command "_DIMLINEAR"
-                   (list x1 0.0)
-                   (list x2 0.0)
+                   (list x1 (peb-dim-basey y))
+                   (list x2 (peb-dim-basey y))
                    "_T" override
                    (list (/ (+ x1 x2) 2.0) y))
           (command "_DIMLINEAR"
-                   (list x1 0.0)
-                   (list x2 0.0)
+                   (list x1 (peb-dim-basey y))
+                   (list x2 (peb-dim-basey y))
                    (list (/ (+ x1 x2) 2.0) y)))))))
   (setvar "CLAYER" oldLayer)
   ;; If DIMLINEAR threw an error (and didn't create a dim), fall back.
