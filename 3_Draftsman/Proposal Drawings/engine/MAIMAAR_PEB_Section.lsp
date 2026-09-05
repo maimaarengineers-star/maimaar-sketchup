@@ -973,7 +973,7 @@
   ;; Phase-2A v4: DIMTXT bumped to 600 base for readable PDF print
   (setvar "DIMSCALE" (if *PEB-DIM-SCALE* *PEB-DIM-SCALE* 1.0))
   (setvar "DIMTXT"   600.0)
-  (setvar "DIMASZ"   600.0)
+  (setvar "DIMASZ"   300.0)        ; S55: 300/95 - matches the elevations, see peb-dim-set-vars
   ;; owner 19-Jul STANDING RULE: dimension arrowheads = "OPEN" type (open V, NOT filled solid).
   (vl-catch-all-apply (function (lambda () (setvar "DIMSAH" 0) (setvar "DIMBLK" "_OPEN"))))
   (setvar "DIMEXE"   100.0)
@@ -1616,7 +1616,18 @@
   (peb-safe-setvar "DIMSCALE" (if *PEB-DIM-SCALE* *PEB-DIM-SCALE* 1.0))
   (peb-safe-setvar "DIMTXT"   600.0)        ; Phase-2A v4: 600 base
   (peb-safe-setvar "DIMTXSTY" "ROMAND")     ; owner 19-Jul STANDING: dimension Text style = ROMAND (romand.shx)
-  (peb-safe-setvar "DIMASZ"   600.0)        ; Phase-2A v4: 600 base
+    ;; ── ONE ARROWHEAD SIZE ACROSS THE SET ─────────────────────────────────────────────────────
+  ;; Owner 5-Sep-2026: "Dim Arrows are to sync in all drawings."
+  ;;
+  ;; They were not.  The plan and section use NATIVE dimensions, whose arrowhead is DIMBLK
+  ;; "_OPEN" sized by DIMASZ; the elevations hand-build the same open V from two lines at
+  ;; 300 long / 95 half-width.  DIMASZ was 600 - so every arrowhead on the plan and the section
+  ;; printed at TWICE the size of the identical arrow on the framing and sheeting elevations,
+  ;; on sheets that sit side by side in one proposal.
+  ;;
+  ;; 300 is the figure the standing rule states (S55: "the OPEN V, at 300/95") and the figure
+  ;; the elevations already use, so the native dims move to it rather than the other way round.
+  (peb-safe-setvar "DIMASZ"   300.0)        ; S55: 300/95, the set's one open arrowhead
   ;; owner 19-Jul STANDING RULE: dimension arrowheads = "OPEN" type (open V, NOT filled solid).
   (peb-safe-setvar "DIMSAH" 0)
   (peb-safe-setvar "DIMBLK" "_OPEN")
@@ -6696,7 +6707,42 @@
       (setvar "PLINEWID" 0.0)))
   (princ))
 
-(defun draw-rafter-label (W H rise ht / slopeLen sa ca dMid topX topY
+;; ── SNAP A LEADER TIP ONTO THE STEEL IT IS NAMING (owner 5-Sep-2026) ──────────────────────────
+;; "MLadder Arrow Should Touch the Rafter."  It did not: on MSPL-26-276 the RAFTER arrow stopped
+;; 784 mm below the rafter's inner flange, pointing at empty air inside the frame.
+;;
+;; The cause is that draw-rafter-label derives its tip from a GABLE - it takes W, halves it, and
+;; walks 55% along a slope of `rise` over `W/2`.  That is right for a gable and wrong for every
+;; other roof this engine draws: the single-slope and lean-to call sites hand it the FULL width
+;; and the FULL rise, so the halving puts the tip on a roof plane that was never drawn.
+;;
+;; Re-deriving the geometry per roof type would mean four more places that must be kept in step
+;; with whatever draws the rafter - and the last attempt at that broke the section render outright.
+;; So the tip is not computed at all: it is SNAPPED onto the rafter already on screen. The rafter
+;; is drawn before the label, so the answer is right there, and it stays right for a roof type
+;; nobody has invented yet.
+;;
+;; Nearest curve on the layer, within `rad`. Returns nil if there is nothing to snap to, and the
+;; caller then keeps its computed point - a label slightly off is better than no label at all.
+(defun peb-snap-to-layer (pt lay rad / ss i e best bd q d)
+  (vl-load-com)
+  (setq ss (ssget "_C" (list (- (car pt) rad) (- (cadr pt) rad))
+                       (list (+ (car pt) rad) (+ (cadr pt) rad))
+                  (list (cons 8 lay))))
+  (if ss
+    (progn
+      (setq i 0 bd 1e18 best nil)
+      (while (< i (sslength ss))
+        (setq e (ssname ss i)
+              q (vl-catch-all-apply 'vlax-curve-getClosestPointTo (list e pt)))
+        (if (and q (not (vl-catch-all-error-p q)))
+          (progn (setq d (distance pt q))
+                 (if (< d bd) (setq bd d best q))))
+        (setq i (1+ i)))
+      best)
+    nil))
+
+(defun draw-rafter-label (W H rise ht / slopeLen sa ca dMid topX topY snapPt
                                        midD innerX innerY rLabX rLabY)
   ;;  "RAFTER" MLEADER label — single MLEADER like PURLIN but reversed
   ;;  (text within building, below rafter).  Per user spec:
@@ -6722,10 +6768,16 @@
   ;; arrow (mirror of PURLIN's above-arrow offset).
   (setq rLabX (+ innerX 300.0))
   (setq rLabY (- innerY (* 1200 *PEB-TEXT-SCALE*)))
+  ;; SNAP LAST, and only the TIP.  rLabX/rLabY are already fixed above, so the stem simply grows
+  ;; to reach the steel and the lettering does not move - which matters: raising the text with the
+  ;; tip would walk it straight onto the crane runway beam 780 mm above, trading a leader that
+  ;; misses for a label that overlaps (golden rule 38).
+  (setq snapPt (peb-snap-to-layer (list innerX innerY) "FRAME" 2500.0))
+  (if snapPt (setq innerX (car snapPt) innerY (cadr snapPt)))
   (setvar "CLAYER" "TEXT")
   (peb-label-with-leader "RAFTER"
                          (list rLabX rLabY)        ; labelPos (below-left arrow)
-                         (list innerX innerY)      ; arrowPt on inner flange
+                         (list innerX innerY)      ; arrowPt ON the rafter (snapped)
                          "V"
                          220)
 )
