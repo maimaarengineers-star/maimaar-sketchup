@@ -4958,25 +4958,23 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                 ;; (1) RUNWAY BEAMS — each drawn as a DOUBLE LONG-DASH line (beam width rbw), sitting
                 ;;     just INSIDE the module column's inner flange (yN / yF).  Long-dash linetype
                 ;;     differentiates the crane beam from the sheeting / grid lines.
-                ;; ── THE BEAM STOPS AT THE LAST COLUMN ─────────────────────────────────────
-                ;; Owner 5-Sep-2026, twice, with a red X over the corner: "Crane Beam is Going
-                ;; Beyond the Columns" and then "Trim the Crane Beam at Last Column on All 4
-                ;; Corners."
+                ;; ── THE BEAM RUNS TO THE END OF THE COLUMN ────────────────────────────────
+                ;; Owner 5-Sep-2026, in three steps, and the middle one was me overshooting:
                 ;;
-                ;; The first pass clamped the BRACKETS, which were hanging 267 mm outboard.  The
-                ;; beam itself still ran grid-to-grid, so it reached the column's CENTRELINE and
-                ;; carried on to the far face - measured, 35 mm past the corner column's outer
-                ;; face at x 108,568 against a face at 108,603.
+                ;;   "Crane Beam is Going Beyond the Columns.  Trim the Beam on 4 Corners."
+                ;;   "Trim the Crane Beam at Last Column on All 4 Corners."
+                ;;   "Beam Will Extended Till End of The Column."
                 ;;
-                ;; A runway beam lands on a bracket bolted to the column's INNER face; there is no
-                ;; beam outboard of that face, and drawing one puts steel where none is fabricated.
-                ;; Trimmed by half a column web (cbTrim) at each end, so all four corners stop
-                ;; square on the last column, and the brackets are clamped to the same line so the
-                ;; two still meet.
-                (setq cbTrim (/ (if (and (boundp '*PEB-COL-WEB*) *PEB-COL-WEB*) *PEB-COL-WEB* 700.0) 2.0)
-                      cbX0   (+ x0 cbTrim)
-                      cbX1   (- x1 cbTrim))
-                (if (>= cbX0 cbX1) (setq cbX0 x0 cbX1 x1))   ; a very short run keeps its full beam
+                ;; What actually hung over the end was the BRACKET, drawn 0.45 x girder-width
+                ;; either side of every column it crosses, so half of it stuck out past the last
+                ;; one - 267 mm measured.  Clamping that (below) was the whole fix.  I then trimmed
+                ;; the BEAM as well, by half a column web, and that was wrong: the runway beam ends
+                ;; ON the end column, and pulling it 350 mm short left a gap between the beam and
+                ;; the column it lands on - which is what the third message is marking.
+                ;;
+                ;; The beam runs x0..x1, the grid line to grid line, which IS the end of the
+                ;; column.  The brackets stay clamped to the same range so nothing overhangs.
+                (setq cbX0 x0 cbX1 x1)
                 (foreach yy (list yN yF)
                   (peb-crane-beam-line cbX0 (- yy (/ rbw 2.0)) cbX1 (- yy (/ rbw 2.0)))
                   (peb-crane-beam-line cbX0 (+ yy (/ rbw 2.0)) cbX1 (+ yy (/ rbw 2.0))))
