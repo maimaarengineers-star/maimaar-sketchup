@@ -5884,9 +5884,14 @@
   (setvar "CLAYER" "TEXT")
   (setq labGX (max 1800.0 (+ ht 800.0)))
   (setq labGY (+ botY girtSpacing))
+  ;; x = -100 was "just outside the wall", which is not the same as ON the girt: the wall's steel and
+  ;; cladding sit at their own offsets, so the tip landed 346 mm clear of anything. Snapped to the
+  ;; girt (or the cladding the girt is drawn within, on this view) using the same helper the RAFTER
+  ;; label uses; the unsnapped point stays as the fallback so a view without girts still gets a leader.
+  (setq gSnap (peb-snap-to-layer (list -100.0 labGY) "GIRTS,CLADDING" 1200.0))
   (peb-label-pline-leader "GIRT"
                          (list labGX labGY)
-                         (list -100.0 labGY)
+                         (if gSnap (list (car gSnap) (cadr gSnap)) (list -100.0 labGY))
                          "H"
                          220)
   (setvar "PLINEWID" 0.0)
@@ -6236,18 +6241,22 @@
       (setq ax (- 0.0 botW (* 100 *PEB-TEXT-SCALE*)))    ; arrow X
       (setq tx (+ ax 300.0))                             ; text 300 right of arrow
       (setq ty (+ gyTopOut (* 1200.0 *PEB-TEXT-SCALE*)))
+      ;; ON the gutter, not beside it: ax is offset 100 clear of the gutter's outer face so the
+      ;; arrow stopped short - 1,845 mm off the nearest member on 276-26, the worst miss on the sheet.
+      (setq egS (peb-snap-to-layer (list ax gyTopOut) "GUTTER,CLADDING,SHEETING" 2500.0))
       (peb-label-with-leader "EAVE GUTTER"
                              (list tx ty)                ; labelPos
-                             (list ax gyTopOut)          ; arrowPt
+                             (if egS (list (car egS) (cadr egS)) (list ax gyTopOut))
                              "V"
                              220))
     (gR
       (setq ax (+ W botW (* 100 *PEB-TEXT-SCALE*)))      ; arrow X
       (setq tx (+ ax 300.0))                             ; text 300 right of arrow
       (setq ty (+ gyTopOut (* 1200.0 *PEB-TEXT-SCALE*)))
+      (setq egS (peb-snap-to-layer (list ax gyTopOut) "GUTTER,CLADDING,SHEETING" 2500.0))
       (peb-label-with-leader "EAVE GUTTER"
                              (list tx ty)
-                             (list ax gyTopOut)
+                             (if egS (list (car egS) (cadr egS)) (list ax gyTopOut))
                              "V"
                              220)))
   (setvar "PLINEWID" 0.0)
@@ -6763,10 +6772,23 @@
 ;; Nearest curve on the layer, within `rad`. Returns nil if there is nothing to snap to, and the
 ;; caller then keeps its computed point - a label slightly off is better than no label at all.
 (defun peb-snap-to-layer (pt lay rad / ss i e best bd q d)
+  ;; "_X", NOT "_C" - AND THIS IS WHY THE SNAP NEVER WORKED.
+  ;;
+  ;; ssget "_C" is a CROSSING WINDOW: it selects what the current VIEW can see. Interactively that
+  ;; is what you want. In a headless render there is no meaningful view - acad opens on whatever
+  ;; zoom it likes - so the window quietly selects NOTHING, peb-snap-to-layer returns nil, every
+  ;; caller falls through to its unsnapped point, and the arrow floats. No error, no warning, and
+  ;; the code reads as though it snaps.
+  ;;
+  ;; That is measurable: on 276-26 the RAFTER label carried this snap and still sat 1,530 mm off
+  ;; its member. Fixing the layer name alone (FRAME -> FRAME,STRUCTURE) moved it barely at all,
+  ;; which is what pointed here.
+  ;;
+  ;; "_X" selects from the whole database regardless of view, so the radius has to be applied
+  ;; afterwards rather than by the window - done below, on the closest point of each candidate,
+  ;; which is more accurate than a bounding box anyway.
   (vl-load-com)
-  (setq ss (ssget "_C" (list (- (car pt) rad) (- (cadr pt) rad))
-                       (list (+ (car pt) rad) (+ (cadr pt) rad))
-                  (list (cons 8 lay))))
+  (setq ss (ssget "_X" (list (cons 8 lay))))
   (if ss
     (progn
       (setq i 0 bd 1e18 best nil)
@@ -6775,7 +6797,8 @@
               q (vl-catch-all-apply 'vlax-curve-getClosestPointTo (list e pt)))
         (if (and q (not (vl-catch-all-error-p q)))
           (progn (setq d (distance pt q))
-                 (if (< d bd) (setq bd d best q))))
+                 ;; the radius, applied here now that the window no longer applies it
+                 (if (and (<= d rad) (< d bd)) (setq bd d best q))))
         (setq i (1+ i)))
       best)
     nil))
@@ -6810,7 +6833,12 @@
   ;; to reach the steel and the lettering does not move - which matters: raising the text with the
   ;; tip would walk it straight onto the crane runway beam 780 mm above, trading a leader that
   ;; misses for a label that overlaps (golden rule 38).
-  (setq snapPt (peb-snap-to-layer (list innerX innerY) "FRAME" 2500.0))
+  ;; "FRAME,STRUCTURE", not "FRAME". This snapped to FRAME alone, and the rendered drawing carries
+  ;; ONE segment on FRAME against 43 on STRUCTURE - the rafters are STRUCTURE. So the snap almost
+  ;; always found nothing, silently fell through to the unsnapped point, and the arrow floated:
+  ;; measured 1,530 mm off its member on 276-26. An ssget filter takes a comma list, so this is the
+  ;; whole fix. Nothing else about the label moves.
+  (setq snapPt (peb-snap-to-layer (list innerX innerY) "FRAME,STRUCTURE" 2500.0))
   (if snapPt (setq innerX (car snapPt) innerY (cadr snapPt)))
   (setvar "CLAYER" "TEXT")
   (peb-label-with-leader "RAFTER"

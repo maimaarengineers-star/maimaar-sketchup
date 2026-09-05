@@ -1943,11 +1943,23 @@
       (peb-fr-wallface ox faceLen base gbase colhw owText gy (and ewHang (> hangHt 0.0)))))
   ;; GIRTS label — same plain-leader convention as the roof purlins above.  Placed above
   ;; the wall and off-centre so it clears the blue heading, which is centred on the wall.
+  ;; THE ARROW LANDS ON A GIRT, not near one. base+gbase+2800 was a guess that happened to look
+  ;; right on the building it was written for; peb-fr-wallface now publishes the levels it drew, so
+  ;; the tip snaps to the nearest actual girt and cannot drift when the girt division changes.
+  ;; Falls back to the old constant only if the levels are unavailable - a leader in roughly the
+  ;; right place beats no leader.
   (vl-catch-all-apply (function (lambda ()
+    ;; gtBest reset EVERY wall: it is not a local, so left standing it would hand the previous
+    ;; wall's girt level to this one and the leader would point at a member on another elevation.
+    (setq gtY (+ base gbase 2800.0) gtBest nil)
+    (if (and (boundp '*PEB-WF-GIRT-LEVELS*) *PEB-WF-GIRT-LEVELS*)
+      (foreach gl *PEB-WF-GIRT-LEVELS*
+        (if (or (null gtBest) (< (abs (- gl gtY)) (abs (- gtBest gtY)))) (setq gtBest gl))))
+    (if gtBest (setq gtY gtBest))
     (peb-label-with-leader
       (strcat "GIRT TYPE : " (rtos (peb-purlin-depth) 2 0) "Z15 (TYP.)")
       (list (+ ox (* faceLen 0.78)) (+ base eaveH rise (* 900.0 *PEB-DIM-SCALE*)))
-      (list (+ ox (* faceLen 0.70)) (+ base gbase 2800.0))
+      (list (+ ox (* faceLen 0.70)) gtY)
       "S" 600.0))))
   ;; (Proposal Drawing: girt/purlin SIZE + SPACING call-outs omitted — set by design at approval stage.)
 
@@ -2463,6 +2475,11 @@
                                   (if (and (boundp '*PEB-WF-HEAD*) *PEB-WF-HEAD*)
                                     (+ wbase *PEB-WF-HEAD*) nil))
              nil))
+  ;; PUBLISH WHAT WAS ACTUALLY DRAWN (owner 5-Sep-2026: the M-Ladder arrow must point at the member
+  ;; it names). The GIRT TYPE leader used to aim at gbase + 2800 - a flat guess at where a girt
+  ;; might be - and on 276-26 it missed by up to 1,635 mm, floating in clear air between members.
+  ;; The levels are known here and nowhere else, so here is where they have to be handed on.
+  (setq *PEB-WF-GIRT-LEVELS* lv)
   (if lv
     (progn
       ;; Every level runs the full width EXCEPT the top one, which reaches only as far as the
@@ -3017,12 +3034,23 @@
   ;; SHEETING MLEADER — the wall equivalent of the roof sheeting plan's (owner 26-Aug).
   ;; PN_WALL_OUTER_PROFILE is real BSF data; placed above the wall and off-centre so it
   ;; clears the blue heading, matching where the framing sheet puts its GIRT TYPE mark.
+  ;; THE ARROW LANDS ON A PANEL LINE. faceLen x 0.66 is a position on the wall, not on the
+  ;; SHEETING - and the sheeting on this elevation is a set of vertical joint lines about a metre
+  ;; apart, so a tip placed by fraction falls between two of them and touches nothing. On 276-26 it
+  ;; missed by up to 1,635 mm.
+  ;; peb-panel-lines is the same pure function the drawer uses to place those joints, called with
+  ;; the same arguments, so snapping to the nearest one cannot disagree with what was drawn.
   (vl-catch-all-apply (function (lambda ()
+    (setq wsX (+ ox (* faceLen 0.66)) wsBest nil)
+    (foreach sx (peb-panel-lines faceLen (peb-panel-cover data "WALL"))
+      (if (or (null wsBest) (< (abs (- (+ ox sx) wsX)) (abs (- wsBest wsX))))
+        (setq wsBest (+ ox sx))))
+    (if wsBest (setq wsX wsBest))
     (peb-label-with-leader
       (strcat "WALL SHEETING : "
               (strcase (peb-tb-or (MSPL-Get-Str data "PN_WALL_OUTER_PROFILE") "STANDARD PROFILE")))
       (list (+ ox (* faceLen 0.74)) (+ base eaveH rise (* 900.0 *PEB-DIM-SCALE*)))
-      (list (+ ox (* faceLen 0.66)) (+ base (* eaveH 0.55)))
+      (list wsX (+ base (* eaveH 0.55)))
       "S" 600.0))))
   ;; OVERALL HEIGHT — the sheeting sheet never carried one; the framing sheet beside
   ;; it did, so the pair disagreed about what the wall measured (owner 26-Aug).
@@ -3468,12 +3496,20 @@
   ;; must give the MLEADER for the Sheeting."  So the member nomenclature lives on the
   ;; FRAMING sheets only; this sheet carries one mleader naming the cladding it shows.
   ;; The profile is REAL project data - PN_ROOF_OUTER_PROFILE straight off the BSF.
+  ;; Same fix as the wall twin: the roof sheeting joints run along the LENGTH, so the tip's X must
+  ;; sit on one of them rather than at a fraction of the span. It missed by 363 mm on 276-26 -
+  ;; small, but a leader that stops just short of its member reads as pointing at nothing.
   (vl-catch-all-apply (function (lambda ()
+    (setq rsX (+ ox (* len 0.34)) rsBest nil)
+    (foreach sx (peb-panel-lines len (peb-panel-cover data "ROOF"))
+      (if (or (null rsBest) (< (abs (- (+ ox sx) rsX)) (abs (- rsBest rsX))))
+        (setq rsBest (+ ox sx))))
+    (if rsBest (setq rsX rsBest))
     (peb-label-with-leader
       (strcat "ROOF SHEETING : "
               (strcase (peb-tb-or (MSPL-Get-Str data "PN_ROOF_OUTER_PROFILE") "STANDARD PROFILE")))
-      (list (+ ox (* len 0.34)) (- oy (* 1050.0 *PEB-DIM-SCALE*)))
-      (list (+ ox (* len 0.34)) (+ oy (* wid 0.30)))
+      (list rsX (- oy (* 1050.0 *PEB-DIM-SCALE*)))
+      (list rsX (+ oy (* wid 0.30)))
       "S" 600.0))))
 
   ;; --- fall arrows: the SAME shared glyph the Column Layout Plan and the Roof
