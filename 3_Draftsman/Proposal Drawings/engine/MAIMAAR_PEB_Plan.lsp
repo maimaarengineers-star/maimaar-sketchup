@@ -1932,6 +1932,33 @@
 ;; glyphs land at IDENTICAL positions and size.  Placement: MAX 2-3 stations (owner), each snapped to
 ;; the nearest UNBRACED bay so the CLP's "BRACED BAY" text never overlaps; the Roof Plan reuses the
 ;; SAME stations for an exact match.  Direction/eave-tags per structure type.
+
+;; ── A CENTRED LABEL LANDS ON A COLUMN LINE ────────────────────────────────────────────────────
+;; Owner 5-Sep-2026: "No Override of Text ... Make the Drawings Cleaned.  Everything is Mixed Up."
+;;
+;; Dead centre of a building is a GRID LINE whenever the bay count is even, which it is on most
+;; sheds - so every label placed at len/2 gets a column line drawn up through its lettering. That
+;; is one root cause behind several of the hits textgeom.js reports, and no amount of moving a
+;; label up or down escapes a line that runs the full height of the sheet.
+;;
+;; This returns the centre of the bay nearest mid-length: by definition the point furthest from
+;; any column line. Use it for labels that only need to read as "centred", NOT for anything whose
+;; position carries meaning (a dimension's midpoint, the AREA tag - which has its own reason to
+;; stay put: the braced bays' vertical text sits either side of centre and the tag lands in it).
+;; Falls back to len/2 when there is no bay list, so nothing can break for want of one.
+(defun peb-clear-of-grid (len bayPts / bp prev best bd c)
+  (setq best (/ len 2.0) bd 1.0e18)
+  (if (and bayPts (> (length bayPts) 1))
+    (progn
+      (setq bp (vl-sort bayPts '<) prev nil)
+      (foreach x bp
+        (if prev
+          (progn (setq c (/ (+ prev x) 2.0))
+                 (if (< (abs (- c (/ len 2.0))) bd)
+                   (setq bd (abs (- c (/ len 2.0))) best c))))
+        (setq prev x))))
+  best)
+
 (defun peb-fall-glyph-set (data stype len wid bayPts mgRidgePts mgGableW /
                            bays fallBraced fallUsed slopeXs nFall k tgt off found fallU sx mgY rY)
   (setq bays (max 1 (1- (length bayPts))))
@@ -2043,10 +2070,11 @@
             (arrow-down-big sx (* wid 0.5) fallU)))   ; FSW high (default) -> fall toward NSW
         (setvar "CLAYER" "TEXT")
         (if (wcmatch (strcase (MSPL-Get-Str data "RA_MONO_HIGH")) "*NSW*")
-          (progn (txt "MC" (list (* len 0.5) (* wid 0.055)) (peb-th 'SMALL) 0 "HIGH EAVE")
-                 (txt "MC" (list (* len 0.5) (* wid 0.945)) (peb-th 'SMALL) 0 "LOW EAVE"))
-          (progn (txt "MC" (list (* len 0.5) (* wid 0.945)) (peb-th 'SMALL) 0 "HIGH EAVE")
-                 (txt "MC" (list (* len 0.5) (* wid 0.055)) (peb-th 'SMALL) 0 "LOW EAVE"))))
+          ;; placed clear of the column line - see peb-clear-of-grid
+          (progn (txt "MC" (list (peb-clear-of-grid len bayPts) (* wid 0.055)) (peb-th 'SMALL) 0 "HIGH EAVE")
+                 (txt "MC" (list (peb-clear-of-grid len bayPts) (* wid 0.945)) (peb-th 'SMALL) 0 "LOW EAVE"))
+          (progn (txt "MC" (list (peb-clear-of-grid len bayPts) (* wid 0.945)) (peb-th 'SMALL) 0 "HIGH EAVE")
+                 (txt "MC" (list (peb-clear-of-grid len bayPts) (* wid 0.055)) (peb-th 'SMALL) 0 "LOW EAVE"))))
       (T
         (foreach sx slopeXs
           (arrow-down-big sx (* wid 0.5) fallU)))))))
@@ -2547,7 +2575,13 @@
            (list "SEISMIC LOAD"           (tb-get "SEISMIC")  "")
            (list "TEMPERATURE LOAD"       (tb-get "TEMP")     "")
            (list "RAINFALL INTENSITY"     (tb-get "RAIN")     "MM/HR"))
-        (setq rh (* s 0.0200) yCur (- yCur rh))
+        ;; ROOM FOR THE CRANE NOTE, TAKEN HONESTLY.  The band is bounded: the project block below
+        ;; it is anchored to the BOTTOM of the strip, so an extra row does not push anything down,
+        ;; it runs INTO the revision row - which is exactly what the crane-make note did, printing
+        ;; through "REV. NO." on MSPL-26-276.  Nine load rows at 0.0200 tightened to 0.0175 free
+        ;; 0.0225 s, which is what that row costs.  Only when the note will actually print, so a
+        ;; shed with no crane keeps the spacing it has always had.
+        (setq rh (* s (if (/= (tb-get "CRANE_MAKE") "") 0.0175 0.0200)) yCur (- yCur rh))
         ;; label left-aligned; VALUE right-aligned at 0.80W; UNIT right-aligned ending 0.975W (small pen)
         ;; so neither the value nor the unit can touch the strip border (owner 29-Jul: values were spilling).
         (tb-mtext lx (+ yCur (* rh 0.5)) (tb-fith (car r) (* W 0.60) sm) 0 4 (car r) white)
@@ -2580,10 +2614,14 @@
       (if (/= (tb-get "CRANE_MAKE") "")
         (progn
           (setq rh (* s 0.022) yCur (- yCur rh))
+          ;; FIT TO THE COLUMN IT IS DRAWN IN, not to a hair more.  Passing cw * 1.02 as the fit
+          ;; width while handing cw to the mtext means the height that "fits" is one the box is
+          ;; too narrow for, so it wrapped - and the second line dropped through the divider onto
+          ;; the REVISION row.  Fit slightly UNDER the box width and it stays on one line.
           (tb-mtext (+ X0 (* W 0.04)) (+ yCur (* rh 0.62))
-            (tb-fith (strcat "CRANE WHEEL LOADS AS PER " (tb-get "CRANE_MAKE") " CRANES.")
-                     (* cw 1.02) (* s 0.0084)) cw 1
-            (strcat "CRANE WHEEL LOADS AS PER " (tb-get "CRANE_MAKE") " CRANES.") green)))
+            (tb-fith (strcat "CRANE LOADS AS PER " (tb-get "CRANE_MAKE") " CRANES")
+                     (* cw 0.96) (* s 0.0084)) cw 1
+            (strcat "CRANE LOADS AS PER " (tb-get "CRANE_MAKE") " CRANES") green)))
       )
     ;; ==== STAIRCASE DETAILS : the STAIRCASE's own design loads (2-Sep-2026) ====
     ((= tbKind "STAIRCASE")
@@ -2675,10 +2713,14 @@
       (if (/= (tb-get "CRANE_MAKE") "")
         (progn
           (setq rh (* s 0.022) yCur (- yCur rh))
+          ;; FIT TO THE COLUMN IT IS DRAWN IN, not to a hair more.  Passing cw * 1.02 as the fit
+          ;; width while handing cw to the mtext means the height that "fits" is one the box is
+          ;; too narrow for, so it wrapped - and the second line dropped through the divider onto
+          ;; the REVISION row.  Fit slightly UNDER the box width and it stays on one line.
           (tb-mtext (+ X0 (* W 0.04)) (+ yCur (* rh 0.62))
-            (tb-fith (strcat "CRANE WHEEL LOADS AS PER " (tb-get "CRANE_MAKE") " CRANES.")
-                     (* cw 1.02) (* s 0.0084)) cw 1
-            (strcat "CRANE WHEEL LOADS AS PER " (tb-get "CRANE_MAKE") " CRANES.") green)))
+            (tb-fith (strcat "CRANE LOADS AS PER " (tb-get "CRANE_MAKE") " CRANES")
+                     (* cw 0.96) (* s 0.0084)) cw 1
+            (strcat "CRANE LOADS AS PER " (tb-get "CRANE_MAKE") " CRANES") green)))
       )
     ;; ==== DETAILS : the PANELS and the EAVE this sheet actually draws (rule 1.6.3) ====
     ;; Written as paragraphs rather than the label/value rows the SECTION band uses, because a
@@ -4759,36 +4801,16 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                   (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE")
                                  (list 10 ax runY 0.0)
                                  (list 11 (+ ax (* dir ah)) (- runY (* ah 0.30)) 0.0))))
-                ;; ── ONE OF THE CLP'S TWO CRANE TEXTS: THE RUN LENGTH ──────────────────────
-                ;; Owner 5-Sep-2026: "Remove the Labelling of Crane of CLP, only show the Capacity
-                ;; of Crane & Run Length."  Same ruling the section already had, and the same
-                ;; source: the Mammut CLP this convention came from
-                ;; (reference/MBS_169-PK-13_Zealcon) carries exactly two crane texts -
+                ;; The separate "CRANE RUN LENGTH" note that used to print here is gone.  Owner
+                ;; 5-Sep-2026: "Remove the Unnecessary line for Crane Labelling.  Just Make the
+                ;; short words & for Crane Capacity, Span and Run Length."  The run length is one
+                ;; of the three facts, so it moved into the single short label on the bridge.
                 ;;
-                ;;      20 (M.T.) TOP RUNNING OVERHEAD CRANE
-                ;;      CRANE RUN LENGTH: 30480
-                ;;
-                ;; - and nothing else.  The CLP had grown SIX: the capacity twice, the CMAA class,
-                ;; (BY OTHERS), HOIST (BY OTHERS), CRANE BRIDGE (BY OTHERS), C/L OF RAFTER and a
-                ;; second run-length line on the far runway.  On MSPL-26-276 they filled the middle
-                ;; of the building.
-                ;;
-                ;; The capacity moves to the footprint block below, which has the clearance logic;
-                ;; this line carries the run length alone, in Mammut's wording.
-                ;; CLEAR OF THE EAVE LABEL BY A FULL LINE.  The offset was u * 0.32 alone, which
-                ;; put this string 8 units clear of HIGH EAVE - eight, against a text height of
-                ;; 550.  Not an overlap, so it passed a strict check, and a hairline as far as a
-                ;; reader is concerned.  A clearance is measured from the height of the text it
-                ;; has to clear (S57), so one full text height is added and the two can no longer
-                ;; graze at any building size.  Found by scratchpad/textclash.js --gap 0.35.
-                ;; ON THE LADDER.  Owner 5-Sep-2026: "Size of Text for Different Labelling are
-                ;; too small, too big."  This asked for max(u * 0.42, SMALL), which on a big
-                ;; building silently outgrows the rung and prints a 2.57 mm label beside the
-                ;; 2.06 mm ones it should match.  A sheet has ONE ladder of paper heights and a
-                ;; label picks a RUNG (S57) - it does not derive its own size from the span.
-                (txt-rom "MC" (list midx (+ runY (* u 0.32) (peb-th 'SMALL)))
-                          (peb-th 'SMALL) 0.0
-                          (strcat "CRANE RUN LENGTH: " runTxt))
+                ;; It also unclogged the top of the sheet.  That note sat in a band already
+                ;; carrying two dimension chains and the HIGH EAVE tag, with the building's own
+                ;; sheeting line running through its lettering - the "dimensions overlapped with
+                ;; other text" the owner could see.  Four things were competing for one strip of
+                ;; paper; now there are three.
 
                 ;; (2) capacity label — placed on the run at the interior point with the MOST
                 ;;     clearance from any braced-bay "BRACED BAY" text AND from any capacity label
@@ -4932,9 +4954,24 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                 (foreach xb bayPts
                   (if (and (>= xb (- x0 1.0)) (<= xb (+ x1 1.0)))
                     (foreach yy (list yN yF)
+                      ;; ── TRIMMED AT THE FOUR CORNERS ─────────────────────────────────────
+                      ;; Owner 5-Sep-2026: "Crane Beam is Going Beyond the Columns.  Trim the
+                      ;; Beam on 4 Corners."
+                      ;;
+                      ;; The runway BEAM already stopped on the end columns; what overhung was
+                      ;; this BRACKET, drawn 0.45 x girder-width either side of every column it
+                      ;; crosses.  On the two end columns that half hangs out past the end of the
+                      ;; run - measured on MSPL-26-276, 267 mm beyond grid 1 and grid 5, at all
+                      ;; four corners of the two runways.
+                      ;;
+                      ;; It is wrong on the drawing and wrong on the steel: an end column's
+                      ;; bracket is a cantilever INTO the building, carrying a beam that stops
+                      ;; there.  There is nothing outboard of it to support.  Clamped to the run,
+                      ;; so an interior bracket still straddles its column and an end one stops
+                      ;; square with the beam.
                       ;; the bracket is Maimaar's, like the beam it carries - solid pen
-                      (peb-crane-steel-box (- xb (* gw 0.45)) (- yy (/ rbw 2.0))
-                                           (+ xb (* gw 0.45)) (+ yy (/ rbw 2.0))))))
+                      (peb-crane-steel-box (max x0 (- xb (* gw 0.45))) (- yy (/ rbw 2.0))
+                                           (min x1 (+ xb (* gw 0.45))) (+ yy (/ rbw 2.0))))))
                 ;; BRIDGE GIRDER — two THICK DOTTED lines across the span between the two runways.
                 (peb-crane-dot-line bx yN bx yF)
                 (peb-crane-dot-line (+ bx gw) yN (+ bx gw) yF)
@@ -4973,8 +5010,22 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                 ;; own extent (hsS is its scale; the transcribed geometry reaches -1.24 and +1.50
                 ;; units across the girder), not from the thin girder line.  Offsetting by a text
                 ;; height alone put both labels straight through the trolley.
+                ;; ── THREE SHORT FACTS, ONE LINE ───────────────────────────────────────────
+                ;; Owner 5-Sep-2026: "Just Make the short words & for Crane Capacity, Span and Run
+                ;; Length."  What was here - "10 (M.T.) TOP RUNNING OVERHEAD CRANE" - is 36
+                ;; characters of mostly type description on a plan that already shows a top-running
+                ;; crane by drawing one.  A reader coming to a column layout wants the three
+                ;; NUMBERS, and at 36 characters the label had to be shrunk to fit the bridge and
+                ;; still ran into the area diagonals.
+                ;;
+                ;;      10 T  |  SPAN 17,690  |  RUN 30,480
+                ;;
+                ;; The span is omitted when the BSF does not carry one, rather than printing SPAN 0.
                 (setq hsS   (max (* gw 0.75) (* (abs (- yF yN)) 0.0233))
-                      crLbT (strcat capInt " (M.T.) TOP RUNNING OVERHEAD CRANE")
+                      crLbT (strcat capInt " T"
+                              (if (and span (> span 0.0))
+                                (strcat "  |  SPAN " (peb-comma (rtos span 2 0))) "")
+                              "  |  RUN " runTxt)
                       crLbH (min (peb-th 'SMALL)
                                  (/ (* (abs (- yF yN)) 0.92)
                                     (* (strlen crLbT) 0.94))))
@@ -6055,6 +6106,12 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   ;; A boxed "AREA No. 01" tag at the centre.  NO full-building diagonal X — the
   ;; area is identified by the box; the only X on the plan is the cross-bracing
   ;; in the braced bays (Zealcon master).
+  ;; DEAD CENTRE, and it stays there.  Moving the tag to the nearest BAY centre was tried on
+  ;; 5-Sep-2026 to get it off the centre column line, and it was worse: the braced bays are the
+  ;; 2nd and 2nd-last, their "BRACED BAY" text runs VERTICALLY up them, and the tag landed
+  ;; straight through it.  The centre of the building is the one place on this plan that is
+  ;; reliably clear of the vertical bay text, and the tag is masked against the column line it
+  ;; sits on by the re-assert at the end of this function.  Leave it.
   (setq aCx (/ len 2.0) aCy (/ wid 2.0))
   ;; Real area number from the IF (META AREA_NUM); defaults to 1 → "01" if absent (unchanged).
   (setq aNo (MSPL-Get-Int data "AREA_NUM"))
@@ -6124,9 +6181,32 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
     ;; Below the box is empty: the ridge is drawn on the centre line and its callout always
     ;; goes UP and to the RIGHT (peb-ridge-symbol), so the two can no longer meet whatever
     ;; bay the ridge anchor lands in.
-    (txt-bold "MC" (list aCx (- aCy aBh (* aTxH 1.35))) (peb-th 'SMALL) 0
-              (strcat (peb-height-tag-label (MSPL-Get-Str data "HEIGHT_REF")) " "
-                      (peb-comma (rtos aEave 2 0)))))
+    ;; ── DROPPED UNTIL IT FITS BETWEEN THE DIAGONALS ───────────────────────────────────────
+    ;; The four AREA-mark diagonals must touch the tag box corners (owner 4-Jul), so they cannot
+    ;; be shortened out of the way - which means this label has to sit where the wedge below the
+    ;; box is already wide enough for it.  The wedge WIDENS going down, at the diagonals' own
+    ;; slope, so the clearance is arithmetic rather than a nudge:
+    ;;
+    ;;      half-width(drop) = aBw + drop x (horizontal run / vertical run) of the shallower leg
+    ;;
+    ;; Measured before this: "CLEAR HT. 10,670" is 6,618 wide against a 6,044 wedge at the old
+    ;; drop, so both ends poked through a diagonal.  The drop is now solved for the string that is
+    ;; actually being printed - a longer height value, or a bigger text rung, moves it further
+    ;; down by itself instead of quietly clashing again (S57: a gap that clears text is computed
+    ;; from that text).  It never comes UP past the old position.
+    ;; PROGN, and it matters.  The enclosing (if aEave ...) takes a SINGLE form: written as
+    ;; two, the setq became the THEN and this txt-bold became the ELSE, so the height tag
+    ;; printed only when there was no height to print and vanished from every sheet that had
+    ;; one.  Parens balanced, parencheck passed, and the label was simply gone (S88).
+    (progn
+      (setq aHt  (strcat (peb-height-tag-label (MSPL-Get-Str data "HEIGHT_REF")) " "
+                         (peb-comma (rtos aEave 2 0)))
+            aHtW (* (strlen aHt) (peb-th 'SMALL)
+                    (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0) 0.94)   ; measured advance, rule 37
+            aSlp (/ (min (- aCx aBw) (- len aCx aBw)) (max 1.0 (- aCy aBh)))
+            aDrp (max (* aTxH 1.35)
+                      (/ (- (+ (/ aHtW 2.0) (* aTxH 0.60)) aBw) (max 0.05 aSlp))))
+      (txt-bold "MC" (list aCx (- aCy aBh aDrp)) (peb-th 'SMALL) 0 aHt)))
 
   ;; ── Grid lines (Phase-2A v19 — extend to sheeting outer lines) ──
   ;; Bay lines run from NSW sheeting outer to FSW sheeting outer.
@@ -6358,7 +6438,7 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
              ;; never meet again.  Falls back to the old constant if the area block has not run.
              (txt "MC" (list (* len 0.50)
                              (if (and aTxH aBh)
-                               (- aCy aBh (* aTxH 1.35) (* aTxH 1.45))
+                               (- aCy aBh (if aDrp aDrp (* aTxH 1.35)) (* aTxH 1.45))
                                (- (* wid 0.50) (* 1300 *PEB-TEXT-SCALE*))))
                    (peb-th 'SMALL) 0 (peb-roof-label stype rooftype)))
     )
