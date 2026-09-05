@@ -29,7 +29,7 @@ COL-OUTER,4,DASHDOT,0.09
 GUTTER,4,Continuous,0.18
 DIMENSIONS,6,Continuous,0.13
 ARROWS,3,Continuous,0.13
-FALL,1,Continuous,0.18
+FALL,1,Continuous,0.35
 TEXT,7,Continuous,0.13
 AREA-MARK,8,Continuous,0.18
 OPEN,6,Continuous,0.18

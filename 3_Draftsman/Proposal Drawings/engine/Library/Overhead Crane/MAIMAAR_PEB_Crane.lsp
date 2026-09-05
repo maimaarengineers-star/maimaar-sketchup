@@ -176,7 +176,16 @@
       ;; just enough to seat on the carriage - and the taper is ONE cut running from the stub
       ;; back up to full depth. Not a wedge that eats a tenth of the span.
       (setq ed (min (* d 0.55) (peb-crn-girder-end-web))     ; never deeper than the girder
-            ep (min (* w 0.03) 400.0)                        ; the stub that rests on the carriage
+            ;; THE STUB MUST BE LONGER THAN THE CARRIAGE IT LANDS ON.  Owner 5-Sep-2026,
+            ;; arrow drawn down the sheet: "Take the Bridge Down ... Bridge Directly Rest on
+            ;; End Carriage."  It did not look as though it did, and the reason was here: the
+            ;; stub was 3% of the span, which on a section-scale girder is under 150 mm - SHORTER
+            ;; THAN THE CARRIAGE.  So the tapered cut began part-way across the carriage and its
+            ;; sloping soffit ran straight through it, and the bridge read as swallowing the
+            ;; carriage instead of sitting on it.  A real girder keeps its end section constant
+            ;; over the whole end block for exactly this reason.  Floor of 400 (the owner's own
+            ;; "Pieces Length is hardly may be 400mm"), never longer than a carriage.
+            ep (max 400.0 (min (* w 0.06) 1500.0))           ; the stub that rests on the carriage
             tp (min (* w 0.09) (* 1.2 (- d ed))))            ; the single tapered cut
       (peb-crn-dash x0 y1 x1 y1)                                    ; TOP - straight, full span
       (peb-crn-dash x0 (- y1 ed) (+ x0 ep) (- y1 ed))               ; the 400 stub, on the carriage

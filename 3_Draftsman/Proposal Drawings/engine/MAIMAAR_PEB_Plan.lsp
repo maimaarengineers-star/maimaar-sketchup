@@ -1941,7 +1941,24 @@
             fallUsed (cons found fallUsed)))
     (setq k (1+ k)))
   (setq slopeXs (reverse slopeXs))
-  (setq fallU (max 400.0 (min 3000.0 (/ (max len wid) 70.0))))
+  ;; ── THE FALL GLYPH'S SIZE ──────────────────────────────────────────────────────────────
+  ;; Owner 5-Sep-2026, sending a crop of the arrowhead with FALL and 1:10 under it: "Need to
+  ;; Increase the Size ... of Slope Symbol of CLP", and asked how much: "About double, text
+  ;; grows too."
+  ;;
+  ;; This ONE number is the whole glyph.  peb-fall-marker derives every part of it from this u -
+  ;; barb half-width 0.94u, shoulder circle 0.59u, the word FALL at 0.55u, the ratio at 0.38u -
+  ;; so doubling it grows the arrowhead and both texts together, in proportion, which is what
+  ;; "text grows too" asks for.  Nothing here becomes a literal: the size still comes from the
+  ;; building's own longest side, so a small shed and a 100 m plant each get a glyph that suits
+  ;; the sheet.
+  ;;
+  ;; SHARED, BY DESIGN.  peb-fall-glyph-set draws the glyph for the CLP and for BOTH roof plans
+  ;; (Framing.lsp 246 and 3342) precisely so the three sheets cannot disagree, so this grows the
+  ;; symbol on all three.  That is the intent of the routine and is right - but it is wider than
+  ;; "the CLP", and worth knowing.  The roof sheets compute their len from a SLICED building, so
+  ;; the glyph is not the same physical size there as on PRO-01.
+  (setq fallU (max 800.0 (min 6000.0 (/ (max len wid) 35.0))))
   ;; catch-wrap so a fall-glyph error can never abort the sheet.
   (vl-catch-all-apply (function (lambda ()
     (cond
@@ -2249,7 +2266,26 @@
 ;; data (the same legacy alist every sheet parses), so the title block is identical on the Column
 ;; Layout Plan, Roof Plan, Wall Elevations and Framing Elevations — only DRGTITLE differs.
 (defun peb-build-tbdata (data drgTitle / propinput propno tbQuote tbBno tbDrn tbChk tbBname tbDate
-                                          revno windspeed exposure collateral fulldate)
+                                          revno windspeed exposure collateral fulldate cmk cn cv)
+  ;; ── WHOSE CRANE DATA THE PANEL QUOTES ─────────────────────────────────────────────────
+  ;; Owner 5-Sep-2026: "On the Side Table, we have to just mention that Crane Data is of KONE
+  ;; CRANES as we consider the Wheel Loads Charts of Kone Cranes."
+  ;;
+  ;; Read off the BSF, never written in as "KONE".  CRn_MANUFACTURER is already on the form and
+  ;; MSPL-26-276 carries "Kone"; a literal would print KONE on the next job that quotes a Demag
+  ;; or a Street, and that job's wheel loads would be credited to a maker whose charts were never
+  ;; opened.  The note exists to say where the numbers came from, so it has to follow the numbers.
+  ;;
+  ;; It is resolved HERE, not in the panel, because the panel is handed this curated alist and not
+  ;; the raw BSF list - which is why the first attempt printed nothing at all.  Empty when there is
+  ;; no crane or no make, and the panel then skips the row.
+  (setq cmk "" cn 1)
+  (while (and (<= cn 3) (= cmk ""))
+    (if (= (strcase (MSPL-Get-Str data (strcat "CR" (itoa cn) "_TOGGLE"))) "YES")
+      (progn (setq cv (MSPL-Get-Str data (strcat "CR" (itoa cn) "_MANUFACTURER")))
+             (if (and cv (/= cv "")) (setq cmk (strcase cv)))))
+    (setq cn (1+ cn)))
+  (if (/= (strcase (MSPL-Get-Str data "CR_TOGGLE")) "YES") (setq cmk ""))
   (setq propinput (MSPL-Get-Str data "PROPOSAL"))
   (if (= propinput "") (setq propinput "000"))
   (setq propno (strcat "MSPL-26-" propinput))
@@ -2276,6 +2312,7 @@
     (cons "REV"  (if (= revno "0") "00" revno))
     (cons "DATE" tbDate)
     (cons "DRN"  tbDrn) (cons "CHK" tbChk)
+    (cons "CRANE_MAKE" cmk)
     (cons "LL_ROOF"  (peb-tb-or (MSPL-Get-Str data "LIVEROOF")  "0.57"))
     (cons "LL_FRAME" (peb-tb-or (MSPL-Get-Str data "LIVEFRAME") "0.57"))
     (cons "WIND"     (if (= windspeed "") "AS PER CODE" (peb-num-only windspeed)))
@@ -2513,7 +2550,28 @@
         (tb-fith (strcat "AS PER " (tb-get "CODE") " METAL BUILDING SYSTEMS MANUAL")
                  (* cw 1.02) (* s 0.0092)) cw 1
         (strcat "{\\Fromand.shx;AS PER " (tb-get "CODE")
-                " METAL BUILDING SYSTEMS MANUAL}") green))
+                " METAL BUILDING SYSTEMS MANUAL}") green)
+      ;; ── THE SOURCE OF THE CRANE DATA ─────────────────────────────────
+      ;; Printed only when this building actually has a crane with a named make, so a
+      ;; shed's panel is unchanged.  Same full-width sentence row as the line above it,
+      ;; sized through tb-fith so it auto-fits the column like every other row (S57).
+      ;; ONE LINE, AND IT MUST FIT THE SPACE THAT EXISTS.  The first version of this row said
+      ;; "CRANE DATA AS PER KONE CRANES - WHEEL LOADS FROM THEIR CHARTS.", wrapped to two lines,
+      ;; ran past the bottom of the band and printed straight through the REVISION row - a fresh
+      ;; breach of the rule the owner had just given ("NO TEXT MUST OVERRIDE ON THE OTHER TEXT")
+      ;; committed while acting on it.  A band has a fixed depth; a row that does not fit does not
+      ;; get to overflow into its neighbour.
+      ;;
+      ;; The shorter wording is also the truer one - what comes from the maker's charts IS the
+      ;; wheel loads - and tb-fith sizes it to the column so it stays one line on any sheet width.
+      (if (/= (tb-get "CRANE_MAKE") "")
+        (progn
+          (setq rh (* s 0.022) yCur (- yCur rh))
+          (tb-mtext (+ X0 (* W 0.04)) (+ yCur (* rh 0.62))
+            (tb-fith (strcat "CRANE WHEEL LOADS AS PER " (tb-get "CRANE_MAKE") " CRANES.")
+                     (* cw 1.02) (* s 0.0084)) cw 1
+            (strcat "CRANE WHEEL LOADS AS PER " (tb-get "CRANE_MAKE") " CRANES.") green)))
+      )
     ;; ==== STAIRCASE DETAILS : the STAIRCASE's own design loads (2-Sep-2026) ====
     ((= tbKind "STAIRCASE")
       (setq rh (* s 0.052) bt yCur yCur (- yCur rh))
@@ -2587,7 +2645,28 @@
       (setq rh (* s 0.050) yCur (- yCur rh))
       (tb-mtext (+ X0 (* W 0.04)) (+ yCur (* rh 0.72))
         (tb-fith "HEIGHTS, SLOPE & GRIDS AS SHOWN ON THE SECTION." (* cw 1.02) (* s 0.0090)) cw 1
-        "HEIGHTS, SLOPE & GRIDS AS SHOWN ON THE SECTION." green))
+        "HEIGHTS, SLOPE & GRIDS AS SHOWN ON THE SECTION." green)
+      ;; ── THE SOURCE OF THE CRANE DATA ─────────────────────────────────
+      ;; Printed only when this building actually has a crane with a named make, so a
+      ;; shed's panel is unchanged.  Same full-width sentence row as the line above it,
+      ;; sized through tb-fith so it auto-fits the column like every other row (S57).
+      ;; ONE LINE, AND IT MUST FIT THE SPACE THAT EXISTS.  The first version of this row said
+      ;; "CRANE DATA AS PER KONE CRANES - WHEEL LOADS FROM THEIR CHARTS.", wrapped to two lines,
+      ;; ran past the bottom of the band and printed straight through the REVISION row - a fresh
+      ;; breach of the rule the owner had just given ("NO TEXT MUST OVERRIDE ON THE OTHER TEXT")
+      ;; committed while acting on it.  A band has a fixed depth; a row that does not fit does not
+      ;; get to overflow into its neighbour.
+      ;;
+      ;; The shorter wording is also the truer one - what comes from the maker's charts IS the
+      ;; wheel loads - and tb-fith sizes it to the column so it stays one line on any sheet width.
+      (if (/= (tb-get "CRANE_MAKE") "")
+        (progn
+          (setq rh (* s 0.022) yCur (- yCur rh))
+          (tb-mtext (+ X0 (* W 0.04)) (+ yCur (* rh 0.62))
+            (tb-fith (strcat "CRANE WHEEL LOADS AS PER " (tb-get "CRANE_MAKE") " CRANES.")
+                     (* cw 1.02) (* s 0.0084)) cw 1
+            (strcat "CRANE WHEEL LOADS AS PER " (tb-get "CRANE_MAKE") " CRANES.") green)))
+      )
     ;; ==== DETAILS : the PANELS and the EAVE this sheet actually draws (rule 1.6.3) ====
     ;; Written as paragraphs rather than the label/value rows the SECTION band uses, because a
     ;; profile name is "Standard S Profile 35-250" - in the narrow value column tb-fith would
@@ -4645,8 +4724,24 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                   (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE")
                                  (list 10 ax runY 0.0)
                                  (list 11 (+ ax (* dir ah)) (- runY (* ah 0.30)) 0.0))))
+                ;; ── ONE OF THE CLP'S TWO CRANE TEXTS: THE RUN LENGTH ──────────────────────
+                ;; Owner 5-Sep-2026: "Remove the Labelling of Crane of CLP, only show the Capacity
+                ;; of Crane & Run Length."  Same ruling the section already had, and the same
+                ;; source: the Mammut CLP this convention came from
+                ;; (reference/MBS_169-PK-13_Zealcon) carries exactly two crane texts -
+                ;;
+                ;;      20 (M.T.) TOP RUNNING OVERHEAD CRANE
+                ;;      CRANE RUN LENGTH: 30480
+                ;;
+                ;; - and nothing else.  The CLP had grown SIX: the capacity twice, the CMAA class,
+                ;; (BY OTHERS), HOIST (BY OTHERS), CRANE BRIDGE (BY OTHERS), C/L OF RAFTER and a
+                ;; second run-length line on the far runway.  On MSPL-26-276 they filled the middle
+                ;; of the building.
+                ;;
+                ;; The capacity moves to the footprint block below, which has the clearance logic;
+                ;; this line carries the run length alone, in Mammut's wording.
                 (txt-rom "MC" (list midx (+ runY (* u 0.32))) (/ (max (* u 0.42) (peb-th 'SMALL)) sc) 0.0
-                          (strcat capInt " TONES CRANE RUNNING LENGTH : " runTxt))
+                          (strcat "CRANE RUN LENGTH: " runTxt))
 
                 ;; (2) capacity label — placed on the run at the interior point with the MOST
                 ;;     clearance from any braced-bay "BRACED BAY" text AND from any capacity label
@@ -4665,16 +4760,16 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                       ;; on every crane job. The clearance search above already keeps capX off
                       ;; the braced bays; this keeps capY off the centre band.
                       capY     (* wid 0.30))
-                (txt-rom "MC" (list capX (+ capY (* u 0.35))) (/ (max (* u 0.50) (peb-th 'SMALL)) sc) 0.0
-                          "OVER HEAD CRANE")
-                (txt-rom "MC" (list capX (- capY (* u 0.35))) (/ (max (* u 0.50) (peb-th 'SMALL)) sc) 0.0
-                          (strcat capInt " TONES"))
-                (if (and cls (/= cls ""))
-                  (txt-rom "MC" (list capX (- capY (* u 1.00))) (/ (max (* u 0.38) (peb-th 'MARK)) sc) 0.0
-                            (strcat "CMAA CLASS " cls)))
-                (if byoth
-                  (txt-rom "MC" (list capX (- capY (* u 1.60))) (/ (max (* u 0.42) (peb-th 'SMALL)) sc) 0.0
-                            "(BY OTHERS)"))
+                ;; THE CLP'S OTHER CRANE TEXT: the capacity, in Mammut's own wording.  One line
+                ;; where there were four - the capacity, the class, and the (BY OTHERS) note.
+                ;;
+                ;; The class comes off because a CMAA service class is a procurement fact, not a
+                ;; geometric one, and it is already in the TFP.  (BY OTHERS) comes off because the
+                ;; drawing now says it a better way: the owner's own reason for the hidden linetype
+                ;; is that it IS the by-others mark - "this is always (By Others), so we just mark
+                ;; for customer view".  A dashed line and the words are the same statement twice.
+                (txt-rom "MC" (list capX capY) (/ (max (* u 0.50) (peb-th 'SMALL)) sc) 0.0
+                          (strcat capInt " (M.T.) TOP RUNNING OVERHEAD CRANE"))
 
                 ;; ── (3) DASHED CRANE FOOTPRINT — imported from the old reference CLPs ──
                 ;;   2 runway beams (along the length) + bridge girder (across the span)
@@ -4835,50 +4930,26 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                 ;;    centred just below the hoist so the crane is identified AT its bridge (kept clear
                 ;;    of the FALL roof tag by stacking DOWN-span, not out to the side). ──
                 (setvar "CLAYER" "COMP-CRANE")
-                ;; ── THE HOIST, NAMED ONCE ────────────────────────────────────────────────
-                ;; This used to repeat the capacity and the CMAA class here, at the trolley -
-                ;; and the footprint block above already prints both, chosen by clearance logic
-                ;; that deliberately avoids the braced bays. Two copies of the same two facts,
-                ;; a few hundred millimetres apart, is what turned the middle of MSPL-26-276's
-                ;; CLP into a knot: OVER HEAD CRANE, 10 TONES, CMAA CLASS C, 10 TONES CRANE,
-                ;; CMAA CLASS C HOIST (BY OTHERS) and CRANE BRIDGE (BY OTHERS) all in one place.
-                ;;
-                ;; The capacity and class belong in ONE place - the footprint block, which has
-                ;; the clearance logic. What belongs HERE is the hoist's own name, because the
-                ;; hoist symbol is what is drawn here.
-                (txt-rom "MC" (list txc (+ tyc (* gw 4.05))) (/ (max (* u 0.42) (peb-th 'SMALL)) sc) 0.0
-                          "HOIST (BY OTHERS)")
-                ;; bridge girder named alongside it, reading up the span - moved further off the
-                ;; centreline so it stops crossing the footprint block
-                ;; ...and in the FAR half. It read up from the near runway to the trolley, which
-                ;; is the same half the capacity block now occupies, so the two crossed. The
-                ;; bridge spans the whole width, so either half names it equally well.
-                (txt-rom "MC" (list (- bx (* gw 2.40)) (/ (+ yF tyc) 2.0)) (/ (max (* u 0.30) (peb-th 'MARK)) sc) 90.0
-                          "CRANE BRIDGE (BY OTHERS)")
+                ;; The hoist and the bridge are no longer named here.  The owner's ruling for
+                ;; the CLP is the capacity and the run length and nothing else, and both of these
+                ;; sat right where the footprint block prints.  The symbols still say what they
+                ;; are - a trolley on a girder is not ambiguous - and the hidden linetype says
+                ;; whose they are.  Recoverable from git if a job ever needs them.
                 ;; STOPS / BUMPERS — bar across the beam width at each of the 4 runway ends.
                 (foreach pt (list (list x0 yN) (list x1 yN) (list x0 yF) (list x1 yF))
                   (peb-crane-fp-line (car pt) (- (cadr pt) (* rbw 0.9))
                                      (car pt) (+ (cadr pt) (* rbw 0.9)) flts))
-                (txt-rom "MC" (list (/ (+ x0 x1) 2.0) (- yN (* u 0.30) (/ rbw 2.0))) (/ (max (* u 0.34) (peb-th 'MARK)) sc) 0.0
-                          (strcat "CRANE RUN : " (peb-comma (rtos (- x1 x0) 2 0))))
+                ;; The second run-length line that used to print under the near runway is gone -
+                ;; the runway text above already gives it, and one drawing does not state a
+                ;; dimension twice.
                 (setvar "CLAYER" "COMP-CRANE")
                 (princ)))) ; end lambda / catch
           (setq n 3)))                 ; drew one crane -> break the loop (one per plan)
         (setq n (1+ n)))))
-      ;; C/L OF RAFTER — the crane bridge runs symmetric about the rafter centreline
-      ;; (drawn once, only when at least one crane was placed).  The label is lifted ABOVE
-      ;; the vertical "BRACED BAY" text band (which tops out around wid*0.55) with a short
-      ;; leader down to the true centreline at wid/2, so it never overlaps a braced-bay tag.
-      (if (and craneIdx (> craneIdx 0))
-        (progn
-          (peb-comp-layer "COMP-CRANE" 1)
-          (setvar "CLAYER" "COMP-CRANE")
-          (setq clX (min (* len 0.92) (+ x0 (* (- x1 x0) 0.85)))
-                clY (* wid 0.66))
-          (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE")
-                         (list 10 clX (/ wid 2.0) 0.0)
-                         (list 11 clX (- clY (* u 0.30)) 0.0)))
-          (txt-rom "MC" (list clX clY) (/ (max (* u 0.42) (peb-th 'SMALL)) sc) 0.0 "C/L OF RAFTER")))
+      ;; C/L OF RAFTER came off with the rest of the crane labelling (owner 5-Sep-2026:
+      ;; capacity and run length only).  It named a centreline that the grid already gives, and
+      ;; it needed a leader and a hand-picked height to dodge the BRACED BAY band - a label that
+      ;; has to be routed around the drawing is a label the drawing did not need.
   (setvar "CLAYER" "0")
   (princ))
 

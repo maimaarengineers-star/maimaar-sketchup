@@ -8074,7 +8074,12 @@
             (setq fw       (max 180.0 (* u 0.32))         ; I-beam flange half-width — READABLE on the frame
                   ft       (max 60.0 (* u 0.14))          ; flange thickness (true 200mm shown in the PLAN)
                   beamD    (* fw 4.0)                     ; crane beam depth = 4x flange (realistic I proportion)
-                  railNubH (* u 0.28)                     ; crane rail on top of the beam
+                  ;; THE RAIL IS SMALL.  Owner 5-Sep-2026: "Small Crane Rail, Just above 15mm
+                  ;; While is Visible".  The library's true rail is 50 x 50 with the wheel
+                  ;; overlapping 15 of it, so barely a third of it shows - it is a nub on top of
+                  ;; the beam, not a member.  At 0.28u it was drawn 106 mm tall and read as a
+                  ;; second small beam.  Halved, with a floor so it survives a small building.
+                  railNubH (max 90.0 (* u 0.14))          ; crane rail on top of the beam
                   etH      (* u 0.55)                     ; end-truck (bridge-to-rail) connection height
                   bdBS     (MSPL-Get-Num data (strcat pre "BRIDGE"))   ; bridge girder depth from BS (CRn_BRIDGE, mm)
                   spBS     (MSPL-Get-Num data (strcat pre "SPAN"))     ; crane span, c/c of runways
