@@ -669,9 +669,9 @@
                         (peb-alist-get v3 "BP_DIM_DISPLAY")) out))
   ;; Phase-2A v12: end-wall frame type for Plan MLEADER labels
   (setq out (cons (cons "EW_LEFT_FRAME"
-                        (peb-alist-get v3 "BP_EW_LEFT_FRAME")) out))
+                        (peb-crane-endwall-frame v3 (peb-alist-get v3 "BP_EW_LEFT_FRAME"))) out))
   (setq out (cons (cons "EW_RIGHT_FRAME"
-                        (peb-alist-get v3 "BP_EW_RIGHT_FRAME")) out))
+                        (peb-crane-endwall-frame v3 (peb-alist-get v3 "BP_EW_RIGHT_FRAME"))) out))
   ;; per-dimension measurement BASIS (IF) for basis-aware plan dimensions
   (setq out (cons (cons "LENGTH_REF"    (peb-alist-get v3 "BP_LENGTH_REF"))    out))
   (setq out (cons (cons "WIDTH_REF"     (peb-alist-get v3 "BP_WIDTH_REF"))     out))
@@ -7867,22 +7867,37 @@
   (peb-crane-sec-dash xa ya xb ya) (peb-crane-sec-dash xb ya xb yb)
   (peb-crane-sec-dash xb yb xa yb) (peb-crane-sec-dash xa yb xa ya))
 
-;; solid (continuous) primitives for the DETAILED HOIST symbol — a small crisp detail
-;; reads badly in HIDDEN dashes, and both the manual (Tech §10.6 p262-263) and the Maimaar
-;; house reference draw the hoist body/hook in solid lines.
-;; The 26 Continuous entities on Mammut's Crane layer are the hoist body and hook - a small crisp
-;; detail reads badly in dashes at any scale. Solid, but at the same 0.05 pen as everything else.
+;; ── THE MAIMAAR SET — OUR OWN STEEL, SOLID ────────────────────────────────────────────
+;; Owner 5-Sep-2026: "Crane Beam is in Maimaar Scope" / "That Needs be Build Differently."
+;;
+;; The crane on a proposal sheet is TWO scopes drawn together, and the drawing has to say which
+;; is which without a word of labelling - that is the whole reason for the hidden linetype
+;; ("this is always (By Others), so we just mark for customer view").  So the split has to be
+;; exact:
+;;
+;;      MAIMAAR, solid    crane beam, rail, cap channel, bracket, gusset
+;;      BY OTHERS, hidden bridge girder, END CARRIAGE, WHEELS, hoist, hook, trolley
+;;
+;; The END CARRIAGE and its WHEEL were on this solid set and should not have been - they arrive
+;; with the crane, not on our truck.  Drawn solid they claimed our scope in the only language
+;; this drawing uses to express it.  They move to the hidden set below.
+;;
+;; WEIGHT.  The owner's "line Weight .050" was given describing Mammut's Crane layer - the
+;; BY-OTHERS crane - and no weight was ever given for our own beam, only "show the Crane Beam in
+;; Solid Lines".  0.05 is a ghost pen; our steel is drawn at 0.13, the same weight this engine
+;; already gives PURLINS and GIRTS, so the beam reads as a real member.  Linetype says whose it
+;; is, weight says it is steel.
 (defun peb-crane-sec-sline (xa ya xb yb)
-  (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-SEC") (cons 62 7) (cons 370 5)
+  (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-SEC") (cons 62 7) (cons 370 13)
                  (list 10 xa ya 0.0) (list 11 xb yb 0.0))))
 (defun peb-crane-sec-sbox (xa ya xb yb)
   (peb-crane-sec-sline xa ya xb ya) (peb-crane-sec-sline xb ya xb yb)
   (peb-crane-sec-sline xb yb xa yb) (peb-crane-sec-sline xa yb xa ya))
 (defun peb-crane-sec-circ (cx cy r)
-  (entmake (list (cons 0 "CIRCLE") (cons 8 "COMP-CRANE-SEC") (cons 62 7) (cons 370 5)
+  (entmake (list (cons 0 "CIRCLE") (cons 8 "COMP-CRANE-SEC") (cons 62 7) (cons 370 13)
                  (list 10 cx cy 0.0) (cons 40 r))))
 (defun peb-crane-sec-arc (cx cy r a0 a1)   ; a0/a1 in DEGREES (entmake ARC wants radians)
-  (entmake (list (cons 0 "ARC") (cons 8 "COMP-CRANE-SEC") (cons 62 7) (cons 370 5)
+  (entmake (list (cons 0 "ARC") (cons 8 "COMP-CRANE-SEC") (cons 62 7) (cons 370 13)
                  (list 10 cx cy 0.0) (cons 40 r)
                  (cons 50 (* a0 (/ pi 180.0))) (cons 51 (* a1 (/ pi 180.0))))))
 (defun peb-crane-sec-cross (cx cy a)
@@ -8254,10 +8269,13 @@
               ;; The frame now spans carBot..carTop, and carTop IS the girder's end soffit, so the
               ;; bridge lands on the carriage instead of floating above it.  The wheel sits in the
               ;; frame and drops below it onto the rail, which is what makes the contact read.
+              ;; ON THE BY-OTHERS PEN.  The carriage and its wheel arrive with the crane; only the
+              ;; rail they run on is ours.  They were drawn solid, which in this drawing's own
+              ;; language claimed them as Maimaar steel.
               (setq rW (* etH 0.30))
-              (peb-crane-sec-sbox (- bx (* fw 1.05)) (+ carBot (* etH 0.12)) (+ bx (* fw 1.05)) carTop)
-              (peb-crane-sec-circ bx (+ railTop rW) rW)                      ; the one visible wheel, on the rail
-              (peb-crane-sec-sline bx (+ railTop (* rW 2.0)) bx (+ carBot (* etH 0.12))))) ; axle stub into the frame
+              (peb-crane-hid-box (- bx (* fw 1.05)) (+ carBot (* etH 0.12)) (+ bx (* fw 1.05)) carTop)
+              (peb-crane-hid-circ bx (+ railTop rW) rW)                      ; the one visible wheel, on the rail
+              (peb-crane-hid-line bx (+ railTop (* rW 2.0)) bx (+ carBot (* etH 0.12))))) ; axle stub into the frame
             ;; ── crane BRIDGE girder — spans c/c of rails (on the end trucks for TR / under the beams for
             ;;    UH) — DASHED (by others).  PER-FRAME RULE: this typical section is a frame WITHIN the
             ;;    crane run, so the crane is shown; per-frame sections outside the run would omit it. ──
@@ -8303,6 +8321,14 @@
             ;; building and illegibly small. Putting the labels on the text ladder made them
             ;; readable and made them OVERPRINT each other: on MSPL-26-276 the rows are 326, 283
             ;; and 239 apart carrying 550-tall text. A row pitch has to come from the row.
+            ;; MEASURED, NOT REASONED.  The section carries a different *PEB-TEXT-SCALE* from the
+            ;; plan, so the two sheets need different expressions to land on the same PLOTTED size.
+            ;; Dropping the "/ sc" here - which is right on the CLP, where it was cancelling the
+            ;; sheet's text scale and printing every crane label a quarter too big - overshot badly
+            ;; on this sheet: HOOK HEIGHT went from 550 to 845 against neighbours at 480.  Left as
+            ;; it measures.  The remaining 550-vs-480 gap is small and is NOT worth a blind edit;
+            ;; the way to close it is to measure the plotted heights per sheet, which is a pass of
+            ;; its own across all nine.
             (setq crTh  (max (* u 0.40) (peb-th 'SMALL))     ; the drawn height these labels use
                   crRow (* crTh 1.45))                       ; and a line pitch that clears it
             (txt-rom "MC" (list hoistX (- hookH crRow)) (/ crTh sc) 0.0

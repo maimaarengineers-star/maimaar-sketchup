@@ -164,6 +164,36 @@
   (if (or (null L) (<= L 0.0)) (setq L 1.0))
   (/ 1.0 L))
 
+;; ── GOLDEN RULE: A CRANE MAKES BOTH END WALLS MAIN FRAMES ─────────────────────────────────
+;; Owner 5-Sep-2026: "Golden Rule for the Crane: Whenever there is Crane in The Shed, Both End
+;; Walls Become the Main Frame to Fix the Bracket on the Columns for Crane Bridge."
+;;
+;; A bearing end wall is posts and girts - light members sized to span cladding and carry wind.
+;; The crane runway ends ON those columns, through a bracket that delivers the wheel load and the
+;; longitudinal surge into them.  A bearing post cannot take that, so a crane shed's end frames
+;; are MAIN (rigid) frames at both ends, whatever the rest of the building is.
+;;
+;; Applied HERE, in the one mapping both the plan and the section read
+;; (BP_EW_LEFT_FRAME / BP_EW_RIGHT_FRAME -> EW_LEFT_FRAME / EW_RIGHT_FRAME), so every consumer
+;; gets it from one place: the column layout's corner columns, its end-frame MLEADER labels, and
+;; the framing elevations' end-wall rafters.  Putting it at each reader is how the crane levels
+;; came to be computed twice and disagree.
+;;
+;; An end wall the BSF has already made a main frame - including "Main Frame with Hanging
+;; Columns" - is left exactly as it is; the rule only UPGRADES a bearing wall, so it can never
+;; take away a choice the owner made on the form.
+;;
+;; NOTE, and it is not a drawing matter: the BSF still carries whatever was ticked, so QE prices
+;; the end frames from the form, not from this rule.  On a crane job whose form says "Bearing
+;; Frame" the drawing will now show main frames that the estimate has not paid for.  The rule
+;; belongs on the BSF as well - flagged to the owner, not silently patched here.
+(defun peb-crane-endwall-frame (v3 raw / u cr)
+  (setq u  (strcase (if raw raw ""))
+        cr (strcase (if (peb-alist-get v3 "CR_TOGGLE") (peb-alist-get v3 "CR_TOGGLE") "")))
+  (if (and (= cr "YES") (not (wcmatch u "*MAIN FRAME*")) (/= u "RIGID"))
+    "Main Frame"
+    raw))
+
 (defun peb-color (sym / p)
   (if (setq p (assoc sym *PEB-COLORS*)) (cdr p) 7))
 
@@ -216,7 +246,12 @@
 ;;
 ;; The rung is a CAP, not a promise. Return the largest height at or below `cap` whose
 ;; PLOTTED string fits `avail`, remembering the TEXT-SCALE multiply that txt applies.
-;; 0.62 is the ROMAND advance width as a fraction of cap height, measured off the SHX.
+;; 0.94 is the ROMAND advance width as a fraction of cap height.  It was 0.62 here, which is
+;; the constant GOLDEN_RULES 37 records as WRONG - measured with vla-GetBoundingBox it is 0.9417.
+;; The fitter therefore believed every string was two-thirds of its true width and handed back a
+;; height about half again too big, so a note "fitted" to a gap overflowed it.  That is a direct
+;; cause of the owner's "too small, too big" (5-Sep-2026): auto-fitted notes came out oversized
+;; while ladder-sized labels beside them did not.
 ;; Callers decide what to do when the answer is too small to read - usually drop the long
 ;; note and keep the short one; a 200 mm caption is not a caption, it is a smudge.
 (defun peb-fit-txt-h (str avail cap / ts wPerCh h)
@@ -224,7 +259,7 @@
   (if (or (null str) (= str "") (null avail) (<= avail 0.0))
     cap
     (progn
-      (setq wPerCh (* 0.62 ts (strlen str)))       ; plotted width per unit of PASSED height
+      (setq wPerCh (* 0.94 ts (strlen str)))       ; plotted width per unit of PASSED height
       (setq h (if (> wPerCh 0.0) (/ avail wPerCh) cap))
       (min cap (max 0.0 h)))))
 

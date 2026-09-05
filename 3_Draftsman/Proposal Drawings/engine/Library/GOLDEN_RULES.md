@@ -693,3 +693,31 @@ a dimension chain under its overall, a two-line label like `BEARING FRAME` / `BO
 Widths use the **measured 0.94 em** of rule 37. Anything narrower turns this tool into a rubber
 stamp — under-reporting every string by half again is exactly why "checked for clashes" used to
 come back clean on sheets that clashed.
+
+---
+
+## 39. A CRANE MAKES BOTH END WALLS MAIN FRAMES
+
+Owner, 5-Sep-2026: *"Golden Rule for the Crane: Whenever there is Crane in The Shed, Both End
+Walls Become the Main Frame to Fix the Bracket on the Columns for Crane Bridge."*
+
+A bearing end wall is posts and girts — light members sized to span cladding and carry wind. The
+crane runway ends **on those columns**, through a bracket that delivers the wheel load and the
+longitudinal surge into them. A bearing post cannot take that. So a crane shed has MAIN (rigid)
+frames at both ends, whatever the rest of the building is.
+
+Implemented as `peb-crane-endwall-frame` in `MAIMAAR_PEB_Standard.lsp`, applied in the ONE mapping
+that the plan and the section both read (`BP_EW_*_FRAME` → `EW_*_FRAME`). Every consumer then gets
+it from a single place: the column layout's corner columns, its end-frame MLEADER labels, and the
+framing elevations' end-wall rafters. Applying it at each reader instead is exactly how the crane
+levels came to be computed twice and disagree (see the one-stack fix in the section).
+
+It only ever **upgrades**. An end wall the BSF already made a main frame — including *Main Frame
+with Hanging Columns* — is left alone, so the rule cannot take away a choice made on the form.
+
+### It is not only a drawing rule
+
+The BSF still carries whatever was ticked, and **QE prices the end frames from the form, not from
+this rule**. On a crane job whose form says *Bearing Frame*, the drawing now shows main frames
+that the estimate has not paid for. The same rule belongs on the BSF, where it would drive the
+price as well as the picture. Flagged, deliberately not patched silently in the engine.

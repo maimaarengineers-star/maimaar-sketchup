@@ -325,9 +325,9 @@
                         (peb-alist-get v3 "BP_DIM_DISPLAY")) out))
   ;; Phase-2A v12: end-wall frame type for Plan MLEADER labels
   (setq out (cons (cons "EW_LEFT_FRAME"
-                        (peb-alist-get v3 "BP_EW_LEFT_FRAME")) out))
+                        (peb-crane-endwall-frame v3 (peb-alist-get v3 "BP_EW_LEFT_FRAME"))) out))
   (setq out (cons (cons "EW_RIGHT_FRAME"
-                        (peb-alist-get v3 "BP_EW_RIGHT_FRAME")) out))
+                        (peb-crane-endwall-frame v3 (peb-alist-get v3 "BP_EW_RIGHT_FRAME"))) out))
   ;; per-dimension measurement BASIS (IF) for basis-aware plan dimensions
   (setq out (cons (cons "LENGTH_REF"    (peb-alist-get v3 "BP_LENGTH_REF"))    out))
   (setq out (cons (cons "WIDTH_REF"     (peb-alist-get v3 "BP_WIDTH_REF"))     out))
@@ -4588,10 +4588,27 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
 ;; The runway beam had a CRANEBEAM long-dash of its own at a true-mm scale. Same pen as the rest
 ;; of the crane now: HIDDEN, scale 1, white, 0.05 - the owner's spec, and what Mammut's own Crane
 ;; layer carries on every one of its 216 entities. One component, one pen.
+;; ── MAIMAAR'S OWN CRANE STEEL — SOLID ──────────────────────────────────────────────────────
+;; Owner 5-Sep-2026: "Crane Beam is in Maimaar Scope" / "That Needs be Build Differently."
+;;
+;; The runway beam and its brackets were drawn on the BY-OTHERS pen - hidden, 0.05 - the same pen
+;; as the bridge and the hoist.  On this drawing the linetype is the ONLY thing that says whose
+;; scope a part is ("this is always (By Others), so we just mark for customer view"), so drawing
+;; our own fabricated beam dashed handed it to the crane supplier in the sheet's own language.
+;; The section already had this right; the CLP did not.
+;;
+;;      MAIMAAR, solid    runway beam, rail, brackets
+;;      BY OTHERS, hidden bridge girder, end carriages, wheels, trolley, hoist
+;;
+;; Weight 0.13, matching this engine's PURLINS and GIRTS, so the beam reads as a real member.
+;; The owner's "line Weight .050" was given describing Mammut's Crane layer - the by-others
+;; crane; no weight was ever given for our own beam, only "show the Crane Beam in Solid Lines".
 (defun peb-crane-beam-line (xa ya xb yb)
-  (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-FP") (cons 6 (peb-crane-ltype)) (cons 48 (peb-crane-lts))
-                 (cons 62 7) (cons 370 5)
+  (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-FP") (cons 62 7) (cons 370 13)
                  (list 10 xa ya 0.0) (list 11 xb yb 0.0))))
+(defun peb-crane-steel-box (xa ya xb yb)
+  (peb-crane-beam-line xa ya xb ya) (peb-crane-beam-line xb ya xb yb)
+  (peb-crane-beam-line xb yb xa yb) (peb-crane-beam-line xa yb xa ya))
 
 ;; ── RESTORED, AND ON THE OWNER'S PEN ───────────────────────────────────────────────────────
 ;; peb-crane-wheel, peb-crane-dot-line and peb-crane-dot-circle were deleted by accident: an edit
@@ -4611,6 +4628,11 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   (entmake (list (cons 0 "LINE") (cons 8 "COMP-CRANE-FP") (cons 6 (peb-crane-ltype))
                  (cons 48 (peb-crane-lts)) (cons 62 7) (cons 370 5)
                  (list 10 xa ya 0.0) (list 11 xb yb 0.0))))
+(defun peb-crane-dot-arc (cx cy r a0 a1)
+  (entmake (list (cons 0 "ARC") (cons 8 "COMP-CRANE-FP") (cons 6 (peb-crane-ltype)) (cons 48 (peb-crane-lts))
+                 (cons 62 7) (cons 370 5)
+                 (list 10 cx cy 0.0) (cons 40 r)
+                 (cons 50 (* a0 (/ pi 180.0))) (cons 51 (* a1 (/ pi 180.0))))))
 (defun peb-crane-dot-circle (cx cy r)
   (entmake (list (cons 0 "CIRCLE") (cons 8 "COMP-CRANE-FP") (cons 6 (peb-crane-ltype))
                  (cons 48 (peb-crane-lts)) (cons 62 7) (cons 370 5)
@@ -4620,10 +4642,10 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                         u sc n pre span cap typ cls loc runlen
                         numBays cum i sp rem bayPts
                         nums cur k ch g1 g2 tmp
-                        x0 x1 yLo yHi bcx hcx hcy hr dg s bx capLbl capY clsY
+                        x0 x1 yLo yHi bcx hcx hcy hr dg s bx capLbl capY clsY crLbT
                         gw etL etW yr
                         midx runTxt capInt byoth craneIdx runY ah a ax dir capX clX clY
-                        bracedXs usedCapX b bestX bestD cand dmin bxc px fr
+                        bracedXs usedCapX b bestX bestD cand dmin bxc px fr crLbH hsS hsP ln ac ci pl pt
                         yN yF flts txc tyc thw thh yy pt
                         wgys nW letOfs gfW gtW vf vt yy0 yy1 rbw off xb colOff off0 off1 cbIn)
   (if (= (strcase (MSPL-Get-Str data "CR_TOGGLE")) "YES")
@@ -4746,8 +4768,13 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                 ;; reader is concerned.  A clearance is measured from the height of the text it
                 ;; has to clear (S57), so one full text height is added and the two can no longer
                 ;; graze at any building size.  Found by scratchpad/textclash.js --gap 0.35.
-                (txt-rom "MC" (list midx (+ runY (* u 0.32) (max (* u 0.42) (peb-th 'SMALL))))
-                          (/ (max (* u 0.42) (peb-th 'SMALL)) sc) 0.0
+                ;; ON THE LADDER.  Owner 5-Sep-2026: "Size of Text for Different Labelling are
+                ;; too small, too big."  This asked for max(u * 0.42, SMALL), which on a big
+                ;; building silently outgrows the rung and prints a 2.57 mm label beside the
+                ;; 2.06 mm ones it should match.  A sheet has ONE ladder of paper heights and a
+                ;; label picks a RUNG (S57) - it does not derive its own size from the span.
+                (txt-rom "MC" (list midx (+ runY (* u 0.32) (peb-th 'SMALL)))
+                          (peb-th 'SMALL) 0.0
                           (strcat "CRANE RUN LENGTH: " runTxt))
 
                 ;; (2) capacity label — placed on the run at the interior point with the MOST
@@ -4775,8 +4802,12 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                 ;; drawing now says it a better way: the owner's own reason for the hidden linetype
                 ;; is that it IS the by-others mark - "this is always (By Others), so we just mark
                 ;; for customer view".  A dashed line and the words are the same statement twice.
-                (txt-rom "MC" (list capX capY) (/ (max (* u 0.50) (peb-th 'SMALL)) sc) 0.0
-                          (strcat capInt " (M.T.) TOP RUNNING OVERHEAD CRANE"))
+                ;; The capacity label is no longer printed here, across the middle of the
+                ;; building.  It now reads ALONG THE BRIDGE, in the footprint block below, where
+                ;; the girder's position is known - owner 5-Sep-2026: "Change the Orientation of
+                ;; Crane Labelling and Keep it along the bridge on CLP and Other side of the
+                ;; Bridge (Write By Others)".  capX/usedCapX still run, so several cranes keep
+                ;; their historic left-to-right ordering.
 
                 ;; ── (3) DASHED CRANE FOOTPRINT — imported from the old reference CLPs ──
                 ;;   2 runway beams (along the length) + bridge girder (across the span)
@@ -4888,11 +4919,56 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                 (foreach xb bayPts
                   (if (and (>= xb (- x0 1.0)) (<= xb (+ x1 1.0)))
                     (foreach yy (list yN yF)
-                      (peb-crane-fp-box (- xb (* gw 0.45)) (- yy (/ rbw 2.0))
-                                        (+ xb (* gw 0.45)) (+ yy (/ rbw 2.0)) flts))))
+                      ;; the bracket is Maimaar's, like the beam it carries - solid pen
+                      (peb-crane-steel-box (- xb (* gw 0.45)) (- yy (/ rbw 2.0))
+                                           (+ xb (* gw 0.45)) (+ yy (/ rbw 2.0))))))
                 ;; BRIDGE GIRDER — two THICK DOTTED lines across the span between the two runways.
                 (peb-crane-dot-line bx yN bx yF)
                 (peb-crane-dot-line (+ bx gw) yN (+ bx gw) yF)
+                ;; ── THE CRANE IS NAMED ALONG ITS OWN BRIDGE ───────────────────────────────
+                ;; Owner 5-Sep-2026: "Change the Orientation of Crane Labelling and Keep it along
+                ;; the bridge on CLP and Other side of the Bridge (Write By Others)."
+                ;;
+                ;; It was one horizontal line across the middle of the building, which named the
+                ;; crane but pointed at nothing.  Turned 90 degrees it reads UP THE BRIDGE, beside
+                ;; the girder it describes, and on a plan with two or three cranes each label now
+                ;; sits on its own machine instead of competing for the centre band.
+                ;;
+                ;; (BY OTHERS) goes on the FAR side of the same girder.  It came off these labels
+                ;; earlier today on the owner's instruction, when it was one of six texts stacked
+                ;; in the middle; facing the capacity across the bridge it is the second half of
+                ;; one statement rather than clutter - and it is the thing a customer most needs
+                ;; to read off a proposal drawing.
+                ;;
+                ;; Both offsets are one text height off the girder edge, so the pair cannot graze
+                ;; the bridge lines at any building size (S57).
+                ;; IT HAS TO FIT THE BRIDGE IT IS WRITTEN ON.  At the sheet's normal label height
+                ;; "10 (M.T.) TOP RUNNING OVERHEAD CRANE" is 36 characters - about 18.6 m at the
+                ;; measured 0.94 em - on an 18.3 m bridge, so it ran off both ends of the building.
+                ;; A label placed along a member is bounded by that member: the height drops until
+                ;; the string fits 92% of the girder, and never grows past the sheet's own label
+                ;; height.  Both texts take the SAME height so the pair reads as one statement.
+                ;; IT HAS TO FIT THE BRIDGE IT IS WRITTEN ON.  At the sheet's normal label height
+                ;; "10 (M.T.) TOP RUNNING OVERHEAD CRANE" is 36 characters - about 18.6 m at the
+                ;; measured 0.94 em - on an 18.3 m bridge, so it ran off both ends of the building.
+                ;; A label placed along a member is bounded by that member: the height drops until
+                ;; the string fits 92% of the girder, and never grows past the sheet's own label
+                ;; height.  Both texts take the SAME height so the pair reads as one statement.
+                ;;
+                ;; AND CLEAR OF THE HOIST.  The hoist sits at mid-span - which is exactly where a
+                ;; label centred on the girder lands - so the offset is measured from the SYMBOL'S
+                ;; own extent (hsS is its scale; the transcribed geometry reaches -1.24 and +1.50
+                ;; units across the girder), not from the thin girder line.  Offsetting by a text
+                ;; height alone put both labels straight through the trolley.
+                (setq hsS   (max (* gw 0.75) (* (abs (- yF yN)) 0.0233))
+                      crLbT (strcat capInt " (M.T.) TOP RUNNING OVERHEAD CRANE")
+                      crLbH (min (peb-th 'SMALL)
+                                 (/ (* (abs (- yF yN)) 0.92)
+                                    (* (strlen crLbT) 0.94))))
+                (txt-rom "MC" (list (- txc (* hsS 1.24) (* crLbH 0.95)) (/ (+ yN yF) 2.0))
+                          crLbH 90.0 crLbT)
+                (txt-rom "MC" (list (+ txc (* hsS 1.50) (* crLbH 0.95)) (/ (+ yN yF) 2.0))
+                          crLbH 90.0 "(BY OTHERS)")
                 ;; (2) END CARRIAGES — the end-truck box where the bridge lands on BOTH runways,
                 ;;     each carrying 2 WHEELS (small solid circles) riding on the runway beam.
                 (foreach yy (list yN yF)
@@ -4900,39 +4976,117 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
                                     (+ txc (* gw 0.85)) (+ yy (* gw 0.32)) flts)
                   (peb-crane-wheel (- txc (* gw 0.52)) yy (* gw 0.20))
                   (peb-crane-wheel (+ txc (* gw 0.52)) yy (* gw 0.20)))
-                ;; ── THE HOIST SYMBOL, TRACED FROM THE MAMMUT CLP ─────────────────────────
-                ;; Owner 5-Sep-2026, sending the crop: "Draw the shape of the Crane for Symbol on
-                ;; CLP". On the Mammut plan the trolley is a small stack read across the bridge:
+                ;; ── THE HOIST, TRANSCRIBED FROM MAMMUT'S OWN DXF ──────────────────────────
+                ;; Owner 5-Sep-2026: "Still Hoist Symbol is not exactly Matching with Mammut 169
+                ;; drawings ... or Check DXF File."
                 ;;
-                ;;      a RIBBED CAP (the motor, three short bands)
-                ;;      a NECK
-                ;;      the BODY, a plain rectangle
-                ;;      a small CIRCLE low in the body
+                ;; It was not matching, and it could not have been: the shape here was drawn off a
+                ;; rastered CROP of their sheet - a ribbed cap, a neck, a body and one circle.
+                ;; Their actual trolley is an assembly, and the DXF was sitting in the reference
+                ;; folder the whole time.  Reading the picture when you hold the drawing is golden
+                ;; rule 19, and this is the second time today it has cost a round trip.
                 ;;
-                ;; and the bridge is simply two parallel lines running the span. Nothing else -
-                ;; no internal divisions, no hook block, no separate hook eye. What was here was a
-                ;; six-box assembly invented before that drawing was found.
+                ;; MEASURED off reference/MBS_169-PK-13_Zealcon/PK13169.dxf, layer `Crane`, the
+                ;; mid-span cluster (52 lines, 7 arcs, 6 polylines, 1 circle).  What it draws:
                 ;;
-                ;; Drawn SOLID: on Mammut's Crane layer the 26 Continuous entities are exactly
-                ;; this symbol; the dashes are for the bridge and the runways.
-                (foreach s (list
-                     ;; ribbed cap - three bands, reading across the bridge
-                     (list (- txc (* gw 0.55)) (- tyc (* gw 2.55)) (+ txc (* gw 0.55)) (- tyc (* gw 2.55)))
-                     (list (- txc (* gw 0.55)) (- tyc (* gw 2.20)) (+ txc (* gw 0.55)) (- tyc (* gw 2.20)))
-                     (list (- txc (* gw 0.55)) (- tyc (* gw 1.85)) (+ txc (* gw 0.55)) (- tyc (* gw 1.85)))
-                     (list (- txc (* gw 0.55)) (- tyc (* gw 2.55)) (- txc (* gw 0.55)) (- tyc (* gw 1.85)))
-                     (list (+ txc (* gw 0.55)) (- tyc (* gw 2.55)) (+ txc (* gw 0.55)) (- tyc (* gw 1.85)))
-                     ;; neck
-                     (list (- txc (* gw 0.80)) (- tyc (* gw 1.85)) (+ txc (* gw 0.80)) (- tyc (* gw 1.85)))
-                     (list (- txc (* gw 0.80)) (- tyc (* gw 1.85)) (- txc (* gw 0.80)) (- tyc (* gw 1.35)))
-                     (list (+ txc (* gw 0.80)) (- tyc (* gw 1.85)) (+ txc (* gw 0.80)) (- tyc (* gw 1.35)))
-                     ;; body
-                     (list (- txc (* gw 1.15)) (- tyc (* gw 1.35)) (+ txc (* gw 1.15)) (- tyc (* gw 1.35)))
-                     (list (+ txc (* gw 1.15)) (- tyc (* gw 1.35)) (+ txc (* gw 1.15)) (+ tyc (* gw 1.35)))
-                     (list (+ txc (* gw 1.15)) (+ tyc (* gw 1.35)) (- txc (* gw 1.15)) (+ tyc (* gw 1.35)))
-                     (list (- txc (* gw 1.15)) (+ tyc (* gw 1.35)) (- txc (* gw 1.15)) (- tyc (* gw 1.35))))
-                  (peb-crane-sol-line (nth 0 s) (nth 1 s) (nth 2 s) (nth 3 s)))
-                (peb-crane-sol-circle txc (+ tyc (* gw 0.80)) (* gw 0.34))   ; the small circle, low in the body
+                ;;      a ribbed ROPE DRUM (fourteen ribs in a 451 x 315 box)
+                ;;      a GEARBOX, then a MOTOR with a radiused end
+                ;;      the TROLLEY FRAME, 1065 x 416, with four small WHEEL marks
+                ;;      the HOIST MOTOR housing over the frame, radiused at its corners
+                ;;      the HOOK, two polylines, hanging below
+                ;;
+                ;; AND IT IS HIDDEN.  Every one of those entities carries the HIDDEN linetype on
+                ;; Mammut's sheet - the hoist is the crane supplier's, and on this drawing the
+                ;; linetype is what says so.  Ours was drawn SOLID, which claimed it as Maimaar
+                ;; scope in the sheet's own language.
+                ;;
+                ;; The table below is their geometry NORMALISED on the trolley frame: one unit is
+                ;; the frame's 416 mm width, the origin is the frame's centre.  Their span axis is
+                ;; x and ours is y, so the axes are swapped on the way in (which reverses the arc
+                ;; sweeps - hence the transformed angles).  Nothing here is a remembered shape;
+                ;; every number is measured, and the sheet can be re-measured to check it.
+                ;; hsS was set with the labels above, which are placed off this symbol's extent.
+                (foreach ln '(
+      (  0.5000  -0.9736   1.4974  -0.9736)
+      (  0.5000   0.9738   1.4974   0.9738)
+      ( -0.5000  -1.2800  -0.5000   1.2803)
+      (  0.5000   1.2803   0.5000  -1.2800)
+      (  0.9464  -2.4226   0.9464  -3.5055)
+      (  0.5113  -2.4226   0.5113  -3.5055)
+      (  0.5935  -2.4226   0.5935  -3.5055)
+      (  0.6534  -2.4226   0.6534  -3.5055)
+      (  0.6981  -2.4226   0.6981  -3.5055)
+      (  0.7356  -2.4226   0.7356  -3.5055)
+      (  0.7803  -2.4226   0.7803  -3.5055)
+      (  0.8252  -2.4226   0.8252  -3.5055)
+      (  0.8627  -2.4226   0.8627  -3.5055)
+      (  0.9075  -2.2697   0.9075  -3.6563)
+      (  0.1897  -2.4226   0.1897  -3.5055)
+      (  0.2719  -2.4226   0.2719  -3.5055)
+      (  0.3243  -2.4226   0.3243  -3.5055)
+      (  0.3990  -2.4226   0.3990  -3.5055)
+      (  0.4514  -2.4226   0.4514  -3.5055)
+      (  0.2272  -2.2697   0.2272  -3.6563)
+      (  1.0216  -3.6563   1.0216  -3.7938)
+      (  0.1144  -3.6563   0.1144  -3.7938)
+      (  1.0216  -3.6563   0.1144  -3.6563)
+      (  0.9464  -3.5055   0.1897  -3.5055)
+      (  1.0216  -3.7938   0.1144  -3.7938)
+      (  0.5000  -1.2800  -0.5000  -1.2800)
+      (  1.0772  -1.8135   1.0772  -2.2697)
+      (  0.0589  -1.8135   0.0589  -2.2697)
+      (  1.0772  -2.2697   0.0589  -2.2697)
+      (  0.9464  -2.4226   0.1897  -2.4226)
+      (  1.2849  -1.0680   1.2849  -1.6055)
+      (  1.1810  -1.0680   1.1810  -1.6055)
+      (  0.5000  -1.0673   1.3933  -1.0673)
+      ( -0.0450  -1.6055  -0.0450  -1.2800)
+      ( -0.1488  -1.6055  -0.1488  -1.2800)
+      (  1.0772  -1.7096   0.0589  -1.7096)
+      (  1.0772  -1.8135   0.0589  -1.8135)
+      ( -0.5000   1.2803   0.5000   1.2803)
+      (  1.2849   1.0683   1.2849   1.6058)
+      (  0.5000   1.0675   1.3933   1.0675)
+      ( -0.0450   1.8137  -0.0450   1.2803)
+      ( -0.1488   1.8137  -0.1488   1.2803)
+      (  1.0772   1.8137  -0.1488   1.8137)
+      (  1.4974  -0.9635   1.4974   0.9637)
+      (  0.1882  -3.7938   0.1882 -23.4752)
+      (  0.2274  -3.7938   0.2274 -23.4752)
+      (  0.8870  -3.7938   0.8870 -24.3894)
+      (  0.9262  -3.7938   0.9262 -24.3894)
+      (  0.1882  -1.6849   0.1882  17.9966)
+      (  0.2274  -1.6849   0.2274  17.9966)
+      (  0.8870  -1.6849   0.8870  18.9108)
+      (  0.9262  -1.6849   0.9262  18.9108))
+                  (peb-crane-dot-line (+ txc (* (nth 0 ln) hsS)) (+ tyc (* (nth 1 ln) hsS))
+                                      (+ txc (* (nth 2 ln) hsS)) (+ tyc (* (nth 3 ln) hsS))))
+                (foreach ac '(
+      (  1.3933   0.9637  0.1038   0.0  90.0)
+      (  1.3933  -0.9635  0.1038 270.0   0.0)
+      (  1.0772  -1.6055  0.1038 270.0   0.0)
+      (  1.0772  -1.6055  0.2079 270.0   0.0)
+      (  0.0589  -1.6055  0.1038 180.0 270.0)
+      (  0.0589  -1.6055  0.2079 180.0 270.0)
+      (  1.0772   1.6058  0.2079   0.0  90.0))
+                  (peb-crane-dot-arc (+ txc (* (nth 0 ac) hsS)) (+ tyc (* (nth 1 ac) hsS))
+                                     (* (nth 2 ac) hsS) (nth 3 ac) (nth 4 ac)))
+                (foreach ci '(
+      (  0.9166   1.4368  0.2002))
+                  (peb-crane-dot-circle (+ txc (* (nth 0 ci) hsS)) (+ tyc (* (nth 1 ci) hsS))
+                                        (* (nth 2 ci) hsS)))
+                (foreach pl '(
+      (( -0.3000  -1.0394) ( -0.3000  -0.9870))
+      ((  0.3000  -1.0394) (  0.3000  -0.9870))
+      (( -0.7284   0.1495) ( -1.2421  -0.2935) ( -1.0793  -0.3666) ( -1.0216  -0.3267) ( -1.1387  -0.2584) ( -0.8014   0.0849))
+      (( -0.7284   0.1495) ( -0.5599   0.0284) ( -0.5000   0.0284) ( -0.5000  -0.0281) ( -0.6361  -0.0281) ( -0.8014   0.0849))
+      (( -0.3000   1.0397) ( -0.3000   0.9873))
+      ((  0.3000   1.0397) (  0.3000   0.9873)))
+                  (setq hsP nil)
+                  (foreach pt pl
+                    (if hsP (peb-crane-dot-line (+ txc (* (car hsP) hsS)) (+ tyc (* (cadr hsP) hsS))
+                                                (+ txc (* (car pt) hsS))  (+ tyc (* (cadr pt) hsS))))
+                    (setq hsP pt)))
                 ;; ── LABEL THE CRANE at the footprint (owner 19-Jul): capacity + CMAA + hoist note,
                 ;;    centred just below the hoist so the crane is identified AT its bridge (kept clear
                 ;;    of the FALL roof tag by stacking DOWN-span, not out to the side). ──
