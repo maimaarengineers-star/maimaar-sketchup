@@ -356,14 +356,16 @@ Owner 5-Sep-2026, three messages that together close the whole junction:
 > *"Also EndCarriage will be 300mmx300 Box i think & Wheel is 50mm overlapping with end carriage"*
 
 ```
-   carriage top      TOR + 325     <- the girder's reduced end web lands here
-   carriage soffit   TOR +  25         300 x 300 square box
-   wheel top         TOR +  75         the wheel laps 50 UP into the box
+   carriage top      TOR + 335     <- the girder's reduced end web lands here
+   carriage soffit   TOR +  35         300 x 300 square box, 1500 LONG
+   wheel top         TOR +  85         the wheel laps 50 UP into the box
    TOP OF RAIL       TOR    0          50 x 50 rail, on the beam centreline
-   wheel bottom      TOR -  25         and 25 DOWN past the rail, flanges either side
+   wheel bottom      TOR -  15         and 15 DOWN past the rail, flanges either side
 ```
 
-**100 wheel = 25 down + 50 inside the carriage + 25 showing between them.** The three figures
+**100 wheel = 15 down + 50 inside the carriage + 35 showing between them.** (The lap on
+the rail was given as 25 and corrected to 15: *"sorry overlap of wheel with crane rail only
+15mm"*.) The three figures
 are mutually consistent, which is the check that they are remembered right.
 
 **These override the GH catalogue and the override is deliberate.** GH puts a Ø250 wheel and a
@@ -394,3 +396,22 @@ From `crane1.com/cmaa-aisc-crane-runway-rail-tolerance` (owner, "Just Idea"):
 The eccentricity line is the one that earns its place on the drawing: it is the code putting a
 number on *"welded in the middle of Crane Beam"*. On the MSPL-032 8 mm web that is **6 mm max**,
 and it is now called out on the rail blow-up.
+
+
+### And the carriage is SHORT
+
+Owner: *"Length of End Carriage is Not Much - Maximum 1500mm i think."*
+
+The carriage length *is* the wheel base plus a stub past each wheel centre, so this fixes the
+wheel base too: **1500 overall, 150 to each wheel centre, A1 = 1200**. It also replaces GH's
+A2 − A1 of 565, which belonged to a 250 wheel on a much longer carriage.
+
+**Two other figures point higher and are printed on the sheet rather than overridden silently:**
+the live BSF (MSPL-26-276) carries a **3,900** wheel base for this crane, and CMAA's usual
+guidance is a wheel base of at least **span/7 ≈ 3,050** on a 21,335 span. A short wheel base
+under a long span is what lets a crane skew on its runway. The owner's measured 1500 is what is
+drawn; both other figures are in the page-4 data block so the disagreement is visible.
+
+`et` in `peb-draw-crane-sample` is now a **layout pitch only** — the spacing the top view's
+labels and page window are set out on. It used to be the wheel base, so shortening the carriage
+from 3,900 to 1,500 would have collapsed the whole top view with it.

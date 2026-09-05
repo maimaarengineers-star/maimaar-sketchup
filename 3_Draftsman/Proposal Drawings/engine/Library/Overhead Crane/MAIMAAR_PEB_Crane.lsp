@@ -331,8 +331,9 @@
 ;; Owner 5-Sep-2026: "Wheel Height is only 100mm and out of which 25mm is overlapped on the
 ;; Crane Beam."
 ;;
-;; So the wheel stands 100 overall and 25 of that laps DOWN past the top of rail - the flanges
-;; straddling the rail head, which is what keeps it on the track - leaving 75 above the rail.
+;; ...then corrected: "sorry overlap of wheel with crane rail only 15mm". So the wheel stands 100
+;; overall and 15 of that laps DOWN past the top of rail - the flanges straddling the rail head,
+;; which is what keeps it on the track - leaving 85 above the rail.
 ;;
 ;; THIS DISAGREES WITH THE CATALOGUE AND THE DISAGREEMENT IS DELIBERATE. GH puts a 250 wheel
 ;; under a 10 MT double-girder crane, and 250 is what this drew. The owner has measured 100 on
@@ -340,7 +341,7 @@
 ;; beam flange from the recalled 300 to the sheet's 225. The catalogue still sizes the CARRIAGE
 ;; BOX, because that is a separate figure the owner confirmed independently ("only 345 deep").
 (defun peb-crn-wheel-dia     (cap) 100.0)
-(defun peb-crn-wheel-overlap (cap) 25.0)
+(defun peb-crn-wheel-overlap (cap) 15.0)   ; corrected from 25 - owner, 5-Sep-2026
 
 ;; ── THE CARRIAGE, AS THE OWNER HAS IT ──────────────────────────────────────────────────────
 ;; Owner 5-Sep-2026: "Also EndCarriage will be 300mmx300 Box i think & Wheel is 50mm overlapping
@@ -349,15 +350,16 @@
 ;; So a SQUARE 300 x 300 box, and the wheel stands 50 up inside it. With the wheel's own two
 ;; figures that closes the whole stack, and every number in it now comes from the owner:
 ;;
-;;      carriage top      TOR + 325     <- the girder's reduced end web lands here
-;;      carriage soffit   TOR +  25         300 deep
-;;      wheel top         TOR +  75         the wheel laps 50 up into the box
+;;      carriage top      TOR + 335     <- the girder's reduced end web lands here
+;;      carriage soffit   TOR +  35         300 deep
+;;      wheel top         TOR +  85         the wheel laps 50 up into the box
 ;;      TOP OF RAIL       TOR   0
-;;      wheel bottom      TOR -  25         and 25 down past the rail, flanges either side
+;;      wheel bottom      TOR -  15         and 15 down past the rail, flanges either side
 ;;
-;; 100 wheel, 25 down, 50 up: the wheel is 100 tall and 75 of it is above the rail, of which 50
-;; is inside the carriage. The three figures are consistent, which is the check that they are
-;; remembered right.
+;; 100 wheel, 15 down, 50 up: the wheel is 100 tall and 85 of it is above the rail, of which 50
+;; is inside the carriage, leaving 35 of it visible between the rail and the box. Every one of
+;; those figures is the owner's and they close on each other, which is the check that they are
+;; remembered right - peb-crn-carriage-soffit derives the 35 rather than storing it.
 ;;
 ;; The GH catalogue said 345 deep and 128 wide for this size. The owner's 300 x 300 is used - a
 ;; figure from the job outranks a vendor band - but GH still supplies A2 - A1, the overhang past
@@ -365,7 +367,25 @@
 (defun peb-crn-carriage-depth      (cap) 300.0)
 (defun peb-crn-carriage-width      (cap) 300.0)
 (defun peb-crn-wheel-in-carriage   (cap)  50.0)
-(defun peb-crn-carriage-over  (cap) (caddr  (peb-crn-carriage-row (peb-crn-carriage-band cap))))
+;; ── AND IT IS SHORT ────────────────────────────────────────────────────────────────────────
+;; Owner 5-Sep-2026: "Length of End Carriage is Not Much - Maximum 1500mm i think."
+;;
+;; The carriage length IS the wheel base plus a stub past each wheel centre, so this fixes the
+;; wheel base too: 1500 overall, 150 from the end of the box to each wheel centre, leaves
+;; A1 = 1200. That also replaces GH's A2 - A1 of 565, which went with a 250 wheel and a much
+;; longer carriage; on a 100 wheel a 150 stub is the right proportion.
+;;
+;; TWO OTHER FIGURES POINT HIGHER AND ARE WORTH KNOWING, not overriding:
+;;   - the live BSF (MSPL-26-276) carries a 3,900 wheel base for this crane
+;;   - CMAA's usual guidance is a wheel base of at least span/7, which on 21,335 is about 3,050
+;; A short wheel base under a long span is what makes a crane skew on its runway. The owner's
+;; figure is drawn because it is the one measured; both others are printed in the data block so
+;; the disagreement is on the sheet rather than buried in a comment.
+(defun peb-crn-carriage-length (cap) 1500.0)
+(defun peb-crn-carriage-clear  (cap)  150.0)   ; end of the box to the wheel centre
+(defun peb-crn-wheel-base (cap)
+  (max 600.0 (- (peb-crn-carriage-length cap) (* 2.0 (peb-crn-carriage-clear cap)))))
+(defun peb-crn-carriage-over  (cap) (* 2.0 (peb-crn-carriage-clear cap)))   ; A2 - A1
 (defun peb-crn-carriage-end   (cap) (nth 3  (peb-crn-carriage-row (peb-crn-carriage-band cap))))
 
 ;; top of rail -> underside of the carriage box. The wheel shows (100 - 25) above the rail and
@@ -596,9 +616,11 @@
 ;; its own span cannot travel.
 ;;
 ;;   x0 y0 x1 y1  the girder: rail centre to rail centre in x; y0/y1 = the girder's own width
-;;   et           end-truck length ALONG THE RUNWAY = the wheel base (0 = skip the trucks)
+;;   et           END CARRIAGE length along the runway (0 = skip them)
+;;   wb           the WHEEL BASE inside it - the two are no longer the same number, because the
+;;                carriage runs a stub past each wheel centre
 ;;   wr           wheel radius (0 = skip the wheels)
-(defun peb-crn-bridge-plan (x0 y0 x1 y1 et wr / gw yc tw ex sgn e wy)
+(defun peb-crn-bridge-plan (x0 y0 x1 y1 et wb wr / gw yc tw ex sgn e wy)
   (setq gw (abs (- y1 y0)) yc (/ (+ y0 y1) 2.0)
         tw (* gw 1.35))                          ; end-truck width, measured ALONG the girder
   (if (or (< (abs (- x1 x0)) 1.0) (< gw 1.0))
@@ -622,7 +644,7 @@
           ;; TWO WHEELS PER TRUCK (manual: NWb = 2) — fore and aft ON the runway, so they sit on
           ;; the truck's two ends, straddling the rail line at ex.
           (if (> wr 1.0)
-            (foreach wy (list (- yc (* et 0.34)) (+ yc (* et 0.34)))
+            (foreach wy (list (- yc (* wb 0.5)) (+ yc (* wb 0.5)))
               (peb-crn-wheel (- ex wr) (- wy wr) (+ ex wr) (- wy wr))
               (peb-crn-wheel (- ex wr) (+ wy wr) (+ ex wr) (+ wy wr))
               (peb-crn-wheel (- ex wr) (- wy wr) (- ex wr) (+ wy wr))
@@ -1131,13 +1153,19 @@
        "PLATE SIZES READ OFF THE MSPL-032 SINGLE-PART SHEET  (MAIMAAR FACTORY, 10 MT)")
   (princ))
 
-(defun peb-draw-crane-sample (span cap wbase / d et gw rw wr yc y0 yT x0 x1 th tl rx0 rx1 sy L hx hy rxc cbd cry gey pp pg1 pg2 pg3 pg4)
+(defun peb-draw-crane-sample (span cap wbase / d et cl wb gw rw wr yc y0 yT x0 x1 th tl rx0 rx1 sy L hx hy rxc cbd cry gey pp pg1 pg2 pg3 pg4)
   ;; STYLISED PROPORTIONS, stated as such (rule 20). Depth ~ span/18 is the working proportion for
   ;; a welded box girder in this capacity range; a job's own CRn_BRIDGE overrides it. Everything
   ;; TRACED is named on the sheet itself, so the drawing carries its own provenance.
   (setq d  (peb-crn-girder-depth span cap)
         gw (* d 0.72)
-        et (if (> wbase 0.0) wbase (* d 1.60))    ; end truck length = the WHEEL BASE when given
+        ;; `et` is now purely a LAYOUT PITCH - the spacing the top view's labels, dimension
+        ;; lines and page window are set out on. It used to be the wheel base, which meant that
+        ;; shortening the carriage from 3,900 to 1,500 would have collapsed the whole top view
+        ;; along with it. The real carriage and its wheel base are cl and wb below.
+        et (* d 3.0)
+        cl (peb-crn-carriage-length cap)          ; END CARRIAGE, 1500 - owner, 5-Sep-2026
+        wb (peb-crn-wheel-base cap)               ; the wheel base inside it, 1200
         rw (* d 0.30)
         wr (* d 0.16)
         th (* d 0.30)
@@ -1182,24 +1210,25 @@
       (peb-crn-sample-solid (- rxc (/ rw 2.0)) (- yc (* et 1.9)) (- rxc (/ rw 2.0)) (+ yc (* et 1.9)))
       (peb-crn-sample-solid (+ rxc (/ rw 2.0)) (- yc (* et 1.9)) (+ rxc (/ rw 2.0)) (+ yc (* et 1.9)))
       (peb-crn-sample-solid rxc (- yc (* et 1.9)) rxc (+ yc (* et 1.9)))))
-  (peb-crn-bridge-plan x0 y0 x1 yT et wr)
+  (peb-crn-bridge-plan x0 y0 x1 yT cl wb wr)
   (peb-crn-trolley-plan (/ span 2.0) y0 yT tl)
-  (peb-crn-bridge-motor x0 1.0 et y0 yT)          ; bridge travel motor on the left truck
+  (peb-crn-bridge-motor x0 1.0 cl y0 yT)          ; bridge travel motor on the left carriage
   (txt "MC" (list (/ span 2.0) (+ yc (* et 3.6))) (* th 1.6) 0.0 "CRANE BRIDGE  -  TOP VIEW")
   (txt "MC" (list (/ span 2.0) (+ yc (* et 3.0))) (* th 0.9) 0.0
        "CRANE BRIDGE, HOIST AND MOTORS - NOT IN MAIMAAR SCOPE (BY OTHERS)")
   (txt "MC" (list (/ span 2.0) (- yc (* gw 2.4))) (* th 0.9) 0.0 "TROLLEY")
   (txt "MC" (list (/ span 2.0) (+ yc (* gw 3.1))) (* th 0.9) 0.0 "HOIST MOTOR")
   (txt "ML" (list (+ x0 (* gw 2.2)) (- yc (* gw 2.9))) (* th 0.9) 0.0 "BRIDGE TRAVEL MOTOR")
-  (txt "MC" (list x0 (+ yc (* et 0.72))) (* th 0.9) 0.0 "END CARRIAGE")
+  (txt "MR" (list (- x0 (* cl 0.40)) (+ yc (* cl 0.85))) (* th 0.9) 0.0
+       (strcat "END CARRIAGE  " (rtos cl 2 0) " LONG"))
   (txt "MC" (list x0 (- yc (* et 2.15))) (* th 0.9) 0.0 "RUNWAY BEAM + RAIL")
   (txt "ML" (list (+ x1 (* et 0.55)) (- yc (* et 1.15))) (* th 0.9) 0.0
        "2 WHEELS AT THE BOTTOM OF EACH END CARRIAGE")
   (peb-crn-sample-dim x0 x1 (+ yc (* et 2.4))
                       (strcat "CRANE SPAN  -  C/C OF RUNWAY BEAMS   " (rtos span 2 0)) th)
-  (if (> wbase 0.0)
-    (peb-crn-sample-dim x0 x1 (- yc (* et 2.8))
-                        (strcat "BRIDGE TRAVELS ALONG THE RUNWAYS - WHEEL BASE " (rtos wbase 2 0)) th))
+  (peb-crn-sample-dim x0 x1 (- yc (* et 2.8))
+                      (strcat "BRIDGE TRAVELS ALONG THE RUNWAYS - END CARRIAGE " (rtos cl 2 0)
+                              " LONG, WHEEL BASE " (rtos wb 2 0)) th)
 
   ;; ══ PAGE 2 - SIDE VIEW ═══════════════════════════════════════════════════════════════════
   (setq sy (+ pg2 (* d 3.0)))
@@ -1310,9 +1339,8 @@
   ;; it. At 0.95 of the span the box is about 1.4 m of drawing and the wheels can be seen.
   ;; ══ PAGE 4 - END CARRIAGE ════════════════════════════════════════════════════════════════
   (setq sy (+ pg4 (* d 1.0)))
-  (peb-crn-carriage-elev (* span 0.5) sy (if (> wbase 0.0) wbase 3600.0) cap
-                         (/ (* span 0.95) (+ (if (> wbase 0.0) wbase 3600.0)
-                                             (peb-crn-carriage-over cap)))
+  (peb-crn-carriage-elev (* span 0.5) sy wb cap
+                         (/ (* span 0.80) (+ wb (peb-crn-carriage-over cap)))
                          (* th 0.92))
   (setq sy (- sy (* d 8.0)))
 
@@ -1326,12 +1354,15 @@
       (strcat "CAPACITY  " (rtos cap 2 0) " MT")
       "TYPE  TOP RUNNING (TR)  -  manual ch.8 lists TR / monorail / underhung / jib / semi-gantry"
       "END CARRIAGE WHEELS  2 PER END, 4 TOTAL  -  manual ch.8  NWb = 2  (worked 10 MT example)"
-      "WHEEL  100 HIGH; 25 LAPPED DOWN ONTO THE BEAM, 50 UP INTO THE CARRIAGE  -  owner"
+      "WHEEL  100 HIGH; 15 LAPPED DOWN ONTO THE RAIL, 50 UP INTO THE CARRIAGE  -  owner"
       "   (the GH catalogue band would give 250 at 10 MT - the measured figure is used)"
       "RUNWAY TOLERANCE  RAIL TO WEB ECCENTRICITY <= 0.75 x WEB THICKNESS  -  CMAA/AISC"
       "END CARRIAGE  WELDED BOX, WHEELS ON THE BOTTOM RUNNING ON THE RAIL  -  GH catalogue"
-      "   300 X 300 SQUARE BOX UNDER A 1000-1400 GIRDER  -  owner, 5-Sep-2026"
-      "   STACK  TOR -25 wheel bottom / 0 rail / +25 box soffit / +75 wheel top / +325 box top"
+      "   300 X 300 SQUARE BOX, 1500 LONG, UNDER A 1000-1400 GIRDER  -  owner, 5-Sep-2026"
+      "WHEEL BASE  1200, FROM A 1500 CARRIAGE LESS 150 EACH END  -  owner"
+      "   NOTE  the live BSF (MSPL-26-276) carries 3,900 ; CMAA guidance is >= span/7 = 3,048"
+      "   a short wheel base under a long span is what lets a crane skew on its runway"
+      "   STACK  TOR -15 wheel bottom / 0 rail / +35 box soffit / +85 wheel top / +335 box top"
       "VERTICAL IMPACT  10%  PENDANT OPERATED  -  manual table 8.3"
       "CMAA SERVICE CLASS  C  -  manual table 8.1"
       "LONGITUDINAL  10% OF MAX WHEEL LOAD, AT TOP OF RAILS  -  manual ch.8 sec 2.4.4"
@@ -1363,7 +1394,7 @@
       (list (- (* span 0.34) (* span 1.05))  (- pg3 (* span 1.15))
             (+ (* span 0.34) (* span 2.65))  (+ pg3 (* span 1.45)))
       ;; 4  END CARRIAGE + DATA BLOCK
-      (list (- x0 (* d 2.0))     (- pg4 (* d 17.5))   (+ x1 (* d 11.0))   (+ pg4 (* d 6.5)))))
+      (list (- x0 (* d 2.0))     (- pg4 (* d 20.5))   (+ x1 (* d 11.0))   (+ pg4 (* d 13.5)))))
   (princ))
 
 (defun C:PEB-CRANE-SAMPLE ( / )
