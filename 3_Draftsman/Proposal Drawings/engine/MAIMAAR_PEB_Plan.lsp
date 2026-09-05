@@ -6149,6 +6149,22 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   ;; conventional broken line on an A-size sheet, and it now measures that on every building,
   ;; because CELTSCALE cancels LTSCALE the same way peb-crane-lts does for the crane - the one
   ;; place on these sheets that has been printing correct dashes all along.
+  ;; AND IT IS SET FOR THE WHOLE SHEET, not just these two lines.  Every dashed linetype here has
+  ;; the same fault, because they all come from the imperial acad.lin and are all read as paper:
+  ;;
+  ;;      DASHDOT  0.5  x 8  =  4.0 mm dash     the column line
+  ;;      CENTER   1.25 x 8  = 10.0 mm long dash, 2 mm short dash    grid lines
+  ;;      HIDDEN   0.25 x 8  =  2.0 mm dash     ridge, rafter
+  ;;
+  ;; That matters beyond tidiness.  On the END WALLS the grid line runs the full height at exactly
+  ;; the x of the column line, and while CENTER was plotting SOLID it drew straight over the
+  ;; column line's dashes - so the end walls read as two solid lines even though the dashed line
+  ;; was there and correct underneath.  Measured at the left end wall: COL-OUTER had its three
+  ;; 4 mm dashes in the window, with a solid GRID-LINES run from y 46.4 to 126.8 laid over them.
+  ;; Owner: "Place the Dotted Line on Both End Walls as well."  It was placed; it was covered.
+  ;;
+  ;; Entities that carry their own linetype scale (group 48) are untouched - the crane sets its
+  ;; own, and 48 overrides CELTSCALE - so nothing already correct is disturbed.
   (setvar "CELTSCALE" (/ 8.0 (max 1.0 (getvar "LTSCALE"))))   ; -> 0.5 x this x LTSCALE = 4 mm on paper
   ;; owner 5-Jul: draw the outline edge-by-edge (peb-draw-outline) so multi-area can OMIT the shared-wall
   ;; sheeting/col-outer line (Area 02's common side).  Single-area draws all 4 (identical to the RECTANGs).
@@ -6156,7 +6172,10 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   (peb-draw-outline 0.0 0.0 len wid nil)                 ; column line: always drawn (columns are there)
   (setvar "CLAYER" "SHEETING")
   (peb-draw-outline (- 0.0 sheetGap) (- 0.0 sheetGap) (+ len sheetGap) (+ wid sheetGap) T)   ; sheeting: skip fully-open walls
-  (setvar "CELTSCALE" 1.0)            ; reset for everything else
+  ;; NOT reset to 1.0.  At 1.0 every other dashed linetype on the sheet goes back to a pattern
+  ;; length times LTSCALE - tens of millimetres on paper - which is the solid-looking grid lines,
+  ;; ridge and rafter this sheet has been printing.  The paper-mm scale stays in force.
+  (setvar "CELTSCALE" (/ 8.0 (max 1.0 (getvar "LTSCALE"))))
 
   ;; ── AREA marking (Zealcon convention) ─────────────────────────────
   ;; A boxed "AREA No. 01" tag at the centre.  NO full-building diagonal X — the
