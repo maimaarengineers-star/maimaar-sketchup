@@ -43,13 +43,44 @@ let bad = 0, checked = 0;
 files.forEach((p) => {
   const rel = path.relative(ROOT, p);
   const lines = fs.readFileSync(p, 'utf8').split(/\r?\n/);
+  // -- A CHARACTER COUNT OUTLIVES ITS LINE -------------------------------------------------
+  // Requiring `strlen` on the SAME line as the constant is what let peb-head-h keep 0.62
+  // while this check reported the engine clean:
+  //     n  (max 1 (strlen s))
+  //     hmax (/ (* 0.34 faceLen) (* n 0.62 ts))
+  // The count is taken on one line and spent on the next, which is how anyone would write it.
+  // So collect the names that appear where a strlen was taken, and treat multiplication
+  // involving those names as width context too.  A checker that only sees single-line width
+  // maths hands a clean bill of health to the exact constant it exists to catch, and a false
+  // clean is worse than no check at all - this one reported 0 while 0.62 was live.
+  const isWordCh = (c) => (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                          (c >= '0' && c <= '9') || c === '_' || c === '-';
+  const tokens = (ln) => { const out = []; let cur = '';
+    for (const c of ln) { if (isWordCh(c)) { cur += c; } else { if (cur) out.push(cur); cur = ''; } }
+    if (cur) out.push(cur); return out; };
+  // SCOPED TO THE DEFUN IT LIVES IN.  File-wide, one function that happens to store a strlen
+  // in `wid` made every (* wid 0.72) in the file a suspect - 54 hits, nearly all of them the
+  // building width. A character count is a local, so the set resets at each defun.
+  let lenVars = new Set();
+  // A WIDTH CAP DIVIDES BY (count x em).  Both real cases are of the form
+  //     (/ (* 0.34 faceLen) (* n 0.94 ts))
+  // whereas every false positive was a plain fraction of a length - (* wid 0.55), (* span 0.9).
+  // Requiring the division as well takes the noise from 15 lines to 2, which is the difference
+  // between a check that gets read and one that gets skipped.
+  const usesLenVar = (code) => code.indexOf('*') >= 0 && code.indexOf('(/') >= 0 &&
+                               tokens(code).some((t) => lenVars.has(t));
   lines.forEach((ln, i) => {
+    if (ln.startsWith('(defun')) lenVars = new Set();
+    if (ln.indexOf('strlen') >= 0) {
+      const t0 = tokens(ln.replace(/;.*$/, '')).filter((x) => x !== 'setq' && x !== 'defun');
+      if (t0.length && !/^[0-9]/.test(t0[0]) && t0[0] !== 'strlen') lenVars.add(t0[0]);
+    }
     // An explicit, readable exemption for the handful of constants that are NOT advance widths -
     // a fraction of a bubble's radius, or a deliberate tightening applied on top of the real em.
     // Written in the source next to the number, so the reason travels with it.
     if (/emcheck-ok/.test(ln)) return;
     const code = ln.replace(/;.*$/, '');                 // drop lisp comments
-    if (!WIDTHY.test(code)) return;
+    if (!WIDTHY.test(code) && !usesLenVar(code)) return;
     if (!/[*(]/.test(code)) return;
     let m;
     SUSPECT.lastIndex = 0;

@@ -11,7 +11,30 @@ const fs = require('fs');
 const defined = new Set();
 const called = new Map();          // name -> first file:line seen
 
-for (const f of process.argv.slice(2)) {
+// ── FILE LIST ────────────────────────────────────────────────────────────────────────────────
+// Named files, else the whole engine. The npm script used to pass the glob "MAIMAAR_PEB_*.lsp",
+// which npm hands to cmd.exe on Windows - and cmd does NOT expand globs, so `npm run
+// check:pd-lisp` died on ENOENT for a file literally named "MAIMAAR_PEB_*.lsp". The chain has
+// therefore never run on this machine since it was added. Globbing here rather than in the shell
+// makes it work the same from npm, from bash and from a bare `node <tool>`.
+const _fs = require('fs'), _path = require('path');
+function engineFiles(withLibrary) {
+  const here = __dirname;
+  const out = _fs.readdirSync(here).filter((f) => /^MAIMAAR_PEB_.*\.lsp$/i.test(f))
+                 .map((f) => _path.join(here, f));
+  const lib = _path.join(here, 'Library');
+  if (withLibrary && _fs.existsSync(lib)) {
+    for (const d of _fs.readdirSync(lib, { withFileTypes: true })) {
+      if (!d.isDirectory()) continue;
+      const sub = _path.join(lib, d.name);
+      for (const f of _fs.readdirSync(sub)) if (/\.lsp$/i.test(f)) out.push(_path.join(sub, f));
+    }
+  }
+  return out.sort();
+}
+const FILES = process.argv.slice(2).length ? process.argv.slice(2) : engineFiles(true);
+
+for (const f of FILES) {
   const lines = fs.readFileSync(f, 'utf8').split('\n');
   lines.forEach((raw, i) => {
     const line = raw.replace(/;.*$/, '');                       // drop comments
@@ -53,7 +76,7 @@ function closeIndex(src, start) {
 }
 
 const swallowed = [];
-for (const f of process.argv.slice(2)) {
+for (const f of FILES) {
   const src = fs.readFileSync(f, 'utf8');
   // TOP-LEVEL defuns only (column 0). A nested helper defun -- tb-get inside
   // peb-titleblock-mammut, aLn inside C:PEB-PLAN -- is legitimately enclosed by its parent,
@@ -76,7 +99,19 @@ for (const f of process.argv.slice(2)) {
   });
 }
 
-const missing = [...called.keys()].filter((n) => !defined.has(n));
+// ── AN OPTIONAL CALL IS NOT A MISSING ONE ────────────────────────────────────────────────────
+// A call wrapped in (if (boundp 'peb-foo) (peb-foo ...)) is DELIBERATELY optional - the engine
+// asks whether the helper was loaded and does without it if not. Elevation.lsp:285 does exactly
+// this for peb-dim-v-native. Reporting it as "renders as a blank sheet, silently" is wrong, and
+// it is the kind of wrong that matters: it is the ONLY line this check printed, so it made
+// `npm run check:pd-lisp` exit non-zero every time and the whole chain stop before emcheck and
+// arity ever ran. One false positive was disabling four real checks.
+const guarded = new Set();
+for (const f of FILES) {
+  const src = require('fs').readFileSync(f, 'utf8');
+  for (const m of src.matchAll(/\(boundp\s+'([A-Za-z0-9_\-*]+)/g)) guarded.add(m[1].toLowerCase());
+}
+const missing = [...called.keys()].filter((n) => !defined.has(n) && !guarded.has(n.toLowerCase()));
 console.log('defined %d peb-* functions, %d distinct calls', defined.size, called.size);
 
 if (swallowed.length) {

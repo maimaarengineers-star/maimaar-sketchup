@@ -11,8 +11,19 @@ every call site against the declared argument count.
 """
 import io, os, re, sys, glob
 
-FILES = sorted(glob.glob(os.path.join(
-    r"D:\maimaar-os\3_Draftsman\Proposal Drawings\engine", "*.lsp")))
+# Files to check: whatever is named on the command line, else the whole engine INCLUDING the
+# component Library.
+#
+# This used to be a hard-coded absolute path to one machine's engine folder, which had two
+# consequences worth remembering. It ignored any argument you passed - so `python arity.py
+# Framing.lsp` silently linted all thirteen files and looked like it had honoured the request -
+# and it never once opened Library/<Component>/*.lsp, where a third of the engine's defuns live.
+_HERE = os.path.dirname(os.path.abspath(__file__))
+if len(sys.argv) > 1:
+    FILES = sorted({f for a in sys.argv[1:] for f in (glob.glob(a) or [a])})
+else:
+    FILES = sorted(glob.glob(os.path.join(_HERE, "*.lsp")) +
+                   glob.glob(os.path.join(_HERE, "Library", "*", "*.lsp")))
 
 DEFUN = re.compile(r"^\(defun\s+([^\s()]+)\s*\(([^)]*)\)", re.M)
 
@@ -74,6 +85,13 @@ def top_level_args(src, start):
             i += 1
         elif c == ")":
             break
+        elif c in "'`":
+            # A QUOTED LIST IS ONE ARGUMENT.  '("NSW" "FSW") was counted as two - the quote
+            # mark fell through to the identifier branch, stopped dead at the "(", and scored
+            # 1, then the list itself scored another.  That is what turned all six correct
+            # peb-draw-elev-set calls (data, walls, kind, title) into "wants 4, got 5", and a
+            # checker that cries wolf six times is a checker nobody reads.
+            i += 1
         elif c == "(":
             depth = 0
             while i < n:
@@ -100,7 +118,16 @@ for path in FILES:
         for m in re.finditer(r"\(" + re.escape(name) + r"[\s)]", code):
             s = m.start()
             # skip the declaration itself
-            if code[:s].rstrip().endswith("(defun"):
+            before = code[:s].rstrip()
+            if before.endswith("(defun"):
+                continue
+            # ...and skip a defun's PARAMETER LIST, which is not a call either.  In
+            # (defun peb-split-to-width (txt maxCh / words idx w line out)) the text before
+            # "(txt" ends with the function's NAME, not with "(defun", so the check above
+            # missed it and every helper whose first parameter shares a name with a function
+            # was reported.  That is how `txt` came back "wants 5, got 7".
+            head = before.rsplit(None, 1)
+            if len(head) == 2 and head[0].endswith("(defun"):
                 continue
             got = top_level_args(code, s)
             if got != want:
