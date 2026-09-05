@@ -6093,7 +6093,32 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   ;; Global linetype scale tied to building size so DASHED/CENTER linetypes
   ;; (grid lines, cross-bracing) actually render as dashes at this scale.
   (setvar "LTSCALE" (max 60.0 (/ (max len wid) 400.0)))
-  (setvar "CELTSCALE" 2.0)            ; per-entity linetype scale = 2.0
+  ;; ── THE DASHED OUTLINE, IN PAPER MILLIMETRES ──────────────────────────────────────────────
+  ;; Owner 5-Sep-2026: "we developed very beautiful outer lines of the building, one solid line
+  ;; outside and then one dotted line, all those have become worse."
+  ;;
+  ;; He is right, and the drawing had lost it completely.  The design is still here - SHEETING is
+  ;; Continuous (the solid outer line) and COL-OUTER is DASHDOT (the broken column line inside it)
+  ;; - but measured on the plotted sheet, COL-OUTER came out as THREE UNBROKEN STROKES, median
+  ;; 83.5 mm, with not one dash in it.  Two solid lines where there should be solid and dashed.
+  ;;
+  ;; WHY.  This engine plots from LAYOUTS and never sets PSLTSCALE, so it sits at AutoCAD's
+  ;; default of 1: linetype patterns are read in PAPER millimetres.  DASHDOT comes from the
+  ;; imperial acad.lin as 0.5 / -0.25, and the plotted dash is
+  ;;
+  ;;      0.5  x  CELTSCALE (2.0)  x  LTSCALE (~76)   =   76 mm
+  ;;
+  ;; on a line 83 mm long.  One dash, no gap visible, solid.  The note above this line explains
+  ;; the intent - "tied to building size so DASHED/CENTER actually render as dashes at this
+  ;; scale" - and that is exactly right for MODEL-space linetype scaling.  Under PSLTSCALE 1 it
+  ;; is read as paper and the harder you tie it to the building the worse it gets: a bigger shed
+  ;; raises LTSCALE and makes the dash longer still.
+  ;;
+  ;; So the scale is solved for the PLOTTED length instead.  A 4 mm dash with a 2 mm gap is the
+  ;; conventional broken line on an A-size sheet, and it now measures that on every building,
+  ;; because CELTSCALE cancels LTSCALE the same way peb-crane-lts does for the crane - the one
+  ;; place on these sheets that has been printing correct dashes all along.
+  (setvar "CELTSCALE" (/ 8.0 (max 1.0 (getvar "LTSCALE"))))   ; -> 0.5 x this x LTSCALE = 4 mm on paper
   ;; owner 5-Jul: draw the outline edge-by-edge (peb-draw-outline) so multi-area can OMIT the shared-wall
   ;; sheeting/col-outer line (Area 02's common side).  Single-area draws all 4 (identical to the RECTANGs).
   (setvar "CLAYER" "COL-OUTER")
@@ -6124,6 +6149,22 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   (defun aLn (x1 y1 x2 y2)
     (entmake (list (cons 0 "LINE") (cons 8 "AREA-MARK")
                    (list 10 x1 y1 0.0) (list 11 x2 y2 0.0))))
+  ;; ── THE AREA CROSS LINES ARE A WHISPER ────────────────────────────────────────────────────
+  ;; Owner 5-Sep-2026: "Cross Lines were dotted lines - very thin just to show the Area."
+  ;;
+  ;; They had become solid 0.18 - the layer comment even calls them "thick area-identification
+  ;; cross lines" - so four heavy diagonals were drawn across the whole plan, crossing labels and
+  ;; competing with the steel.  They are not steel.  They exist only to say which area the tag
+  ;; belongs to, and the lightest mark that does that is the right one.
+  ;;
+  ;; DOTTED, at the thinnest pen the sheet uses (0.05), and the dot spacing is solved for PAPER
+  ;; millimetres for the same reason the outline is: DOT comes from the imperial acad.lin as
+  ;; 0.0 / -0.25, so at LTSCALE ~76 its gaps would be 19 mm and the "dotted" line would be four
+  ;; dots on a 30 m building.  1.2 mm between dots reads as a dotted line on any sheet.
+  (defun aDot (x1 y1 x2 y2)
+    (entmake (list (cons 0 "LINE") (cons 8 "AREA-MARK") (cons 62 8) (cons 370 5)
+                   (cons 6 "DOT") (cons 48 (/ 4.8 (max 1.0 (getvar "LTSCALE"))))
+                   (list 10 x1 y1 0.0) (list 11 x2 y2 0.0))))
   (defun aSol (x1 y1 x2 y2 x3 y3 x4 y4)                       ; FILLED grey quad (SOLID) for the drop-shadow
     (entmake (list (cons 0 "SOLID") (cons 8 "AREA-MARK") (cons 62 8)
                    (list 10 x1 y1 0.0) (list 11 x2 y2 0.0)   ; SOLID wants the 3rd/4th corner swapped
@@ -6138,10 +6179,10 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   (aLn aFL aFB aFR aFB) (aLn aFR aFB aFR aFT) (aLn aFR aFT aFL aFT) (aLn aFL aFT aFL aFB)
   ;; AREA CROSS LINES (Roshan, owner): each building corner leadered to the NEAREST corner of the AREA
   ;; tag box — the diagonals CONNECT to the tag box corners (owner 4-Jul: must touch the tag corners).
-  (aLn 0.0  0.0  (- aCx aBw) (- aCy aBh))   ; SW corner -> SW box corner
-  (aLn len  0.0  (+ aCx aBw) (- aCy aBh))   ; SE corner -> SE box corner
-  (aLn len  wid  (+ aCx aBw) (+ aCy aBh))   ; NE corner -> NE box corner
-  (aLn 0.0  wid  (- aCx aBw) (+ aCy aBh))   ; NW corner -> NW box corner
+  (aDot 0.0  0.0  (- aCx aBw) (- aCy aBh))   ; SW corner -> SW box corner
+  (aDot len  0.0  (+ aCx aBw) (- aCy aBh))   ; SE corner -> SE box corner
+  (aDot len  wid  (+ aCx aBw) (+ aCy aBh))   ; NE corner -> NE box corner
+  (aDot 0.0  wid  (- aCx aBw) (+ aCy aBh))   ; NW corner -> NW box corner
   ;; centred area label inside the box (real number)
   (setvar "CLAYER" "TEXT")
   (txt-bold "MC" (list aCx aCy) (peb-th 'SMALL) 0 aLbl)

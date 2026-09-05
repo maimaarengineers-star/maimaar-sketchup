@@ -19,7 +19,7 @@
     ("CROSS"               4    "Continuous" 0.18)
     ("BOLTS"               7    "Continuous" 0.09)
     ("PLATES"              1    "Continuous" 0.35)
-    ("FRAME"               7    "Continuous" 0.50)
+    ("FRAME"               1    "Continuous" 0.30)
     ("FRAME-FILL"          8    "Continuous" 0.09)
     ("RIDGE"               5    "HIDDEN" 0.18)
     ("RAFTER"              8    "HIDDEN" 0.09)
