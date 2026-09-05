@@ -36,19 +36,41 @@ const ti = process.argv.indexOf('--tol');
 const TOL = ti > 0 ? parseFloat(process.argv[ti + 1]) : 250;
 if (!file) { console.error('usage: node mladderpoint.js <file.dxf> [--all] [--tol <units>]'); process.exit(2); }
 
-// label wording -> the layer(s) its arrow is allowed to land on
+// WHAT THE ARROW MUST TOUCH, AND WHAT IT SHOULD BE.
+//
+// THE MAP IS READ OFF THE DRAWING, not invented. My first version assumed each member sits on an
+// eponymous layer - GIRT on GIRTS, RAFTER on RAFTER - and reported "nearest girt 49,272 units away"
+// on labels that were perfectly placed. There is no RAFTER layer at all; rafters are STRUCTURE, a
+// column can be COLUMNS or COL-OUTER, and on the cross-section the girt is drawn inside the wall
+// assembly on CLADDING. Layer names checked against the rendered DXF, not guessed from the word.
+//
+// TWO QUESTIONS, IN ORDER OF HOW MUCH I TRUST THE ANSWER:
+//
+//  1. DOES THE ARROW TOUCH ANYTHING AT ALL? This needs no map and cannot be argued with. It is
+//     also the failure the reference photo names - "MLadder Arrow Should Touch the Rafter" - and
+//     the one that actually looks wrong on paper: an arrow floating two metres off its member.
+//     THIS is what fails the run.
+//
+//  2. IS THE THING IT TOUCHES THE RIGHT MEMBER? Reported, not enforced, because the map is a
+//     judgement about how this engine draws and I would rather show the layer and the distance and
+//     let a person decide than fail a build on my reading of it.
+// WRITTEN OUT WITH REAL \b WORD BOUNDARIES. The previous version of this array reached the file
+// through a NON-RAW Python string, which turned every \b into a literal BACKSPACE byte (0x08): the
+// patterns looked correct in a diff, matched nothing at all, and the checker cheerfully reported
+// "2 of 2 touch their member" on a drawing carrying fifteen more callouts. The same trap cost a
+// regex earlier in this session. It is invisible precisely because a backspace prints as nothing.
 const EXPECT = [
-  [/\bGIRTS?\b/i,                      /^GIRTS?$/i],
-  [/\bPURLINS?\b/i,                    /^PURLINS?$/i],
-  [/\bROOF SHEETING\b|\bWALL SHEETING\b|\bSHEETING\b|\bCLADDING\b/i, /SHEETING|CLADDING/i],
-  [/\bRAFTERS?\b/i,                    /^(FRAME|STRUCTURE|RAFTER)/i],
-  [/\bCOLUMNS?\b/i,                    /^(FRAME|STRUCTURE|COLUMN)/i],
-  [/\bEAVE GUTTER\b|\bGUTTER\b/i,      /GUTTER|TRIM|SHEETING/i],
-  [/\bDOWN ?PIPE\b|\bDOWN ?SPOUT\b/i,  /PIPE|SPOUT|TRIM|SHEETING/i],
-  [/\bBRACING\b|\bBRACE\b/i,           /BRACING|CROSS/i],
-  [/\bINSULATION\b/i,                  /SHEETING|CLADDING|INSUL/i],
-  [/\bCRANE\b/i,                       /CRANE/i],
-  [/\bBASE PLATE\b|\bANCHOR\b/i,       /PLATE|FRAME|STRUCTURE/i],
+  [/\bGIRTS?\b/i,                     /^(GIRTS|CLADDING)$/i],
+  [/\bPURLINS?\b/i,                   /^PURLINS$/i],
+  [/\bSHEETING\b|\bCLADDING\b/i,      /^(SHEETING|CLADDING)$/i],
+  [/\bRAFTERS?\b/i,                   /^(STRUCTURE|FRAME|COLUMNS|COL-OUTER)$/i],
+  [/\bCOLUMNS?\b/i,                   /^(COLUMNS|COL-OUTER|STRUCTURE|FRAME)$/i],
+  [/\bGUTTER\b/i,                     /^(GUTTER|CLADDING|SHEETING)$/i],
+  [/\bDOWN ?PIPE\b|\bDOWN ?SPOUT\b/i, /^(GUTTER|CLADDING|SHEETING)$/i],
+  [/\bBRACING\b|\bBRACE\b/i,          /^(CROSS|BRACING)$/i],
+  [/\bINSULATION\b/i,                 /^(CLADDING|SHEETING)$/i],
+  [/\bCRANE\b/i,                      /^COMP-CRANE/i],
+  [/\bBASE PLATE\b|\bANCHOR\b/i,      /^(PLATES|BOLTS|STRUCTURE|FRAME)$/i],
 ];
 
 function expectedFor(txt) {
@@ -166,10 +188,9 @@ console.log('  callouts checked: %d   (%d MLEADER, %d text+leader)   tolerance %
   ladders.length, ladders.filter((l) => !l.plain).length, ladders.filter((l) => l.plain).length, TOL);
 if (!ladders.length) { console.log('  nothing to check'); process.exit(0); }
 
-let bad = 0;
+let bad = 0, mismatched = 0;
 for (const L of ladders) {
   const want = expectedFor(L.txt);
-  // what is actually nearest the tip, and what is the nearest thing on the EXPECTED layer
   let near = null, nearOnWanted = null;
   for (const s of segs) {
     if (!isMemberGeom(s[4])) continue;                    // (2) not the leader's own arrowhead
@@ -177,23 +198,27 @@ for (const L of ladders) {
     if (!near || d < near.d) near = { d, lay: s[4] };
     if (want && want.test(s[4]) && (!nearOnWanted || d < nearOnWanted.d)) nearOnWanted = { d, lay: s[4] };
   }
-  const label = String(L.txt).replace(/\s+/g, ' ').slice(0, 44);
-  if (!want) {
+  const label = String(L.txt).replace(/\s+/g, ' ').slice(0, 42);
+  // 1. TOUCHING - the hard rule.
+  if (!near || near.d > TOL) {
     bad++;
-    console.log('  UNMAPPED  "%s"  - no member word this checker knows; nearest is %s at %d',
+    console.log('  NOT TOUCHING  "%s"  - nearest member geometry is %s, %d away',
       label, near ? near.lay : '(nothing)', near ? Math.round(near.d) : -1);
     continue;
   }
-  const ok = nearOnWanted && nearOnWanted.d <= TOL;
-  if (ok) {
-    if (showAll) console.log('  ok        "%s"  -> %s at %d', label, nearOnWanted.lay, Math.round(nearOnWanted.d));
-  } else {
-    bad++;
-    if (!near) console.log('  NOTHING   "%s"  - the tip points at empty space', label);
-    else console.log('  WRONG     "%s"  - tip is on %s (%d away); nearest %s is %s',
-      label, near.lay, Math.round(near.d), String(want).replace(/[/^$i]/g, ''),
-      nearOnWanted ? Math.round(nearOnWanted.d) + ' away' : 'nowhere on the sheet');
+  // 2. the right member - a note.
+  const right = want ? want.test(near.lay) : null;
+  if (right === false) {
+    mismatched++;
+    // Node's console.log has no %-14s; padEnd does the column instead of printing the directive.
+    console.log('  WRONG MEMBER  "%s"  - touches %s, but the wording implies %s%s',
+      label, (near.lay + '@' + Math.round(near.d)).padEnd(20),
+      String(want).replace(/[/^$i()]/g, '').replace(/\|/g, ' or '),
+      nearOnWanted ? '  (nearest such: ' + nearOnWanted.lay + '@' + Math.round(nearOnWanted.d) + ')' : '  (none on this sheet)');
+  } else if (showAll) {
+    console.log('  ok            "%s"  -> %s at %d', label, near.lay, Math.round(near.d));
   }
 }
-console.log('  %s', bad ? bad + ' M-Ladder(s) not pointing at their member' : 'every M-Ladder points at the member it names');
+console.log('  %d of %d touch their member; %d point at nothing, %d touch a layer the wording does not imply',
+  ladders.length - bad, ladders.length, bad, mismatched);
 process.exitCode = bad ? 1 : 0;
