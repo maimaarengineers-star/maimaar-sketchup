@@ -356,14 +356,14 @@ Owner 5-Sep-2026, three messages that together close the whole junction:
 > *"Also EndCarriage will be 300mmx300 Box i think & Wheel is 50mm overlapping with end carriage"*
 
 ```
-   carriage top      TOR + 335     <- the girder's reduced end web lands here
-   carriage soffit   TOR +  35         300 x 300 square box, 1500 LONG
-   wheel top         TOR +  85         the wheel laps 50 UP into the box
+   carriage top      TOR + 218     <- the girder's reduced end web JUST RESTS here
+   carriage soffit   TOR +  18         200 x 200 square box, 1500 LONG
+   wheel top         TOR +  85         the wheel laps 67 UP into the box
    TOP OF RAIL       TOR    0          50 x 50 rail, on the beam centreline
    wheel bottom      TOR -  15         and 15 DOWN past the rail, flanges either side
 ```
 
-**100 wheel = 15 down + 50 inside the carriage + 35 showing between them.** (The lap on
+**100 wheel x 18 wide = 15 down + 18 of open gap + 67 inside the carriage.** (The lap on
 the rail was given as 25 and corrected to 15: *"sorry overlap of wheel with crane rail only
 15mm"*.) The three figures
 are mutually consistent, which is the check that they are remembered right.
@@ -415,3 +415,22 @@ drawn; both other figures are in the page-4 data block so the disagreement is vi
 `et` in `peb-draw-crane-sample` is now a **layout pitch only** — the spacing the top view's
 labels and page window are set out on. It used to be the wheel base, so shortening the carriage
 from 3,900 to 1,500 would have collapsed the whole top view with it.
+
+
+### Corrections after the first render of this junction
+
+Owner, marking up the section (`Rendered Pictures/"The small gap bw the Crane Rail and End
+Carriage & Wheel Width is only 15-20mm..."`) and following it:
+
+- **Wheel width 18** — *"Wheel Width is only 15-20mm showing the lines of wheel depth which runs
+  on the crane railing."* Seen end-on a wheel IS two lines: the tread is all the width there is.
+  It had been drawn 60 wide with 87 across the flanges, a squat block where two lines belong.
+- **Rail gap 18** — top of rail to the underside of the carriage box.
+- **The 67 lap into the carriage is now DERIVED**, not stored: `100 − 15 − 18`. The earlier
+  *"Wheel is 50mm overlapping with end carriage"* (itself prefixed *"i think"*) cannot hold at
+  the same time as an 18 gap. The two figures marked on the drawing are taken as given and the
+  lap follows from them — set `peb-crn-rail-gap` to 35 and the lap returns to 50 on its own.
+- **Carriage 200 × 200** — *"Decrease the size of 200x200mm."*
+- **No seats on the carriage top** — *"your drawings are showing boxes on the End Carriage. there
+  are no such boxes. Bridge Just Rest On It."* Those were the GH catalogue's double-girder
+  bearing pads. On this crane the bridge lands on a plain box top.

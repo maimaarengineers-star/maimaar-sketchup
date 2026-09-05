@@ -343,6 +343,31 @@
 (defun peb-crn-wheel-dia     (cap) 100.0)
 (defun peb-crn-wheel-overlap (cap) 15.0)   ; corrected from 25 - owner, 5-Sep-2026
 
+;; ── HOW WIDE IT IS, AND THE GAP UNDER THE CARRIAGE ─────────────────────────────────────────
+;; Owner 5-Sep-2026, marking up the section itself (Rendered Pictures/"The small gap bw the Crane
+;; Rail and End Carriage & Wheel Width is only 15-20mm showing the lines of wheel depth which
+;; runs on the crane railing"):
+;;
+;;   "The small gap b/w the Crane Rail and End Carriage & Wheel Width is only 15-20mm, showing
+;;    the lines of wheel depth which runs on the crane railing"
+;;
+;; The red was on the two vertical lines rising off the rail and on the space beside them. So
+;; BOTH figures are 15-20, and 18 is taken for each:
+;;
+;;   WHEEL WIDTH   18 - the tread, seen end-on. It was drawn 60 wide with 87 across the flanges,
+;;                 which made a squat block where the owner wants two lines. Seen along the
+;;                 runway a wheel IS two lines: the tread is all the width there is.
+;;   RAIL GAP      18 - top of rail to the underside of the carriage box.
+;;
+;; THIS RE-DERIVES THE LAP INTO THE CARRIAGE. A 100 wheel that laps 15 below the rail shows 85
+;; above it, and if only 18 of that is open gap then 67 is inside the box - not the 50 given
+;; earlier ("Wheel is 50mm overlapping with end carriage", itself prefixed "i think"). The three
+;; cannot all hold at once, so the two the owner has just marked on the drawing are taken as
+;; given and the lap is computed from them. If the 50 is the firm one, set peb-crn-rail-gap to
+;; 35 and the lap returns to 50 on its own.
+(defun peb-crn-wheel-width (cap) 18.0)
+(defun peb-crn-rail-gap    (cap) 18.0)
+
 ;; ── THE CARRIAGE, AS THE OWNER HAS IT ──────────────────────────────────────────────────────
 ;; Owner 5-Sep-2026: "Also EndCarriage will be 300mmx300 Box i think & Wheel is 50mm overlapping
 ;; with end carriage."
@@ -350,9 +375,9 @@
 ;; So a SQUARE 300 x 300 box, and the wheel stands 50 up inside it. With the wheel's own two
 ;; figures that closes the whole stack, and every number in it now comes from the owner:
 ;;
-;;      carriage top      TOR + 335     <- the girder's reduced end web lands here
-;;      carriage soffit   TOR +  35         300 deep
-;;      wheel top         TOR +  85         the wheel laps 50 up into the box
+;;      carriage top      TOR + 218     <- the girder's reduced end web lands here
+;;      carriage soffit   TOR +  18         200 x 200 box, 1500 long
+;;      wheel top         TOR +  85         the wheel laps 67 up into the box
 ;;      TOP OF RAIL       TOR   0
 ;;      wheel bottom      TOR -  15         and 15 down past the rail, flanges either side
 ;;
@@ -364,9 +389,13 @@
 ;; The GH catalogue said 345 deep and 128 wide for this size. The owner's 300 x 300 is used - a
 ;; figure from the job outranks a vendor band - but GH still supplies A2 - A1, the overhang past
 ;; the wheel centres, which the owner has not given.
-(defun peb-crn-carriage-depth      (cap) 300.0)
-(defun peb-crn-carriage-width      (cap) 300.0)
-(defun peb-crn-wheel-in-carriage   (cap)  50.0)
+;; 200 x 200, decreased from the 300 x 300 first given (owner 5-Sep-2026: "Decrease the size of
+;; 200x200mm"). Still well under the girder it carries, which is the proportion that matters.
+(defun peb-crn-carriage-depth      (cap) 200.0)
+(defun peb-crn-carriage-width      (cap) 200.0)
+;; DERIVED, not stored: 100 wheel, less the 15 below the rail, less the 18 of open gap.
+(defun peb-crn-wheel-in-carriage   (cap)
+  (- (peb-crn-wheel-dia cap) (peb-crn-wheel-overlap cap) (peb-crn-rail-gap cap)))
 ;; ── AND IT IS SHORT ────────────────────────────────────────────────────────────────────────
 ;; Owner 5-Sep-2026: "Length of End Carriage is Not Much - Maximum 1500mm i think."
 ;;
@@ -388,10 +417,8 @@
 (defun peb-crn-carriage-over  (cap) (* 2.0 (peb-crn-carriage-clear cap)))   ; A2 - A1
 (defun peb-crn-carriage-end   (cap) (nth 3  (peb-crn-carriage-row (peb-crn-carriage-band cap))))
 
-;; top of rail -> underside of the carriage box. The wheel shows (100 - 25) above the rail and
-;; the box swallows the top 50 of that, so the soffit is 25 above the rail.
-(defun peb-crn-carriage-soffit (cap)
-  (- (- (peb-crn-wheel-dia cap) (peb-crn-wheel-overlap cap)) (peb-crn-wheel-in-carriage cap)))
+;; top of rail -> underside of the carriage box. That IS the gap the owner marked.
+(defun peb-crn-carriage-soffit (cap) (peb-crn-rail-gap cap))
 
 (defun peb-crn-girder-width (d) (* d 0.55))
 ;; Is this runway a built-up plate girder? (Thal rule, quoted above.)
@@ -796,7 +823,7 @@
 ;; 1,400 girder sitting on a 345 carriage.
 ;;
 ;;   cx  the rail centreline · railY top of rail · girderY girder soffit · cap capacity
-(defun peb-crn-carriage-endon (cx railY girderY cap / wd ov dp r hw yb)
+(defun peb-crn-carriage-endon (cx railY girderY cap / wd ov dp r fl hw yb)
   (setq wd (peb-crn-wheel-dia cap)     ov (peb-crn-wheel-overlap cap)
         dp (peb-crn-carriage-depth cap)
         ;; seen end-on the box shows its WIDTH. GH gives A16 = 128 for the box itself, but what
@@ -819,17 +846,20 @@
   ;;      75 above the rail   |‾‾|      narrow body, the tread
   ;;      ------------------ TOP OF RAIL
   ;;      25 lapped below   |____|      flanges, wider, straddling the rail head
-  (setq r (* wd 0.30))                          ; half the tread width
-  ;; the tread runs from the rail up past the box soffit - the last 50 of it is INSIDE the box
-  (peb-crn-wheel (- cx r) railY (- cx r) (+ railY (- wd ov)))         ; body, above the rail
-  (peb-crn-wheel (+ cx r) railY (+ cx r) (+ railY (- wd ov)))
+  ;; TWO LINES AND A PAIR OF FLANGES. The tread is 18 wide, so end-on that is all the wheel is:
+  ;; two verticals off the rail head running up into the carriage. The flanges are the only part
+  ;; wider than the tread, and they show only in the 15 that laps below the rail.
+  (setq r (* (peb-crn-wheel-width cap) 0.5)     ; half the tread - 9
+        fl (* (peb-crn-rail-width 400.0) 0.52)) ; half across the flanges, just outside the head
+  (peb-crn-wheel (- cx r) (- railY ov) (- cx r) (+ railY (- wd ov)))  ; the two lines of the tread
+  (peb-crn-wheel (+ cx r) (- railY ov) (+ cx r) (+ railY (- wd ov)))
   (peb-crn-wheel (- cx r) (+ railY (- wd ov)) (+ cx r) (+ railY (- wd ov)))
-  (peb-crn-wheel (- cx (* r 1.45)) railY (- cx r) railY)              ; the step out to the flanges
-  (peb-crn-wheel (+ cx (* r 1.45)) railY (+ cx r) railY)
-  (peb-crn-wheel (- cx (* r 1.45)) railY (- cx (* r 1.45)) (- railY ov))   ; flanges, lapping 25 down
-  (peb-crn-wheel (+ cx (* r 1.45)) railY (+ cx (* r 1.45)) (- railY ov))
-  (peb-crn-wheel (- cx (* r 1.45)) (- railY ov) (- cx (* r 0.62)) (- railY ov))
-  (peb-crn-wheel (+ cx (* r 1.45)) (- railY ov) (+ cx (* r 0.62)) (- railY ov))
+  (peb-crn-wheel (- cx fl) railY (- cx r) railY)                      ; step out to the flanges
+  (peb-crn-wheel (+ cx fl) railY (+ cx r) railY)
+  (peb-crn-wheel (- cx fl) railY (- cx fl) (- railY ov))              ; flanges, lapping 15 down
+  (peb-crn-wheel (+ cx fl) railY (+ cx fl) (- railY ov))
+  (peb-crn-wheel (- cx fl) (- railY ov) (- cx r) (- railY ov))
+  (peb-crn-wheel (+ cx fl) (- railY ov) (+ cx r) (- railY ov))
   (princ))
 
 ;; ── THE END CARRIAGE BODY - PURE GEOMETRY ──────────────────────────────────────────────────
@@ -844,7 +874,7 @@
 ;;
 ;;   cx  centre of the carriage   ·   cy  TOP OF RAIL   ·   wb wheel base   ·   cap capacity
 ;;   k   enlargement (1.0 at building scale)
-(defun peb-crn-carriage-body (cx cy wb cap k seats / wd lp dp ov r x0 x1 a b yb yt wy gx i)
+(defun peb-crn-carriage-body (cx cy wb cap k / wd lp dp ov r x0 x1 a b yb yt wy gx i)
   (setq wd (peb-crn-wheel-dia cap)     lp (peb-crn-wheel-overlap cap)
         dp (peb-crn-carriage-depth cap)   ov (peb-crn-carriage-over cap)
         r  (* k wd 0.5)
@@ -879,15 +909,11 @@
       (peb-crn-wheel (+ gx (* r 1.16)) (- cy (* k lp)) (+ gx (* r 1.16)) (+ cy (* r 0.30)))
       (peb-crn-wheel (- gx (* r 1.16)) (- cy (* k lp)) (- gx (* r 0.90)) (- cy (* k lp)))
       (peb-crn-wheel (+ gx (* r 1.16)) (- cy (* k lp)) (+ gx (* r 0.90)) (- cy (* k lp)))))
-  ;; THE GIRDER SEATS on top - a double girder lands at two points. Drawn only when the girder
-  ;; ITSELF is not on the view: on the side view the girder is right there, sitting on them, and
-  ;; the seats came up through its soffit.
-  (if seats
-    (foreach gx (list (- cx (* k wb 0.22)) (+ cx (* k wb 0.22)))
-      (progn
-        (peb-crn-dash (- gx (* k 120.0)) yt (- gx (* k 120.0)) (+ yt (* k dp 0.55)))
-        (peb-crn-dash (+ gx (* k 120.0)) yt (+ gx (* k 120.0)) (+ yt (* k dp 0.55)))
-        (peb-crn-dash (- gx (* k 120.0)) (+ yt (* k dp 0.55)) (+ gx (* k 120.0)) (+ yt (* k dp 0.55))))))
+  ;; NO SEATS ON TOP. Owner 5-Sep-2026: "your drawings are showing boxes on the End Carriage.
+  ;; there are no such boxes. Bridge Just Rest On It." This used to draw two raised seat boxes on
+  ;; the carriage top, taken from the GH catalogue's double-girder arrangement where the girders
+  ;; land at two bolted pads. On this crane the bridge simply lands on the top of the box, so the
+  ;; top of the carriage is a plain line and nothing stands on it.
   ;; THE TRAVEL GEARMOTOR, on one wheel
   (peb-crn-motor (+ b (* r 1.3)) (+ yb (* k dp 0.18)) (+ b (* r 3.1)) (+ yb (* k dp 0.18)))
   (peb-crn-motor (+ b (* r 1.3)) (+ yb (* k dp 0.72)) (+ b (* r 3.1)) (+ yb (* k dp 0.72)))
@@ -908,7 +934,7 @@
   (peb-crn-sample-solid (- x0 (* k 420.0)) (- cy (* k 50.0)) (+ x1 (* k 420.0)) (- cy (* k 50.0)))
   (txt "ML" (list (+ x1 (* k 500.0)) (- cy (* k 25.0))) (* th 0.9) 0.0
        "CRANE RAIL  (MAIMAAR SCOPE)")
-  (peb-crn-carriage-body cx cy wb cap k T)
+  (peb-crn-carriage-body cx cy wb cap k)
   ;; dimensions and notes
   (peb-crn-dimh a b (+ yt (* k dp 1.5)) (strcat "WHEEL BASE  A1  " (rtos wb 2 0)) th)
   (peb-crn-dimh x0 x1 (+ yt (* k dp 2.4)) (strcat "OVERALL  A2  " (rtos (+ wb ov) 2 0)) th)
@@ -919,12 +945,13 @@
   (peb-crn-note (+ b (* r 2.2)) (+ yb (* k dp 0.45)) (+ x1 (* k 500.0)) (+ yb (* k dp 1.15))
                 "TRAVEL GEARMOTOR" th "ML")
   (peb-crn-note cx yt (- x0 (* k 620.0)) (+ yt (* k dp 0.95))
-                (strcat "WELDED BOX  " (rtos (peb-crn-carriage-width cap) 2 0)
-                        " WIDE  -  THE GIRDERS LAND ON TOP") th "MR")
+                (strcat "WELDED BOX  " (rtos (peb-crn-carriage-width cap) 2 0) " X "
+                        (rtos (peb-crn-carriage-depth cap) 2 0)
+                        " BOX  -  THE BRIDGE JUST RESTS ON TOP") th "MR")
   (txt "MC" (list cx (- cy (* k 50.0) (* th 2.2))) (* th 1.05) 0.0
        "END CARRIAGE  -  ONE AT EACH END OF THE BRIDGE")
   (txt "MC" (list cx (- cy (* k 50.0) (* th 3.9))) (* th 0.9) 0.0
-       "SIZES FROM THE GH END CARRIAGES CATALOGUE  -  CRANE SUPPLIER'S SCOPE, SHOWN FOR CLEARANCE")
+       "OWNER'S MEASURED SIZES  -  CRANE SUPPLIER'S SCOPE, SHOWN FOR CLEARANCE")
   (princ))
 
 (defun peb-crn-beam-detail (cx cy bd k th / bw ft wt sw st rh rw
@@ -988,18 +1015,19 @@
   ;; And it is SMALL: 100 tall against a 420 beam, with 25 of that lapping down past the top of
   ;; rail. The previous 250 came off the GH catalogue band; the 100 is measured.
   (setq wd (peb-crn-wheel-dia 10.0) lp (peb-crn-wheel-overlap 10.0)
-        tw (* k wd 0.30)                        ; half the tread width
-        fw (* k wd 0.435)                       ; half across the flanges
+        tw (* k (peb-crn-wheel-width 10.0) 0.5)  ; half the tread - the wheel is 18 wide
+        fw (* k rw 0.52)                         ; half across the flanges, just outside the head
         gy (+ yr (* k (peb-crn-carriage-soffit 10.0)) (* k (peb-crn-carriage-depth 10.0))))
-  (peb-crn-wheel (- cx tw) yr (- cx tw) (+ yr (* k (- wd lp))))          ; tread, above the rail
-  (peb-crn-wheel (+ cx tw) yr (+ cx tw) (+ yr (* k (- wd lp))))
+  ;; the two lines of the tread, off the rail head and up into the carriage
+  (peb-crn-wheel (- cx tw) (- yr (* k lp)) (- cx tw) (+ yr (* k (- wd lp))))
+  (peb-crn-wheel (+ cx tw) (- yr (* k lp)) (+ cx tw) (+ yr (* k (- wd lp))))
   (peb-crn-wheel (- cx tw) (+ yr (* k (- wd lp))) (+ cx tw) (+ yr (* k (- wd lp))))
   (peb-crn-wheel (- cx fw) yr (- cx tw) yr)                              ; step out to the flanges
   (peb-crn-wheel (+ cx fw) yr (+ cx tw) yr)
-  (peb-crn-wheel (- cx fw) yr (- cx fw) (- yr (* k lp)))                 ; flanges, lapping 25 down
+  (peb-crn-wheel (- cx fw) yr (- cx fw) (- yr (* k lp)))                 ; flanges, lapping 15 down
   (peb-crn-wheel (+ cx fw) yr (+ cx fw) (- yr (* k lp)))
-  (peb-crn-wheel (- cx fw) (- yr (* k lp)) (- cx (* tw 0.6)) (- yr (* k lp)))
-  (peb-crn-wheel (+ cx fw) (- yr (* k lp)) (+ cx (* tw 0.6)) (- yr (* k lp)))
+  (peb-crn-wheel (- cx fw) (- yr (* k lp)) (- cx tw) (- yr (* k lp)))
+  (peb-crn-wheel (+ cx fw) (- yr (* k lp)) (+ cx tw) (- yr (* k lp)))
   ;; THE END CARRIAGE sitting on it - a 300 x 300 box, with the top 50 of the wheel inside it
   (peb-crn-dash (- cx (* k 150.0)) (+ yr (* k (peb-crn-carriage-soffit 10.0)))
                 (+ cx (* k 150.0)) (+ yr (* k (peb-crn-carriage-soffit 10.0))))
@@ -1014,6 +1042,11 @@
                 (rtos wd 2 0) th)
   (peb-crn-dimv (- yr (* k lp)) yr (+ cx (* fw 2.4))
                 (rtos lp 2 0) th)
+  ;; the gap dim goes on the LEFT - on the right it sat shoulder to shoulder with the 15 lap
+  (peb-crn-dimv yr (+ yr (* k (peb-crn-rail-gap 10.0))) (- cx (* fw 4.2))
+                (rtos (peb-crn-rail-gap 10.0) 2 0) th)
+  (peb-crn-dimh (- cx tw) (+ cx tw) (+ yr (* k (- wd lp)) (* k 40.0))
+                (strcat "WHEEL WIDTH  " (rtos (peb-crn-wheel-width 10.0) 2 0)) th)
   (peb-crn-dimv (+ yr (* k (peb-crn-carriage-soffit 10.0))) gy (- cx (* k 230.0))
                 (rtos (peb-crn-carriage-depth 10.0) 2 0) th)
   ;; THE BRACKET - the beam SITS ON IT (reference/1-2-1.png), so its top is at the bottom flange.
@@ -1354,15 +1387,16 @@
       (strcat "CAPACITY  " (rtos cap 2 0) " MT")
       "TYPE  TOP RUNNING (TR)  -  manual ch.8 lists TR / monorail / underhung / jib / semi-gantry"
       "END CARRIAGE WHEELS  2 PER END, 4 TOTAL  -  manual ch.8  NWb = 2  (worked 10 MT example)"
-      "WHEEL  100 HIGH; 15 LAPPED DOWN ONTO THE RAIL, 50 UP INTO THE CARRIAGE  -  owner"
+      "WHEEL  100 HIGH X 18 WIDE; 15 LAPS DOWN ONTO THE RAIL  -  owner, 5-Sep-2026"
+      "   18 OF OPEN GAP ABOVE THE RAIL, THEN 67 INSIDE THE CARRIAGE  -  the 67 is DERIVED"
       "   (the GH catalogue band would give 250 at 10 MT - the measured figure is used)"
       "RUNWAY TOLERANCE  RAIL TO WEB ECCENTRICITY <= 0.75 x WEB THICKNESS  -  CMAA/AISC"
-      "END CARRIAGE  WELDED BOX, WHEELS ON THE BOTTOM RUNNING ON THE RAIL  -  GH catalogue"
-      "   300 X 300 SQUARE BOX, 1500 LONG, UNDER A 1000-1400 GIRDER  -  owner, 5-Sep-2026"
+      "END CARRIAGE  WELDED BOX, WHEELS ON THE BOTTOM; THE BRIDGE JUST RESTS ON TOP"
+      "   200 X 200 SQUARE BOX, 1500 LONG, UNDER A 1000-1400 GIRDER  -  owner, 5-Sep-2026"
       "WHEEL BASE  1200, FROM A 1500 CARRIAGE LESS 150 EACH END  -  owner"
       "   NOTE  the live BSF (MSPL-26-276) carries 3,900 ; CMAA guidance is >= span/7 = 3,048"
       "   a short wheel base under a long span is what lets a crane skew on its runway"
-      "   STACK  TOR -15 wheel bottom / 0 rail / +35 box soffit / +85 wheel top / +335 box top"
+      "   STACK  TOR -15 wheel bottom / 0 rail / +18 box soffit / +85 wheel top / +218 box top"
       "VERTICAL IMPACT  10%  PENDANT OPERATED  -  manual table 8.3"
       "CMAA SERVICE CLASS  C  -  manual table 8.1"
       "LONGITUDINAL  10% OF MAX WHEEL LOAD, AT TOP OF RAILS  -  manual ch.8 sec 2.4.4"
