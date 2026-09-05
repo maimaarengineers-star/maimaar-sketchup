@@ -7603,7 +7603,18 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   ;; Force text height = body text height (220 × scale).  Caller can
   ;; override later if it wants something bigger (e.g. heading).
   (vl-catch-all-apply
-    (function (lambda () (vla-put-TextHeight mleader (* 600.0 scl)))))   ; Phase-2A v4: 600 base
+    ;; ── DO NOT PRE-MULTIPLY BY THE TEXT SCALE (S57; owner 5-Sep-2026) ───────────────────────
+    ;; vla-put-ScaleFactor above already scales the whole multileader, TEXT HEIGHT INCLUDED, so
+    ;; (* 600 scl) squared the scale: on the cross-section (TS 1.536) the cladding callout came
+    ;; out at 600 x 1.536 x 1.536 = 1,417, printing at 3.6 mm on paper against 1.3 mm member
+    ;; call-outs and a 4.6 mm sheet title. It shouted over the drawing it was annotating and ran
+    ;; into the sheet's own subtitle.
+    ;;
+    ;; THIS is the copy that runs. Section.lsp defines peb-make-mleader too, but load order is
+    ;; Standard -> Section -> Plan and defun is last-writer-wins, so the section's own copy is
+    ;; dead code - fixing it there changed nothing at all, and the render came back byte for byte
+    ;; identical. Both are corrected so they cannot disagree, but this is the live one.
+    (function (lambda () (vla-put-TextHeight mleader 600.0))))   ; base only - ScaleFactor scales it
   ;; Use Standard text style by default.  Callers wanting bold/Arial
   ;; should embed MText format codes (e.g. "{\\Fromand.shx;…}") in the
   ;; text string — this leaves regular weight as the surrounding default.

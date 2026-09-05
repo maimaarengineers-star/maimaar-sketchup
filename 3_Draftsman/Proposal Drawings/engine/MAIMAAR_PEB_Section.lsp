@@ -1181,7 +1181,16 @@
   ;; Force text height = body text height (220 × scale).  Caller can
   ;; override later if it wants something bigger (e.g. heading).
   (vl-catch-all-apply
-    (function (lambda () (vla-put-TextHeight mleader (* 600.0 scl)))))   ; Phase-2A v4: 600 base
+    ;; ── DO NOT PRE-MULTIPLY BY THE TEXT SCALE (S57; owner 5-Sep-2026) ───────────────────────
+    ;; vla-put-ScaleFactor above already scales the whole multileader, TEXT HEIGHT INCLUDED.
+    ;; Handing it (* 600 scl) as well squared the scale: on the cross-section, TS 1.536 gave
+    ;; 600 x 1.536 x 1.536 = 1,417, and the cladding callout printed at 3.6 mm on paper against
+    ;; 1.3 mm member call-outs and a 4.6 mm sheet title - the note shouted over the drawing it
+    ;; was annotating, and ran into the sheet's own subtitle.
+    ;; 600 base, scaled ONCE by the MLEADER, is 922 at TS 1.536 - which is exactly the number
+    ;; peb-clad-maxch measures its line wrap against, so the two now agree by construction
+    ;; instead of by coincidence.
+    (function (lambda () (vla-put-TextHeight mleader 600.0))))   ; base only - ScaleFactor scales it
   ;; Use Standard text style by default.  Callers wanting bold/Arial
   ;; should embed MText format codes (e.g. "{\\Fromand.shx;…}") in the
   ;; text string — this leaves regular weight as the surrounding default.
@@ -1319,14 +1328,27 @@
   )
 )
 
-(defun peb-label-pline-leader (text labelPos arrowPt leaderDir textH / )
+(defun peb-label-pline-leader (text labelPos arrowPt leaderDir textH / tHs)
   ;;  owner 14-Jul: COLUMN / GIRT / DOWN PIPE leaders must show a CLEAN arrowhead pointing STRAIGHT AT the
   ;;  element (horizontal ◄ / ► for a side target) — the native MLEADER arrow renders as a stray downward
   ;;  triangle.  Bypass the mleader entirely: plain MTEXT/text label + a hand-rolled PLINE L-leader
   ;;  (draw-l-leader lays a correctly-oriented tapered tip exactly at the target).
+  ;; ── THE TWO BRANCHES MUST PRINT THE SAME SIZE (S57; owner 5-Sep-2026) ─────────────────────
+  ;; peb-make-mtext-line takes a FINAL height; txt takes a RAW one and multiplies it by
+  ;; *PEB-TEXT-SCALE*. Handing both the same 220 meant this one label printed at 220 when the
+  ;; MTEXT succeeded and 338 when it fell back - the same call, two sizes, decided by whether an
+  ;; ActiveX call threw.
+  ;;
+  ;; It also put GIRT / DOWN PIPE / COLUMN at 220 on a cross-section where RAFTER and EAVE GUTTER
+  ;; - same kind of label, same 220 in the source, but routed through peb-label-with-leader, which
+  ;; goes via txt - printed at 338. On paper that is 1.3 mm against 2.0 mm: the owner's "size of
+  ;; text for different labelling are too small, too big", in one sheet.
+  ;;
+  ;; Scale once, here, so both branches and both helpers agree.
+  (setq tHs (* textH (if (and *PEB-TEXT-SCALE* (> *PEB-TEXT-SCALE* 0.01)) *PEB-TEXT-SCALE* 1.0)))
   (if (vl-catch-all-error-p
-        (vl-catch-all-apply 'peb-make-mtext-line (list labelPos textH 0 "ML" text)))
-    (txt "ML" labelPos textH 0 text))
+        (vl-catch-all-apply 'peb-make-mtext-line (list labelPos tHs 0 "ML" text)))
+    (txt "ML" labelPos textH 0 text))          ; txt applies the scale itself - hand it the RAW height
   (draw-l-leader (car labelPos) (cadr labelPos) (car arrowPt) (cadr arrowPt) leaderDir)
 )
 
@@ -6898,12 +6920,14 @@
   out)
 
 ;; Characters that fit in `avail` model units at the sheeting M-Ladder's PLOTTED text height.
-;; 922 x TS x 0.42 = 595 at TS 1.536, which is what the rendered sheet measures; 0.94 em per
+;; 600 (the MLEADER base) x TS x 0.42 = 387 at TS 1.536, which is what the rendered sheet
+;; measures once the scale is applied ONCE - see peb-make-mleader, where it used to be squared;
+;; 0.94 em per
 ;; character is the measured ROMAND advance (GOLDEN_RULES 37). Floored at 12 so a narrow
 ;; building gets a readable stack rather than one word per line.
 (defun peb-clad-maxch (avail ts / h n)
   (setq ts (if (and ts (> ts 0.0)) ts 1.0)
-        h  (* 922.0 ts 0.42)
+        h  (* 600.0 ts 0.42)
         n  (if (> h 0.0) (fix (/ (- (abs avail) (* 900.0 ts)) (* h 0.94))) 20))
   (max 12 (min 30 n)))
 
