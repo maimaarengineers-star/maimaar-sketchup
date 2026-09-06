@@ -130,7 +130,19 @@
   (setq su     (if *PEB-TEXT-SCALE* *PEB-TEXT-SCALE* 1.0)
         len    (atof (peb-tb-or (MSPL-Get-Str data "LENGTH") "0"))
         wid    (atof (peb-tb-or (MSPL-Get-Str data "WIDTH")  "0"))
-        eaveH  (atof (peb-tb-or (MSPL-Get-Str data "CLEARHEIGHT") "4000"))
+        ;; GOLDEN RULE 4B.7 - EAVE HEIGHT IS FFL TO THE TOP OF THE EAVE STRUT.
+        ;; This read CLEARHEIGHT raw and used the result as BOTH the wall top and the height
+        ;; dimension, so on an EAVE-basis job the wall was drawn short by the haunch + purlin
+        ;; and the arrow stopped at the top of the column - while the SAME sheet set's section
+        ;; and title block both ran to the top of the eave strut. Framing.lsp was fixed for
+        ;; this in 4B.7; the wall elevations never were. peb-clear-height backs an EAVE-basis
+        ;; figure down to clear, peb-eave-add puts the haunch + purlin back, so the number is
+        ;; right whichever basis the BSF was filled on.
+        ;; GUARDED: both helpers live in Plan.lsp, which the per-sheet loader can leave out of
+        ;; an Elevation-only page selection - the same reason peb-dim-v-native is checked below.
+        eaveH  (if (and (boundp 'peb-clear-height) (boundp 'peb-eave-add))
+                 (+ (peb-clear-height data) (peb-eave-add data))
+                 (atof (peb-tb-or (MSPL-Get-Str data "CLEARHEIGHT") "4000")))
         brickH (atof (peb-tb-or (MSPL-Get-Str data "BRICKHEIGHT") "0"))
         stype  (strcase (peb-tb-or (MSPL-Get-Str data "STYPE") "CS"))
         slopeD (slope-denom (peb-tb-or (MSPL-Get-Str data "SLOPE") "10"))

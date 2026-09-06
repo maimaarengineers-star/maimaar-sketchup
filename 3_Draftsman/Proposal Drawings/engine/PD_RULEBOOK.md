@@ -257,6 +257,27 @@ number already contains haunch + purlin and BOTH are backed out:
 *Consequence:* a customer stating BOTH a clear and an eave height is assuming a shallower haunch
 than ours. Pick which number governs and say so.
 
+**S30 applies to EVERY sheet that draws a height, not just the section** (owner, 6-Sep-2026:
+*"once we say Eave Height, the Arrow Should Go till Top of Eave Strut, Make it Golden Rule"*).
+The section and the title block obeyed it from 3-Sep; the WALL ELEVATIONS did not. `Elevation.lsp`
+read `CLEARHEIGHT` raw into `eaveH` and used that ONE variable as **both the wall top and the
+height dimension**, so on an eave-basis job the wall was drawn short by haunch + purlin and the
+arrow stopped at the top of the column — the identical fault 4B.7 had already found and fixed in
+`Framing.lsp`, left standing one file away. Fixed 6-Sep: `eaveH = peb-clear-height + peb-eave-add`,
+guarded with `boundp` because both helpers live in `Plan.lsp` and the per-sheet loader can leave
+it out of an Elevation-only page selection. **Any new drawer that dimensions a height asks these
+two helpers — it never reads `CLEARHEIGHT` itself.**
+
+**S30b — A bubble is laid out at the radius it is DRAWN at.** `grid-bubble` draws at
+`(peb-bub-r)` = `*PEB-BUB-FIT*` × `max(900, 720 × TEXT-SCALE)`, and the per-sheet fit factor is
+1.31 on the column layout, 1.31 on the mezzanine plan, 1.24 on roof framing, 1.15 on sheeting
+elevations. The plan spaced its whole grid on the **unfitted** expression, so every circle came
+out up to 31% larger than the gap reserved for it, and the shrink-to-fit safety net moved the
+spacing while `grid-bubble` went on drawing the full-size circle into the smaller gap — the
+shrink was dead code. Fixed 6-Sep: the layout **asks** `(peb-bub-r)`, and shrink-to-fit scales
+`*PEB-BUB-FIT*` (which `grid-bubble` honours) rather than `*PEB-BUBRAD*` alone. **Never
+re-derive a radius a drawer will not use.**
+
 **S31 — Connections: two SOLID plates, no bolt circles.** `*PEB-CP-THK*` 30.0 · `*PEB-CP-GAP*`
 1.5 · `*PEB-CP-EXT*` 100.0. Each plate 30 mm, 1.5 mm seam, extended 100 mm past BOTH flanges
 (length ≥ web + 200). **GP gussets are filled-solid triangles on the rafter-flange SLOPE line**,

@@ -6449,7 +6449,13 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
         minSpY (peb-grid-min-gap gridWpts))
   ;; owner 4-Jul: bubbles must be big enough to READ — floor 900, growing with the building.
   ;; No spacing term here any more; spacing is answered by the row count below.
-  (setq *PEB-BUBRAD* (max 900.0 (* 720.0 *PEB-TEXT-SCALE*)))
+  ;; ONE RADIUS FOR BOTH THE LAYOUT AND THE CIRCLE (owner 6-Sep-2026: "the Bubbles must change
+  ;; with the size").  This computed max(900, 720 x TEXT-SCALE) and spaced the whole grid on it,
+  ;; but grid-bubble DRAWS at (peb-bub-r) = *PEB-BUB-FIT* x the same expression - and on the
+  ;; column layout that fit factor is 1.31.  So every circle came out 31% bigger than the gap
+  ;; reserved for it: the bubbles crowded, and on a tight grid they touched.  Ask for the radius
+  ;; that will actually be drawn instead of re-deriving a different one.
+  (setq *PEB-BUBRAD* (peb-bub-r))
   (setq bubPitch (+ (* 2.0 *PEB-BUBRAD*) (* 220.0 *PEB-TEXT-SCALE*)))   ; centre-to-centre needed
   (setq bubRowsX (peb-bub-rows bubPitch minSpX)
         bubRowsY (peb-bub-rows bubPitch minSpY))
@@ -6461,7 +6467,14 @@ PEB-VP: swept " (itoa n) " stray viewport(s)"))
   (setq bubFit (/ (- (min (* bubRowsX (if minSpX minSpX bubPitch))
                           (* bubRowsY (if minSpY minSpY bubPitch)))
                      (* 220.0 *PEB-TEXT-SCALE*)) 2.0))
-  (if (< bubFit *PEB-BUBRAD*) (setq *PEB-BUBRAD* (max 700.0 bubFit)))
+  ;; SHRINK-TO-FIT HAS TO REACH THE CIRCLE.  Dropping *PEB-BUBRAD* alone moved the spacing and
+  ;; left grid-bubble drawing the full-size circle into the smaller gap - the shrink was dead.
+  ;; The per-sheet factor *PEB-BUB-FIT* is what grid-bubble honours, so scale THAT and re-ask.
+  (if (< bubFit *PEB-BUBRAD*)
+    (progn
+      (if (not *PEB-BUB-FIT*) (setq *PEB-BUB-FIT* 1.0))
+      (setq *PEB-BUB-FIT* (* *PEB-BUB-FIT* (/ (max 700.0 bubFit) *PEB-BUBRAD*)))
+      (setq *PEB-BUBRAD* (peb-bub-r))))
   (setq bubR (+ *PEB-BUBRAD* (* 60.0 *PEB-TEXT-SCALE*)))       ; circle edge (kept for reference)
   ;; owner 10-Jul: "the vertical dotted lines go INSIDE the bubble".  bubR only cleared the CIRCLE, but
   ;; grid-bubble also draws a tangent POINTER whose apex sits at (r + tail) = 2.15*r from the centre —
